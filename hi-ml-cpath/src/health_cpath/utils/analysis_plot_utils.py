@@ -280,6 +280,7 @@ def plot_confusion_matrices(hyperdrive_dfs: Dict[int, pd.DataFrame], class_names
     """
     hyperdrive_count = len(hyperdrive_dfs)
     fig, axs = plt.subplots(1, hyperdrive_count, figsize=(hyperdrive_count * 6, 5))
+    ax_index = 0
     for k, tiles_df in hyperdrive_dfs.items():
         slides_groupby = tiles_df.groupby(ResultsKey.SLIDE_ID)
         tile_labels_true = slides_groupby[ResultsKey.TRUE_LABEL]
@@ -296,9 +297,10 @@ def plot_confusion_matrices(hyperdrive_dfs: Dict[int, pd.DataFrame], class_names
         labels_pred = tile_labels_pred.first()
 
         cf_matrix_n = confusion_matrix(y_true=labels_true, y_pred=labels_pred, normalize='true')
-        sns.heatmap(cf_matrix_n, annot=True, cmap='Blues', fmt=".2%", ax=axs[k],
+        sns.heatmap(cf_matrix_n, annot=True, cmap='Blues', fmt=".2%", ax=axs[ax_index],
                     xticklabels=class_names, yticklabels=class_names)
-        axs[k].set_xlabel('Predicted')
-        axs[k].set_ylabel('True')
-        axs[k].set_title(f'Child {k}')
+        axs[ax_index].set_xlabel('Predicted')
+        axs[ax_index].set_ylabel('True')
+        axs[ax_index].set_title(f'Child {k}')
+        ax_index += 1
     return fig
