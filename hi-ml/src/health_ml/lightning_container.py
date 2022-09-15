@@ -232,7 +232,7 @@ class LightningContainer(WorkflowParams,
     def on_extra_validation_epoch_start(self) -> None:
         if hasattr(self.model, "on_extra_validation_epoch_start"):
             assert self._model, "Model is not initialized."
-            self._model.on_extra_validation_epoch_start()
+            self.model.on_extra_validation_epoch_start()  # type: ignore
         else:
             logging.info("Hook `on_extra_validation_epoch_start` is not implemented by lightning module."
                          "The extra validation epoch won't produce any extra outputs.")
