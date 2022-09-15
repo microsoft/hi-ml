@@ -56,7 +56,7 @@ class ImageInferenceEngine:
         return transformed_image, image.size
 
     @torch.no_grad()
-    def get_patch_embeddings_from_image(self, image_path: Path) -> Tuple[torch.Tensor, TypeShape2D]:
+    def get_projected_patch_embeddings_from_image(self, image_path: Path) -> Tuple[torch.Tensor, TypeShape2D]:
         """Compute image patch embeddings in the joint latent space, preserving the image grid.
 
         :param image_path: Path to the image to compute embeddings for.

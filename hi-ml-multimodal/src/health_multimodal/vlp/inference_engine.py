@@ -63,7 +63,8 @@ class ImageTextInferenceEngine:
 
         # TODO: Add checks in here regarding the text query, etc.
 
-        image_embedding, (width, height) = self.image_inference_engine.get_patch_embeddings_from_image(image_path)
+        image_embedding, img_shape = self.image_inference_engine.get_projected_patch_embeddings_from_image(image_path)
+        width, height = img_shape
         text_embedding = self.text_inference_engine.get_embeddings_from_prompt(query_text)
 
         sim = self._get_similarity_map_from_embeddings(image_embedding, text_embedding)

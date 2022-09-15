@@ -53,7 +53,7 @@ def test_vlp_inference(height: int, query_text: str) -> None:
         assert resampled_similarity_map.max() <= 1
 
         # Test individual components
-        image_embedding, size = img_txt_inference.image_inference_engine.get_patch_embeddings_from_image(image_path)
+        image_embedding, size = image_inference.get_projected_patch_embeddings_from_image(image_path)
 
         assert (width, height) == size
         expected_image_embedding_size = image_embedding_shapes[center_crop_size]
