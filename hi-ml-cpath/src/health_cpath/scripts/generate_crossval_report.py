@@ -60,7 +60,8 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
 
     # Add training curves for loss and AUROC (train and val.)
     render_training_curves(report, heading="Training curves", level=3,
-                           metrics_df=metrics_df, best_epochs=best_epochs, report_dir=report_dir)
+                           metrics_df=metrics_df, best_epochs=best_epochs, report_dir=report_dir,
+                           primary_metric=primary_metric)
 
     # Get metrics list with class names
     num_classes, class_names = collect_class_info(metrics_df=metrics_df)
@@ -75,7 +76,9 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
     base_metrics_list += class_names
 
     # Add tables with relevant metrics (val. and test)
-    render_metrics_table(report, heading="Validation metrics (best epoch based on maximum validation AUROC)", level=3,
+    render_metrics_table(report,
+                         heading=f"Validation metrics (best epoch based on maximum validation {primary_metric})",
+                         level=3,
                          metrics_df=metrics_df, best_epochs=best_epochs,
                          base_metrics_list=base_metrics_list, metrics_prefix=f'{ModelKey.VAL}/')
 
@@ -144,7 +147,7 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
 
 def render_training_curves(report: HTMLReport, heading: str, level: int,
                            metrics_df: pd.DataFrame, best_epochs: Optional[Dict[int, int]],
-                           report_dir: Path) -> None:
+                           report_dir: Path, primary_metric: str = MetricsKey.AUROC) -> None:
     """
     Function to render training curves for HTML reports.
 
@@ -155,15 +158,15 @@ def render_training_curves(report: HTMLReport, heading: str, level: int,
         :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
     :param best_epochs: Dictionary mapping each hyperdrive child index to its best epoch.
     :param report_dir: Directory of the HTML report.
+    :param primary_metric: Primary metric name. Default is AUROC.
     """
     report.add_heading(heading, level=level)
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))
-    plot_hyperdrive_training_curves(metrics_df, train_metric=f'{ModelKey.TRAIN}/loss_epoch',
-                                    val_metric=f'{ModelKey.VAL}/loss_epoch',
-                                    ylabel="Loss", best_epochs=best_epochs, ax=ax1)
-    plot_hyperdrive_training_curves(metrics_df, train_metric=f'{ModelKey.TRAIN}/{MetricsKey.AUROC}',
-                                    val_metric=f'{ModelKey.VAL}/{MetricsKey.AUROC}',
-                                    ylabel="AUROC", best_epochs=best_epochs, ax=ax2)
+    metrics = {"loss_epoch", MetricsKey.AUROC.value, primary_metric}
+    fig, axs = plt.subplots(1, len(metrics), figsize=(5 * len(metrics), 4))
+    for i, metric in enumerate(metrics):
+        plot_hyperdrive_training_curves(metrics_df, train_metric=f'{ModelKey.TRAIN}/{metric}',
+                                        val_metric=f'{ModelKey.VAL}/{metric}',
+                                        ylabel=metric, best_epochs=best_epochs, ax=axs[i])
     add_training_curves_legend(fig, include_best_epoch=True)
     training_curves_fig_path = report_dir / "training_curves.png"
     fig.savefig(training_curves_fig_path, bbox_inches='tight')
