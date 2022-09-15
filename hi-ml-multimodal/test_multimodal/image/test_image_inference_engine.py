@@ -33,6 +33,6 @@ def test_image_inference_engine(height: int) -> None:
         image.save(image_path)
 
         # Test individual components
-        image_embedding = image_inference.get_projected_global_embedding_from_image(image_path)
+        image_embedding = image_inference.get_projected_global_embedding(image_path)
         assert image_embedding.shape == (joint_feature_size,)
         assert torch.allclose(torch.norm(image_embedding), torch.tensor([1.00]))

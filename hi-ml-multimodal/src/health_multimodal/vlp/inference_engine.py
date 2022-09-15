@@ -43,7 +43,7 @@ class ImageTextInferenceEngine:
         query_text = [query_text] if isinstance(query_text, str) else query_text
         num_prompts = len(query_text)
 
-        image_embedding = self.image_inference_engine.get_projected_global_embedding_from_image(image_path)
+        image_embedding = self.image_inference_engine.get_projected_global_embedding(image_path)
         text_embedding = self.text_inference_engine.get_embeddings_from_prompt(query_text)
 
         assert text_embedding.shape[0] == num_prompts
@@ -72,9 +72,8 @@ class ImageTextInferenceEngine:
         assert isinstance(query_text, str)
 
         # TODO: Add checks in here regarding the text query, etc.
-        image_embedding, img_shape = self.image_inference_engine.get_projected_patch_embeddings_from_image(image_path)
+        image_embedding, (width, height) = self.image_inference_engine.get_projected_patch_embeddings(image_path)
         text_embedding = self.text_inference_engine.get_embeddings_from_prompt(query_text)
-        width, height = img_shape
 
         sim = self._get_similarity_map_from_embeddings(image_embedding, text_embedding)
 

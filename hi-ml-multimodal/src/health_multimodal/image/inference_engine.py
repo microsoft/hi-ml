@@ -56,7 +56,7 @@ class ImageInferenceEngine:
         return transformed_image, image.size
 
     @torch.no_grad()
-    def get_projected_patch_embeddings_from_image(self, image_path: Path) -> Tuple[torch.Tensor, TypeShape2D]:
+    def get_projected_patch_embeddings(self, image_path: Path) -> Tuple[torch.Tensor, TypeShape2D]:
         """Compute image patch embeddings in the joint latent space, preserving the image grid.
 
         :param image_path: Path to the image to compute embeddings for.
@@ -70,11 +70,12 @@ class ImageInferenceEngine:
         return projected_img_emb[0], img_shape
 
     @torch.no_grad()
-    def get_projected_global_embedding_from_image(self, image_path: Path) -> torch.Tensor:
+    def get_projected_global_embedding(self, image_path: Path) -> torch.Tensor:
         """Compute global image embedding in the joint latent space.
 
         :param image_path: Path to the image to compute embeddings for.
         :return: Torch tensor containing l2-normalised global image embedding [joint_feature_dim,]
+                 where joint_feature_dim is the dimensionality of the joint latent space.
         """
         input_image, _ = self.load_and_transform_input_image(image_path, self.transform)
         projected_img_emb = self.model.forward(input_image).projected_global_embedding
