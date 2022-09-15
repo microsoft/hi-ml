@@ -163,26 +163,28 @@ def test_run_validation(run_extra_val_epoch: bool) -> None:
     container = HelloWorld()
     container.create_lightning_module_and_store()
     container.run_extra_val_epoch = run_extra_val_epoch
-    container.model.run_extra_val_epoch = run_extra_val_epoch  # type: ignore
+    container.model._run_extra_val_epoch = run_extra_val_epoch  # type: ignore
     runner = MLRunner(experiment_config=experiment_config, container=container)
 
     with patch.object(container, "get_data_module"):
-        with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
-            runner.setup()
-            mock_trainer = MagicMock()
-            mock_storing_logger = MagicMock()
-            mock_create_trainer.return_value = mock_trainer, mock_storing_logger
-            runner.init_training()
+        with patch.object(container, "on_extra_validation_epoch_start") as mock_on_extra_validation_epoch_start:
+            with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+                runner.setup()
+                mock_trainer = MagicMock()
+                mock_storing_logger = MagicMock()
+                mock_create_trainer.return_value = mock_trainer, mock_storing_logger
+                runner.init_training()
 
-            assert runner.trainer == mock_trainer
-            assert runner.storing_logger == mock_storing_logger
+                assert runner.trainer == mock_trainer
+                assert runner.storing_logger == mock_storing_logger
 
-            mock_trainer.validate = Mock()
+                mock_trainer.validate = Mock()
 
-            if run_extra_val_epoch:
-                runner.run_validation()
+                if run_extra_val_epoch:
+                    runner.run_validation()
 
-            assert mock_trainer.validate.called == run_extra_val_epoch
+                assert mock_trainer.validate.called == run_extra_val_epoch
+                assert mock_on_extra_validation_epoch_start.called == run_extra_val_epoch
 
 
 def test_run_inference(ml_runner_with_container: MLRunner, tmp_path: Path) -> None:

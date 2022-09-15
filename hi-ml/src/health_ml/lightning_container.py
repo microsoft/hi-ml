@@ -228,6 +228,12 @@ class LightningContainer(WorkflowParams,
         """Returns a dictionary of tags that should be added to the AzureML run."""
         return {}
 
+    def on_extra_validation_epoch_start(self) -> None:
+        assert hasattr(self.model, "on_extra_validation_epoch_start"), "Hook `on_extra_validation_epoch_start` is not "
+        "implemented by lightning module. This is required for running an additional validation epoch to save plots."
+        assert self._model, "Model is not initialized."
+        self._model.on_extra_validation_epoch_start()
+
 
 class LightningModuleWithOptimizer(LightningModule):
     """
