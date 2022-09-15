@@ -201,7 +201,7 @@ def _plot_hyperdrive_roc_and_pr_curves(hyperdrive_dfs: Dict[int, pd.DataFrame], 
 
 def plot_hyperdrive_roc_and_pr_curves(hyperdrive_dfs: Dict[int, pd.DataFrame],
                                       scores_column: str = ResultsKey.PROB) -> Figure:
-    """Plot ROC and precision-recall curves for multiple hyperdrive cgild runs.
+    """Plot ROC and precision-recall curves for multiple hyperdrive child runs.
 
     This will create a new figure with two subplots (left: ROC, right: PR).
 
