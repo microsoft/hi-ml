@@ -65,12 +65,12 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
     # Get metrics list with class names
     num_classes, class_names = collect_class_info(metrics_df=metrics_df)
 
-    base_metrics_list: List[str]
+    base_metrics_list: List[str] = [MetricsKey.ACC, MetricsKey.AUROC, MetricsKey.AVERAGE_PRECISION,
+                                    MetricsKey.COHENKAPPA]
     if num_classes > 1:
-        base_metrics_list = [MetricsKey.ACC, MetricsKey.AUROC]
+        base_metrics_list += [MetricsKey.ACC_MACRO, MetricsKey.ACC_WEIGHTED]
     else:
-        base_metrics_list = [MetricsKey.ACC, MetricsKey.AUROC, MetricsKey.PRECISION, MetricsKey.RECALL, MetricsKey.F1,
-                             MetricsKey.AVERAGE_PRECISION, MetricsKey.COHENKAPPA, MetricsKey.SPECIFICITY]
+        base_metrics_list += [MetricsKey.F1, MetricsKey.PRECISION, MetricsKey.RECALL, MetricsKey.SPECIFICITY]
 
     base_metrics_list += class_names
 
@@ -254,7 +254,7 @@ if __name__ == "__main__":
                                                                  "even if they already exist locally.")
     parser.add_argument("--hyper_arg_name", default="crossval_index",
                         help="Name of the Hyperdrive argument used for indexing the child runs.")
-    parser.add_argument("--primary_metric", default="auroc", help="Name of the reference metric to optimise.")
+    parser.add_argument("--primary_metric", default=MetricsKey.AUROC, help="Name of the reference metric to optimise.")
     args = parser.parse_args()
 
     if args.output_dir is None:
