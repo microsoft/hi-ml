@@ -44,7 +44,7 @@ class ImageTextInferenceEngine:
         num_prompts = len(query_text)
 
         image_embedding = self.image_inference_engine.get_projected_global_embedding(image_path)
-        text_embedding = self.text_inference_engine.get_embeddings_from_prompt(query_text)
+        text_embedding = self.text_inference_engine.get_embeddings_from_prompt(query_text, normalize=False)
 
         assert text_embedding.shape[0] == num_prompts
         text_embedding = text_embedding.mean(dim=0)

@@ -48,10 +48,14 @@ class TextInferenceEngine(TextInput):
         return tokenizer_output
 
     @torch.no_grad()
-    def get_embeddings_from_prompt(self, prompts: Union[str, List[str]], verbose: bool = True) -> torch.Tensor:
+    def get_embeddings_from_prompt(self,
+                                   prompts: Union[str, List[str]],
+                                   normalize: bool = True,
+                                   verbose: bool = True) -> torch.Tensor:
         """Generate L2-normalised embeddings for a list of input text prompts.
 
         :param prompts: Input text prompt(s) either in string or list of string format.
+        :param normalize: If True, L2-normalise the embeddings.
         :param verbose: If set to True, tokenized words are displayed in the console.
         :return: Tensor of shape (batch_size, embedding_size).
         """
@@ -60,7 +64,8 @@ class TextInferenceEngine(TextInput):
         tokenizer_output = self.tokenize_input_prompts(prompts=prompts, verbose=verbose)
         txt_emb = self.model.get_projected_text_embeddings(  # type: ignore
             input_ids=tokenizer_output.input_ids,
-            attention_mask=tokenizer_output.attention_mask)
+            attention_mask=tokenizer_output.attention_mask,
+            normalize_embeddings=normalize)
 
         return txt_emb
 
