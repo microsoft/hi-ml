@@ -9,6 +9,7 @@ from typing import List, Union
 import numpy as np
 import pytest
 import torch
+from torchvision.datasets.utils import download_url
 from health_multimodal.image import ImageInferenceEngine, ImageModel, ResnetType
 from health_multimodal.image.data.transforms import create_chest_xray_transform_for_inference
 from health_multimodal.image.model.model import JOINT_FEATURE_SIZE
@@ -85,7 +86,50 @@ def test_vlp_inference_global_similarity(query_text: str) -> None:
         image.save(image_path)
 
         # Test global similarity score
-        sim_score = img_txt_inference.get_similarity_score_from_raw_data(image_path=image_path,
-                                                                         query_text=query_text)
+        sim_score = img_txt_inference.get_similarity_score_from_raw_data(
+            image_path=image_path,
+            query_text=query_text,
+        )
         assert isinstance(sim_score, float)
         assert 1 >= sim_score >= -1
+
+
+def test_real_case_similarity() -> None:
+    cxr_url = "https://prod-images-static.radiopaedia.org/images/1371188/0a1f5edc85aa58d5780928cb39b08659c1fc4d6d7c7dce2f8db1d63c7c737234_gallery.jpeg"  # noqa: E501
+    prompt_templates = "There is pneumonia in the {} lung", "pneumonia is visible in the {} lung"
+
+    with tempfile.NamedTemporaryFile(suffix='.jpg') as f:
+        image_path = Path(f.name)
+        download_url(
+            cxr_url,
+            str(image_path.parent),
+            image_path.name,
+            md5="5ba78c33818af39928939a7817541933",
+        )
+        img_txt_inference = _get_vlp_inference_engine()
+
+        # Test single prompt
+        positive_prompt = prompt_templates[0].format("right")
+        negative_prompt = prompt_templates[0].format("left")
+        positive_score = img_txt_inference.get_similarity_score_from_raw_data(
+            image_path=image_path,
+            query_text=positive_prompt,
+        )
+        negative_score = img_txt_inference.get_similarity_score_from_raw_data(
+            image_path=image_path,
+            query_text=negative_prompt,
+        )
+        assert positive_score > negative_score
+
+        # Test average of multiple, similar prompts
+        positive_prompts = [template.format("right") for template in prompt_templates]
+        negative_prompts = [template.format("left") for template in prompt_templates]
+        positive_score = img_txt_inference.get_similarity_score_from_raw_data(
+            image_path=image_path,
+            query_text=positive_prompts,
+        )
+        negative_score = img_txt_inference.get_similarity_score_from_raw_data(
+            image_path=image_path,
+            query_text=negative_prompts,
+        )
+        assert positive_score > negative_score
