@@ -31,7 +31,9 @@ class ImageTextInferenceEngine:
     def get_similarity_score_from_raw_data(self,
                                            image_path: Path,
                                            query_text: Union[List[str], str]) -> float:
-        """Return the similarity score between the image and the text.
+        """Compute the cosine similarity score between an image and one or more strings.
+
+        If multiple strings are passed, their embeddings are averaged before L2-normalization.
 
         :param image_path: Path to the input chest X-ray, either a DICOM or JPEG file.
         :param query_text: Input radiology text phrase.
@@ -92,8 +94,7 @@ class ImageTextInferenceEngine:
     def _get_similarity_map_from_embeddings(projected_patch_embeddings: torch.Tensor,
                                             projected_text_embeddings: torch.Tensor,
                                             sigma: float = 1.5) -> torch.Tensor:
-        """
-        Get smoothed similarity map for a given image patch embeddings and text embeddings.
+        """Get smoothed similarity map for a given image patch embeddings and text embeddings.
 
         :param projected_patch_embeddings: [n_patches_h, n_patches_w, feature_size]
         :param projected_text_embeddings: [1, feature_size]
