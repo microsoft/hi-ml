@@ -277,7 +277,7 @@ class MLRunner:
         """
         Run validation on the validation set for all models to save time/memory consuming outputs.
         """
-        self.container.on_extra_validation_epoch_start()
+        self.container.on_run_extra_validation_epoch()
         with change_working_directory(self.container.outputs_folder):
             assert self.trainer, "Trainer should be initialized before validation. Call self.init_training() first."
             self.trainer.validate(self.container.model, datamodule=self.data_module)

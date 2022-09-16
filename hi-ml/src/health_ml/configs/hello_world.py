@@ -232,7 +232,7 @@ class HelloRegression(LightningModule):
         Path("test_mae.txt").write_text(str(self.test_mae.compute().item()))
         self.log("test_mse", average_mse, on_epoch=True, on_step=False)
 
-    def on_extra_validation_epoch_start(self) -> None:
+    def on_run_extra_validation_epoch(self) -> None:
         self._run_extra_val_epoch = True
 
 

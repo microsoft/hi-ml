@@ -166,7 +166,7 @@ def test_run_validation(run_extra_val_epoch: bool) -> None:
     runner = MLRunner(experiment_config=experiment_config, container=container)
 
     with patch.object(container, "get_data_module"):
-        with patch.object(container, "on_extra_validation_epoch_start") as mock_on_extra_validation_epoch_start:
+        with patch.object(container, "on_run_extra_validation_epoch") as mock_on_run_extra_validation_epoch:
             with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
                 runner.setup()
                 mock_trainer = MagicMock()
@@ -182,8 +182,8 @@ def test_run_validation(run_extra_val_epoch: bool) -> None:
                 if run_extra_val_epoch:
                     runner.run_validation()
 
-                assert mock_on_extra_validation_epoch_start.called == run_extra_val_epoch
-                assert hasattr(container.model, "on_extra_validation_epoch_start")
+                assert mock_on_run_extra_validation_epoch.called == run_extra_val_epoch
+                assert hasattr(container.model, "on_run_extra_validation_epoch")
                 assert mock_trainer.validate.called == run_extra_val_epoch
 
 

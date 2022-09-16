@@ -91,7 +91,7 @@ class BaseDeepMILModule(LightningModule):
         self.pretrained_classifier = pretrained_classifier
 
         # This flag can be switched on before invoking trainer.validate() to enable saving additional time/memory
-        # consuming validation outputs via calling self.on_extra_validation_epoch_start()
+        # consuming validation outputs via calling self.on_run_extra_validation_epoch()
         self._run_extra_val_epoch = False
         self.tune_classifier = tune_classifier
 
@@ -386,7 +386,7 @@ class BaseDeepMILModule(LightningModule):
                 is_global_rank_zero=self.global_rank == 0
             )
 
-    def on_extra_validation_epoch_start(self) -> None:
+    def on_run_extra_validation_epoch(self) -> None:
         """Hook to be called at the beginning of an extra validation epoch to set validation plots options to the same
         as the test plots options."""
         self._run_extra_val_epoch = True
