@@ -34,6 +34,12 @@ This will create a `conda` environment named `multimodal` and install all the de
 
 You can visit the [API documentation][9] for a deeper understanding of our tools.
 
+## Examples
+
+For zero-shot classification of images using text prompts, please refer to the [example
+script](./test_multimodal/vlp/test_zero_shot_classification.py) that utilises a small subset of [Open-Indiana CXR
+dataset][10] for pneumonia detection.
+
 ## Hugging Face 🤗
 
 While the [GitHub repository][1] provides examples and pipelines to use our models,
@@ -70,3 +76,4 @@ If you use our code or models in your research, please cite [the manuscript][7] 
 [7]: https://arxiv.org/abs/2204.09817
 [8]: https://eccv2022.ecva.net/
 [9]: https://hi-ml.readthedocs.io/en/latest/api/multimodal.html
+[10]: https://openi.nlm.nih.gov/faq
