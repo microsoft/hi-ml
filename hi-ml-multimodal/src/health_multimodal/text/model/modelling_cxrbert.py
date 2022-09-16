@@ -114,13 +114,17 @@ class CXRBertModel(BertForMaskedLM):
                 bert_for_masked_lm_output.hidden_states,
                 bert_for_masked_lm_output.attentions,)
 
-    def get_projected_text_embeddings(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
+    def get_projected_text_embeddings(self,
+                                      input_ids: torch.Tensor,
+                                      attention_mask: torch.Tensor,
+                                      normalize_embeddings: bool = True) -> torch.Tensor:
         """
         Returns l2-normalised projected cls token embeddings for the given input token ids and attention mask.
         The joint latent space is trained using a contrastive objective between image and text data modalities.
 
         :param input_ids: (batch_size, sequence_length)
         :param attention_mask: (batch_size, sequence_length)
+        :param normalize_embeddings: Whether to l2-normalise the embeddings.
         :return: (batch_size, projection_size)
         """
 
@@ -128,6 +132,10 @@ class CXRBertModel(BertForMaskedLM):
                                output_cls_projected_embedding=True, return_dict=True)
         assert isinstance(outputs, CXRBertOutput)
 
-        assert outputs.cls_projected_embedding is not None
-        normalized_cls_embedding = F.normalize(outputs.cls_projected_embedding, dim=1)
-        return normalized_cls_embedding
+        cls_projected_embedding = outputs.cls_projected_embedding
+        assert cls_projected_embedding is not None
+
+        if normalize_embeddings:
+            return F.normalize(cls_projected_embedding, dim=1)
+
+        return cls_projected_embedding
