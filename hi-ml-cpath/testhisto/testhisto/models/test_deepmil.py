@@ -700,3 +700,21 @@ def test_checkpoint_name(container_type: Type[BaseMILTiles], primary_val_metric:
 
     metric_optim = "max" if maximise_primary_metric else "min"
     assert container.best_checkpoint_filename == f"checkpoint_{metric_optim}_val_{primary_val_metric.value}"
+
+
+def test_on_run_extra_val_epoch(mock_panda_tiles_root_dir: Path) -> None:
+    container = MockDeepSMILETilesPanda(tmp_path=mock_panda_tiles_root_dir)
+    container.setup()
+    container.data_module = MagicMock()
+    container.create_lightning_module_and_store()
+    assert not container.model._run_extra_val_epoch
+    assert (
+        container.model.outputs_handler.test_plots_handler.plot_options  # type: ignore
+        != container.model.outputs_handler.val_plots_handler.plot_options  # type: ignore
+    )
+    container.on_run_extra_validation_epoch()
+    assert container.model._run_extra_val_epoch
+    assert (
+        container.model.outputs_handler.test_plots_handler.plot_options  # type: ignore
+        == container.model.outputs_handler.val_plots_handler.plot_options  # type: ignore
+    )
