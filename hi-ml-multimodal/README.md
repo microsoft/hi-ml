@@ -38,7 +38,8 @@ You can visit the [API documentation][9] for a deeper understanding of our tools
 
 For zero-shot classification of images using text prompts, please refer to the [example
 script](./test_multimodal/vlp/test_zero_shot_classification.py) that utilises a small subset of [Open-Indiana CXR
-dataset][10] for pneumonia detection.
+dataset][10] for pneumonia detection in Chest X-ray images. Please note that the examples and models are not intended for
+deployed use cases -- commercial or otherwise -- which is currently out-of-scope.
 
 ## Hugging Face 🤗
 
