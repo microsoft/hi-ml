@@ -234,8 +234,8 @@ class LightningContainer(WorkflowParams,
             assert self._model, "Model is not initialized."
             self.model.on_run_extra_validation_epoch()  # type: ignore
         else:
-            logging.info("Hook `on_run_extra_validation_epoch` is not implemented by lightning module."
-                         "The extra validation epoch won't produce any extra outputs.")
+            logging.warning("Hook `on_run_extra_validation_epoch` is not implemented by lightning module."
+                            "The extra validation epoch won't produce any extra outputs.")
 
 
 class LightningModuleWithOptimizer(LightningModule):
