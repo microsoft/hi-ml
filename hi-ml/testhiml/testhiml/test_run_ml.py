@@ -187,6 +187,36 @@ def test_run_validation(run_extra_val_epoch: bool) -> None:
                 assert mock_trainer.validate.called == run_extra_val_epoch
 
 
+@pytest.mark.parametrize("run_extra_val_epoch", [True, False])
+def test_model_extra_val_epoch(run_extra_val_epoch: bool) -> None:
+    experiment_config = ExperimentConfig(model="HelloWorld")
+    with patch(
+        "health_ml.configs.hello_world.HelloRegression.on_run_extra_validation_epoch"
+    ) as mock_on_run_extra_validation_epoch:
+        container = HelloWorld()
+        container.run_extra_val_epoch = run_extra_val_epoch
+        container.create_lightning_module_and_store()
+        runner = MLRunner(experiment_config=experiment_config, container=container)
+        with patch.object(container, "get_data_module"):
+            with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+                runner.setup()
+                mock_trainer = MagicMock()
+                mock_storing_logger = MagicMock()
+                mock_create_trainer.return_value = mock_trainer, mock_storing_logger
+                runner.init_training()
+
+                assert runner.trainer == mock_trainer
+                assert runner.storing_logger == mock_storing_logger
+
+                mock_trainer.validate = Mock()
+
+                if run_extra_val_epoch:
+                    runner.run_validation()
+
+                assert mock_on_run_extra_validation_epoch.called == run_extra_val_epoch
+                assert mock_trainer.validate.called == run_extra_val_epoch
+
+
 def test_run_inference(ml_runner_with_container: MLRunner, tmp_path: Path) -> None:
     """
     Test that run_inference gets called as expected.
@@ -268,9 +298,7 @@ def test_run_inference_only(ml_runner_with_run_id: MLRunner) -> None:
     ml_runner_with_run_id.container.run_inference_only = True
     assert ml_runner_with_run_id.checkpoint_handler.trained_weights_path
     with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
-        with patch.multiple(
-            ml_runner_with_run_id, run_training=DEFAULT, run_validation=DEFAULT
-        ) as mocks:
+        with patch.multiple(ml_runner_with_run_id, run_training=DEFAULT, run_validation=DEFAULT) as mocks:
             mock_trainer = MagicMock()
             mock_create_trainer.return_value = mock_trainer, MagicMock()
             ml_runner_with_run_id.run()

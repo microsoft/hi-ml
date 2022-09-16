@@ -230,7 +230,7 @@ class LightningContainer(WorkflowParams,
         return {}
 
     def on_run_extra_validation_epoch(self) -> None:
-        if hasattr(self.model, "on_run_extra_validation_epochv"):
+        if hasattr(self.model, "on_run_extra_validation_epoch"):
             assert self._model, "Model is not initialized."
             self.model.on_run_extra_validation_epoch()  # type: ignore
         else:
