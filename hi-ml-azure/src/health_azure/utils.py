@@ -25,15 +25,19 @@ from typing import (Any, Callable, DefaultDict, Dict, Generator, Iterable, List,
                     Union)
 
 import conda_merge
+import mlflow
 import pandas as pd
 import param
-from azureml._restclient.constants import RunStatus
-from azureml.core import Environment, Experiment, Run, Workspace, get_run
-from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
-from azureml.core.conda_dependencies import CondaDependencies
-from azureml.core.run import _OfflineRun
-from azureml.data.azure_storage_datastore import AzureBlobDatastore
-from azureml.train.hyperdrive import HyperDriveRun
+from azure.ai.ml import MLClient
+from azure.ai.ml.entities import Environment, Job, Workspace
+from azure.identity import ClientSecretCredential, DefaultAzureCredential, DeviceCodeCredential
+# from azureml._restclient.constants import RunStatus
+# from azureml.core import Environment, Experiment, Run, Workspace, get_run
+# from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
+# from azureml.core.conda_dependencies import CondaDependencies
+# from azureml.core.run import _OfflineRun
+# from azureml.data.azure_storage_datastore import AzureBlobDatastore
+# from azureml.train.hyperdrive import HyperDriveRun
 
 
 T = TypeVar("T")
@@ -691,9 +695,22 @@ def find_file_in_parent_to_pythonpath(file_name: str) -> Optional[Path]:
     return find_file_in_parent_folders(file_name=file_name, stop_at_path=pythonpaths)
 
 
-def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_path: Optional[Path] = None) -> Workspace:
+def get_workspace_client(workspace_config_path: str) -> MLClient:
+        credential = get_credential()
+        workspace = MLClient.from_config(credential=credential, path=str(workspace_config_path))
+        logging.info(f"Logged into AzureML workspace {workspace.workspace_name}")
+        return workspace
+
+
+def retrieve_workspace_from_client(client: MLClient) -> Workspace:
+    workspace_name = client.workspace_name
+    workspace = client.workspaces.get(workspace_name)
+    return workspace
+
+
+def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_path: Optional[PathOrString] = None) -> Workspace:
     """
-    Retrieve an Azure ML Workspace from one of several places:
+    Retrieve an Azure ML workspace from one of several places:
       1. If the function has been called during an AML run (i.e. on an Azure agent), returns the associated workspace
       2. If a Workspace object has been provided by the user, return that
       3. If a path to a Workspace config file has been provided, load the workspace according to that.
@@ -720,12 +737,11 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
         else:
             raise ValueError("No workspace config file given, nor can we find one.")
 
-    if not isinstance(workspace_config_path, Path):
-        raise ValueError("Workspace config path is not a path, check your input.")
+    if isinstance(workspace_config_path, Path):
+        workspace_config_path = str(workspace_config_path)
     elif workspace_config_path.is_file():
-        auth = get_authentication()
-        workspace = Workspace.from_config(path=str(workspace_config_path), auth=auth)
-        logging.info(f"Logged into AzureML workspace {workspace.name}")
+        workspace_client = get_workspace_client(workspace_config_path)
+        workspace = retrieve_workspace_from_client(workspace_client)
         return workspace
 
     raise ValueError("Workspace config file does not exist or cannot be read.")
@@ -764,24 +780,26 @@ def split_recovery_id(id_str: str) -> Tuple[str, str]:
         return (match.group(1) or match.group(2)), id_str
 
 
-def fetch_run(workspace: Workspace, run_recovery_id: str) -> Run:
-    """
-    Finds an existing run in an experiment, based on a recovery ID that contains the experiment ID and the actual RunId.
-    The run can be specified either in the experiment_name:run_id format, or just the run_id.
+# def fetch_run(workspace: Workspace, run_recovery_id: str) -> Run:
+#     """
+#     Finds an existing run in an experiment, based on a recovery ID that contains the experiment ID and the actual RunId.
+#     The run can be specified either in the experiment_name:run_id format, or just the run_id.
 
-    :param workspace: the configured AzureML workspace to search for the experiment.
-    :param run_recovery_id: The Run to find. Either in the full recovery ID format, experiment_name:run_id or
-        just the run_id
-    :return: The AzureML run.
-    """
-    experiment, run = split_recovery_id(run_recovery_id)
-    try:
-        experiment_to_recover = Experiment(workspace, experiment)
-    except Exception as ex:
-        raise Exception(f"Unable to retrieve run {run} in experiment {experiment}: {str(ex)}")
-    run_to_recover = fetch_run_for_experiment(experiment_to_recover, run)
-    logging.info(f"Fetched run #{run_to_recover.number} {run} from experiment {experiment}.")
-    return run_to_recover
+#     :param workspace: the configured AzureML workspace to search for the experiment.
+#     :param run_recovery_id: The Run to find. Either in the full recovery ID format, experiment_name:run_id or
+#         just the run_id
+#     :return: The AzureML run.
+#     """
+#     experiment, run = split_recovery_id(run_recovery_id)
+#     try:
+#         experiment_to_recover = Experiment(workspace, experiment)
+#     except Exception as ex:
+#         raise Exception(f"Unable to retrieve run {run} in experiment {experiment}: {str(ex)}")
+#     run_to_recover = fetch_run_for_experiment(experiment_to_recover, run)
+#     logging.info(f"Fetched run #{run_to_recover.number} {run} from experiment {experiment}.")
+#     return run_to_recover
+def fetch_job(client: MLClient, run_id: str):
+    job = client.jobs.get(run_id)
 
 
 def fetch_run_for_experiment(experiment_to_recover: Experiment, run_id: str) -> Run:
@@ -802,28 +820,25 @@ def fetch_run_for_experiment(experiment_to_recover: Experiment, run_id: str) -> 
         )
 
 
-def get_authentication() -> Union[InteractiveLoginAuthentication, ServicePrincipalAuthentication]:
-    """
-    Creates a service principal authentication object with the application ID stored in the present object. The
-    application key is read from the environment.
-
-    :return: A ServicePrincipalAuthentication object that has the application ID and key or None if the key is not
-        present
-    """
+def get_credential() -> Union[ClientSecretCredential, DeviceCodeCredential]:
     service_principal_id = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_ID, allow_missing=True)
     tenant_id = get_secret_from_environment(ENV_TENANT_ID, allow_missing=True)
     service_principal_password = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
     if service_principal_id and tenant_id and service_principal_password:
-        return ServicePrincipalAuthentication(
+        return ClientSecretCredential(
             tenant_id=tenant_id,
-            service_principal_id=service_principal_id,
-            service_principal_password=service_principal_password,
-        )
+            client_id=service_principal_id,
+            client_secret=service_principal_password)
+    # try:
+    #     credential = DefaultAzureCredential()
+    #     # Check if given credential can get token successfully.
+    #     credential.get_token("https://management.azure.com/.default")
+    # except Exception as ex:
     logging.info(
         "Using interactive login to Azure. To use Service Principal authentication, set the environment "
         f"variables {ENV_SERVICE_PRINCIPAL_ID}, {ENV_SERVICE_PRINCIPAL_PASSWORD}, and {ENV_TENANT_ID}"
     )
-    return InteractiveLoginAuthentication()
+    return DeviceCodeCredential()
 
 
 def get_secret_from_environment(name: str, allow_missing: bool = False) -> Optional[str]:
@@ -1212,25 +1227,32 @@ def set_environment_variables_for_multi_node() -> None:
     logging.info(f"Distributed training: {env_vars}")
 
 
-def is_run_and_child_runs_completed(run: Run) -> bool:
-    """
-    Checks if the given run has successfully completed. If the run has child runs, it also checks if the child runs
-    completed successfully.
+# TODO: Job doesnt have get_children attribute
+# def is_run_and_child_runs_completed(run: Run) -> bool:
+#     """
+#     Checks if the given run has successfully completed. If the run has child runs, it also checks if the child runs
+#     completed successfully.
 
-    :param run: The AzureML run to check.
-    :return: True if the run and all child runs completed successfully.
-    """
+#     :param run: The AzureML run to check.
+#     :return: True if the run and all child runs completed successfully.
+#     """
 
-    def is_completed(run_: Run) -> bool:
-        status = run_.get_status()
-        if run_.status == RunStatus.COMPLETED:
-            return True
-        logging.info(f"Run {run_.id} in experiment {run_.experiment.name} finished with status {status}.")
-        return False
+#     def is_completed(run_: Run) -> bool:
+#         status = run_.get_status()
+#         if run_.status == RunStatus.COMPLETED:
+#             return True
+#         logging.info(f"Run {run_.id} in experiment {run_.experiment.name} finished with status {status}.")
+#         return False
 
-    runs = list(run.get_children())
-    runs.append(run)
-    return all(is_completed(run) for run in runs)
+#     runs = list(run.get_children())
+#     runs.append(run)
+#     return all(is_completed(run) for run in runs)
+
+
+def is_job_completed(job: Job):
+    status = job.status
+    if job.status == "Completed":
+        return True
 
 
 def get_most_recent_run_id(run_recovery_file: Path) -> str:
@@ -1899,42 +1921,52 @@ def replace_directory(source: Path, target: Path) -> None:
     assert not source.exists()
 
 
-def create_aml_run_object(
-    experiment_name: str,
-    run_name: Optional[str] = None,
-    workspace: Optional[Workspace] = None,
-    workspace_config_path: Optional[Path] = None,
-    snapshot_directory: Optional[PathOrString] = None,
-) -> Run:
+# def create_aml_run_object(
+#     experiment_name: str,
+#     run_name: Optional[str] = None,
+#     workspace: Optional[Workspace] = None,
+#     workspace_config_path: Optional[Path] = None,
+#     snapshot_directory: Optional[PathOrString] = None,
+# ) -> Run:
+#     """
+#     Creates an AzureML Run object in the given workspace, or in the workspace given by the AzureML config file.
+#     This Run object can be used to write metrics to AzureML, upload files, etc, when the code is not running in
+#     AzureML. After finishing all operations, use `run.flush()` to write metrics to the cloud, and `run.complete()` or
+#     `run.fail()`.
+
+#     Example:
+#     >>>run = create_aml_run_object(experiment_name="run_on_my_vm", run_name="try1")
+#     >>>run.log("foo", 1.23)
+#     >>>run.flush()
+#     >>>run.complete()
+
+#     :param experiment_name: The AzureML experiment that should hold the run that will be created.
+#     :param run_name: An optional name for the run (this will be used as the display name in the AzureML UI)
+#     :param workspace: If provided, use this workspace to create the run in. If not provided, use the workspace
+#         specified by the `config.json` file in the folder or its parent folder(s).
+#     :param workspace_config_path: If not provided with an AzureML workspace, then load one given the information in this
+#         config file.
+#     :param snapshot_directory: The folder that should be included as the code snapshot. By default, no snapshot
+#         is created (snapshot_directory=None or snapshot_directory=""). Set this to the folder that contains all the
+#         code your experiment uses. You can use a file .amlignore to skip specific files or folders, akin to .gitignore
+#     :return: An AzureML Run object.
+#     """
+#     actual_workspace = get_workspace(aml_workspace=workspace, workspace_config_path=workspace_config_path)
+#     exp = Experiment(workspace=actual_workspace, name=experiment_name)
+#     if snapshot_directory is None or snapshot_directory == "":
+#         snapshot_directory = tempfile.mkdtemp()
+#     return exp.start_logging(display_name=run_name, snapshot_directory=str(snapshot_directory))  # type: ignore
+
+def start_mlflow_run(experiment_name: str):
     """
-    Creates an AzureML Run object in the given workspace, or in the workspace given by the AzureML config file.
-    This Run object can be used to write metrics to AzureML, upload files, etc, when the code is not running in
-    AzureML. After finishing all operations, use `run.flush()` to write metrics to the cloud, and `run.complete()` or
-    `run.fail()`.
+    Set an MLFlow experiment to log to, and start a run
 
-    Example:
-    >>>run = create_aml_run_object(experiment_name="run_on_my_vm", run_name="try1")
-    >>>run.log("foo", 1.23)
-    >>>run.flush()
-    >>>run.complete()
-
-    :param experiment_name: The AzureML experiment that should hold the run that will be created.
-    :param run_name: An optional name for the run (this will be used as the display name in the AzureML UI)
-    :param workspace: If provided, use this workspace to create the run in. If not provided, use the workspace
-        specified by the `config.json` file in the folder or its parent folder(s).
-    :param workspace_config_path: If not provided with an AzureML workspace, then load one given the information in this
-        config file.
-    :param snapshot_directory: The folder that should be included as the code snapshot. By default, no snapshot
-        is created (snapshot_directory=None or snapshot_directory=""). Set this to the folder that contains all the
-        code your experiment uses. You can use a file .amlignore to skip specific files or folders, akin to .gitignore
-    :return: An AzureML Run object.
+    :param experiment_name: _description_
+    :return: _description_
     """
-    actual_workspace = get_workspace(aml_workspace=workspace, workspace_config_path=workspace_config_path)
-    exp = Experiment(workspace=actual_workspace, name=experiment_name)
-    if snapshot_directory is None or snapshot_directory == "":
-        snapshot_directory = tempfile.mkdtemp()
-    return exp.start_logging(display_name=run_name, snapshot_directory=str(snapshot_directory))  # type: ignore
-
+    mlflow.set_experiment(experiment_name)
+    mlflow_run = mlflow.strt_run()
+    return mlflow_run
 
 def aml_workspace_for_unittests() -> Workspace:
     """

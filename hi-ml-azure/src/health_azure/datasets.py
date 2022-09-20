@@ -7,10 +7,10 @@ import tempfile
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple, Union
 
-from azureml.core import Dataset, Datastore, Workspace
-from azureml.data import FileDataset, OutputFileDatasetConfig
-from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
-from azureml.dataprep.fuse.daemon import MountContext
+# from azureml.core import Dataset, Datastore, Workspace
+# from azureml.data import FileDataset, OutputFileDatasetConfig
+# from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
+# from azureml.dataprep.fuse.daemon import MountContext
 
 from health_azure.utils import PathOrString, get_workspace
 
