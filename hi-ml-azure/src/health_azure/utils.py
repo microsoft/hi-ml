@@ -31,6 +31,8 @@ import param
 from azure.ai.ml import MLClient
 from azure.ai.ml.entities import Environment, Job, Workspace
 from azure.identity import ClientSecretCredential, DefaultAzureCredential, DeviceCodeCredential
+from mlflow.entities import Run as MLFlowRun
+from mlflow.tracking import MlflowClient
 # from azureml._restclient.constants import RunStatus
 # from azureml.core import Environment, Experiment, Run, Workspace, get_run
 # from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
@@ -83,7 +85,7 @@ ENVIRONMENT_VERSION = "1"
 FINAL_MODEL_FOLDER = "final_model"
 MODEL_ID_KEY_NAME = "model_id"
 PYTHON_ENVIRONMENT_NAME = "python_environment_name"
-RUN_CONTEXT: Run = Run.get_context()
+# RUN_CONTEXT: Run = Run.get_context()
 PARENT_RUN_CONTEXT = getattr(RUN_CONTEXT, "parent", None)
 WORKSPACE_CONFIG_JSON = "config.json"
 
@@ -739,7 +741,7 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
 
     if isinstance(workspace_config_path, Path):
         workspace_config_path = str(workspace_config_path)
-    elif workspace_config_path.is_file():
+    elif Path(workspace_config_path).is_file():
         workspace_client = get_workspace_client(workspace_config_path)
         workspace = retrieve_workspace_from_client(workspace_client)
         return workspace
@@ -754,7 +756,10 @@ def create_run_recovery_id(run: Run) -> str:
     :param run: an instantiated run.
     :return: recovery id for a given run in format: [experiment name]:[run id]
     """
-    return str(run.experiment.name + EXPERIMENT_RUN_SEPARATOR + run.id)
+    # TODO: DO WE NEED THIS ANYMORE?
+    experiment_name = job.experiment.name
+    run_id = job.name
+    return str(experiment_name + EXPERIMENT_RUN_SEPARATOR + run_id)
 
 
 def split_recovery_id(id_str: str) -> Tuple[str, str]:
@@ -802,22 +807,22 @@ def fetch_job(client: MLClient, run_id: str):
     job = client.jobs.get(run_id)
 
 
-def fetch_run_for_experiment(experiment_to_recover: Experiment, run_id: str) -> Run:
-    """
-    Gets an AzureML Run object for a given run ID in an experiment.
+# def fetch_run_for_experiment(experiment_to_recover: Experiment, run_id: str) -> Run:
+#     """
+#     Gets an AzureML Run object for a given run ID in an experiment.
 
-    :param experiment_to_recover: an experiment
-    :param run_id: a string representing the Run ID of one of the runs of the experiment
-    :return: the run matching run_id_or_number; raises an exception if not found
-    """
-    try:
-        return get_run(experiment=experiment_to_recover, run_id=run_id, rehydrate=True)
-    except Exception:
-        available_runs = experiment_to_recover.get_runs()
-        available_ids = ", ".join([run.id for run in available_runs])
-        raise Exception(
-            f"Run {run_id} not found for experiment: {experiment_to_recover.name}. Available runs are: {available_ids}"
-        )
+#     :param experiment_to_recover: an experiment
+#     :param run_id: a string representing the Run ID of one of the runs of the experiment
+#     :return: the run matching run_id_or_number; raises an exception if not found
+#     """
+#     try:
+#         return get_run(experiment=experiment_to_recover, run_id=run_id, rehydrate=True)
+#     except Exception:
+#         available_runs = experiment_to_recover.get_runs()
+#         available_ids = ", ".join([run.id for run in available_runs])
+#         raise Exception(
+#             f"Run {run_id} not found for experiment: {experiment_to_recover.name}. Available runs are: {available_ids}"
+#         )
 
 
 def get_credential() -> Union[ClientSecretCredential, DeviceCodeCredential]:
@@ -1182,6 +1187,7 @@ def run_duration_string_to_seconds(s: str) -> Optional[int]:
 
 
 def set_environment_variables_for_multi_node() -> None:
+    # TODO: Have env vars changed with v2??
     """
     Sets the environment variables that PyTorch Lightning needs for multi-node training.
     """
@@ -1270,23 +1276,23 @@ def get_most_recent_run_id(run_recovery_file: Path) -> str:
     return run_id
 
 
-def get_most_recent_run(run_recovery_file: Path, workspace: Workspace) -> Run:
+def get_most_recent_run(run_recovery_file: Path, workspace: Workspace) -> Job:
     """
-    Gets the name of the most recently executed AzureML run, instantiates that Run object and returns it.
+    Gets the name of the most recently executed AzureML run, instantiates a Job object and returns it
 
     :param run_recovery_file: The path of the run recovery file
     :param workspace: Azure ML Workspace
-    :return: The Run
+    :return: The Job
     """
     run_or_recovery_id = get_most_recent_run_id(run_recovery_file)
-    return get_aml_run_from_run_id(run_or_recovery_id, aml_workspace=workspace)
+    return get_aml_job_from_run_id(run_or_recovery_id, aml_workspace=workspace)
 
 
-def get_aml_run_from_run_id(
+def get_aml_job_from_run_id(
     run_id: str, aml_workspace: Optional[Workspace] = None, workspace_config_path: Optional[Path] = None
-) -> Run:
+) -> Job:
     """
-    Returns an AML Run object, given the run id (run recovery id will also be accepted but is not recommended
+    Returns an AML Job object, given the run id (run recovery id will also be accepted but is not recommended
     since AML no longer requires the experiment name in order to find the run from a workspace).
 
     If not running inside AML and neither a workspace nor the config file are provided, the code will try to locate a
@@ -1296,71 +1302,73 @@ def get_aml_run_from_run_id(
     :param run_id: The run id of the run to download. Can optionally be a run recovery id
     :param aml_workspace: Optional AML Workspace object
     :param workspace_config_path: Optional path to config file containing AML Workspace settings
-    :return: An Azure ML Run object
+    :return: An Azure ML Job object
     """
     run_id_ = determine_run_id_type(run_id)
     workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
     return workspace.get_run(run_id_)
 
 
-def get_latest_aml_runs_from_experiment(
-    experiment_name: str,
-    num_runs: int = 1,
-    tags: Optional[Dict[str, str]] = None,
-    aml_workspace: Optional[Workspace] = None,
-    workspace_config_path: Optional[Path] = None,
-) -> List[Run]:
+# TODO: is this possible?
+# def get_latest_aml_runs_from_experiment(
+#     experiment_name: str,
+#     num_runs: int = 1,
+#     tags: Optional[Dict[str, str]] = None,
+#     aml_workspace: Optional[Workspace] = None,
+#     workspace_config_path: Optional[Path] = None,
+# ) -> List[Job]:
+#     """
+#     Retrieves the experiment <experiment_name> from the identified workspace and returns <num_runs> latest
+#     runs from it, optionally filtering by tags - e.g. {'tag_name':'tag_value'}
+
+#     If not running inside AML and neither a workspace nor the config file are provided, the code will try to locate a
+#     config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
+#     file will be used to create the workspace.
+
+#     :param experiment_name: The experiment name to download runs from
+#     :param num_runs: The number of most recent runs to return
+#     :param tags: Optional tags to filter experiments by
+#     :param aml_workspace: Optional Azure ML Workspace object
+#     :param workspace_config_path: Optional config file containing settings for the AML Workspace
+#     :return: a list of one or more Azure ML Run objects
+#     """
+#     workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
+#     experiment: Experiment = workspace.experiments[experiment_name]
+#     return list(islice(experiment.get_runs(tags=tags), num_runs))
+
+
+def get_job_file_names(job: Job, prefix: str = "") -> List[str]:
     """
-    Retrieves the experiment <experiment_name> from the identified workspace and returns <num_runs> latest
-    runs from it, optionally filtering by tags - e.g. {'tag_name':'tag_value'}
+    Get the remote path to all files for a given Job which optionally start with a given prefix
 
-    If not running inside AML and neither a workspace nor the config file are provided, the code will try to locate a
-    config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
-    file will be used to create the workspace.
-
-    :param experiment_name: The experiment name to download runs from
-    :param num_runs: The number of most recent runs to return
-    :param tags: Optional tags to filter experiments by
-    :param aml_workspace: Optional Azure ML Workspace object
-    :param workspace_config_path: Optional config file containing settings for the AML Workspace
-    :return: a list of one or more Azure ML Run objects
-    """
-    workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
-    experiment: Experiment = workspace.experiments[experiment_name]
-    return list(islice(experiment.get_runs(tags=tags), num_runs))
-
-
-def get_run_file_names(run: Run, prefix: str = "") -> List[str]:
-    """
-    Get the remote path to all files for a given Run which optionally start with a given prefix
-
-    :param run: The AML Run to look up associated files for
+    :param run: The AML Job to look up associated files for
     :param prefix: The optional prefix to filter Run files by
     :return: A list of paths within the Run's container
     """
-    all_files = run.get_file_names()
+    # all_files = run.get_file_names()
+    job.
     print(f"Selecting files with prefix {prefix}")
     return [f for f in all_files if f.startswith(prefix)] if prefix else all_files
 
 
-def _download_files_from_run(run: Run, output_dir: Path, prefix: str = "", validate_checksum: bool = False) -> None:
+def _download_files_from_job(job: Job, output_dir: Path, prefix: str = "", validate_checksum: bool = False) -> None:
     """
-    Download all files for a given AML run, where the filenames may optionally start with a given
+    Download all files for a given AML job, where the filenames may optionally start with a given
     prefix.
 
-    :param run: The AML Run to download associated files for
-    :param output_dir: Local directory to which the Run files should be downloaded.
-    :param prefix: Optional prefix to filter Run files by
+    :param run: The AML Job to download associated files for
+    :param output_dir: Local directory to which the Job files should be downloaded.
+    :param prefix: Optional prefix to filter Job files by
     :param validate_checksum: Whether to validate the content from HTTP response
     """
-    run_paths = get_run_file_names(run, prefix=prefix)
+    run_paths = get_job_file_names(job, prefix=prefix)
     if len(run_paths) == 0:
         prefix_string = f' with prefix "{prefix}"' if prefix else ""
         raise FileNotFoundError(f"No files{prefix_string} were found for run with ID {run.id}")
 
     for run_path in run_paths:
         output_path = output_dir / run_path
-        _download_file_from_run(run, run_path, output_path, validate_checksum=validate_checksum)
+        _download_file_from_job(job, run_path, output_path, validate_checksum=validate_checksum)
 
 
 def download_files_from_run_id(
@@ -1384,7 +1392,7 @@ def download_files_from_run_id(
     (i.e, all process where is_local_rank_zero() == True). All processes will exit this function once all downloads
     are completed.
 
-    :param run_id: The id of the Azure ML Run
+    :param run_id: The id of the Azure ML Job
     :param output_folder: Local directory to which the Run files should be downloaded.
     :param prefix: Optional prefix to filter Run files by
     :param workspace: Optional Azure ML Workspace object
@@ -1392,8 +1400,8 @@ def download_files_from_run_id(
     :param validate_checksum: Whether to validate the content from HTTP response
     """
     workspace = get_workspace(aml_workspace=workspace, workspace_config_path=workspace_config_path)
-    run = get_aml_run_from_run_id(run_id, aml_workspace=workspace)
-    _download_files_from_run(run, output_folder, prefix=prefix, validate_checksum=validate_checksum)
+    run = get_aml_job_from_run_id(run_id, aml_workspace=workspace)
+    _download_files_from_job(job, output_folder, prefix=prefix, validate_checksum=validate_checksum)
     torch_barrier()
 
 
@@ -1803,6 +1811,28 @@ def aggregate_hyperdrive_metrics(
 
     df = pd.DataFrame.from_dict(metrics, orient="index")
     return df
+
+
+def set_mlflow_tracking_uri(mlflow_client: MLFlowClient):
+    if not mlflow_client.get_tracking_uri():
+        mlflow_client.set_tracking_uri()
+
+
+def get_mlflow_run(mlflow_run_id: str):
+    mlflow_client = MlflowClient()
+    mlflow_run = MlflowClient().get_run(mlflow_run_id)
+    return mlflow_run
+
+
+def get_last_metrics_from_mlflow_run(mlflow_run: MLFlowRun):
+    metrics = mlflow_run.data.metrics
+    # tags = mlflow_run.data.tags
+    # params = mlflow_run.data.params
+    return metrics
+
+
+def get_metric_from_mlflow_run(mlflow_client: MlflowClient):
+    metric_history = mlflow_client.get_metric_history()
 
 
 def get_metrics_for_childless_run(

@@ -11,7 +11,7 @@ from typing import List, Optional, Sequence, Tuple, Union
 # from azureml.data import FileDataset, OutputFileDatasetConfig
 # from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 # from azureml.dataprep.fuse.daemon import MountContext
-
+from azure.ai.ml.entities import Workspace
 from health_azure.utils import PathOrString, get_workspace
 
 
