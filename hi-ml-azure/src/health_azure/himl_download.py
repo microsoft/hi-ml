@@ -11,10 +11,11 @@ from typing import List
 from azureml.core import Run
 
 import health_azure.utils as azure_util
+import health_azure.run_utils as run_util
 from health_azure.himl import RUN_RECOVERY_FILE
 
 
-class HimlDownloadConfig(azure_util.AmlRunScriptConfig):
+class HimlDownloadConfig(run_util.AmlRunScriptConfig):
     output_dir: Path = param.ClassSelector(class_=Path, default=Path(), instantiate=False,
                                            doc="Path to directory to store files downloaded from the AML Run")
     config_file: Path = param.ClassSelector(class_=Path, default=None, instantiate=False,
@@ -37,14 +38,14 @@ def retrieve_runs(download_config: HimlDownloadConfig) -> List[Run]:
     """
     if download_config.run is not None:
         run_ids: List[str] = download_config.run
-        runs = [azure_util.get_aml_run_from_run_id(r_id) for r_id in run_ids]
+        runs = [run_util.get_aml_run_from_run_id(r_id) for r_id in run_ids]
         if len(runs) == 0:
             raise ValueError(f"Did not find any runs with the given run id(s): {download_config.run}")
     elif download_config.experiment is not None:
-        runs = azure_util.get_latest_aml_runs_from_experiment(download_config.experiment,
-                                                              download_config.num_runs,
-                                                              download_config.tags,
-                                                              workspace_config_path=download_config.config_file)
+        runs = run_util.get_latest_aml_runs_from_experiment(download_config.experiment,
+                                                            download_config.num_runs,
+                                                            download_config.tags,
+                                                            workspace_config_path=download_config.config_file)
         if len(runs) == 0:
             raise ValueError(f"Did not find any runs under the given experiment name: {download_config.experiment}")
     else:
@@ -72,7 +73,7 @@ def main() -> None:  # pragma: no cover
         output_folder = output_dir / run.id
 
         try:  # pragma: no cover
-            azure_util.download_files_from_run_id(run.id, output_folder=output_folder, prefix=download_config.prefix,
+            run_util.download_files_from_run_id(run.id, output_folder=output_folder, prefix=download_config.prefix,
                                                   workspace_config_path=download_config.config_file)
             print(f"Downloaded file(s) to '{output_folder}'")
         except Exception as e:  # pragma: no cover

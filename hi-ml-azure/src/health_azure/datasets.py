@@ -7,18 +7,19 @@ import tempfile
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple, Union
 
-# from azureml.core import Dataset, Datastore, Workspace
+from azureml.core import Dataset, Datastore, Workspace
 # from azureml.data import FileDataset, OutputFileDatasetConfig
 # from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 # from azureml.dataprep.fuse.daemon import MountContext
-from azure.ai.ml.entities import Workspace
+# from azure.ai.ml.entities import Workspace
 from health_azure.utils import PathOrString, get_workspace
 
 
 def get_datastore(workspace: Workspace, datastore_name: str) -> Datastore:
     """
     Retrieves a datastore of a given name from an AzureML workspace. The datastore_name argument can be omitted if
-    the workspace only contains a single datastore. Raises a ValueError if there is no datastore of the given name.
+    the workspace only contains a single
+    datastore. Raises a ValueError if there is no datastore of the given name.
 
     :param workspace: The AzureML workspace to read from.
     :param datastore_name: The name of the datastore to retrieve.

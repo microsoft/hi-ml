@@ -32,6 +32,7 @@ from azureml.core.environment import CondaDependencies
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
 import health_azure.utils as util
+import health_azure.run_utils as run_util
 from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore
 from health_azure.utils import (ENV_MASTER_ADDR, ENV_MASTER_PORT, MASTER_PORT_DEFAULT,
                                 PackageDependency, create_argparser)
@@ -120,24 +121,22 @@ def test_is_running_in_azureml() -> None:
     """
     # These tests would always run outside of AzureML, on local box or Azure build agents. Function should return
     # False in all those cases
-    assert not util.is_running_in_azure_ml()
-    assert not util.is_running_in_azure_ml(util.RUN_CONTEXT)
+    assert not run_util.is_running_in_azure_ml()
+    assert not run_util.is_running_in_azure_ml(run_util.RUN_CONTEXT)
     # When in AzureML, the Run has a field "experiment"
     mock_workspace = "foo"
     with patch("health_azure.utils.RUN_CONTEXT") as mock_run_context:
         mock_run_context.experiment = MagicMock(workspace=mock_workspace)
         # We can't try that with the default argument because of Python's handling of mutable default arguments
         # (default argument value has been assigned already before mocking)
-        assert util.is_running_in_azure_ml(util.RUN_CONTEXT)
+        assert run_util.is_running_in_azure_ml(run_util.RUN_CONTEXT)
 
 
 @pytest.mark.fast
 @patch("health_azure.utils.Workspace.from_config")
-@patch("health_azure.utils.get_authentication")
 @patch("health_azure.utils.Workspace")
 def test_get_workspace(
         mock_workspace: mock.MagicMock,
-        mock_get_authentication: mock.MagicMock,
         mock_from_config: mock.MagicMock,
         tmp_path: Path) -> None:
     # Test the case when running on AML
@@ -153,7 +152,6 @@ def test_get_workspace(
     assert workspace == mock_workspace2
 
     # Test the case when a workspace config path is provided
-    mock_get_authentication.return_value = "auth"
     _ = util.get_workspace(None, Path(__file__))
     mock_from_config.assert_called_once_with(path=__file__, auth="auth")
 
@@ -181,25 +179,25 @@ def test_create_run_recovery_id(mock_run: MagicMock) -> None:
     """
     mock_run.id = RUN_ID
     mock_run.experiment.name = EXPERIMENT_NAME
-    recovery_id = util.create_run_recovery_id(mock_run)
-    assert recovery_id == EXPERIMENT_NAME + util.EXPERIMENT_RUN_SEPARATOR + RUN_ID
+    recovery_id = run_util.create_run_recovery_id(mock_run)
+    assert recovery_id == EXPERIMENT_NAME + run_util.EXPERIMENT_RUN_SEPARATOR + RUN_ID
 
 
 @patch("health_azure.utils.Workspace")
 @patch("health_azure.utils.Experiment")
-@patch("health_azure.utils.Run")
+@patch("health_azure.run_util.Run")
 def test_fetch_run(mock_run: MagicMock, mock_experiment: MagicMock, mock_workspace: MagicMock) -> None:
     mock_run.id = RUN_ID
     mock_run.experiment = mock_experiment
     mock_experiment.name = EXPERIMENT_NAME
-    recovery_id = EXPERIMENT_NAME + util.EXPERIMENT_RUN_SEPARATOR + RUN_ID
+    recovery_id = EXPERIMENT_NAME + run_util.EXPERIMENT_RUN_SEPARATOR + RUN_ID
     mock_run.number = RUN_NUMBER
     with mock.patch("health_azure.utils.get_run", return_value=mock_run):
-        run_to_recover = util.fetch_run(mock_workspace, recovery_id)
+        run_to_recover = run_util.fetch_run(mock_workspace, recovery_id)
         assert run_to_recover.number == RUN_NUMBER
     mock_experiment.side_effect = oh_no
     with pytest.raises(Exception) as e:
-        util.fetch_run(mock_workspace, recovery_id)
+        run_util.fetch_run(mock_workspace, recovery_id)
     assert str(e.value).startswith(f"Unable to retrieve run {RUN_ID}")
 
 
@@ -212,32 +210,9 @@ def test_fetch_run_for_experiment(get_run: MagicMock, mock_experiment: MagicMock
     mock_experiment.get_runs = lambda: [mock_run, mock_run, mock_run]
     mock_experiment.name = EXPERIMENT_NAME
     with pytest.raises(Exception) as e:
-        util.fetch_run_for_experiment(mock_experiment, RUN_ID)
+        run_util.fetch_run_for_experiment(mock_experiment, RUN_ID)
     exp = f"Run {RUN_ID} not found for experiment: {EXPERIMENT_NAME}. Available runs are: {RUN_ID}, {RUN_ID}, {RUN_ID}"
     assert str(e.value) == exp
-
-
-@patch("health_azure.utils.InteractiveLoginAuthentication")
-def test_get_authentication(mock_interactive_authentication: MagicMock) -> None:
-    with mock.patch.dict(os.environ, {}, clear=True):
-        util.get_authentication()
-        assert mock_interactive_authentication.called
-    service_principal_id = "1"
-    tenant_id = "2"
-    service_principal_password = "3"
-    with mock.patch.dict(
-            os.environ,
-            {
-                util.ENV_SERVICE_PRINCIPAL_ID: service_principal_id,
-                util.ENV_TENANT_ID: tenant_id,
-                util.ENV_SERVICE_PRINCIPAL_PASSWORD: service_principal_password
-            },
-            clear=True):
-        spa = util.get_authentication()
-        assert isinstance(spa, ServicePrincipalAuthentication)
-        assert spa._service_principal_id == service_principal_id
-        assert spa._tenant_id == tenant_id
-        assert spa._service_principal_password == service_principal_password
 
 
 def test_get_secret_from_environment() -> None:
@@ -271,12 +246,12 @@ def test_split_recovery_id_fails() -> None:
     Other tests test the main branch of split_recovery_id, but they do not test the exceptions
     """
     with pytest.raises(ValueError) as e:
-        id = util.EXPERIMENT_RUN_SEPARATOR.join([str(i) for i in range(3)])
-        util.split_recovery_id(id)
+        id = run_util.EXPERIMENT_RUN_SEPARATOR.join([str(i) for i in range(3)])
+        run_util.split_recovery_id(id)
         assert str(e.value) == f"recovery_id must be in the format: 'experiment_name:run_id', but got: {id}"
     with pytest.raises(ValueError) as e:
         id = "foo_bar"
-        util.split_recovery_id(id)
+        run_util.split_recovery_id(id)
         assert str(e.value) == f"The recovery ID was not in the expected format: {id}"
 
 
@@ -325,97 +300,6 @@ def dummy_pip_dep_list_none_pinned() -> List[PackageDependency]:
     return [PackageDependency("c>=0.1"), PackageDependency("c=0.2"), PackageDependency("c")]
 
 
-@pytest.mark.fast
-def test_resolve_pip_package_clash(dummy_pip_dep_list_one_pinned: List[PackageDependency],
-                                   dummy_pip_dep_list_two_pinned: List[PackageDependency],
-                                   dummy_pip_dep_list_none_pinned: List[PackageDependency]
-                                   ) -> None:
-    pin_pip_operator = util.PinnedOperator.PIP
-    # if only one pinned version, that should be returned
-    expected_keep_dep = PackageDependency("a==0.1")
-
-    keep_dep = util._resolve_package_clash(dummy_pip_dep_list_one_pinned, pin_pip_operator)
-    assert keep_dep.package_name == expected_keep_dep.package_name
-    assert keep_dep.operator == expected_keep_dep.operator
-    assert keep_dep.version == expected_keep_dep.version
-
-    # if two pinned versions are found, a ValueError should be raised
-    with pytest.raises(ValueError) as e:
-        util._resolve_package_clash(dummy_pip_dep_list_two_pinned, pin_pip_operator)
-        assert "Found more than one pinned dependency for package" in str(e)
-
-    # if no pinned package versions are found, a ValueError should be raised
-    with pytest.raises(ValueError) as e:
-        util._resolve_package_clash(dummy_pip_dep_list_none_pinned, pin_pip_operator)
-        assert "Encountered 3 requirements for c, none of which specify a pinned version" in str(e)
-
-
-@pytest.mark.fast
-def test_resolve_pip_dependencies(dummy_pip_dep_list_one_pinned: List[PackageDependency],
-                                  dummy_pip_dep_list_two_pinned: List[PackageDependency],
-                                  dummy_pip_dep_list_none_pinned: List[PackageDependency]
-                                  ) -> None:
-    pin_pip_operator = util.PinnedOperator.PIP
-
-    # if only one pinned version, a list containing only that should be returned
-    dummy_dependency_dict_one_pinned = {"a": dummy_pip_dep_list_one_pinned}
-    resolved_list = util._resolve_dependencies(dummy_dependency_dict_one_pinned, pin_pip_operator)
-    assert len(resolved_list) == 1
-    resolved_package = resolved_list[0]
-    assert isinstance(resolved_package, PackageDependency)
-    assert resolved_package.package_name == "a"
-    assert resolved_package.operator == "=="
-    assert resolved_package.version == "0.1"
-
-    # if two pinned versions are found, a ValueError should be raised
-    dummy_dependency_dict_two_pinned = {"b": dummy_pip_dep_list_two_pinned}
-    with pytest.raises(ValueError) as e:
-        util._resolve_dependencies(dummy_dependency_dict_two_pinned, pin_pip_operator)
-        assert "Found more than one pinned dependency for package" in str(e)
-
-    # if no pinned package versions are found, a ValueError should be raised
-    dummy_dependency_dict_none_pinned = {"c": dummy_pip_dep_list_none_pinned}
-    with pytest.raises(ValueError) as e:
-        util._resolve_dependencies(dummy_dependency_dict_none_pinned, pin_pip_operator)
-        assert "Encountered 3 requirements for c, none of which specify a pinned version" in str(e)
-
-    # even if one package has exactly one pinned version, if other packages don't, a
-    # ValueError should be raised
-    dummy_dependency_dict = {"a": dummy_pip_dep_list_one_pinned, "b": dummy_pip_dep_list_two_pinned}
-    with pytest.raises(ValueError) as e:
-        util._resolve_dependencies(dummy_dependency_dict, pin_pip_operator)
-        assert "Found more than one pinned dependency for package" in str(e)
-
-
-@pytest.mark.fast
-def test_retrieve_unique_pip_deps() -> None:
-    pin_pip_operator = util.PinnedOperator.PIP
-    # if one pinned package is found, that should be retained
-    deps_with_one_pinned = ["package==1.0",
-                            "git+https:www.github.com/something.git",
-                            "foo=1.0; platform_system='Linux'"]
-    dedup_deps = util._retrieve_unique_deps(deps_with_one_pinned, pin_pip_operator)  # type: ignore
-    assert dedup_deps == [d.replace(" ", "") for d in deps_with_one_pinned]
-
-    # if duplicates are found with more than one pinned, a ValueError should be raised
-    deps_with_duplicates = ["package==1.0", "package==1.1", "git+https:www.github.com/something.git"]
-    with pytest.raises(ValueError) as e:
-        util._retrieve_unique_deps(deps_with_duplicates, pin_pip_operator)
-        assert "Found more than one pinned dependency for package" in str(e)
-
-    # if duplicates are found with none pinned, a ValueErorr should be raised
-    deps_with_duplicates = ["package>=1.0", "package>1.1", "git+https:www.github.com/something.git"]
-    with pytest.raises(ValueError) as e:
-        util._retrieve_unique_deps(deps_with_duplicates, pin_pip_operator)
-        assert "Encountered 2 requirements for package, none of which specify a pinned version" in str(e)
-
-    # A more complex case
-    complex_deps_with_duplicates = ["a==0.1", "b>=0.2", "c", "a>=1.1", "b==1.2", "c>=1.3", "c==2.3"]
-    expected_dedup_deps = ["a==0.1", "b==1.2", "c==2.3"]
-    dedup_deps = util._retrieve_unique_deps(complex_deps_with_duplicates, pin_pip_operator)  # type: ignore
-    assert dedup_deps == expected_dedup_deps
-
-
 @pytest.fixture
 def dummy_conda_dep_list_one_pinned() -> List[PackageDependency]:
     return [PackageDependency("a=0.1"), PackageDependency("a>=0.2"), PackageDependency("a")]
@@ -429,95 +313,6 @@ def dummy_conda_dep_list_two_pinned() -> List[PackageDependency]:
 @pytest.fixture
 def dummy_conda_dep_list_none_pinned() -> List[PackageDependency]:
     return [PackageDependency("c>=0.1"), PackageDependency("c")]
-
-
-@pytest.mark.fast
-def test_resolve_conda_package_clash(dummy_conda_dep_list_one_pinned: List[PackageDependency],
-                                     dummy_conda_dep_list_two_pinned: List[PackageDependency],
-                                     dummy_conda_dep_list_none_pinned: List[PackageDependency]
-                                     ) -> None:
-    pin_conda_operator = util.PinnedOperator.CONDA
-    # if only one pinned version, that should be returned
-    expected_keep_dep = PackageDependency("a=0.1")
-
-    keep_dep = util._resolve_package_clash(dummy_conda_dep_list_one_pinned, pin_conda_operator)
-    assert keep_dep.package_name == expected_keep_dep.package_name
-    assert keep_dep.operator == expected_keep_dep.operator
-    assert keep_dep.version == expected_keep_dep.version
-
-    # if two pinned versions are found, a ValueError should be raised
-    with pytest.raises(ValueError) as e:
-        util._resolve_package_clash(dummy_conda_dep_list_two_pinned, pin_conda_operator)
-        assert "Found more than one pinned dependency for package" in str(e)
-
-    # if no pinned package versions are found, a ValueError should be raised
-    with pytest.raises(ValueError) as e:
-        util._resolve_package_clash(dummy_conda_dep_list_none_pinned, pin_conda_operator)
-        assert "Encountered 3 requirements for c, none of which specify a pinned version" in str(e)
-
-
-@pytest.mark.fast
-def test_resolve_conda_dependencies(dummy_conda_dep_list_one_pinned: List[PackageDependency],
-                                    dummy_conda_dep_list_two_pinned: List[PackageDependency],
-                                    dummy_conda_dep_list_none_pinned: List[PackageDependency]
-                                    ) -> None:
-    pin_conda_operator = util.PinnedOperator.CONDA
-
-    # if only one pinned version, a list containing only that should be returned
-    dummy_dependency_dict_one_pinned = {"a": dummy_conda_dep_list_one_pinned}
-    resolved_list = util._resolve_dependencies(dummy_dependency_dict_one_pinned, pin_conda_operator)
-    assert len(resolved_list) == 1
-    resolved_package = resolved_list[0]
-    assert isinstance(resolved_package, PackageDependency)
-    assert resolved_package.package_name == "a"
-    assert resolved_package.operator == "="
-    assert resolved_package.version == "0.1"
-
-    # if two pinned versions are found, a ValueError should be raised
-    dummy_dependency_dict_two_pinned = {"b": dummy_conda_dep_list_two_pinned}
-    with pytest.raises(ValueError) as e:
-        util._resolve_dependencies(dummy_dependency_dict_two_pinned, pin_conda_operator)
-        assert "Found more than one pinned dependency for package" in str(e)
-
-    # if no pinned package versions are found, a ValueError should be raised
-    dummy_dependency_dict_none_pinned = {"c": dummy_conda_dep_list_none_pinned}
-    with pytest.raises(ValueError) as e:
-        util._resolve_dependencies(dummy_dependency_dict_none_pinned, pin_conda_operator)
-        assert "Encountered 3 requirements for c, none of which specify a pinned version" in str(e)
-
-    # even if one package has exactly one pinned version, if other packages don't, a
-    # ValueError should be raised
-    dummy_dependency_dict = {"a": dummy_conda_dep_list_one_pinned, "b": dummy_conda_dep_list_two_pinned}
-    with pytest.raises(ValueError) as e:
-        util._resolve_dependencies(dummy_dependency_dict, pin_conda_operator)
-        assert "Found more than one pinned dependency for package" in str(e)
-
-
-@pytest.mark.fast
-def test_retrieve_unique_conda_deps() -> None:
-    pin_conda_operator = util.PinnedOperator.CONDA
-    # if one pinned package is found, that should be retained
-    deps_with_one_pinned = ["package=1.0", "git+https:www.github.com/something.git"]
-    dedup_deps = util._retrieve_unique_deps(deps_with_one_pinned, pin_conda_operator)  # type: ignore
-    assert dedup_deps == deps_with_one_pinned
-
-    # if duplicates are found with more than one pinned, a ValueError should be raised
-    deps_with_duplicates = ["package=1.0", "package=1.1", "git+https:www.github.com/something.git"]
-    with pytest.raises(ValueError) as e:
-        util._retrieve_unique_deps(deps_with_duplicates, pin_conda_operator)
-        assert "Found more than one pinned dependency for package" in str(e)
-
-    # if duplicates are found with none pinned, a ValueErorr should be raised
-    deps_with_duplicates = ["package>=1.0", "package>1.1", "git+https:www.github.com/something.git"]
-    with pytest.raises(ValueError) as e:
-        util._retrieve_unique_deps(deps_with_duplicates, pin_conda_operator)
-        assert "Encountered 2 requirements for package, none of which specify a pinned version" in str(e)
-
-    # A more complex case
-    complex_deps_with_duplicates = ["a=0.1", "b>=0.2", "c", "a>=1.1", "b=1.2", "c>=1.3", "c=2.3"]
-    expected_dedup_deps = ["a=0.1", "b=1.2", "c=2.3"]
-    dedup_deps = util._retrieve_unique_deps(complex_deps_with_duplicates, pin_conda_operator)  # type: ignore
-    assert dedup_deps == expected_dedup_deps
 
 
 def _generate_conda_env_lines(channels: List[str], conda_packages: List[str], pip_packages: List[str]) -> List[str]:
@@ -1019,8 +814,8 @@ def test_get_latest_aml_run_from_experiment(num_runs: int, tags: Dict[str, str],
                         experiments={mock_experiment_name: mock_experiment}
                         ) as mock_workspace:
             mock_experiment.get_runs.return_value = _get_experiment_runs(tags)
-            aml_runs = util.get_latest_aml_runs_from_experiment(mock_experiment_name, num_runs=num_runs,
-                                                                tags=tags, aml_workspace=mock_workspace)
+            aml_runs = run_util.get_latest_aml_runs_from_experiment(mock_experiment_name, num_runs=num_runs,
+                                                                    tags=tags, aml_workspace=mock_workspace)
             assert len(aml_runs) == expected_num_returned
 
 
@@ -1057,7 +852,7 @@ def test_get_latest_aml_run_from_experiment_remote(tmp_path: Path) -> None:
         second_run.remove_tags(tags)
 
     # Retrieve latest run with given tags (expect first_run to be returned)
-    retrieved_runs = util.get_latest_aml_runs_from_experiment(AML_TESTS_EXPERIMENT, tags=tags, aml_workspace=ws)
+    retrieved_runs = run_util.get_latest_aml_runs_from_experiment(AML_TESTS_EXPERIMENT, tags=tags, aml_workspace=ws)
     assert len(retrieved_runs) == 1
     assert retrieved_runs[0].id == first_run.id
     assert retrieved_runs[0].get_tags() == tags
@@ -1068,15 +863,15 @@ def test_get_latest_aml_run_from_experiment_remote(tmp_path: Path) -> None:
 @pytest.mark.parametrize("mock_run_id", ["run_abc_123", "experiment1:run_bcd_456"])
 def test_get_aml_run_from_run_id(mock_workspace: MagicMock, mock_run_id: str) -> None:
     def _mock_get_run(run_id: str) -> MockRun:
-        if len(mock_run_id.split(util.EXPERIMENT_RUN_SEPARATOR)) > 1:
-            return MockRun(mock_run_id.split(util.EXPERIMENT_RUN_SEPARATOR)[1])
+        if len(mock_run_id.split(run_util.EXPERIMENT_RUN_SEPARATOR)) > 1:
+            return MockRun(mock_run_id.split(run_util.EXPERIMENT_RUN_SEPARATOR)[1])
         return MockRun(mock_run_id)
 
     mock_workspace.get_run = _mock_get_run
 
-    aml_run = util.get_aml_run_from_run_id(mock_run_id, aml_workspace=mock_workspace)
-    if len(mock_run_id.split(util.EXPERIMENT_RUN_SEPARATOR)) > 1:
-        mock_run_id = mock_run_id.split(util.EXPERIMENT_RUN_SEPARATOR)[1]
+    aml_run = run_util.get_aml_run_from_run_id(mock_run_id, aml_workspace=mock_workspace)
+    if len(mock_run_id.split(run_util.EXPERIMENT_RUN_SEPARATOR)) > 1:
+        mock_run_id = mock_run_id.split(run_util.EXPERIMENT_RUN_SEPARATOR)[1]
 
     assert aml_run.id == mock_run_id
 
@@ -1094,13 +889,13 @@ def test_get_run_file_names() -> None:
         expected_file_names = _get_file_names()
         mock_run.get_file_names.return_value = expected_file_names
         # check that we get the expected run paths if no filter is applied
-        run_paths = util.get_run_file_names(mock_run)  # type: ignore
+        run_paths = run_util.get_run_file_names(mock_run)  # type: ignore
         assert len(run_paths) == len(expected_file_names)
         assert sorted(run_paths) == sorted(expected_file_names)
 
         # Now check we get the expected run paths if a filter is applied
         prefix = "abc"
-        run_paths = util.get_run_file_names(mock_run, prefix=prefix)
+        run_paths = run_util.get_run_file_names(mock_run, prefix=prefix)
         assert all([f.startswith(prefix) for f in run_paths])
 
 
@@ -1132,7 +927,7 @@ def test_download_run_files(tmp_path: Path, dummy_env_vars: Dict[Optional[str], 
             mock_run.download_file = MagicMock()  # type: ignore
             mock_run.download_file.side_effect = _mock_download_file
 
-            util._download_files_from_run(mock_run, output_dir=tmp_path)
+            run_util._download_files_from_run(mock_run, output_dir=tmp_path)
             # First test the case where is_local_rank_zero returns True
             if not any(dummy_env_vars):
                 # Check that our mocked _download_file_from_run has been called once for each file
@@ -1150,7 +945,7 @@ def test_download_files_from_run_id(mock_download_run_files: MagicMock,
                                     mock_workspace: MagicMock) -> None:
     mock_run = {"id": "run123"}
     mock_get_aml_run_from_run_id.return_value = mock_run
-    util.download_files_from_run_id("run123", Path(__file__))
+    run_util.download_files_from_run_id("run123", Path(__file__))
     mock_download_run_files.assert_called_with(mock_run, Path(__file__), prefix="", validate_checksum=False)
 
 
@@ -1166,7 +961,7 @@ def test_download_file_from_run(tmp_path: Path, dummy_env_vars: Dict[str, str], 
     mock_run.download_file.side_effect = _mock_download_file
 
     with mock.patch.dict(os.environ, dummy_env_vars):
-        _ = util._download_file_from_run(mock_run, dummy_filename, expected_file_path)
+        _ = run_util._download_file_from_run(mock_run, dummy_filename, expected_file_path)
 
         if expect_file_downloaded:
             mock_run.download_file.assert_called_with(dummy_filename, output_file_path=str(expected_file_path),
@@ -1201,7 +996,7 @@ def test_download_file_from_run_remote(tmp_path: Path) -> None:
     assert not output_file_path.exists()
 
     start_time = time.perf_counter()
-    _ = util._download_file_from_run(run, "dummy_file", output_file_path)
+    _ = run_util._download_file_from_run(run, "dummy_file", output_file_path)
     end_time = time.perf_counter()
     time_dont_validate_checksum = end_time - start_time
 
@@ -1212,7 +1007,7 @@ def test_download_file_from_run_remote(tmp_path: Path) -> None:
     output_file_path.unlink()
     assert not output_file_path.exists()
     start_time = time.perf_counter()
-    _ = util._download_file_from_run(run, "dummy_file", output_file_path, validate_checksum=True)
+    _ = run_util._download_file_from_run(run, "dummy_file", output_file_path, validate_checksum=True)
     end_time = time.perf_counter()
     time_validate_checksum = end_time - start_time
 
@@ -1230,8 +1025,8 @@ def test_download_run_file_during_run(tmp_path: Path) -> None:
     """
     # Create a run that contains a simple txt file
     experiment_name = "himl-tests"
-    run_to_download_from = util.create_aml_run_object(experiment_name=experiment_name,
-                                                      workspace=DEFAULT_WORKSPACE.workspace)
+    run_to_download_from = run_util.create_aml_run_object(experiment_name=experiment_name,
+                                                          workspace=DEFAULT_WORKSPACE.workspace)
     file_contents = "Hello World!"
     file_name = "hello.txt"
     full_file_path = tmp_path / file_name
@@ -1242,7 +1037,7 @@ def test_download_run_file_during_run(tmp_path: Path) -> None:
 
     # Test if we can retrieve the run directly from the workspace. This tests for a bug in an earlier version
     # of the code where run IDs as those created from runs outside AML were not recognized
-    run_2 = util.get_aml_run_from_run_id(run_id, aml_workspace=DEFAULT_WORKSPACE.workspace)
+    run_2 = run_util.get_aml_run_from_run_id(run_id, aml_workspace=DEFAULT_WORKSPACE.workspace)
     assert run_2.id == run_id
 
     # Now create an AzureML run with a simple script that uses that file. The script will download the file,
@@ -1337,7 +1132,7 @@ def test_get_run_source(dummy_recovery_id: str,
     arguments = ["", "--run", dummy_recovery_id]
     with patch.object(sys, "argv", arguments):
 
-        script_config = util.AmlRunScriptConfig()
+        script_config = run_util.AmlRunScriptConfig()
         script_config = util.parse_args_and_update_config(script_config, arguments)
 
         if isinstance(script_config.run, List):
@@ -1450,15 +1245,15 @@ def test_upload_to_datastore(tmp_path: Path, overwrite: bool) -> None:
 ])
 def test_script_config_run_src(arguments: List[str], run_id: Union[str, List[str]]) -> None:
     with patch.object(sys, "argv", arguments):
-        script_config = util.AmlRunScriptConfig()
+        script_config = run_util.AmlRunScriptConfig()
         script_config = util.parse_args_and_update_config(script_config, arguments)
 
         if isinstance(run_id, list):
             for script_config_run, expected_run_id in zip(script_config.run, run_id):
                 assert script_config_run == expected_run_id
         else:
-            if len(run_id.split(util.EXPERIMENT_RUN_SEPARATOR)) > 1:
-                assert script_config.run == [run_id.split(util.EXPERIMENT_RUN_SEPARATOR)[1]]
+            if len(run_id.split(run_util.EXPERIMENT_RUN_SEPARATOR)) > 1:
+                assert script_config.run == [run_id.split(run_util.EXPERIMENT_RUN_SEPARATOR)[1]]
             else:
                 assert script_config.run == [run_id]
 
@@ -1471,7 +1266,7 @@ def test_checkpoint_download(mock_get_workspace: MagicMock, mock_download_files:
     dummy_run_id = "run_def_456"
     prefix = "path/to/file"
     output_file_dir = Path("my_ouputs")
-    util.download_checkpoints_from_run_id(dummy_run_id, prefix, output_file_dir, aml_workspace=mock_workspace)
+    run_util.download_checkpoints_from_run_id(dummy_run_id, prefix, output_file_dir, aml_workspace=mock_workspace)
     mock_download_files.assert_called_once_with(dummy_run_id, output_file_dir, prefix=prefix,
                                                 workspace=mock_workspace, validate_checksum=True)
 
@@ -1518,7 +1313,7 @@ def test_checkpoint_download_remote(tmp_path: Path) -> None:
 
     whole_file_path = prefix + file_name
     start_time = time.perf_counter()
-    util.download_checkpoints_from_run_id(run.id, whole_file_path, output_file_dir, aml_workspace=ws)
+    run_util.download_checkpoints_from_run_id(run.id, whole_file_path, output_file_dir, aml_workspace=ws)
     end_time = time.perf_counter()
     time_taken = end_time - start_time
     logging.info(f"Time taken to download file: {time_taken}")
@@ -1540,7 +1335,7 @@ def test_checkpoint_download_remote(tmp_path: Path) -> None:
     download_file_path.unlink()
     assert not download_file_path.exists()
 
-    util.download_checkpoints_from_run_id(run.id, whole_file_path, output_file_dir, aml_workspace=ws)
+    run_util.download_checkpoints_from_run_id(run.id, whole_file_path, output_file_dir, aml_workspace=ws)
     assert download_file_path.exists()
     with open(str(download_file_path), "rb") as f_path:
         for line in f_path:
