@@ -22,9 +22,10 @@ assert himl_folder.is_dir()
 sys.path.append(str(himl_folder))
 
 from health_azure import submit_to_azure_if_needed
-from health_azure.utils import (ENV_AMLT_PROJECT_NAME, ENV_AMLT_INPUT_OUTPUT, ENV_AMLT_OUTPUT_DIR,
-                                ENV_AMLT_DATAREFERENCE_DATA, ENV_AMLT_DATAREFERENCE_OUTPUT, ENV_RANK,
-                                set_environment_variables_for_multi_node, is_amulet_job, get_amlt_aml_working_dir,
+from health_azure.amulet import (ENV_AMLT_PROJECT_NAME, ENV_AMLT_INPUT_OUTPUT, ENV_AMLT_DATAREFERENCE_OUTPUT,
+                                is_amulet_job, get_amulet_aml_working_dir, get_amulet_data_dir, get_amulet_output_dir,
+                                prepare_amulet_job)
+from health_azure.utils import (set_environment_variables_for_multi_node,
                                 is_local_rank_zero, is_global_rank_zero)
 from health_ml.utils.logging import AzureMLLogger
 
@@ -104,28 +105,6 @@ class BoringDataModule(LightningDataModule):
         return DataLoader(self.random_predict)
 
 
-def _path_from_env(env_name: str) -> Optional[Path]:
-    """Reads a path from an environment variable, and returns it as a Path object
-    if the variable is set. Returns None if the variable is not set or empty.
-
-    :param env_name: The name of the environment variable to read.
-    :return: The path read from the environment variable, or None if the variable is not set."""
-    path = os.getenv(env_name, None)
-    if path is None or path == "":
-        return None
-    return Path(path)
-
-def get_amulet_output_dir() -> Optional[Path]:
-    return _path_from_env(ENV_AMLT_OUTPUT_DIR)
-
-def get_amulet_data_dir() -> Optional[Path]:
-    """Gets the directory where the data for the current Amulet job is stored.
-
-    :return: The directory where the data for the current Amulet job is stored.
-        Returns None if the current job is not an Amulet job, or no data container is set.
-    """
-    return _path_from_env(ENV_AMLT_DATAREFERENCE_DATA)
-
 def show_environment() -> None:
     print("System setup:")
     print("Full set of environment variables:")
@@ -144,7 +123,7 @@ def show_environment() -> None:
     print(f"{amulet_datareference_output=}")
 
     print(f"{is_amulet_job()=}")
-    print(f"{get_amlt_aml_working_dir()=}")
+    print(f"{get_amulet_aml_working_dir()=}")
     print(f"{Path.cwd()=}")
 
 
@@ -158,7 +137,7 @@ def write_output_files() -> None:
         print(f"Writing Amulet output file {amlt_output_file}")
         amlt_output_file.write_text("This is a test file written to the Amulet output folder")
 
-    azureml_working_dir = get_amlt_aml_working_dir()
+    azureml_working_dir = get_amulet_aml_working_dir()
     if azureml_working_dir is None:
         print("No AzureML working directory found")
     else:
@@ -195,36 +174,40 @@ def run_training_loop(logging_folder: Optional[Path] = None) -> None:
                       max_epochs=2,
                       logger=loggers,
                       num_nodes=1,
-                      devices=devices
+                      devices=devices,
+                      # Setting the logging interval to a very small value because we have a tiny dataset
+                      log_every_n_steps=1
                       )
     model = BoringModel()
     data_module = BoringDataModule()
     trainer.fit(model, datamodule=data_module)
 
 
-def prepare_amulet_job() -> None:
-    # The RANK environment is set by Amulet, but not by AzureML.If set, PyTorch Lightning will think that all
-    # processes are running at rank 0 in its `rank_zero_only` decorator, which will cause the logging to fail.
-    if ENV_RANK in os.environ:
-        del os.environ[ENV_RANK]
-
-def main() -> None:
+def show_all_diagnostic_info() -> None:
     if is_global_rank_zero():
+        print("Global rank 0: print environment variables")
         show_environment()
         write_output_files()
     else:
-        print("Not rank 0, skipping environment and output file writing")
-    prepare_amulet_job()
+        print("Rank != 0: Skipping environment and output file writing")
+    # Pytorch Lightning uses this function to determine the process rank. It is wrongly saying that all processes
+    # have rank 0, unless we remove the RANK environment variable (done below in prepare_amulet_job)
+    print(f"_get_rank = {_get_rank()}")
+    print(f"is_local_rank_zero = {is_local_rank_zero()}")
+    print(f"is_global_rank_zero = {is_global_rank_zero()}")
     data_dir = get_amulet_data_dir()
-    logging.error(f"_get_rank = {_get_rank()}")
-    logging.error(f"is_local_rank_zero = {is_local_rank_zero()}")
-    logging.error(f"is_global_rank_zero = {is_global_rank_zero()}")
     if data_dir:
         print(f"Data container is mounted at {data_dir}")
     else:
         print("No data container mounted - this is probably not an Amulet job")
 
+
+def main() -> None:
+    print("Starting main process")
+    show_all_diagnostic_info()
+    # Add this part if you want to enable submitting to AzureML from the same codebase
     submit_to_azure_if_needed(compute_cluster_name="litetesting-ds2")
+    prepare_amulet_job()
     set_environment_variables_for_multi_node()
     run_training_loop(logging_folder=get_amulet_output_dir())
 
