@@ -277,9 +277,7 @@ class MLRunner:
         """
         Run validation on the validation set for all models to save time/memory consuming outputs.
         """
-        assert hasattr(self.container.model, "run_extra_val_epoch"), "Model does not have run_extra_val_epoch flag."
-        "This is required for running an additional validation epoch to save plots."
-        self.container.model.run_extra_val_epoch = True  # type: ignore
+        self.container.on_run_extra_validation_epoch()
         with change_working_directory(self.container.outputs_folder):
             assert self.trainer, "Trainer should be initialized before validation. Call self.init_training() first."
             self.trainer.validate(self.container.model, datamodule=self.data_module)

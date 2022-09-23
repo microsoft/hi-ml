@@ -8,9 +8,10 @@ import pytest
 from pathlib import Path
 from typing import Generator
 from unittest.mock import DEFAULT, MagicMock, Mock, patch
+from _pytest.logging import LogCaptureFixture
+from pytorch_lightning import LightningModule
 
 from azureml._restclient.constants import RunStatus
-
 from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
@@ -163,26 +164,74 @@ def test_run_validation(run_extra_val_epoch: bool) -> None:
     container = HelloWorld()
     container.create_lightning_module_and_store()
     container.run_extra_val_epoch = run_extra_val_epoch
-    container.model.run_extra_val_epoch = run_extra_val_epoch  # type: ignore
     runner = MLRunner(experiment_config=experiment_config, container=container)
 
     with patch.object(container, "get_data_module"):
-        with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
-            runner.setup()
-            mock_trainer = MagicMock()
-            mock_storing_logger = MagicMock()
-            mock_create_trainer.return_value = mock_trainer, mock_storing_logger
-            runner.init_training()
+        with patch.object(container, "on_run_extra_validation_epoch") as mock_on_run_extra_validation_epoch:
+            with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+                runner.setup()
+                mock_trainer = MagicMock()
+                mock_storing_logger = MagicMock()
+                mock_create_trainer.return_value = mock_trainer, mock_storing_logger
+                runner.init_training()
 
-            assert runner.trainer == mock_trainer
-            assert runner.storing_logger == mock_storing_logger
+                assert runner.trainer == mock_trainer
+                assert runner.storing_logger == mock_storing_logger
 
-            mock_trainer.validate = Mock()
+                mock_trainer.validate = Mock()
 
-            if run_extra_val_epoch:
+                if run_extra_val_epoch:
+                    runner.run_validation()
+
+                assert mock_on_run_extra_validation_epoch.called == run_extra_val_epoch
+                assert hasattr(container.model, "on_run_extra_validation_epoch")
+                assert mock_trainer.validate.called == run_extra_val_epoch
+
+
+@pytest.mark.parametrize("run_extra_val_epoch", [True, False])
+def test_model_extra_val_epoch(run_extra_val_epoch: bool) -> None:
+    experiment_config = ExperimentConfig(model="HelloWorld")
+    with patch(
+        "health_ml.configs.hello_world.HelloRegression.on_run_extra_validation_epoch"
+    ) as mock_on_run_extra_validation_epoch:
+        container = HelloWorld()
+        container.run_extra_val_epoch = run_extra_val_epoch
+        container.create_lightning_module_and_store()
+        runner = MLRunner(experiment_config=experiment_config, container=container)
+        with patch.object(container, "get_data_module"):
+            with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+                runner.setup()
+                mock_trainer = MagicMock()
+                mock_create_trainer.return_value = mock_trainer, MagicMock()
+                runner.init_training()
+                mock_trainer.validate = Mock()
+
+                if run_extra_val_epoch:
+                    runner.run_validation()
+
+                assert mock_on_run_extra_validation_epoch.called == run_extra_val_epoch
+                assert mock_trainer.validate.called == run_extra_val_epoch
+
+
+def test_model_extra_val_epoch_missing_hook(caplog: LogCaptureFixture) -> None:
+    experiment_config = ExperimentConfig(model="HelloWorld")
+
+    def _create_model(self) -> LightningModule:  # type: ignore
+        return LightningModule()
+
+    with patch("health_ml.configs.hello_world.HelloWorld.create_model", _create_model):
+        container = HelloWorld()
+        container.create_lightning_module_and_store()
+        container.run_extra_val_epoch = True
+        runner = MLRunner(experiment_config=experiment_config, container=container)
+        with patch.object(container, "get_data_module"):
+            with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+                runner.setup()
+                mock_create_trainer.return_value = MagicMock(), MagicMock()
+                runner.init_training()
                 runner.run_validation()
-
-            assert mock_trainer.validate.called == run_extra_val_epoch
+                latest_message = caplog.records[-1].getMessage()
+                assert "Hook `on_run_extra_validation_epoch` is not implemented by lightning module." in latest_message
 
 
 def test_run_inference(ml_runner_with_container: MLRunner, tmp_path: Path) -> None:
@@ -266,9 +315,7 @@ def test_run_inference_only(ml_runner_with_run_id: MLRunner) -> None:
     ml_runner_with_run_id.container.run_inference_only = True
     assert ml_runner_with_run_id.checkpoint_handler.trained_weights_path
     with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
-        with patch.multiple(
-            ml_runner_with_run_id, run_training=DEFAULT, run_validation=DEFAULT
-        ) as mocks:
+        with patch.multiple(ml_runner_with_run_id, run_training=DEFAULT, run_validation=DEFAULT) as mocks:
             mock_trainer = MagicMock()
             mock_create_trainer.return_value = mock_trainer, MagicMock()
             ml_runner_with_run_id.run()

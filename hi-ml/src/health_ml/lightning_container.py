@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from pathlib import Path
 
 import param
+import logging
 from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 from pytorch_lightning import Callback, LightningDataModule, LightningModule
@@ -227,6 +228,14 @@ class LightningContainer(WorkflowParams,
     def get_additional_aml_run_tags(self) -> Dict[str, str]:
         """Returns a dictionary of tags that should be added to the AzureML run."""
         return {}
+
+    def on_run_extra_validation_epoch(self) -> None:
+        if hasattr(self.model, "on_run_extra_validation_epoch"):
+            assert self._model, "Model is not initialized."
+            self.model.on_run_extra_validation_epoch()  # type: ignore
+        else:
+            logging.warning("Hook `on_run_extra_validation_epoch` is not implemented by lightning module."
+                            "The extra validation epoch won't produce any extra outputs.")
 
 
 class LightningModuleWithOptimizer(LightningModule):
