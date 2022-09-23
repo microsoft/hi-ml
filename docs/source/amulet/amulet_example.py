@@ -23,7 +23,7 @@ sys.path.append(str(himl_folder))
 
 from health_azure import submit_to_azure_if_needed
 from health_azure.utils import (ENV_AMLT_PROJECT_NAME, ENV_AMLT_INPUT_OUTPUT, ENV_AMLT_OUTPUT_DIR,
-                                ENV_AMLT_DATAREFERENCE_DATA, ENV_AMLT_DATAREFERENCE_OUTPUT,
+                                ENV_AMLT_DATAREFERENCE_DATA, ENV_AMLT_DATAREFERENCE_OUTPUT, ENV_RANK,
                                 set_environment_variables_for_multi_node, is_amulet_job, get_amlt_aml_working_dir,
                                 is_local_rank_zero, is_global_rank_zero)
 from health_ml.utils.logging import AzureMLLogger
@@ -202,9 +202,19 @@ def run_training_loop(logging_folder: Optional[Path] = None) -> None:
     trainer.fit(model, datamodule=data_module)
 
 
+def prepare_amulet_job() -> None:
+    # The RANK environment is set by Amulet, but not by AzureML.If set, PyTorch Lightning will think that all
+    # processes are running at rank 0 in its `rank_zero_only` decorator, which will cause the logging to fail.
+    if ENV_RANK in os.environ:
+        del os.environ[ENV_RANK]
+
 def main() -> None:
-    show_environment()
-    write_output_files()
+    if is_global_rank_zero():
+        show_environment()
+        write_output_files()
+    else:
+        print("Not rank 0, skipping environment and output file writing")
+    prepare_amulet_job()
     data_dir = get_amulet_data_dir()
     logging.error(f"_get_rank = {_get_rank()}")
     logging.error(f"is_local_rank_zero = {is_local_rank_zero()}")
@@ -213,6 +223,7 @@ def main() -> None:
         print(f"Data container is mounted at {data_dir}")
     else:
         print("No data container mounted - this is probably not an Amulet job")
+
     submit_to_azure_if_needed(compute_cluster_name="litetesting-ds2")
     set_environment_variables_for_multi_node()
     run_training_loop(logging_folder=get_amulet_output_dir())
