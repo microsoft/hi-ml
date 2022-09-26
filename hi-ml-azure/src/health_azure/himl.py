@@ -19,6 +19,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
 
+from azure.ai.ml import MLClient
+from azure.ai.ml.entities import Job
+
 from azureml._base_sdk_common import user_agent
 from azureml.core import ComputeTarget, Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
@@ -30,7 +33,7 @@ from azureml.dataprep.fuse.daemon import MountContext
 from health_azure.utils import (create_python_environment, create_run_recovery_id, find_file_in_parent_to_pythonpath,
                                 is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
                                 run_duration_string_to_seconds, to_azure_friendly_string, RUN_CONTEXT, get_workspace,
-                                PathOrString, DEFAULT_ENVIRONMENT_VARIABLES)
+                                PathOrString, DEFAULT_ENVIRONMENT_VARIABLES, get_workspace_client)
 from health_azure.datasets import (DatasetConfig, StrOrDatasetConfig, _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets, setup_local_datasets)
 
@@ -292,12 +295,54 @@ def create_script_run(snapshot_root_directory: Optional[Path] = None,
         arguments=script_params)
 
 
+def submit_run2(workspace: Optional[Workspace],
+                experiment_name: str,
+                script_run_config: Union[ScriptRunConfig, HyperDriveConfig],
+                tags: Optional[Dict[str, str]] = None,
+                wait_for_completion: bool = False,
+                wait_for_completion_show_output: bool = False,
+                workspace_config_path: Optional[PathOrString] = None,
+                ml_client: Optional[MLClient] = None) -> Job:
+    if ml_client is None:
+        if workspace is not None:
+            ml_client = get_workspace_client(subscription_id=workspace.subscription_id, resource_group=workspace.resource_group, workspace_name=workspace.name)
+        elif workspace_config_path is not None:
+            ml_client = get_workspace_client(workspace_config_path=workspace_config_path)
+        else:
+             raise ValueError("Either workspace or workspace_config_path must be specified to connect to the Workspace")
+        # raise ValueError(f"Must provide a value for ml_client to submit a job with v2 of the AML SDK")
+    from azure.ai.ml import command, Input
+    script = script_run_config.script
+    args = script_run_config.arguments
+    arg_str = " ".join(args)
+    cmd = script + " " + arg_str
+    source_directory = script_run_config.source_directory
+    compute_target = script_run_config.run_config.target
+    environment = script_run_config.run_config.environment.name + "@latest"
+    # command="python main.py --iris-csv ${{inputs.iris_csv}} --learning-rate ${{inputs.learning_rate}} --boosting
+    # $#{{inputs.boosting}}"
+    command_job = command(
+        code=str(source_directory),
+        command=cmd,
+        # todo: how to pass a newly created environment?
+        environment=environment,
+        compute=compute_target,
+    )
+    returned_job = ml_client.jobs.create_or_update(command_job)
+    return returned_job
+
+
+def download_job_outputs_logs(ml_client: MLClient, job_name: str, download_name: str, output_path: PathOrString):
+    ml_client.jobs.download(job_name, download_name=download_name, output_path=output_path)
+
+
 def submit_run(workspace: Workspace,
                experiment_name: str,
                script_run_config: Union[ScriptRunConfig, HyperDriveConfig],
                tags: Optional[Dict[str, str]] = None,
                wait_for_completion: bool = False,
-               wait_for_completion_show_output: bool = False, ) -> Run:
+               wait_for_completion_show_output: bool = False,
+               ml_client: Optional[MLClient] = None) -> Run:
     """
     Starts an AzureML run on a given workspace, via the script_run_config.
 
@@ -533,12 +578,12 @@ def submit_to_azure_if_needed(  # type: ignore
     with append_to_amlignore(
             amlignore=amlignore_path,
             lines_to_append=lines_to_append):
-        run = submit_run(workspace=workspace,
-                         experiment_name=effective_experiment_name,
-                         script_run_config=config_to_submit,
-                         tags=tags,
-                         wait_for_completion=wait_for_completion,
-                         wait_for_completion_show_output=wait_for_completion_show_output)
+        run = submit_run2(workspace=workspace,
+                          experiment_name=effective_experiment_name,
+                          script_run_config=config_to_submit,
+                          tags=tags,
+                          wait_for_completion=wait_for_completion,
+                          wait_for_completion_show_output=wait_for_completion_show_output)
 
     if after_submission is not None:
         after_submission(run)

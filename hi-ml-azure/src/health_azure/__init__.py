@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from health_azure.datasets import DatasetConfig
+# from health_azure.datasets import DatasetConfig
 from health_azure.himl import (AzureRunInfo, create_crossval_hyperdrive_config, create_run_configuration,
                                create_script_run, get_workspace, submit_run, submit_to_azure_if_needed)
 from health_azure.utils import (RUN_CONTEXT, aggregate_hyperdrive_metrics, create_aml_run_object,
@@ -15,7 +15,7 @@ from health_azure.traverse import object_to_yaml, write_yaml_to_object
 
 __all__ = [
     "AzureRunInfo",
-    "DatasetConfig",
+    # "DatasetConfig",
     "RUN_CONTEXT",
     "create_aml_run_object",
     "create_run_configuration",
