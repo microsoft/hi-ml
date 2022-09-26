@@ -108,7 +108,13 @@ jobs:
   process_count_per_node: ${GPUS}
 ```
 
-Additional settings and other methods for distributing can be found [here](https://amulet-docs.azurewebsites.net/main/advanced/51_distributed.html).
+Additional settings and other methods for distributing can be found
+[here](https://amulet-docs.azurewebsites.net/main/advanced/51_distributed.html).
+
+For training jobs using PyTorch Lightning, the field `process_count_per_node` can be set to 0
+or omitted altogether. This indicates to Amulet that the user is responsible for spawning the
+additional processes. This is the case for PyTorch Lightning, which will later spawn 1 process
+per GPU.
 
 ## View your job
 
