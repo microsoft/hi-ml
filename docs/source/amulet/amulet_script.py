@@ -1,10 +1,7 @@
-from health_ml.utils.logging import AzureMLLogger
-from health_azure.utils import (set_environment_variables_for_multi_node,
-                                is_local_rank_zero, is_global_rank_zero)
-from health_azure.amulet import (ENV_AMLT_PROJECT_NAME, ENV_AMLT_INPUT_OUTPUT, ENV_AMLT_DATAREFERENCE_OUTPUT,
-                                 is_amulet_job, get_amulet_aml_working_dir, get_amulet_data_dir, get_amulet_output_dir,
-                                 prepare_amulet_job)
-from health_azure import submit_to_azure_if_needed
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
 import os
 import sys
 import logging
@@ -25,6 +22,14 @@ repo_root = Path(__file__).parent.parent.parent.parent
 for folder in [repo_root / "hi-ml-azure" / "src", repo_root / "hi-ml" / "src"]:
     if folder.is_dir():
         sys.path.append(str(folder))
+
+from health_ml.utils.logging import AzureMLLogger  # noqa: E402
+from health_azure.utils import (set_environment_variables_for_multi_node,  # noqa: E402
+                                is_local_rank_zero, is_global_rank_zero)
+from health_azure.amulet import (ENV_AMLT_PROJECT_NAME, ENV_AMLT_INPUT_OUTPUT,  # noqa: E402
+                                 ENV_AMLT_DATAREFERENCE_OUTPUT, is_amulet_job, get_amulet_aml_working_dir,
+                                 get_amulet_data_dir, get_amulet_output_dir, prepare_amulet_job)
+from health_azure import submit_to_azure_if_needed  # noqa: E402
 
 
 NUM_FEATURES = 4
