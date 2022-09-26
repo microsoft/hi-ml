@@ -853,8 +853,8 @@ def test_set_environment_variables_for_multi_node(caplog: LogCaptureFixture) -> 
         with mock.patch.dict(os.environ, env_dict_with_master_var, clear=True):
             util.set_environment_variables_for_multi_node()
             out = caplog.messages[-1]
-            assert f"Distributed training: MASTER_ADDR = {master_addr_mock}, MASTER_PORT = "
-            f"{port_mock}, NODE_RANK = {node_rank_mock}" in out
+            assert (f"Distributed training: MASTER_ADDR = {master_addr_mock}, MASTER_PORT = "
+                    f"{port_mock}, NODE_RANK = {node_rank_mock}") in out
             assert os.environ[ENV_MASTER_ADDR] == master_addr_mock
             assert os.environ[ENV_MASTER_PORT] == port_mock
 
@@ -875,8 +875,8 @@ def test_set_environment_variables_for_multi_node(caplog: LogCaptureFixture) -> 
         with mock.patch.dict(os.environ, env_dict_with_mpi_master_var, clear=True):
             util.set_environment_variables_for_multi_node()
             out = caplog.messages[-1]
-            assert f"Distributed training: MASTER_ADDR = {mpi_master_addr_mock}, MASTER_PORT = "
-            f"{port_mock}, NODE_RANK = {node_rank_mock}" in out
+            assert (f"Distributed training: MASTER_ADDR = {mpi_master_addr_mock}, MASTER_PORT = "
+                    f"{port_mock}, NODE_RANK = {node_rank_mock}") in out
             assert os.environ[ENV_MASTER_ADDR] == mpi_master_addr_mock
             assert os.environ[ENV_MASTER_PORT] == port_mock
 
@@ -896,8 +896,8 @@ def test_set_environment_variables_for_multi_node(caplog: LogCaptureFixture) -> 
         with mock.patch.dict(os.environ, env_dict_with_env_master_ip_var, clear=True):
             util.set_environment_variables_for_multi_node()
             out = caplog.messages[-1]
-            assert f"Distributed training: MASTER_ADDR = {master_ip_mock}, MASTER_PORT = "
-            f"{port_mock}, NODE_RANK = {node_rank_mock}" in out
+            assert (f"Distributed training: MASTER_ADDR = {master_ip_mock}, MASTER_PORT = "
+                    f"{port_mock}, NODE_RANK = {node_rank_mock}") in out
             assert os.environ[ENV_MASTER_ADDR] == master_ip_mock
             assert os.environ[ENV_MASTER_PORT] == port_mock
 
@@ -916,8 +916,8 @@ def test_set_environment_variables_for_multi_node(caplog: LogCaptureFixture) -> 
         with mock.patch.dict(os.environ, env_dict_with_mpi_master_var_no_master_port, clear=True):
             util.set_environment_variables_for_multi_node()
             out = caplog.messages[-1]
-            assert f"Distributed training: MASTER_ADDR = {mpi_master_addr_mock}, MASTER_PORT = "
-            f"{MASTER_PORT_DEFAULT}, NODE_RANK = {node_rank_mock}" in out
+            assert (f"Distributed training: MASTER_ADDR = {mpi_master_addr_mock}, MASTER_PORT = "
+                    f"{MASTER_PORT_DEFAULT}, NODE_RANK = {node_rank_mock}") in out
             assert os.environ[ENV_MASTER_ADDR] == mpi_master_addr_mock
             assert os.environ[ENV_MASTER_PORT] == str(MASTER_PORT_DEFAULT)
 
@@ -973,8 +973,8 @@ def test_set_env_vars_multi_node_split_master_addr(
             with mock.patch.dict(os.environ, env_dict_with_master_var, clear=True):
                 util.set_environment_variables_for_multi_node()
                 out = caplog.messages[-1]
-                assert f"Distributed training: MASTER_ADDR = {addr}, MASTER_PORT = "
-                f"{port}, NODE_RANK = {node_rank_mock}" in out
+                assert (f"Distributed training: MASTER_ADDR = {addr}, MASTER_PORT = "
+                        f"{port}, NODE_RANK = {node_rank_mock}") in out
     else:
         with pytest.raises(ValueError) as ex:
             with mock.patch.dict(os.environ, env_dict_with_master_var, clear=True):
