@@ -4,9 +4,9 @@ PLEASE NOTE: Amulet is only intended for those with access to internal Microsoft
 must have an identity associated with the Microsoft tenant. This means you must be a Microsoft employee or approved
 external user.
 
-The documentation below describes how to submit `hi-ml` jobs via Amulet. In addition, we also provide a minimal sample
-script that shows the essential parts of a trainer script and how it interacts with Amulet. This minimal sample
-is available [here](amulet/amulet_example.py).
+The documentation below describes how to submit `hi-ml` jobs via Amulet. In addition, we also provide a
+[minimal sample script](amulet_example.md) that shows the essential parts of a trainer script and
+how it interacts with Amulet.
 
 ## Install Amulet
 

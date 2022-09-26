@@ -216,6 +216,8 @@ def show_all_diagnostic_info() -> None:
     data_dir = get_amulet_data_dir()
     if data_dir:
         print(f"Data container is mounted at {data_dir}")
+        # data_dir is now set to the container mounting point. Append a subfolder to it to get the actual data folder,
+        # and use that in your dataloaders.
     else:
         print("No data container mounted - this is probably not an Amulet job")
 
