@@ -11,7 +11,7 @@ dependencies:
   - blas=1.0=mkl
   - bzip2=1.0.8=h7b6447c_0
   - ca-certificates=2022.07.19=h06a4308_0
-  - certifi=2022.6.15=py39h06a4308_0
+  - certifi=2022.9.14=py39h06a4308_0
   - cudatoolkit=11.3.1=h2bc3f7f_2
   - ffmpeg=4.2.2=h20bf706_0
   - freetype=2.11.0=h70c0345_0
@@ -58,20 +58,20 @@ dependencies:
   - tk=8.6.12=h1ccaba5_0
   - torchvision=0.11.1=py39_cu113
   - typing_extensions=4.3.0=py39h06a4308_0
-  - tzdata=2022a=hda174b7_0
+  - tzdata=2022c=h04d1e81_0
   - x264=1!157.20191217=h7b6447c_0
   - xz=5.2.5=h7f8727e_1
-  - zlib=1.2.12=h7f8727e_2
+  - zlib=1.2.12=h5eee18b_3
   - zstd=1.5.2=ha4553b6_0
   - pip:
     - absl-py==1.2.0
     - adal==1.2.7
-    - aiohttp==3.8.1
+    - aiohttp==3.8.3
     - aiosignal==1.2.0
     - alabaster==0.7.12
     - applicationinsights==0.11.10
     - argcomplete==2.0.0
-    - astroid==2.12.5
+    - astroid==2.12.10
     - async-timeout==4.0.2
     - attrs==21.4.0
     - azure-common==1.1.28
@@ -129,12 +129,12 @@ dependencies:
     - girder-client==3.1.14
     - google-auth==1.35.0
     - google-auth-oauthlib==0.4.6
-    - grpcio==1.48.1
-    - hi-ml==0.2.4
+    - grpcio==1.49.1
+    - hi-ml==0.2.5
     - humanfriendly==10.0
-    - identify==2.5.3
-    - idna==3.3
-    - imageio==2.21.2
+    - identify==2.5.5
+    - idna==3.4
+    - imageio==2.22.0
     - imagesize==1.4.1
     - importlib-metadata==4.2.0
     - iniconfig==1.1.1
@@ -144,10 +144,10 @@ dependencies:
     - jeepney==0.8.0
     - jinja2==3.0.2
     - jmespath==1.0.0
-    - joblib==1.1.0
+    - joblib==1.2.0
     - jsonpickle==2.2.0
-    - jsonschema==4.15.0
-    - keyring==23.9.0
+    - jsonschema==4.16.0
+    - keyring==23.9.3
     - kiwisolver==1.4.4
     - knack==0.9.0
     - lazy-object-proxy==1.7.1
@@ -157,14 +157,14 @@ dependencies:
     - markdown==2.6.8
     - markdown-it-py==1.1.0
     - markupsafe==2.1.1
-    - marshmallow==3.17.1
+    - marshmallow==3.18.0
     - marshmallow-enum==1.5.1
     - matplotlib==3.4.3
     - mccabe==0.6.1
     - mdit-py-plugins==0.2.8
     - monai==0.8.0
     - more-itertools==8.10.0
-    - msal==1.18.0
+    - msal==1.19.0
     - msal-extensions==0.3.1
     - msrest==0.6.21
     - msrestazure==0.6.4
@@ -177,7 +177,7 @@ dependencies:
     - nodeenv==1.7.0
     - numba==0.56.2
     - numpy==1.22.0
-    - oauthlib==3.2.0
+    - oauthlib==3.2.1
     - opencv-python-headless==4.5.1.48
     - packaging==21.3
     - pandas==1.3.4
@@ -191,7 +191,7 @@ dependencies:
     - pluggy==0.13.1
     - portalocker==2.5.1
     - pre-commit==2.19.0
-    - protobuf==3.20.1
+    - protobuf==3.20.2
     - py==1.11.0
     - pyarrow==3.0.0
     - pyasn1==0.4.8
@@ -203,11 +203,11 @@ dependencies:
     - pydicom==2.3.0
     - pyflakes==2.4.0
     - pygments==2.13.0
-    - pyjwt==2.4.0
+    - pyjwt==2.5.0
     - pylint==2.15.0
     - pynacl==1.5.0
     - pynndescent==0.5.7
-    - pyopenssl==22.0.0
+    - pyopenssl==22.1.0
     - pyparsing==3.0.9
     - pyrsistent==0.18.1
     - pysocks==1.7.1
@@ -218,9 +218,9 @@ dependencies:
     - python-dateutil==2.8.2
     - pytorch-lightning==1.6.5
     - pytz==2022.2.1
-    - pywavelets==1.3.0
+    - pywavelets==1.4.1
     - pyyaml==6.0
-    - readme-renderer==37.0
+    - readme-renderer==37.2
     - requests==2.28.1
     - requests-oauthlib==1.3.1
     - requests-toolbelt==0.9.1
@@ -257,14 +257,14 @@ dependencies:
     - tomli==2.0.1
     - tomlkit==0.11.4
     - torchmetrics==0.6.0
-    - tqdm==4.64.0
+    - tqdm==4.64.1
     - twine==3.3.0
     - typing-inspect==0.8.0
     - umap-learn==0.5.2
     - urllib3==1.26.9
-    - virtualenv==20.16.4
+    - virtualenv==20.16.5
     - webencodings==0.5.1
-    - websocket-client==1.4.0
+    - websocket-client==1.4.1
     - werkzeug==2.2.2
     - wheel==0.36.2
     - wrapt==1.14.1
