@@ -1,3 +1,10 @@
+from health_ml.utils.logging import AzureMLLogger
+from health_azure.utils import (set_environment_variables_for_multi_node,
+                                is_local_rank_zero, is_global_rank_zero)
+from health_azure.amulet import (ENV_AMLT_PROJECT_NAME, ENV_AMLT_INPUT_OUTPUT, ENV_AMLT_DATAREFERENCE_OUTPUT,
+                                 is_amulet_job, get_amulet_aml_working_dir, get_amulet_data_dir, get_amulet_output_dir,
+                                 prepare_amulet_job)
+from health_azure import submit_to_azure_if_needed
 import os
 import sys
 import logging
@@ -19,13 +26,6 @@ for folder in [repo_root / "hi-ml-azure" / "src", repo_root / "hi-ml" / "src"]:
     if folder.is_dir():
         sys.path.append(str(folder))
 
-from health_azure import submit_to_azure_if_needed
-from health_azure.amulet import (ENV_AMLT_PROJECT_NAME, ENV_AMLT_INPUT_OUTPUT, ENV_AMLT_DATAREFERENCE_OUTPUT,
-                                is_amulet_job, get_amulet_aml_working_dir, get_amulet_data_dir, get_amulet_output_dir,
-                                prepare_amulet_job)
-from health_azure.utils import (set_environment_variables_for_multi_node,
-                                is_local_rank_zero, is_global_rank_zero)
-from health_ml.utils.logging import AzureMLLogger
 
 NUM_FEATURES = 4
 DATASET_SIZE = 16
@@ -76,9 +76,9 @@ def write_output_files() -> None:
         azureml_output_file.write_text("This is a test file written to the AzureML output folder")
 
 
-
 class RandomDataset(Dataset):
     """A dummy dataset with random dataset to enable training a simple model."""
+
     def __init__(self, length: int):
         self.len = length
         self.data = torch.randn(length, NUM_FEATURES)
@@ -92,6 +92,7 @@ class RandomDataset(Dataset):
 
 class BoringModel(LightningModule):
     """A dummy model to illustrate and test training with PyTorch Lightning."""
+
     def __init__(self):
         super().__init__()
         self.layer = torch.nn.Linear(NUM_FEATURES, 2)
@@ -122,6 +123,7 @@ class BoringModel(LightningModule):
 
 class BoringDataModule(LightningDataModule):
     """A dummy data module to illustrate and test training with PyTorch Lightning."""
+
     def __init__(self):
         super().__init__()
 
