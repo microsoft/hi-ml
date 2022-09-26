@@ -1,0 +1,41 @@
+environment:
+  image: azureml/openmpi3.1.2-cuda10.2-cudnn7-ubuntu18.04:latest
+  conda_yaml_file: $CONFIG_DIR/hi-ml-cpath/environment.yml
+
+code:
+  # local directory of the code. this will be uploaded to the server.
+  # $CONFIG_DIR is expanded to the directory of this config file
+  local_dir: $CONFIG_DIR/
+
+storage:
+  data:
+    # storage_account_name: innereye4data1
+    storage_account_name: innereyedata4westus3
+    # container_name: datasets
+    container_name: datasets-from-westus2
+    # The datasets container will be mounted at this folder when run in Amulet.
+    # The user code has to append a subfolder to this path to access the data.
+    mount_dir: /mnt/data
+
+
+# list of jobs to run
+jobs:
+# - name: Amulet Example on CPU
+#  sku: C1
+#  command:
+#  - python docs/source/amulet/amulet_example.py
+#- name: Amulet Example 1 GPUs, refactored2
+#  sku: G2
+#  command:
+#  - python docs/source/amulet/amulet_example.py
+# - name: Amulet Example with 2 nodes, 2 GPUs each
+#   sku: 2xG2
+#   # We only need to start the training script once per node, Pytorch Lightning
+#   # will take care of starting the other processes (one per GPU)
+#   process_count_per_node: 0
+#   command:
+#   - python docs/source/amulet/amulet_example.py
+- name: SlidesPandaImageNetMIL after RANK zero fix 2
+  sku: G2
+  command:
+  - python hi-ml/src/health_ml/runner.py --model=health_cpath.SlidesPandaImageNetMIL --is_finetune --crossval_count=0 --num_top_slides=2 --num_top_tiles=2 --max_bag_size=3 --max_bag_size_inf=3 --max_epochs=2
