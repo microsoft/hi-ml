@@ -246,9 +246,6 @@ class Runner:
             logging.info(f"Using this Conda environment definition: {env_file}")
             check_conda_environment(env_file)
 
-            if not self.experiment_config.cluster:
-                raise ValueError("You need to specify a cluster name via '--cluster NAME' to submit "
-                                 "the script to run in AzureML")
             azure_run_info = submit_to_azure_if_needed(
                 entry_script=entry_script,
                 snapshot_root_directory=root_folder,
@@ -271,18 +268,22 @@ class Runner:
                 after_submission=after_submission_hook,
                 tags=self.additional_run_tags(script_params)
             )
-            if self.lightning_container.tag and azure_run_info.run:
-                if self.lightning_container.is_crossvalidation_enabled:
-                    # This code is only reached inside Azure. Set display name again - this will now affect
-                    # Hypdrive child runs (for other jobs, this has already been done after submission)
-                    cv_index = self.lightning_container.crossval_index
-                    full_display_name = f"{self.lightning_container.tag} {cv_index}"
-                    azure_run_info.run.display_name = full_display_name
-
         else:
             azure_run_info = submit_to_azure_if_needed(
                 input_datasets=input_datasets,  # type: ignore
                 submit_to_azureml=False)
+        if azure_run_info.run:
+            # This code is only reached inside Azure. Set display name again - this will now affect
+            # Hypdrive child runs (for other jobs, this has already been done after submission)
+            suffix = None
+            if self.lightning_container.is_crossvalidation_enabled:
+                suffix = f"crossval {self.lightning_container.crossval_index}"
+            elif self.lightning_container.different_seeds > 0:
+                suffix = f"seed {self.lightning_container.random_seed}"
+            if suffix:
+                current_name = self.lightning_container.tag or azure_run_info.run.display_name
+                azure_run_info.run.display_name = f"{current_name} {suffix}"
+
         # submit_to_azure_if_needed calls sys.exit after submitting to AzureML. We only reach this when running
         # the script locally or in AzureML.
         return azure_run_info

@@ -175,6 +175,7 @@ def test_crossval_config() -> None:
         assert isinstance(crossval_config, HyperDriveConfig)
 
 
+@pytest.mark.fast
 def test_crossval_argument_names() -> None:
     """
     Cross validation uses hardcoded argument names, check if they match the field names
@@ -182,18 +183,42 @@ def test_crossval_argument_names() -> None:
     container = HelloWorld()
     crossval_count = 8
     crossval_index = 5
+    random_seed = 4711
     container.crossval_count = crossval_count
     container.crossval_index = crossval_index
+    container.random_seed = random_seed
     assert getattr(container, container.CROSSVAL_INDEX_ARG_NAME) == crossval_index
+    assert getattr(container, container.RANDOM_SEED_ARG_NAME) == random_seed
 
 
 def test_submit_to_azure_hyperdrive(mock_runner: Runner) -> None:
     """
-    Test if the hyperdrive configurations are passed to the submission function.
+    Test if the hyperdrive configurations are passed to the submission function if using cross validation.
     """
-    model_name = "HelloWorld"
     crossval_count = 2
-    arguments = ["", f"--model={model_name}", "--cluster=foo", "--crossval_count", str(crossval_count)]
+    _test_hyperdrive_submission(mock_runner,
+                                commandline_arg=f"--crossval_count={crossval_count}",
+                                expected_argument_name=WorkflowParams.CROSSVAL_INDEX_ARG_NAME,
+                                expected_argument_values=list(map(str, range(crossval_count))))
+
+
+def test_submit_to_azure_differents_seeds(mock_runner: Runner) -> None:
+    """
+    Test if the hyperdrive configurations are passed to the submission function if running with dfferent seeds.
+    """
+    num_seeds = 2
+    _test_hyperdrive_submission(mock_runner,
+                                commandline_arg=f"--different_seeds={num_seeds}",
+                                expected_argument_name=WorkflowParams.RANDOM_SEED_ARG_NAME,
+                                expected_argument_values=list(map(str, range(num_seeds))))
+
+
+def _test_hyperdrive_submission(mock_runner: Runner,
+                                commandline_arg: str,
+                                expected_argument_name: str,
+                                expected_argument_values: List[str]) -> None:
+    model_name = "HelloWorld"
+    arguments = ["", f"--model={model_name}", "--cluster=foo", commandline_arg]
     # Use a special simplified environment file only for the tests here. Copy that to a temp folder, then let the runner
     # start in that temp folder.
     with change_working_folder_and_add_environment(mock_runner.project_root):
@@ -212,7 +237,8 @@ def test_submit_to_azure_hyperdrive(mock_runner: Runner) -> None:
             # Check details of the Hyperdrive config
             hyperdrive_config = call_kwargs["hyperdrive_config"]
             parameter_space = hyperdrive_config._generator_config["parameter_space"]
-            assert parameter_space[WorkflowParams.CROSSVAL_INDEX_ARG_NAME] == ["choice", [list(range(crossval_count))]]
+            assert expected_argument_name in parameter_space
+            assert parameter_space[expected_argument_name] == ["choice", [expected_argument_values]]
 
 
 def test_submit_to_azure_docker(mock_runner: Runner) -> None:

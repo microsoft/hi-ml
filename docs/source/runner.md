@@ -279,3 +279,13 @@ The following command will log to the experiment `my_experiment`, in a run that 
 ```bash
 himl-runner --model=HelloWorld --log_from_vm --experiment=my_experiment --tag=my_first_run
 ```
+
+## Starting experiments with different seeds
+
+To assess the variability of metrics, it is often useful to run the same experiment multiple times with different seeds.
+There is a built-in functionality of the runner to do this. When adding the commandline flag `--different_seeds=3`, your
+experiment will get run 3 times with seeds 0, 1 and 2. This is equivalent to starting the runner with arguments
+`--random_seed=0`, `--random_seed=1` and `--random_seed=2`.
+
+These runs will be started in parallel in AzureML via the HyperDrive framework. It is not possible to run with different
+seeds on a local machine, other than by manually starting runs with `--random_seed=0` etc.

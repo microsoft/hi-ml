@@ -5,18 +5,22 @@
 from __future__ import annotations
 
 import logging
-from enum import Enum, unique
-from pathlib import Path
+import os
+import param
 import re
+from enum import Enum, unique
+from param import Parameterized
+from pathlib import Path
 from typing import List, Optional
 from urllib.parse import urlparse
 
-import param
 from azureml.train.hyperdrive import HyperDriveConfig
-from param import Parameterized
-from health_azure import create_crossval_hyperdrive_config
-from health_azure.utils import RUN_CONTEXT, PathOrString, is_global_rank_zero, is_running_in_azure_ml
 
+from health_azure import create_crossval_hyperdrive_config
+from health_azure.himl import create_grid_hyperdrive_config
+from health_azure.utils import (RUN_CONTEXT, PathOrString, is_global_rank_zero, is_running_in_azure_ml,
+                                get_amlt_aml_working_dir, is_amulet_job, ENV_AMLT_PROJECT_NAME, ENV_AMLT_INPUT_OUTPUT,
+                                ENV_AMLT_SNAPSHOT_DIR, ENV_AMLT_AZ_BATCHAI_DIR)
 from health_ml.utils import fixed_paths
 from health_ml.utils.common_utils import (CHECKPOINT_FOLDER,
                                           create_unique_timestamp_id,
@@ -109,12 +113,27 @@ class ExperimentFolderHandler(Parameterized):
         else:
             logging.info("Running inside AzureML.")
             logging.info("All results will be written to a subfolder of the project root folder.")
-            run_folder = project_root
-            outputs_folder = project_root / DEFAULT_AML_UPLOAD_DIR
-            logs_folder = project_root / DEFAULT_LOGS_DIR_NAME
+            if not is_amulet_job():
+                run_folder = project_root
+                outputs_folder = project_root / DEFAULT_AML_UPLOAD_DIR
+                logs_folder = project_root / DEFAULT_LOGS_DIR_NAME
+            else:
+                # Job submitted via Amulet
+                amlt_root_folder = Path(os.environ[ENV_AMLT_INPUT_OUTPUT])
+                project_name = os.environ[ENV_AMLT_PROJECT_NAME]
+                snapshot_dir = get_amlt_aml_working_dir()
+                assert snapshot_dir, \
+                    f"Either {ENV_AMLT_SNAPSHOT_DIR} or {ENV_AMLT_AZ_BATCHAI_DIR} must exist in env vars"
+                print(f"Found the following environment variables set by Amulet: "
+                      f"AZURE_ML_INPUT_OUTPUT: {amlt_root_folder}, AZUREML_ARM_PROJECT_NAME: {project_name}")
+                run_id = RUN_CONTEXT.id
+                run_folder = amlt_root_folder / "projects" / project_name / "amlt-code" / run_id
+                outputs_folder = snapshot_dir / DEFAULT_AML_UPLOAD_DIR
+                logs_folder = snapshot_dir / DEFAULT_LOGS_DIR_NAME
 
-        logging.info(f"Run outputs folder: {outputs_folder}")
-        logging.info(f"Logs folder: {logs_folder}")
+        print(f"Run outputs folder: {outputs_folder}")
+        print(f"Logs folder: {logs_folder}")
+        print(f"Run root directory: {run_folder}")
         return ExperimentFolderHandler(
             outputs_folder=outputs_folder,
             logs_folder=logs_folder,
@@ -155,9 +174,11 @@ class WorkflowParams(param.Parameterized):
     crossval_index: int = param.Integer(default=0, bounds=(0, None),
                                         doc="When doing cross validation, this is the index of the current "
                                             "split. Valid values: 0 .. (crossval_count -1)")
-    hyperdrive: bool = param.Boolean(False, doc="If True, use the Hyperdrive configuration specified in the "
-                                                "LightningContainer to run hyperparameter tuning. If False, just "
-                                                "run a plain single training job.")
+    hyperdrive: bool = param.Boolean(False,
+                                     doc="If True, use the Hyperdrive configuration specified in the "
+                                         "LightningContainer to run hyperparameter tuning. If False, just "
+                                         "run a plain single training job. This cannot be combined with "
+                                         "the flags --different_seeds or --crossval_count.")
     regression_test_folder: Optional[Path] = \
         param.ClassSelector(class_=Path, default=None, allow_None=True,
                             doc="A path to a folder that contains a set of files. At the end of training and "
@@ -180,9 +201,15 @@ class WorkflowParams(param.Parameterized):
                                       "metrics to AzureML. Both intermediate validation metrics and final test results"
                                       "will be recorded. You need to have an AzureML workspace config.json file "
                                       "and will be asked for interactive authentication.")
+    different_seeds: int = param.Integer(default=0, bounds=(0, None),
+                                         doc="If > 0, run the same training job multiple times with different seeds. "
+                                         "This uses AzureML hyperdrive to run multiple jobs in parallel, and hence "
+                                         "cannot be used when running outside AzureML. "
+                                         "This cannot be combined with the --hyperdrive or the --crossval_count flags.")
 
     CROSSVAL_INDEX_ARG_NAME = "crossval_index"
     CROSSVAL_COUNT_ARG_NAME = "crossval_count"
+    RANDOM_SEED_ARG_NAME = "random_seed"
 
     @property
     def src_checkpoint_is_url(self) -> bool:
@@ -259,6 +286,13 @@ class WorkflowParams(param.Parameterized):
                                                  cross_val_index_arg_name=self.CROSSVAL_INDEX_ARG_NAME,
                                                  metric_name="val/loss"
                                                  )
+
+    def get_different_seeds_hyperdrive_config(self) -> HyperDriveConfig:
+        """Returns a configuration object for AzureML Hyperdrive that varies the random seed for each run."""
+        return create_grid_hyperdrive_config(values=list(map(str, range(self.different_seeds))),
+                                             argument_name=self.RANDOM_SEED_ARG_NAME,
+                                             metric_name="val/loss"
+                                             )
 
 
 class DatasetParams(param.Parameterized):

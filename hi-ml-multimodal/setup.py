@@ -8,7 +8,7 @@ from setuptools import find_namespace_packages, setup  # type: ignore
 
 
 long_description = Path("README.md").read_text(encoding="utf-8")
-version = "0.1.0"
+version = "0.1.1"
 package_name = "hi-ml-multimodal"
 install_requires = Path("requirements_run.txt").read_text().splitlines()
 
