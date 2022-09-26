@@ -17,6 +17,8 @@ To submit this example script as-is via Amulet, follow these steps:
 - Check out the [hi-ml](https://github.com/microsoft/hi-ml) repository.
 - Follow the onboarding instructions in the [Amulet overview](amulet_overview.md) section, and create an Amulet
   project in the root folder of the repository.
+- Modify `docs/source/amulet/config.yml` to point to your storage account: replace the `<storage_account_name>`
+  placeholder with the name of your storage account.
 - Once Amulet is installed, submit the example jobs with the following command:
 
 ```bash

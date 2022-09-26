@@ -9,7 +9,7 @@ code:
 
 storage:
   data:
-    storage_account_name: innereye4data1
+    storage_account_name: <storage_account_name>
     container_name: datasets
     # The datasets container will be mounted at this folder when run in Amulet.
     # The user code has to append a subfolder to this path to access the data.
@@ -18,6 +18,9 @@ storage:
 
 # list of jobs to run
 jobs:
+# The names of jobs must be unique. If you want to run the same job multiple times,
+# either use a different name or respond with "replace existing job" if Amulet
+# complains that a job of that name already exists.
 - name: Amulet Example on CPU
  sku: C1
  command:
