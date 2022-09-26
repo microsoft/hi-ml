@@ -9,6 +9,9 @@ You will need a folder that contains the following files:
 - An Amulet configuration file, like :download:`this configuration <amulet/config.yml>`.
 - A script that uses the Amulet environment, like :download:`this script <amulet/amulet_example.py>`.
 
+The script has a large number of comments around the correct use of the Amulet environment - please read them
+carefully if you want to base your training code on that.
+
 To submit this script via Amulet, follow the onboarding instructions in the :ref:`amulet_overview` section.
 Once Amulet is installed, submit the example jobs with the following commands:
 

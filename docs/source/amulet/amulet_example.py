@@ -13,13 +13,11 @@ from pytorch_lightning.utilities.rank_zero import _get_rank
 
 from pathlib import Path
 
+# Add local source folders manually if the code is not installed as a package
 repo_root = Path(__file__).parent.parent.parent.parent
-himl_azure_folder = repo_root / "hi-ml-azure" / "src"
-assert himl_azure_folder.is_dir()
-sys.path.append(str(himl_azure_folder))
-himl_folder = repo_root / "hi-ml" / "src"
-assert himl_folder.is_dir()
-sys.path.append(str(himl_folder))
+for folder in [repo_root / "hi-ml-azure" / "src", repo_root / "hi-ml" / "src"]:
+    if folder.is_dir():
+        sys.path.append(str(folder))
 
 from health_azure import submit_to_azure_if_needed
 from health_azure.amulet import (ENV_AMLT_PROJECT_NAME, ENV_AMLT_INPUT_OUTPUT, ENV_AMLT_DATAREFERENCE_OUTPUT,
@@ -33,7 +31,54 @@ NUM_FEATURES = 4
 DATASET_SIZE = 16
 
 
+def show_environment() -> None:
+    """Show various diagnostic information that are helpful for debugging failing Amulet jobs:
+    Environment variables, Amulet input and output folder, etc."""
+    print("System setup:")
+    print("Full set of environment variables:")
+    print(os.environ)
+
+    amulet_project_name = os.environ.get(ENV_AMLT_PROJECT_NAME, None)
+    amulet_input_output = os.environ.get(ENV_AMLT_INPUT_OUTPUT, None)
+    amulet_output_dir = get_amulet_output_dir()
+    amulet_datareference_data = get_amulet_data_dir()
+    amulet_datareference_output = os.environ.get(ENV_AMLT_DATAREFERENCE_OUTPUT, None)
+
+    print(f"{amulet_project_name=}")
+    print(f"{amulet_input_output=}")
+    print(f"{amulet_output_dir=}")
+    print(f"{amulet_datareference_data=}")
+    print(f"{amulet_datareference_output=}")
+
+    print(f"{is_amulet_job()=}")
+    print(f"{get_amulet_aml_working_dir()=}")
+    print(f"{Path.cwd()=}")
+
+
+def write_output_files() -> None:
+    """Writes some output files to the output folders, to check that the output folder is correctly mounted.
+    There are 2 ways of writing the output files, one that makes the files visible in AzureML, but not in the Amulet
+    browser, and one that makes the files visible in the Amulet browser, but not in AzureML."""
+    amlt_output_dir = get_amulet_output_dir()
+    if amlt_output_dir is None:
+        print("No Amulet output directory found")
+    else:
+        amlt_output_file = amlt_output_dir / "amulet_output.txt"
+        print(f"Writing Amulet output file {amlt_output_file}")
+        amlt_output_file.write_text("This is a test file written to the Amulet output folder")
+
+    azureml_working_dir = get_amulet_aml_working_dir()
+    if azureml_working_dir is None:
+        print("No AzureML working directory found")
+    else:
+        azureml_output_file = azureml_working_dir / "azureml_output.txt"
+        print(f"Writing AzureML output file {amlt_output_file}")
+        azureml_output_file.write_text("This is a test file written to the AzureML output folder")
+
+
+
 class RandomDataset(Dataset):
+    """A dummy dataset with random dataset to enable training a simple model."""
     def __init__(self, length: int):
         self.len = length
         self.data = torch.randn(length, NUM_FEATURES)
@@ -46,6 +91,7 @@ class RandomDataset(Dataset):
 
 
 class BoringModel(LightningModule):
+    """A dummy model to illustrate and test training with PyTorch Lightning."""
     def __init__(self):
         super().__init__()
         self.layer = torch.nn.Linear(NUM_FEATURES, 2)
@@ -75,6 +121,7 @@ class BoringModel(LightningModule):
 
 
 class BoringDataModule(LightningDataModule):
+    """A dummy data module to illustrate and test training with PyTorch Lightning."""
     def __init__(self):
         super().__init__()
 
@@ -105,48 +152,10 @@ class BoringDataModule(LightningDataModule):
         return DataLoader(self.random_predict)
 
 
-def show_environment() -> None:
-    print("System setup:")
-    print("Full set of environment variables:")
-    print(os.environ)
-
-    amulet_project_name = os.environ.get(ENV_AMLT_PROJECT_NAME, None)
-    amulet_input_output = os.environ.get(ENV_AMLT_INPUT_OUTPUT, None)
-    amulet_output_dir = get_amulet_output_dir()
-    amulet_datareference_data = get_amulet_data_dir()
-    amulet_datareference_output = os.environ.get(ENV_AMLT_DATAREFERENCE_OUTPUT, None)
-
-    print(f"{amulet_project_name=}")
-    print(f"{amulet_input_output=}")
-    print(f"{amulet_output_dir=}")
-    print(f"{amulet_datareference_data=}")
-    print(f"{amulet_datareference_output=}")
-
-    print(f"{is_amulet_job()=}")
-    print(f"{get_amulet_aml_working_dir()=}")
-    print(f"{Path.cwd()=}")
-
-
-def write_output_files() -> None:
-
-    amlt_output_dir = get_amulet_output_dir()
-    if amlt_output_dir is None:
-        print("No Amulet output directory found")
-    else:
-        amlt_output_file = amlt_output_dir / "amulet_output.txt"
-        print(f"Writing Amulet output file {amlt_output_file}")
-        amlt_output_file.write_text("This is a test file written to the Amulet output folder")
-
-    azureml_working_dir = get_amulet_aml_working_dir()
-    if azureml_working_dir is None:
-        print("No AzureML working directory found")
-    else:
-        azureml_output_file = azureml_working_dir / "azureml_output.txt"
-        print(f"Writing AzureML output file {amlt_output_file}")
-        azureml_output_file.write_text("This is a test file written to the AzureML output folder")
-
-
 def run_training_loop(logging_folder: Optional[Path] = None) -> None:
+    """Runs a simple PyTorch Lightning training loop, with a logger that writes to a given output folder.
+
+    :param logging_folder: The folder to write the logs to. If None, no logging will be performed."""
     num_gpus = torch.cuda.device_count()
     strategy = None
     if num_gpus == 0:
@@ -167,6 +176,7 @@ def run_training_loop(logging_folder: Optional[Path] = None) -> None:
         loggers.append(TensorBoardLogger(save_dir=str(logging_folder), name="Lightning", version=""))
     else:
         print("Logging disabled")
+    # Write all metrics also to AzureML natively, so that they are visible in the AzureML UI
     loggers.append(AzureMLLogger())
 
     trainer = Trainer(accelerator=accelerator,
@@ -184,6 +194,7 @@ def run_training_loop(logging_folder: Optional[Path] = None) -> None:
 
 
 def show_all_diagnostic_info() -> None:
+    """Shows all diagnostic information that is essential to check that Amulet/AzureML are correctly set up."""
     if is_global_rank_zero():
         print("Global rank 0: print environment variables")
         show_environment()
@@ -209,6 +220,7 @@ def main() -> None:
     submit_to_azure_if_needed(compute_cluster_name="litetesting-ds2")
     prepare_amulet_job()
     set_environment_variables_for_multi_node()
+    # Run the training loop, and write logs such that the Tensorboard file is accessible via Amulet.
     run_training_loop(logging_folder=get_amulet_output_dir())
 
 
