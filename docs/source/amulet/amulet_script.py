@@ -77,7 +77,7 @@ def write_output_files() -> None:
         print("No AzureML working directory found")
     else:
         azureml_output_file = azureml_working_dir / "azureml_output.txt"
-        print(f"Writing AzureML output file {amlt_output_file}")
+        print(f"Writing AzureML output file {azureml_output_file}")
         azureml_output_file.write_text("This is a test file written to the AzureML output folder")
 
 
@@ -106,7 +106,7 @@ class BoringModel(LightningModule):
         return self.layer(x)
 
     def loss(self, batch, prediction):
-        return torch.nn.functional.mse_loss(prediction, torch.ones_like(prediction))
+        return torch.nn.functional.mse_loss(prediction, torch.ones_like(prediction))  # type: ignore
 
     def training_step(self, batch, batch_idx):
         output = self(batch)

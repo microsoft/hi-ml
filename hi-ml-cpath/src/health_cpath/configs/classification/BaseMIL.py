@@ -6,7 +6,6 @@
 import os
 import logging
 import param
-import torch
 from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Union
 
 from pathlib import Path
