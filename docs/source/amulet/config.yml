@@ -18,18 +18,18 @@ storage:
 
 # list of jobs to run
 jobs:
-# - name: Amulet Example on CPU
-#  sku: C1
-#  command:
-#  - python docs/source/amulet/amulet_example.py
+- name: Amulet Example on CPU
+ sku: C1
+ command:
+ - python docs/source/amulet/amulet_example.py
 - name: Amulet Example with 2 GPUs on same node, don't delete RANK
   sku: G2
   command:
   - python docs/source/amulet/amulet_example.py
-# - name: Amulet Example with 2 nodes, 2 GPUs each
-#   sku: 2xG2
-#   # We only need to start the training script once per node, Pytorch Lightning
-#   # will take care of starting the other processes (one per GPU)
-#   process_count_per_node: 0
-#   command:
-#   - python docs/source/amulet/amulet_example.py
+- name: Amulet Example with 2 nodes, 2 GPUs each
+  sku: 2xG2
+  # We only need to start the training script once per node. Pytorch Lightning
+  # will take care of starting the other processes (one per GPU)
+  process_count_per_node: 0
+  command:
+  - python docs/source/amulet/amulet_example.py
