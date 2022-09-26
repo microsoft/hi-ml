@@ -3,6 +3,9 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
+"""This module contains functions for identifying and dealing with cloud jobs that are submitted via the Amulet toolbox.
+"""
+
 import logging
 import os
 
