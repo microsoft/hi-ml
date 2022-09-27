@@ -1,7 +1,7 @@
 /.git
 /.github
 /azure-pipelines
-/docs
+/docs/build
 /.idea
 outputs/
 __pycache__/
@@ -21,6 +21,7 @@ cifar-10-python.tar.gz
 cifar-10-batches-py/
 None/
 hi-ml-cpath/testSSL/test_outputs
+hi-ml-cpath/testhisto/test_data
 test_outputs/
 lightning_logs/
 # Downloaded datasets
