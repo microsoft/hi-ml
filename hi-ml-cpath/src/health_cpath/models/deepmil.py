@@ -101,6 +101,7 @@ class BaseDeepMILModule(LightningModule):
         self.classifier_fn = self.get_classifier()
         self.activation_fn = self.get_activation()
         self.loss_fn = self.get_loss()
+        self.loss_fn_no_reduction = self.get_loss(reduction="none")
 
         # Metrics Objects
         self.train_metrics = self.get_metrics()
@@ -165,18 +166,18 @@ class BaseDeepMILModule(LightningModule):
         else:
             raise ValueError(f"Dropout rate should be in [0, 1), got {self.dropout_rate}")
 
-    def get_loss(self) -> Callable:
+    def get_loss(self, reduction: str = "mean") -> Callable:
         if self.n_classes > 1:
             if self.class_weights is None:
-                return nn.CrossEntropyLoss()
+                return nn.CrossEntropyLoss(reduction=reduction)
             else:
                 class_weights = self.class_weights.float()
-                return nn.CrossEntropyLoss(weight=class_weights)
+                return nn.CrossEntropyLoss(weight=class_weights, reduction=reduction)
         else:
             pos_weight = None
             if self.class_weights is not None:
                 pos_weight = Tensor([self.class_weights[1] / (self.class_weights[0] + 1e-5)])
-            return nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+            return nn.BCEWithLogitsLoss(pos_weight=pos_weight, reduction=reduction)
 
     def get_activation(self) -> Callable:
         if self.n_classes > 1:
