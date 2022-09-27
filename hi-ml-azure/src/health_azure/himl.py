@@ -330,7 +330,8 @@ def submit_run2(workspace: Optional[Workspace],
                 ml_client: Optional[MLClient] = None) -> Job:
     if ml_client is None:
         if workspace is not None:
-            ml_client = get_workspace_client(subscription_id=workspace.subscription_id, resource_group=workspace.resource_group, workspace_name=workspace.name)
+            ml_client = get_workspace_client(subscription_id=workspace.subscription_id, resource_group=workspace.
+            resource_group, workspace_name=workspace.name)
         elif workspace_config_path is not None:
             ml_client = get_workspace_client(workspace_config_path=workspace_config_path)
         else:
@@ -341,7 +342,13 @@ def submit_run2(workspace: Optional[Workspace],
     args = script_run_config.arguments
     arg_str = " ".join(args)
     cmd = script + " " + arg_str
-    source_directory = script_run_config.source_directory
+    source_directory = Path(script_run_config.source_directory)
+    docs_folder = source_directory / "docs" / "source"
+    for doc_file in docs_folder.glob("*.md"):
+        if doc_file.is_symlink():
+            print(f"File {str(doc_file)} is symlink. Unlinking.")
+            doc_file.unlink()
+
     compute_target = script_run_config.run_config.target
     environment = script_run_config.run_config.environment.name + "@latest"
     # command="python main.py --iris-csv ${{inputs.iris_csv}} --learning-rate ${{inputs.learning_rate}} --boosting
@@ -352,13 +359,17 @@ def submit_run2(workspace: Optional[Workspace],
         # todo: how to pass a newly created environment?
         environment=environment,
         compute=compute_target,
+        base_path=str(source_directory)
     )
     returned_job = ml_client.jobs.create_or_update(command_job)
+    print(f"URL to job: {returned_job.services['Studio'].endpoint}")
     return returned_job
 
 
-def download_job_outputs_logs(ml_client: MLClient, job_name: str, download_name: str, output_path: PathOrString):
-    ml_client.jobs.download(job_name, download_name=download_name, output_path=output_path)
+def download_job_outputs_logs(ml_client: MLClient, job_name: str, file_to_download_path: Optional[str] = None, download_dir: Optional[PathOrString] = None):
+    download_dir = download_dir or Path("outputs")
+    download_dir = download_dir / job_name
+    ml_client.jobs.download(job_name, output_name=file_to_download_path, download_path=download_dir)
 
 
 def submit_run(workspace: Workspace,
