@@ -5,6 +5,7 @@
 
 import os
 import torch
+import logging
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -119,6 +120,11 @@ class LossValuesAnalysisCallback(Callback):
                 self.dump_loss_cache(trainer.current_epoch)
         self.loss_cache = self.reset_loss_cache()
 
+    def check_for_nans(self, loss_values: LossDictType) -> None:
+        for slide_id, loss in loss_values.items():
+            if np.isnan(loss).any():
+                raise ValueError(f"NaNs found in loss values for slide {slide_id}.")
+
     def select_loss_slides_across_epochs(self, high: bool = True) -> Tuple[np.ndarray, np.ndarray]:
 
         slides = []
@@ -177,6 +183,11 @@ class LossValuesAnalysisCallback(Callback):
     ) -> None:
         loss_values = np.array(list(slides_loss_values.values()))
         slides = list(slides_loss_values.keys())
+        try:
+            self.check_for_nans(slides_loss_values)
+        except ValueError as e:
+            logging.warning(f"Skipping loss heatmap because {e}")
+            return
         plt.figure(figsize=figsize)
         _ = sns.heatmap(loss_values, linewidth=0.5, annot=True, yticklabels=slides)
         plt.xlabel(X_LABEL)
