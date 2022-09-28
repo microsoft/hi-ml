@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 
 import os
-from tkinter import BOTTOM
 import torch
 import numpy as np
 import pandas as pd
@@ -18,17 +17,13 @@ from pytorch_lightning.callbacks import Callback
 
 from health_cpath.models.deepmil import BaseDeepMILModule
 from health_cpath.utils.naming import ResultsKey
-from health_cpath.utils.tiles_selection_utils import TilesSelector
 
 TILES_JOIN_TOKEN = "$"
 LOSS_VALUES_FILENAME = "epoch_{}.csv"
-LOSS_VALUES_SUBFOLDER = "loss_values_callback"
 X_LABEL, Y_LABEL = "Epoch", "Slide ids"
-TOP, BOTTOM = "top", "bottom"  # noqa: F811
+TOP, BOTTOM = "top", "bottom"
 HIGHEST, LOWEST = "highest", "lowest"
-LOSS_VALUES_EVOL = "loss_values_evolution"
-LOSS_CACHE = "loss_cache"
-LOSS_SCATTER = "loss_scatter"
+
 LossDictType = Dict[str, List]
 
 
@@ -49,7 +44,7 @@ class LossValuesAnalysisCallback(Callback):
         self.num_slides_scatter = num_slides_scatter
         self.num_slides_heatmap = num_slides_heatmap
 
-        self.outputs_folder = outputs_folder / LOSS_VALUES_SUBFOLDER
+        self.outputs_folder = outputs_folder / "loss_values_callback"
         self.create_outputs_folders()
 
         self.loss_cache = self.reset_loss_cache()
@@ -57,20 +52,20 @@ class LossValuesAnalysisCallback(Callback):
 
     @property
     def cache_folder(self) -> Path:
-        return self.outputs_folder / LOSS_CACHE
+        return self.outputs_folder / "loss_cache"
 
     @property
     def scatter_folder(self) -> Path:
-        return self.outputs_folder / LOSS_SCATTER
+        return self.outputs_folder / "loss_scatter"
 
     @property
     def evolution_folder(self) -> Path:
-        return self.outputs_folder / LOSS_VALUES_EVOL
+        return self.outputs_folder / "loss_values_evolution"
 
     def create_outputs_folders(self) -> None:
-        subfolders = [LOSS_VALUES_EVOL, LOSS_CACHE, LOSS_SCATTER]
-        for subfolder in subfolders:
-            os.makedirs(self.outputs_folder / subfolder, exist_ok=True)
+        folders = [self.cache_folder, self.scatter_folder, self.evolution_folder]
+        for folder in folders:
+            os.makedirs(folder, exist_ok=True)
 
     @staticmethod
     def reset_loss_cache() -> LossDictType:
@@ -84,11 +79,21 @@ class LossValuesAnalysisCallback(Callback):
         loss_cache_df = loss_cache_df.sort_values(by=ResultsKey.LOSS, ascending=False)
         loss_cache_df.to_csv(self.cache_folder / LOSS_VALUES_FILENAME.format(current_epoch), index=False)
 
-    def gather_loss_cache(self) -> None:
+    def merge_loss_caches(self, loss_caches: List[LossDictType]) -> LossDictType:
+        for loss_cache in loss_caches:
+            self.loss_cache[ResultsKey.LOSS].extend(loss_cache[ResultsKey.LOSS])
+            self.loss_cache[ResultsKey.SLIDE_ID].extend(loss_cache[ResultsKey.SLIDE_ID])
+            self.loss_cache[ResultsKey.TILE_ID].extend(loss_cache[ResultsKey.TILE_ID])
+        return loss_cache
+
+    def gather_loss_cache(self, rank: int) -> None:
         if torch.distributed.is_initialized():
             world_size = torch.distributed.get_world_size()
             if world_size > 1:
-                self.loss_cache = TilesSelector._gather_dictionaries(world_size, self.loss_cache)  # type: ignore
+                loss_caches = [None] * world_size
+                torch.distributed.all_gather_object(loss_caches, self.loss_cache)
+                if rank == 0:
+                    self.loss_cache = self.merge_loss_caches(loss_caches)  # type: ignore
 
     @torch.no_grad()
     def on_train_batch_start(  # type: ignore
@@ -101,14 +106,14 @@ class LossValuesAnalysisCallback(Callback):
             else:
                 loss = pl_module.loss_fn_no_reduction(bag_logits.squeeze(1), bag_labels.float())
             self.loss_cache[ResultsKey.LOSS].extend(loss.tolist())
-            self.loss_cache[ResultsKey.SLIDE_ID].extend(np.array(batch[ResultsKey.SLIDE_ID])[:, 0])
+            self.loss_cache[ResultsKey.SLIDE_ID].extend(np.array([slides[0] for slides in batch[ResultsKey.SLIDE_ID]]))
             self.loss_cache[ResultsKey.TILE_ID].extend(
                 [TILES_JOIN_TOKEN.join(tiles) for tiles in batch[ResultsKey.TILE_ID]]
             )
 
     def on_train_epoch_end(self, trainer: Trainer, pl_module: BaseDeepMILModule) -> None:  # type: ignore
         if self.is_time_to_cache_loss_values(trainer):
-            self.gather_loss_cache()
+            self.gather_loss_cache(rank=pl_module.global_rank)
             if pl_module.global_rank == 0:
                 self.dump_loss_cache(trainer.current_epoch)
         self.loss_cache = self.reset_loss_cache()
