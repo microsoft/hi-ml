@@ -164,7 +164,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
                                      auto_insert_metric_name=False,
                                      mode="max" if self.maximise_primary_metric else "min")]
         if self.analyze_loss_values:
-            callbacks.append(LossValuesAnalysisCallback())
+            callbacks.append(LossValuesAnalysisCallback(outputs_folder=self.outputs_folder, max_epochs=self.max_epochs))
         return callbacks
 
     def get_checkpoint_to_test(self) -> Path:

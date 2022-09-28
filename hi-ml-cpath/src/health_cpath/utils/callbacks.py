@@ -23,12 +23,12 @@ from health_cpath.utils.tiles_selection_utils import TilesSelector
 TILES_JOIN_TOKEN = "$"
 LOSS_VALUES_FILENAME = "epoch_{}.csv"
 LOSS_VALUES_SUBFOLDER = "loss_values_callback"
-X_LABEL = "Epoch"
-Y_LABEL = "Slide ids"
-TOP = "top"
-BOTTOM = "bottom"
-HIGHEST = "highest"
-LOWEST = "lowest"
+X_LABEL, Y_LABEL = "Epoch", "Slide ids"
+TOP, BOTTOM = "top", "bottom"  # noqa: F811
+HIGHEST, LOWEST = "highest", "lowest"
+LOSS_VALUES_EVOL = "loss_values_evolution"
+LOSS_CACHE = "loss_cache"
+LOSS_SCATTER = "loss_scatter"
 LossDictType = Dict[str, List]
 
 
@@ -42,15 +42,35 @@ class LossValuesAnalysisCallback(Callback):
         num_slides_scatter: int = 10,
         num_slides_heatmap: int = 20,
     ) -> None:
+
         self.patience = patience
         self.save_every_n_epoch = save_every_n_epoch
         self.max_epochs = max_epochs
         self.num_slides_scatter = num_slides_scatter
         self.num_slides_heatmap = num_slides_heatmap
+
         self.outputs_folder = outputs_folder / LOSS_VALUES_SUBFOLDER
-        os.makedirs(self.outputs_folder, exist_ok=True)
+        self.create_outputs_folders()
+
         self.loss_cache = self.reset_loss_cache()
-        self.epochs_range = list(range(self.patience, self.max_epochs + 1, self.save_every_n_epoch))
+        self.epochs_range = list(range(self.patience, self.max_epochs, self.save_every_n_epoch))
+
+    @property
+    def cache_folder(self) -> Path:
+        return self.outputs_folder / LOSS_CACHE
+
+    @property
+    def scatter_folder(self) -> Path:
+        return self.outputs_folder / LOSS_SCATTER
+
+    @property
+    def evolution_folder(self) -> Path:
+        return self.outputs_folder / LOSS_VALUES_EVOL
+
+    def create_outputs_folders(self) -> None:
+        subfolders = [LOSS_VALUES_EVOL, LOSS_CACHE, LOSS_SCATTER]
+        for subfolder in subfolders:
+            os.makedirs(self.outputs_folder / subfolder, exist_ok=True)
 
     @staticmethod
     def reset_loss_cache() -> LossDictType:
@@ -62,7 +82,7 @@ class LossValuesAnalysisCallback(Callback):
     def dump_loss_cache(self, current_epoch: int) -> None:
         loss_cache_df = pd.DataFrame(self.loss_cache)
         loss_cache_df = loss_cache_df.sort_values(by=ResultsKey.LOSS, ascending=False)
-        loss_cache_df.to_csv(self.outputs_folder / LOSS_VALUES_FILENAME.format(current_epoch), index=False)
+        loss_cache_df.to_csv(self.cache_folder / LOSS_VALUES_FILENAME.format(current_epoch), index=False)
 
     def gather_loss_cache(self) -> None:
         if torch.distributed.is_initialized():
@@ -98,7 +118,7 @@ class LossValuesAnalysisCallback(Callback):
         slides = []
         slides_loss = []
         for epoch in self.epochs_range:
-            loss_cache = pd.read_csv(self.outputs_folder / LOSS_VALUES_FILENAME.format(epoch))
+            loss_cache = pd.read_csv(self.cache_folder / LOSS_VALUES_FILENAME.format(epoch))
 
             if high:
                 slides.append(loss_cache[ResultsKey.SLIDE_ID][: self.num_slides_scatter])
@@ -115,7 +135,7 @@ class LossValuesAnalysisCallback(Callback):
         label = TOP if high else BOTTOM
         plt.figure(figsize=figure_size)
         for i in range(self.num_slides_scatter - 1, -1, -1):
-            plt.scatter(self.epochs_range, slides_loss[i], label=f"{label}_{i+1}")
+            plt.scatter(self.epochs_range, slides[i], label=f"{label}_{i+1}")
             coordinates = [
                 (loss, epoch, slide) for loss, epoch, slide in zip(slides_loss[i], self.epochs_range, slides[i])
             ]
@@ -125,10 +145,11 @@ class LossValuesAnalysisCallback(Callback):
         plt.ylabel(Y_LABEL)
         order = HIGHEST if high else LOWEST
         plt.title(f"Slides with {order} loss values per epoch.")
-        plt.savefig(self.outputs_folder / f"slides_with_{order}_loss_values.png")
+        plt.legend()
+        plt.savefig(self.scatter_folder / f"slides_with_{order}_loss_values.png")
 
     def select_loss_for_slides_of_epoch(self, epoch: int, high: bool) -> LossDictType:
-        loss_cache = pd.read_csv(self.outputs_folder / LOSS_VALUES_FILENAME.format(epoch))
+        loss_cache = pd.read_csv(self.cache_folder / LOSS_VALUES_FILENAME.format(epoch))
 
         if high:
             slides = loss_cache[ResultsKey.SLIDE_ID][: self.num_slides_heatmap]
@@ -137,7 +158,7 @@ class LossValuesAnalysisCallback(Callback):
 
         slides_loss_values: LossDictType = {slide_id: [] for slide_id in slides}
         for epoch in self.epochs_range:
-            loss_cache = pd.read_csv(self.outputs_folder / LOSS_VALUES_FILENAME.format(epoch))
+            loss_cache = pd.read_csv(self.cache_folder / LOSS_VALUES_FILENAME.format(epoch))
             loss_cache.set_index(ResultsKey.SLIDE_ID, inplace=True)
             slides_loss_values = {
                 slide_id: slides_loss_values[slide_id] + [loss_cache.loc[slide_id, ResultsKey.LOSS]]
@@ -156,7 +177,7 @@ class LossValuesAnalysisCallback(Callback):
         plt.ylabel(Y_LABEL)
         order = HIGHEST if high else LOWEST
         plt.title(f"Loss values evolution for {order} slides of epoch {epoch}")
-        plt.savefig(self.outputs_folder / f"loss_values_evolution_for_{order}_slides_of_epoch_{epoch}.png")
+        plt.savefig(self.evolution_folder / f"{order}_slides_of_epoch_{epoch}.png")
 
     def on_train_end(self, trainer: Trainer, pl_module: BaseDeepMILModule) -> None:  # type: ignore
         if pl_module.global_rank == 0:
