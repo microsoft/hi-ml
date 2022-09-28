@@ -14,7 +14,7 @@ from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 
 from health_azure.utils import create_from_matching_params
-from health_cpath.models.callbacks import LossValuesAnalysisCallback
+from health_cpath.utils.callbacks import LossValuesAnalysisCallback
 
 from health_ml.utils import fixed_paths
 from health_ml.deep_learning_config import OptimizerParams
