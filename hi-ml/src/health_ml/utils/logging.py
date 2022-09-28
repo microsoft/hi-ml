@@ -13,7 +13,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, Optional, Union
 
+import mlflow
 import torch
+from azure.ai.ml import MLClient
 from azureml.core import Run, Workspace
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import ProgressBarBase
@@ -124,7 +126,7 @@ class AzureMLLogger(LightningLoggerBase):
             return
         if params is None:
             return
-        params_final = self._preprocess_hyperparams(params)
+        params_final = _preprocess_hyperparams(params)
         if len(params_final) > 0:
             # Log hyperparameters as a table with 2 columns. Each "step" is one hyperparameter
             self.run.log_table(self.HYPERPARAMS_NAME, {"name": list(params_final.keys()),
@@ -149,24 +151,6 @@ class AzureMLLogger(LightningLoggerBase):
             else:
                 # Run.complete should only be called if we created an AzureML run here in the constructor.
                 self.run.complete()
-
-    def _preprocess_hyperparams(self, params: Any) -> Dict[str, str]:
-        """
-        Converts arbitrary hyperparameters to a simple dictionary structure, in particular argparse Namespaces.
-        Nested dictionaries are converted to folder-like strings, like ``{'a': {'b': 'c'}} -> {'a/b': 'c'}``.
-        All hyperparameter values are converted to strings, because Run.log_table can't deal with mixed datatypes.
-        :param params: The parameters to convert
-        :return: A dictionary mapping from string to string.
-        """
-        # Convert from Namespace to dictionary
-        params = _convert_params(params)
-        # Convert nested dictionaries to folder-like structure
-        params = _flatten_dict(params)
-        # Convert anything that is not a primitive type to str
-        params_final = _sanitize_params(params)
-        if not isinstance(params_final, dict):
-            raise ValueError(f"Expected the converted hyperparameters to be a dictionary, but got {type(params)}")
-        return {str(key): str(value) for key, value in params_final.items()}
 
 
 class AzureMLProgressBar(ProgressBarBase):
@@ -331,6 +315,71 @@ class AzureMLProgressBar(ProgressBarBase):
         else:
             print(message)
             sys.stdout.flush()
+
+
+class MLFlowLogger:
+    HYPERPARAMS_NAME = "hyperparams"
+
+    def __init__(self, ml_client: MLClient, experiment_name: str):
+        workspace_name = ml_client.workspace_name
+        azureml_mlflow_uri = ml_client.workspaces.get(workspace_name).mlflow_tracking_uri
+        mlflow.set_tracking_uri(azureml_mlflow_uri)
+        self.experiment_name = experiment_name
+        mlflow.set_experiment(experiment_name)
+        self.mlflow_run = mlflow.start_run()
+
+    def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
+        is_epoch_metric = "epoch" in metrics
+        for key, value in metrics.items():
+            # Log all epoch-level metrics without the step information
+            # All step-level metrics with step
+            mlflow.log_metric(key, value, step=None if is_epoch_metric else step)
+
+    def log_hyperparams(self, params: Union[argparse.Namespace, Dict[str, Any]]) -> None:
+        """
+        Logs the given model hyperparameters to MLFlow. Namespaces are converted to dictionaries.
+        Nested dictionaries are flattened out. The hyperparameters are then written as a table with two columns
+        "name" and "value".
+        """
+        if params is None:
+            return
+        params_final = _preprocess_hyperparams(params)
+        if len(params_final) > 0:
+            # Log hyperparameters. Each "step" is one hyperparameter
+            # mlflow.log_params(self.HYPERPARAMS_NAME, {"name": list(params_final.keys()),
+            #                                            "value": list(params_final.values())})
+            mlflow.log_params(params_final)
+
+    def experiment(self) -> Optional[str]:
+        return self.experiment_name
+
+    def name(self) -> Any:
+        return ""
+
+    def version(self) -> int:
+        return 0
+
+    def finalize(self) -> None:
+        self.mlflow_run.end_run()
+
+
+def _preprocess_hyperparams(self, params: Any) -> Dict[str, str]:
+        """
+        Converts arbitrary hyperparameters to a simple dictionary structure, in particular argparse Namespaces.
+        Nested dictionaries are converted to folder-like strings, like ``{'a': {'b': 'c'}} -> {'a/b': 'c'}``.
+        All hyperparameter values are converted to strings, because Run.log_table can't deal with mixed datatypes.
+        :param params: The parameters to convert
+        :return: A dictionary mapping from string to string.
+        """
+        # Convert from Namespace to dictionary
+        params = _convert_params(params)
+        # Convert nested dictionaries to folder-like structure
+        params = _flatten_dict(params)
+        # Convert anything that is not a primitive type to str
+        params_final = _sanitize_params(params)
+        if not isinstance(params_final, dict):
+            raise ValueError(f"Expected the converted hyperparameters to be a dictionary, but got {type(params)}")
+        return {str(key): str(value) for key, value in params_final.items()}
 
 
 def log_on_epoch(module: LightningModule,
