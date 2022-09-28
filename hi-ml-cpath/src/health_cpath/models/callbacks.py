@@ -1,3 +1,8 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+
 import os
 from pathlib import Path
 import torch
@@ -18,10 +23,11 @@ LOSS_VALUES_FRILENAME = "epoch_{}.csv"
 
 
 class LossValuesAnalysisCallback(Callback):
-    def __init__(self, patience: int = 0, save_every_n_epoch: int = 1) -> None:
+    def __init__(self, patience: int = 0, save_every_n_epoch: int = 1, n_top_loss_values: int = 10) -> None:
         self.patience = patience
         self.loss_cache = self.reset_loss_cache()
         self.save_every_n_epoch = save_every_n_epoch
+        self.n_top_loss_values = n_top_loss_values
 
     def reset_loss_cache(self) -> Dict[str, List]:
         return {ResultsKey.LOSS: [], ResultsKey.SLIDE_ID: [], ResultsKey.TILE_ID: []}
@@ -40,7 +46,7 @@ class LossValuesAnalysisCallback(Callback):
         if torch.distributed.is_initialized():
             world_size = torch.distributed.get_world_size()
             if world_size > 1:
-                self.loss_cache = TilesSelector._gather_dictionaries(world_size, self.loss_cache)
+                self.loss_cache = TilesSelector._gather_dictionaries(world_size, self.loss_cache)  # type: ignore
 
     @torch.no_grad()
     def on_train_batch_end(  # type: ignore
@@ -72,9 +78,15 @@ class LossValuesAnalysisCallback(Callback):
                 self.dump_loss_cache(pl_module.outputs_handler.outputs_root, trainer.current_epoch)
         self.loss_cache = self.reset_loss_cache()
 
-    def on_train_end(self, trainer: Trainer, pl_module: BaseDeepMILModule) -> None:  # type: ignore
-        assert pl_module.outputs_handler is not None
-        loss_val_analysis_path = pl_module.outputs_handler.outputs_root / LOSS_VALUES_SUBFOLDER
-        epochs = list(range(self.patience, trainer.max_epochs + 1, self.save_every_n_epoch))
-        for epoch in epochs:
-            loss_values = pd.read_csv(loss_val_analysis_path / LOSS_VALUES_FRILENAME.format(epoch))
+    # def on_train_end(self, trainer: Trainer, pl_module: BaseDeepMILModule) -> None:  # type: ignore
+    #     assert pl_module.outputs_handler is not None
+    #     loss_val_analysis_path = pl_module.outputs_handler.outputs_root / LOSS_VALUES_SUBFOLDER
+    #     epochs = list(range(self.patience, trainer.max_epochs + 1, self.save_every_n_epoch))
+    #     slides_with_highest_loss_values = []
+    #     for epoch in epochs:
+    #         loss_values = pd.read_csv(loss_val_analysis_path / LOSS_VALUES_FRILENAME.format(epoch))
+    #         slides_with_highest_loss_values.append(
+    #             loss_values[ResultsKey.SLIDE_ID][: self.n_top_loss_values].tolist()
+    #         )
+    #     slides_with_highest_loss_values = pd.DataFrame(slides_with_highest_loss_values, index=epochs)
+    #     slides_with_highest_loss_values.plot.scatter(x="epoch", y="slide_id")

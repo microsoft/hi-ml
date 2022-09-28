@@ -14,6 +14,7 @@ from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 
 from health_azure.utils import create_from_matching_params
+from health_cpath.models.callbacks import LossValuesAnalysisCallback
 
 from health_ml.utils import fixed_paths
 from health_ml.deep_learning_config import OptimizerParams
@@ -81,6 +82,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
             "initiliaze classifier with random weights.")
     ssl_checkpoint_run_id: str = param.String(default="", doc="Optional run id from which to load checkpoint if "
                                               "using SSLEncoder")
+    analyze_loss_values: bool = param.Boolean(False, doc="If True, will analyse loss values during training.")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -155,12 +157,15 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
         return outputs_handler
 
     def get_callbacks(self) -> List[Callback]:
-        return [*super().get_callbacks(),
-                ModelCheckpoint(dirpath=self.checkpoint_folder,
-                                monitor=f"{ModelKey.VAL}/{self.primary_val_metric}",
-                                filename=self.best_checkpoint_filename,
-                                auto_insert_metric_name=False,
-                                mode="max" if self.maximise_primary_metric else "min")]
+        callbacks = [*super().get_callbacks(),
+                     ModelCheckpoint(dirpath=self.checkpoint_folder,
+                                     monitor=f"{ModelKey.VAL}/{self.primary_val_metric}",
+                                     filename=self.best_checkpoint_filename,
+                                     auto_insert_metric_name=False,
+                                     mode="max" if self.maximise_primary_metric else "min")]
+        if self.analyze_loss_values:
+            callbacks.append(LossValuesAnalysisCallback())
+        return callbacks
 
     def get_checkpoint_to_test(self) -> Path:
         """
