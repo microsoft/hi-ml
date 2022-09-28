@@ -106,7 +106,7 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         raise NotImplementedError
 
     def train_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.train_dataset, shuffle=False, stage=ModelKey.TRAIN, **self.dataloader_kwargs)
+        return self._get_dataloader(self.train_dataset, shuffle=True, stage=ModelKey.TRAIN, **self.dataloader_kwargs)
 
     def val_dataloader(self) -> DataLoader:
         return self._get_dataloader(self.val_dataset, shuffle=False, stage=ModelKey.VAL, **self.dataloader_kwargs)
