@@ -80,10 +80,11 @@ class LossValuesAnalysisCallback(Callback):
         loss_cache_df.to_csv(self.cache_folder / LOSS_VALUES_FILENAME.format(current_epoch), index=False)
 
     def merge_loss_caches(self, loss_caches: List[LossDictType]) -> LossDictType:
-        for loss_cache in loss_caches:
-            self.loss_cache[ResultsKey.LOSS].extend(loss_cache[ResultsKey.LOSS])
-            self.loss_cache[ResultsKey.SLIDE_ID].extend(loss_cache[ResultsKey.SLIDE_ID])
-            self.loss_cache[ResultsKey.TILE_ID].extend(loss_cache[ResultsKey.TILE_ID])
+        loss_cache = self.reset_loss_cache()
+        for loss_cache_per_device in loss_caches:
+            loss_cache[ResultsKey.LOSS].extend(loss_cache_per_device[ResultsKey.LOSS])
+            loss_cache[ResultsKey.SLIDE_ID].extend(loss_cache_per_device[ResultsKey.SLIDE_ID])
+            loss_cache[ResultsKey.TILE_ID].extend(loss_cache_per_device[ResultsKey.TILE_ID])
         return loss_cache
 
     def gather_loss_cache(self, rank: int) -> None:
