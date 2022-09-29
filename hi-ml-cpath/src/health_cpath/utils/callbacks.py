@@ -153,7 +153,7 @@ class LossValuesAnalysisCallback(Callback):
         order = HIGHEST if high else LOWEST
         plt.title(f"Slides with {order} loss values per epoch.")
         plt.legend()
-        plt.savefig(self.scatter_folder / f"slides_with_{order}_loss_values.png", bbox_inches='tight')
+        plt.savefig(self.scatter_folder / f"slides_with_{order}_loss_values.png", bbox_inches="tight")
 
     def select_loss_for_slides_of_epoch(self, epoch: int, high: bool) -> LossDictType:
         loss_cache = pd.read_csv(self.cache_folder / LOSS_VALUES_FILENAME.format(epoch))
@@ -193,7 +193,7 @@ class LossValuesAnalysisCallback(Callback):
             plt.xlabel(X_LABEL)
             plt.ylabel(Y_LABEL)
             plt.title(f"Loss values evolution for {order} slides of epoch {epoch}")
-            plt.savefig(self.evolution_folder / f"{order}_slides_of_epoch_{epoch}.png", bbox_inches='tight')
+            plt.savefig(self.evolution_folder / f"{order}_slides_of_epoch_{epoch}.png", bbox_inches="tight")
         except Exception as e:
             logging.warning(f"Skipping loss heatmap because of Exception {e}")
 
