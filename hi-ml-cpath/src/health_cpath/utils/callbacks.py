@@ -121,8 +121,8 @@ class LossAnalysisCallback(Callback):
         return self.outputs_folder / "loss_scatter"
 
     @property
-    def evolution_folder(self) -> Path:
-        return self.outputs_folder / "loss_values_evolution"
+    def heatmap_folder(self) -> Path:
+        return self.outputs_folder / "loss_heatmap"
 
     @property
     def rank_folder(self) -> Path:
@@ -136,7 +136,7 @@ class LossAnalysisCallback(Callback):
         folders = [
             self.cache_folder,
             self.scatter_folder,
-            self.evolution_folder,
+            self.heatmap_folder,
             self.rank_folder,
             self.exception_folder,
         ]
@@ -150,7 +150,11 @@ class LossAnalysisCallback(Callback):
         return {key: [] for key in keys}
 
     def is_time_to_cache_loss_values(self, current_epoch: int) -> bool:
-        return (current_epoch - self.patience) % self.epochs_interval == 0
+        current_epoch = current_epoch + 1
+        first_time = (current_epoch - self.patience) == 1
+        return first_time or (
+            current_epoch > self.patience and (current_epoch - self.patience) % self.epochs_interval == 0
+        )
 
     def save_loss_cache(self, current_epoch: int) -> None:
         """Saves the loss cache to a csv file"""
@@ -272,7 +276,7 @@ class LossAnalysisCallback(Callback):
             plt.xlabel(X_LABEL)
             plt.ylabel(Y_LABEL)
             plt.title(f"Loss values evolution for {order} slides of epoch {epoch}")
-            plt.savefig(self.evolution_folder / f"{order}_slides_of_epoch_{epoch}.png", bbox_inches="tight")
+            plt.savefig(self.heatmap_folder / f"{order}_slides_of_epoch_{epoch}.png", bbox_inches="tight")
         except Exception as e:
             logging.warning(f"Skipping loss heatmap because of Exception {e}")
 

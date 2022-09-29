@@ -163,7 +163,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
                                      auto_insert_metric_name=False,
                                      mode="max" if self.maximise_primary_metric else "min")
                      ]
-        if self.analyse_loss_values:
+        if self.analyse_loss:
             callbacks.append(LossAnalysisCallback(outputs_folder=self.outputs_folder,
                                                   max_epochs=self.max_epochs,
                                                   patience=self.loss_analysis_patience,
