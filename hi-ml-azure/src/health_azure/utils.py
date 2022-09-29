@@ -719,7 +719,8 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
     if is_running_in_azure_ml(RUN_CONTEXT):
         return RUN_CONTEXT.experiment.workspace
 
-    if aml_workspace:
+    # If aml_workspace has been provided, check that it is a V1 Workspace as V2 Workspaces have different properties
+    if aml_workspace and isinstance(aml_workspace, Workspace):
         return aml_workspace
 
     if workspace_config_path is None:
@@ -2065,19 +2066,33 @@ def get_credential() -> Union[ClientSecretCredential, DeviceCodeCredential]:
     return DeviceCodeCredential()
 
 
-def get_workspace_client(workspace_config_path: str = None, subscription_id: str = None, resource_group: str = None,
-                         workspace_name: str = None) -> MLClient:
+def get_workspace_client(
+    workspace_config_path: Optional[str] = None,
+    subscription_id: Optional[str] = None,
+    resource_group: Optional[str] = None,
+    workspace_name: str = None
+) -> MLClient:
         credential = get_credential()
         if workspace_config_path:
-            workspace = MLClient.from_config(credential=credential, path=str(workspace_config_path))
-        else:
-            workspace = MLClient(
+            workspace_client = MLClient.from_config(credential=credential, path=str(workspace_config_path))
+        elif subscription_id and resource_group and workspace_name:
+            workspace_client = MLClient(
                 subscription_id=subscription_id,
                 resource_group_name=resource_group,
                 workspace_name=workspace_name,
                 credential=credential)
-        logging.info(f"Logged into AzureML workspace {workspace.workspace_name}")
-        return workspace
+        else:
+            try:
+                workspace = get_workspace()
+                workspace_client = MLClient(
+                    subscription_id=workspace.subscription_id,
+                    resource_group_name=workspace.resource_group,
+                    workspace_name=workspace.name,
+                    credential=credential)
+            except ValueError:
+                raise ValueError("Couldn't connect to MLClient since we couldn't locate a workspace")
+        logging.info(f"Logged into AzureML workspace {workspace_client.workspace_name}")
+        return workspace_client
 
 
 def retrieve_workspace_from_client(client: MLClient) -> Workspace:
@@ -2172,16 +2187,6 @@ def get_metric_from_mlflow_run(mlflow_client: MlflowClient) -> Dict[str, Any]:
     metric_history = mlflow_client.get_metric_history()
     return metric_history
 
-
-def start_mlflow_run(experiment_name: str):
-    """
-    Set an MLFlow experiment to log to, and start a run
-    :param experiment_name: _description_
-    :return: _description_
-    """
-    mlflow.set_experiment(experiment_name)
-    mlflow_run = mlflow.strt_run()
-    return mlflow_run
 
 def get_amlt_aml_working_dir() -> Optional[Path]:
     """
