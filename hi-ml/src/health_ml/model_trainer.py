@@ -13,12 +13,13 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.profiler import BaseProfiler, SimpleProfiler, AdvancedProfiler, PyTorchProfiler
 
-from health_azure.utils import RUN_CONTEXT, is_running_in_azure_ml
+from health_azure.utils import RUN_CONTEXT, is_running_in_azure_ml, get_workspace_client
 
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils import AzureMLLogger, AzureMLProgressBar
 from health_ml.utils.common_utils import AUTOSAVE_CHECKPOINT_FILE_NAME, EXPERIMENT_SUMMARY_FILE
 from health_ml.utils.lightning_loggers import StoringLogger
+from health_ml.utils.logging import MLFlowLogger
 
 
 T = TypeVar('T')
@@ -91,9 +92,11 @@ def create_lightning_trainer(container: LightningContainer,
             message += "s per node with DDP"
     logging.info(f"Using {message}")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
-    azureml_logger = AzureMLLogger(enable_logging_outside_azure_ml=container.log_from_vm,
-                                   run=azureml_run_for_logging)
-    loggers = [tensorboard_logger, azureml_logger]
+    # azureml_logger = AzureMLLogger(enable_logging_outside_azure_ml=container.log_from_vm,
+    #                                run=azureml_run_for_logging)
+    ml_client = get_workspace_client()
+    mlflow_logger = MLFlowLogger(ml_client=ml_client, experiment_name='mlflow_experiment')
+    loggers = [tensorboard_logger, mlflow_logger]
     storing_logger = StoringLogger()
     loggers.append(storing_logger)
     # Use 32bit precision when running on CPU. Otherwise, make it depend on use_mixed_precision flag.

@@ -4,6 +4,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import argparse
+from email.policy import default
 import logging
 import os
 import param
@@ -221,13 +222,13 @@ class Runner:
         # Get default datastore from the provided workspace. Authentication can take a few seconds, hence only do
         # that if we are really submitting to AzureML.
         workspace: Optional[Workspace] = None
-        if self.experiment_config.cluster:
-            try:
-                workspace = get_workspace()
-            except ValueError:
-                raise ValueError("Unable to submit the script to AzureML because no workspace configuration file "
-                                 "(config.json) was found.")
-        default_datastore = workspace.get_default_datastore().name if workspace is not None else ""
+        # if self.experiment_config.cluster:
+        try:
+            workspace = get_workspace()
+        except ValueError:
+            raise ValueError("Unable to submit the script to AzureML because no workspace configuration file "
+                                "(config.json) was found.")
+        default_datastore = workspace.get_default_datastore().name #if workspace is not None else ""
 
         local_datasets = self.lightning_container.local_datasets
         all_local_datasets = [Path(p) for p in local_datasets] if len(local_datasets) > 0 else []
@@ -271,6 +272,7 @@ class Runner:
         else:
             azure_run_info = submit_to_azure_if_needed(
                 input_datasets=input_datasets,  # type: ignore
+                # default_datastore=default_datastore,
                 submit_to_azureml=False)
         if azure_run_info.run:
             # This code is only reached inside Azure. Set display name again - this will now affect
