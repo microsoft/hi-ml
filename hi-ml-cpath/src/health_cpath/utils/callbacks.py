@@ -26,7 +26,7 @@ X_LABEL, Y_LABEL = "Epoch", "Slide ids"
 TOP, BOTTOM = "top", "bottom"
 HIGHEST, LOWEST = "highest", "lowest"
 
-LossDictType = Dict[str, List]
+LossDictType = Dict[ResultsKey, List]
 
 
 class LossCallbackParams(param.Parameterized):
@@ -342,6 +342,7 @@ class LossAnalysisCallback(Callback):
             self.gather_loss_cache(rank=pl_module.global_rank)
             if pl_module.global_rank == 0:
                 self.save_loss_cache(trainer.current_epoch)
+            torch.distributed.barrier()
         self.loss_cache = self.reset_loss_cache()
 
     def on_train_end(self, trainer: Trainer, pl_module: BaseDeepMILModule) -> None:  # type: ignore
