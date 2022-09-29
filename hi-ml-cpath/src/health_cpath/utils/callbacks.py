@@ -146,29 +146,6 @@ class LossAnalysisCallback(Callback):
                 if rank == 0:
                     self.loss_cache = self.merge_loss_caches(loss_caches)  # type: ignore
 
-    @torch.no_grad()
-    def on_train_batch_start(  # type: ignore
-        self, trainer: Trainer, pl_module: BaseDeepMILModule, batch: Dict, batch_idx: int, unused: int = 0,
-    ) -> None:
-        if self.is_time_to_cache_loss_values(trainer):
-            bag_logits, bag_labels, _ = pl_module.compute_bag_labels_logits_and_attn_maps(batch)
-            if pl_module.n_classes > 1:
-                loss = pl_module.loss_fn_no_reduction(bag_logits, bag_labels.long())
-            else:
-                loss = pl_module.loss_fn_no_reduction(bag_logits.squeeze(1), bag_labels.float())
-            self.loss_cache[ResultsKey.LOSS].extend(loss.tolist())
-            self.loss_cache[ResultsKey.SLIDE_ID].extend(np.array([slides[0] for slides in batch[ResultsKey.SLIDE_ID]]))
-            self.loss_cache[ResultsKey.TILE_ID].extend(
-                [TILES_JOIN_TOKEN.join(tiles) for tiles in batch[ResultsKey.TILE_ID]]
-            )
-
-    def on_train_epoch_end(self, trainer: Trainer, pl_module: BaseDeepMILModule) -> None:  # type: ignore
-        if self.is_time_to_cache_loss_values(trainer):
-            self.gather_loss_cache(rank=pl_module.global_rank)
-            if pl_module.global_rank == 0:
-                self.dump_loss_cache(trainer.current_epoch)
-        self.loss_cache = self.reset_loss_cache()
-
     def select_loss_slides_across_epochs(self, high: bool = True) -> Tuple[np.ndarray, np.ndarray]:
 
         slides = []
@@ -246,6 +223,30 @@ class LossAnalysisCallback(Callback):
             plt.savefig(self.evolution_folder / f"{order}_slides_of_epoch_{epoch}.png", bbox_inches="tight")
         except Exception as e:
             logging.warning(f"Skipping loss heatmap because of Exception {e}")
+
+    @torch.no_grad()
+    def on_train_batch_start(  # type: ignore
+        self, trainer: Trainer, pl_module: BaseDeepMILModule, batch: Dict, batch_idx: int, unused: int = 0,
+    ) -> None:
+        """Caches loss values per slide at each training step."""
+        if self.is_time_to_cache_loss_values(trainer):
+            bag_logits, bag_labels, _ = pl_module.compute_bag_labels_logits_and_attn_maps(batch)
+            if pl_module.n_classes > 1:
+                loss = pl_module.loss_fn_no_reduction(bag_logits, bag_labels.long())
+            else:
+                loss = pl_module.loss_fn_no_reduction(bag_logits.squeeze(1), bag_labels.float())
+            self.loss_cache[ResultsKey.LOSS].extend(loss.tolist())
+            self.loss_cache[ResultsKey.SLIDE_ID].extend(np.array([slides[0] for slides in batch[ResultsKey.SLIDE_ID]]))
+            self.loss_cache[ResultsKey.TILE_ID].extend(
+                [TILES_JOIN_TOKEN.join(tiles) for tiles in batch[ResultsKey.TILE_ID]]
+            )
+
+    def on_train_epoch_end(self, trainer: Trainer, pl_module: BaseDeepMILModule) -> None:  # type: ignore
+        if self.is_time_to_cache_loss_values(trainer):
+            self.gather_loss_cache(rank=pl_module.global_rank)
+            if pl_module.global_rank == 0:
+                self.dump_loss_cache(trainer.current_epoch)
+        self.loss_cache = self.reset_loss_cache()
 
     def on_train_end(self, trainer: Trainer, pl_module: BaseDeepMILModule) -> None:  # type: ignore
         if pl_module.global_rank == 0:
