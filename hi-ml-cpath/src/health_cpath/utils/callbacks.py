@@ -117,7 +117,7 @@ class LossAnalysisCallback(Callback):
         return self.outputs_folder / "loss_ranks"
 
     def create_outputs_folders(self) -> None:
-        folders = [self.cache_folder, self.scatter_folder, self.evolution_folder]
+        folders = [self.cache_folder, self.scatter_folder, self.evolution_folder, self.rank_folder]
         for folder in folders:
             os.makedirs(folder, exist_ok=True)
 
@@ -196,8 +196,9 @@ class LossAnalysisCallback(Callback):
         plt.ylabel(Y_LABEL)
         order = HIGHEST if high else LOWEST
         plt.title(f"Slides with {order} loss values per epoch.")
+        plt.xticks(self.epochs_range)
         plt.legend()
-        plt.grid(True)
+        plt.grid(True, linestyle="--")
         plt.savefig(self.scatter_folder / f"slides_with_{order}_loss_values.png", bbox_inches="tight")
 
     def select_loss_for_slides_of_epoch(self, epoch: int, high: Optional[bool] = None) -> LossDictType:
@@ -271,11 +272,13 @@ class LossAnalysisCallback(Callback):
 
     def save_loss_ranks(self) -> None:
         slides_loss_values = self.select_loss_for_slides_of_epoch(epoch=0, high=None)
-        loss_df = pd.DataFrame(slides_loss_values)
-        loss_df.to_csv(self.cache_folder / "all_epochs.csv", index=False)
+        loss_df = pd.DataFrame(slides_loss_values).T
+        loss_df.index.names = [ResultsKey.SLIDE_ID.value]
+        loss_df.to_csv(self.cache_folder / "all_epochs.csv")
         loss_ranks = loss_df.rank(ascending=False)
         loss_ranks.to_csv(self.rank_folder / "loss_ranks.csv")
-        loss_ranks.T.describe().T.sort_values("mean", ascending=True).to_csv("loss_ranks_stats.csv")
+        loss_ranks_stats = loss_ranks.T.describe().T.sort_values("mean", ascending=True)
+        loss_ranks_stats.to_csv(self.rank_folder / "loss_ranks_stats.csv")
 
     @torch.no_grad()
     def on_train_batch_start(  # type: ignore
