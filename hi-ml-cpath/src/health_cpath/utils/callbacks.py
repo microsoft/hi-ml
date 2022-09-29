@@ -32,7 +32,7 @@ LossDictType = Dict[str, List]
 class LossCallbackParams(param.Parameterized):
     """Parameters class to group all attributes for loss values analysis callback"""
 
-    analyse_loss_values: bool = param.Boolean(
+    analyse_loss: bool = param.Boolean(
         False,
         doc="If True, will use `LossValuesAnalysisCallback` to cache loss values per slide/epoch for further analysis."
         "See `LossValuesAnalysisCallback` for more details.",
@@ -130,7 +130,7 @@ class LossAnalysisCallback(Callback):
 
     @property
     def exception_folder(self) -> Path:
-        return self.outputs_folder / "exception_slides"
+        return self.outputs_folder / "loss_exceptions"
 
     def create_outputs_folders(self) -> None:
         folders = [
@@ -149,8 +149,8 @@ class LossAnalysisCallback(Callback):
             keys.append(ResultsKey.TILE_ID)
         return {key: [] for key in keys}
 
-    def is_time_to_cache_loss_values(self, trainer: Trainer) -> bool:
-        return (trainer.current_epoch - self.patience) % self.epochs_interval == 0
+    def is_time_to_cache_loss_values(self, current_epoch: int) -> bool:
+        return (current_epoch - self.patience) % self.epochs_interval == 0
 
     def save_loss_cache(self, current_epoch: int) -> None:
         """Saves the loss cache to a csv file"""
@@ -319,7 +319,7 @@ class LossAnalysisCallback(Callback):
         self, trainer: Trainer, pl_module: BaseDeepMILModule, batch: Dict, batch_idx: int, unused: int = 0,
     ) -> None:
         """Caches loss values per slide at each training step in a local variable self.loss_cache."""
-        if self.is_time_to_cache_loss_values(trainer):
+        if self.is_time_to_cache_loss_values(trainer.current_epoch):
             bag_logits, bag_labels, _ = pl_module.compute_bag_labels_logits_and_attn_maps(batch)
             if pl_module.n_classes > 1:
                 loss = pl_module.loss_fn_no_reduction(bag_logits, bag_labels.long())
@@ -334,7 +334,7 @@ class LossAnalysisCallback(Callback):
 
     def on_train_epoch_end(self, trainer: Trainer, pl_module: BaseDeepMILModule) -> None:  # type: ignore
         """Gathers loss values per slide from all processes at the end of each epoch and saves them to a csv file."""
-        if self.is_time_to_cache_loss_values(trainer):
+        if self.is_time_to_cache_loss_values(trainer.current_epoch):
             self.gather_loss_cache(rank=pl_module.global_rank)
             if pl_module.global_rank == 0:
                 self.save_loss_cache(trainer.current_epoch)
