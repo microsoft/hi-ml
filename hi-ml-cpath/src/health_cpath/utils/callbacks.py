@@ -13,7 +13,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import Callback
 
@@ -112,6 +112,10 @@ class LossAnalysisCallback(Callback):
     def evolution_folder(self) -> Path:
         return self.outputs_folder / "loss_values_evolution"
 
+    @property
+    def rank_folder(self) -> Path:
+        return self.outputs_folder / "loss_ranks"
+
     def create_outputs_folders(self) -> None:
         folders = [self.cache_folder, self.scatter_folder, self.evolution_folder]
         for folder in folders:
@@ -196,7 +200,7 @@ class LossAnalysisCallback(Callback):
         plt.grid()
         plt.savefig(self.scatter_folder / f"slides_with_{order}_loss_values.png", bbox_inches="tight")
 
-    def select_loss_for_slides_of_epoch(self, epoch: int, high: bool) -> LossDictType:
+    def select_loss_for_slides_of_epoch(self, epoch: int, high: Optional[bool] = None) -> LossDictType:
         """Selects the slides with the highest/lowest loss values for a given epoch and returns the loss values for each
         slide across all epochs.
 
@@ -209,8 +213,10 @@ class LossAnalysisCallback(Callback):
 
         if high:
             slides = loss_cache[ResultsKey.SLIDE_ID][: self.num_slides_heatmap]
-        else:
+        elif not high:
             slides = loss_cache[ResultsKey.SLIDE_ID][-self.num_slides_heatmap:]
+        else:
+            slides = loss_cache[ResultsKey.SLIDE_ID]
 
         slides_loss_values: LossDictType = {slide_id: [] for slide_id in slides}
         for epoch in self.epochs_range:
@@ -263,6 +269,14 @@ class LossAnalysisCallback(Callback):
         except Exception as e:
             logging.warning(f"Skipping loss heatmap because of Exception {e}")
 
+    def save_loss_ranks(self) -> None:
+        slides_loss_values = self.select_loss_for_slides_of_epoch(epoch=0, high=None)
+        loss_df = pd.DataFrame(slides_loss_values)
+        loss_df.to_csv(self.cache_folder / "all_epochs.csv", index=False)
+        loss_ranks = loss_df.rank(ascending=False)
+        loss_ranks.to_csv(self.rank_folder / "loss_ranks.csv")
+        loss_ranks.T.describe().T.sort_values("mean", ascending=True).to_csv("loss_ranks_stats.csv")
+
     @torch.no_grad()
     def on_train_batch_start(  # type: ignore
         self, trainer: Trainer, pl_module: BaseDeepMILModule, batch: Dict, batch_idx: int, unused: int = 0,
@@ -292,6 +306,8 @@ class LossAnalysisCallback(Callback):
         """Hook called at the end of training. We use it to plot the loss heatmap and scrater plot."""
 
         if pl_module.global_rank == 0:
+            self.save_loss_ranks()
+
             slides, slides_loss = self.select_loss_slides_across_epochs(high=True)
             self.plot_slides_loss_scatter(slides, slides_loss, high=True)
 
