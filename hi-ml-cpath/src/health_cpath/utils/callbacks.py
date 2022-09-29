@@ -157,8 +157,8 @@ class LossAnalysisCallback(Callback):
                 slides.append(loss_cache[ResultsKey.SLIDE_ID][: self.num_slides_scatter])
                 slides_loss.append(loss_cache[ResultsKey.LOSS][: self.num_slides_scatter])
             else:
-                slides.append(loss_cache[ResultsKey.SLIDE_ID][-self.num_slides_scatter:])
-                slides_loss.append(loss_cache[ResultsKey.LOSS][-self.num_slides_scatter:])
+                slides.append(loss_cache[ResultsKey.SLIDE_ID][-self.num_slides_scatter :])
+                slides_loss.append(loss_cache[ResultsKey.LOSS][-self.num_slides_scatter :])
 
         return np.array(slides).T, np.array(slides_loss).T
 
@@ -188,7 +188,7 @@ class LossAnalysisCallback(Callback):
         if high:
             slides = loss_cache[ResultsKey.SLIDE_ID][: self.num_slides_heatmap]
         else:
-            slides = loss_cache[ResultsKey.SLIDE_ID][-self.num_slides_heatmap:]
+            slides = loss_cache[ResultsKey.SLIDE_ID][-self.num_slides_heatmap :]
 
         slides_loss_values: LossDictType = {slide_id: [] for slide_id in slides}
         for epoch in self.epochs_range:
@@ -202,9 +202,13 @@ class LossAnalysisCallback(Callback):
 
     def check_for_nans(self, loss_values: LossDictType, order: str, epoch: int) -> None:
         for slide_id, loss in loss_values.items():
-            if np.isnan(loss).any():
-                logging.warning(f"NaNs found in loss values for slide {slide_id}.")
-                logging.warning(f"Skipping {order} loss heatmap for epoch {epoch}.")
+            try:
+                if np.isnan(loss).any():
+                    logging.warning(f"NaNs found in loss values for slide {slide_id}.")
+                    logging.warning(f"Skipping {order} loss heatmap for epoch {epoch}.")
+            except Exception as e:
+                logging.warning(f"Error while checking for NaNs in loss values for slide {slide_id} with error {e}.")
+                print("Loos values:", loss)
 
     def plot_loss_heatmap_for_slides_of_epoch(
         self, slides_loss_values: LossDictType, epoch: int, high: bool, figsize: Tuple[int, int] = (15, 15)
