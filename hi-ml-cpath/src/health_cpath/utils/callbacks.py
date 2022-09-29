@@ -21,7 +21,18 @@ from health_cpath.models.deepmil import BaseDeepMILModule
 from health_cpath.utils.naming import ResultsKey
 
 TILES_JOIN_TOKEN = "$"
+
 LOSS_VALUES_FILENAME = "epoch_{}.csv"
+ALL_EPOCHS_FILENAME = "all_epochs.csv"
+LOSS_RANKS_FILENAME = "loss_ranks.csv"
+LOSS_RANKS_STATS_FILENAME = "loss_ranks_stats.csv"
+
+SCATTER_PLOT_FILENAME = "slides_with_{}_loss_values.png"
+HEATMAP_PLOT_FILENAME = "epoch_{}_{}_slides.png"
+
+NAN_SLIDES_FILENAME = "nan_slides.txt"
+EXCEPTION_SLIDES_FILENAME = "expection_slides.txt"
+
 X_LABEL, Y_LABEL = "Epoch", "Slide ids"
 TOP, BOTTOM = "top", "bottom"
 HIGHEST, LOWEST = "highest", "lowest"
@@ -226,7 +237,7 @@ class LossAnalysisCallback(Callback):
         plt.xticks(self.epochs_range)
         plt.legend()
         plt.grid(True, linestyle="--")
-        plt.savefig(self.scatter_folder / f"slides_with_{order}_loss_values.png", bbox_inches="tight")
+        plt.savefig(self.scatter_folder / SCATTER_PLOT_FILENAME.format(order), bbox_inches="tight")
 
     def select_loss_for_slides_of_epoch(self, epoch: int, high: Optional[bool] = None) -> LossDictType:
         """Selects the slides with the highest/lowest loss values for a given epoch and returns the loss values for each
@@ -276,9 +287,16 @@ class LossAnalysisCallback(Callback):
             plt.xlabel(X_LABEL)
             plt.ylabel(Y_LABEL)
             plt.title(f"Loss values evolution for {order} slides of epoch {epoch}")
-            plt.savefig(self.heatmap_folder / f"{order}_slides_of_epoch_{epoch}.png", bbox_inches="tight")
+            plt.savefig(self.heatmap_folder / HEATMAP_PLOT_FILENAME.format(epoch, order), bbox_inches="tight")
         except Exception as e:
             logging.warning(f"Skipping loss heatmap because of Exception {e}")
+
+    def save_slide_ids(self, slide_ids: List[str], filename: str) -> None:
+        """Dumps the slides ids in a txt file."""
+        if slide_ids:
+            with open(self.exception_folder / filename, "w") as f:
+                for slide_id in slide_ids:
+                    f.write(f"{slide_id}\n")
 
     def sanity_check_loss_values(self, loss_values: LossDictType) -> None:
         """Checks if there are any NaNs or any other potential issues in the loss values for a given epoch and slide.
@@ -296,15 +314,8 @@ class LossAnalysisCallback(Callback):
                 logging.warning(f"Error while checking for NaNs in loss values for slide {slide_id} with error {e}.")
                 print("Loos values:", loss)
                 self.exception_slides.append(slide_id)
-        self.save_slide_ids(self.nan_slides)
-        self.save_slide_ids(self.exception_slides)
-
-    def save_slide_ids(self, slide_ids: List[str]) -> None:
-        """Dumps the slides ids in a txt file."""
-        if slide_ids:
-            with open(self.exception_folder / "nan_slides.txt", "w") as f:
-                for slide_id in slide_ids:
-                    f.write(f"{slide_id}\n")
+        self.save_slide_ids(self.nan_slides, NAN_SLIDES_FILENAME)
+        self.save_slide_ids(self.exception_slides, EXCEPTION_SLIDES_FILENAME)
 
     def save_loss_ranks(self) -> None:
         """Saves the loss ranks for each slide across all epochs and their respective statistics in csv files."""
@@ -312,11 +323,11 @@ class LossAnalysisCallback(Callback):
         self.sanity_check_loss_values(slides_loss_values)
         loss_df = pd.DataFrame(slides_loss_values).T
         loss_df.index.names = [ResultsKey.SLIDE_ID.value]
-        loss_df.to_csv(self.cache_folder / "all_epochs.csv")
+        loss_df.to_csv(self.cache_folder / ALL_EPOCHS_FILENAME)
         loss_ranks = loss_df.rank(ascending=False)
-        loss_ranks.to_csv(self.rank_folder / "loss_ranks.csv")
+        loss_ranks.to_csv(self.rank_folder / LOSS_RANKS_FILENAME)
         loss_ranks_stats = loss_ranks.T.describe().T.sort_values("mean", ascending=True)
-        loss_ranks_stats.to_csv(self.rank_folder / "loss_ranks_stats.csv")
+        loss_ranks_stats.to_csv(self.rank_folder / LOSS_RANKS_STATS_FILENAME)
 
     @torch.no_grad()
     def on_train_batch_start(  # type: ignore
@@ -342,7 +353,6 @@ class LossAnalysisCallback(Callback):
             self.gather_loss_cache(rank=pl_module.global_rank)
             if pl_module.global_rank == 0:
                 self.save_loss_cache(trainer.current_epoch)
-            torch.distributed.barrier()
         self.loss_cache = self.reset_loss_cache()
 
     def on_train_end(self, trainer: Trainer, pl_module: BaseDeepMILModule) -> None:  # type: ignore
