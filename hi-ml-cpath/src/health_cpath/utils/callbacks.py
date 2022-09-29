@@ -93,6 +93,8 @@ class LossAnalysisCallback(Callback):
         self.max_epochs = max_epochs
         self.num_slides_scatter = num_slides_scatter
         self.num_slides_heatmap = num_slides_heatmap
+        self.nan_slides: List[str] = []
+        self.exception_slides: List[str] = []
 
         self.outputs_folder = outputs_folder / "loss_values_callback"
         self.create_outputs_folders()
@@ -116,8 +118,18 @@ class LossAnalysisCallback(Callback):
     def rank_folder(self) -> Path:
         return self.outputs_folder / "loss_ranks"
 
+    @property
+    def exception_folder(self) -> Path:
+        return self.outputs_folder / "exception_slides"
+
     def create_outputs_folders(self) -> None:
-        folders = [self.cache_folder, self.scatter_folder, self.evolution_folder, self.rank_folder]
+        folders = [
+            self.cache_folder,
+            self.scatter_folder,
+            self.evolution_folder,
+            self.rank_folder,
+            self.exception_folder,
+        ]
         for folder in folders:
             os.makedirs(folder, exist_ok=True)
 
@@ -229,22 +241,6 @@ class LossAnalysisCallback(Callback):
             }
         return slides_loss_values
 
-    def check_for_nans(self, loss_values: LossDictType, order: str, epoch: int) -> None:
-        """Checks if there are any NaNs or any other potential issue in the loss values for a given epoch and slide.
-
-        :param loss_values: The loss values for all slides.
-        :param order: If "highest", checks for NaNs in the highest loss values, else checks for NaNs in the lowest loss
-        :param epoch: The epoch to check for NaNs.
-        """
-        for slide_id, loss in loss_values.items():
-            try:
-                if np.isnan(loss).any():
-                    logging.warning(f"NaNs found in loss values for slide {slide_id}.")
-                    logging.warning(f"Skipping {order} loss heatmap for epoch {epoch}.")
-            except Exception as e:
-                logging.warning(f"Error while checking for NaNs in loss values for slide {slide_id} with error {e}.")
-                print("Loos values:", loss)
-
     def plot_loss_heatmap_for_slides_of_epoch(
         self, slides_loss_values: LossDictType, epoch: int, high: bool, figsize: Tuple[int, int] = (15, 15)
     ) -> None:
@@ -256,7 +252,6 @@ class LossAnalysisCallback(Callback):
         :param figsize: The figure size, defaults to (15, 15)
         """
         order = HIGHEST if high else LOWEST
-        self.check_for_nans(slides_loss_values, order, epoch)
         loss_values = np.array(list(slides_loss_values.values()))
         slides = list(slides_loss_values.keys())
         # Loss heatmap plot can go wrong. We need to catch the error and log it otherwise it will interupt validation.
@@ -270,8 +265,36 @@ class LossAnalysisCallback(Callback):
         except Exception as e:
             logging.warning(f"Skipping loss heatmap because of Exception {e}")
 
+    def sanity_check_loss_values(self, loss_values: LossDictType) -> None:
+        """Checks if there are any NaNs or any other potential issues in the loss values for a given epoch and slide.
+
+        :param loss_values: The loss values for all slides.
+        :param order: If "highest", checks for NaNs in the highest loss values, else checks for NaNs in the lowest loss
+        :param epoch: The epoch to check for NaNs.
+        """
+        for slide_id, loss in loss_values.items():
+            try:
+                if np.isnan(loss).any():
+                    logging.warning(f"NaNs found in loss values for slide {slide_id}.")
+                    self.nan_slides.append(slide_id)
+            except Exception as e:
+                logging.warning(f"Error while checking for NaNs in loss values for slide {slide_id} with error {e}.")
+                print("Loos values:", loss)
+                self.exception_slides.append(slide_id)
+        self.dump_slide_ids(self.nan_slides)
+        self.dump_slide_ids(self.exception_slides)
+
+    def dump_slide_ids(self, slide_ids: List[str]) -> None:
+        """Dumps the slides ids in a csv file."""
+        if slide_ids:
+            with open(self.exception_folder / "nan_slides.txt", "w") as f:
+                for slide_id in slide_ids:
+                    f.write(f"{slide_id}\n")
+
     def save_loss_ranks(self) -> None:
+        """Saves the loss ranks for each slide across all epochs and their respective statistics in csv files."""
         slides_loss_values = self.select_loss_for_slides_of_epoch(epoch=0, high=None)
+        self.sanity_check_loss_values(slides_loss_values)
         loss_df = pd.DataFrame(slides_loss_values).T
         loss_df.index.names = [ResultsKey.SLIDE_ID.value]
         loss_df.to_csv(self.cache_folder / "all_epochs.csv")
