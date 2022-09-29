@@ -197,7 +197,7 @@ class LossAnalysisCallback(Callback):
         order = HIGHEST if high else LOWEST
         plt.title(f"Slides with {order} loss values per epoch.")
         plt.legend()
-        plt.grid()
+        plt.grid(True)
         plt.savefig(self.scatter_folder / f"slides_with_{order}_loss_values.png", bbox_inches="tight")
 
     def select_loss_for_slides_of_epoch(self, epoch: int, high: Optional[bool] = None) -> LossDictType:
