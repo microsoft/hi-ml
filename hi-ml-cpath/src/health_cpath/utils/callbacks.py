@@ -120,11 +120,6 @@ class LossValuesAnalysisCallback(Callback):
                 self.dump_loss_cache(trainer.current_epoch)
         self.loss_cache = self.reset_loss_cache()
 
-    def check_for_nans(self, loss_values: LossDictType) -> None:
-        for slide_id, loss in loss_values.items():
-            if np.isnan(loss).any():
-                raise ValueError(f"NaNs found in loss values for slide {slide_id}.")
-
     def select_loss_slides_across_epochs(self, high: bool = True) -> Tuple[np.ndarray, np.ndarray]:
 
         slides = []
@@ -178,23 +173,29 @@ class LossValuesAnalysisCallback(Callback):
             }
         return slides_loss_values
 
+    def check_for_nans(self, loss_values: LossDictType, order: str, epoch: int) -> None:
+        for slide_id, loss in loss_values.items():
+            if np.isnan(loss).any():
+                logging.warning(f"NaNs found in loss values for slide {slide_id}.")
+                logging.warning(f"Skipping {order} loss heatmap for epoch {epoch}.")
+
     def plot_loss_heatmap_for_slides_of_epoch(
         self, slides_loss_values: LossDictType, epoch: int, high: bool, figsize: Tuple[int, int] = (15, 15)
     ) -> None:
+        order = HIGHEST if high else LOWEST
+        self.check_for_nans(slides_loss_values, order, epoch)
         loss_values = np.array(list(slides_loss_values.values()))
         slides = list(slides_loss_values.keys())
+        # Loss heatmap plot can go wrong. We need to catch the error and log it otherwise it will interupt validation.
         try:
-            self.check_for_nans(slides_loss_values)
-        except ValueError as e:
-            logging.warning(f"Skipping loss heatmap because {e}")
-            return
-        plt.figure(figsize=figsize)
-        _ = sns.heatmap(loss_values, linewidth=0.5, annot=True, yticklabels=slides)
-        plt.xlabel(X_LABEL)
-        plt.ylabel(Y_LABEL)
-        order = HIGHEST if high else LOWEST
-        plt.title(f"Loss values evolution for {order} slides of epoch {epoch}")
-        plt.savefig(self.evolution_folder / f"{order}_slides_of_epoch_{epoch}.png", bbox_inches='tight')
+            plt.figure(figsize=figsize)
+            _ = sns.heatmap(loss_values, linewidth=0.5, annot=True, yticklabels=slides)
+            plt.xlabel(X_LABEL)
+            plt.ylabel(Y_LABEL)
+            plt.title(f"Loss values evolution for {order} slides of epoch {epoch}")
+            plt.savefig(self.evolution_folder / f"{order}_slides_of_epoch_{epoch}.png", bbox_inches='tight')
+        except Exception as e:
+            logging.warning(f"Skipping loss heatmap because of Exception {e}")
 
     def on_train_end(self, trainer: Trainer, pl_module: BaseDeepMILModule) -> None:  # type: ignore
         if pl_module.global_rank == 0:
