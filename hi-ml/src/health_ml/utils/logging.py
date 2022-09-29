@@ -17,11 +17,13 @@ import mlflow
 import torch
 from azure.ai.ml import MLClient
 from azureml.core import Run, Workspace
+from mlflow.tracking.registry import UnsupportedModelRegistryStoreURIException
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import ProgressBarBase
 from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.utilities.distributed import rank_zero_only
 from pytorch_lightning.utilities.logger import _convert_params, _flatten_dict, _sanitize_params
+from torch import Tensor
 
 from health_azure import is_running_in_azure_ml
 from health_azure.utils import PathOrString, RUN_CONTEXT, create_aml_run_object
@@ -317,16 +319,24 @@ class AzureMLProgressBar(ProgressBarBase):
             sys.stdout.flush()
 
 
-class MLFlowLogger:
+class MLFlowLogger(LightningLoggerBase):
     HYPERPARAMS_NAME = "hyperparams"
 
     def __init__(self, ml_client: MLClient, experiment_name: str):
         workspace_name = ml_client.workspace_name
-        azureml_mlflow_uri = ml_client.workspaces.get(workspace_name).mlflow_tracking_uri
-        mlflow.set_tracking_uri(azureml_mlflow_uri)
         self.experiment_name = experiment_name
-        mlflow.set_experiment(experiment_name)
+        if is_running_in_azure_ml():
+            mlflow_uri = ml_client.workspaces.get(workspace_name).mlflow_tracking_uri
+
+        else:
+            mlflow_uri = ""
         self.mlflow_run = mlflow.start_run()
+        mlflow.set_tracking_uri(mlflow_uri)
+        mlflow.set_experiment(experiment_name)
+
+        # except UnsupportedModelRegistryStoreURIException as e:
+        #     logging.warning(f"Unable to initialise MLFlow logger due to the following error: {e}")
+
 
     def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
         is_epoch_metric = "epoch" in metrics
@@ -343,12 +353,15 @@ class MLFlowLogger:
         """
         if params is None:
             return
-        params_final = _preprocess_hyperparams(params)
+        params_final = _preprocess_hyperparams(self, params)
         if len(params_final) > 0:
             # Log hyperparameters. Each "step" is one hyperparameter
             # mlflow.log_params(self.HYPERPARAMS_NAME, {"name": list(params_final.keys()),
             #                                            "value": list(params_final.values())})
             mlflow.log_params(params_final)
+
+    # def log_graph(self, model: LightningModule, input_array: Optional[Tensor] = None) -> None
+    #     pass
 
     def experiment(self) -> Optional[str]:
         return self.experiment_name
@@ -359,8 +372,8 @@ class MLFlowLogger:
     def version(self) -> int:
         return 0
 
-    def finalize(self) -> None:
-        self.mlflow_run.end_run()
+    def finalize(self, status: str) -> None:
+        mlflow.end_run()
 
 
 def _preprocess_hyperparams(self, params: Any) -> Dict[str, str]:
