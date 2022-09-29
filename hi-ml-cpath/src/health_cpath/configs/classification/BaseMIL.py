@@ -169,7 +169,8 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
                                                   patience=self.loss_analysis_patience,
                                                   epochs_interval=self.loss_analysis_epochs_interval,
                                                   num_slides_scatter=self.num_slides_scatter,
-                                                  num_slides_heatmap=self.num_slides_heatmap)
+                                                  num_slides_heatmap=self.num_slides_heatmap,
+                                                  save_tile_ids=self.save_tile_ids,)
                              )
         return callbacks
 

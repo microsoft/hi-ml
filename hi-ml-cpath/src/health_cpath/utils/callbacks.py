@@ -62,6 +62,11 @@ class LossCallbackParams(param.Parameterized):
         doc="Number of slides to plot in the heatmap plot. Default: 20, It will plot the loss values for the 10 slides "
         "with highest/lowest loss values.",
     )
+    save_tile_ids: bool = param.Boolean(
+        True,
+        doc="If True, will save the tile ids for each bag in the loss cache. Default: True. If False, will only save "
+        "the slide ids and their loss values.",
+    )
 
 
 class LossAnalysisCallback(Callback):
@@ -77,6 +82,7 @@ class LossAnalysisCallback(Callback):
         epochs_interval: int = 1,
         num_slides_scatter: int = 10,
         num_slides_heatmap: int = 20,
+        save_tile_ids: bool = False,
     ) -> None:
         """
 
@@ -86,6 +92,8 @@ class LossAnalysisCallback(Callback):
         :param max_epochs: Maximum number of epochs to train, defaults to 30.
         :param num_slides_scatter: Number of slides to plot in the scatter plot, defaults to 10.
         :param num_slides_heatmap: Number of slides to plot in the heatmap, defaults to 20.
+        :param save_tile_ids: If True, will save the tile ids of the tiles in the bag in the loss cache, defaults to
+        False. This is useful to analyse the tiles that are contributing to the loss value of a slide.
         """
 
         self.patience = patience
@@ -93,14 +101,16 @@ class LossAnalysisCallback(Callback):
         self.max_epochs = max_epochs
         self.num_slides_scatter = num_slides_scatter
         self.num_slides_heatmap = num_slides_heatmap
-        self.nan_slides: List[str] = []
-        self.exception_slides: List[str] = []
+        self.save_tile_ids = save_tile_ids
 
         self.outputs_folder = outputs_folder / "loss_values_callback"
         self.create_outputs_folders()
 
         self.loss_cache = self.reset_loss_cache()
         self.epochs_range = list(range(self.patience, self.max_epochs, self.epochs_interval))
+
+        self.nan_slides: List[str] = []
+        self.exception_slides: List[str] = []
 
     @property
     def cache_folder(self) -> Path:
@@ -133,15 +143,17 @@ class LossAnalysisCallback(Callback):
         for folder in folders:
             os.makedirs(folder, exist_ok=True)
 
-    @staticmethod
-    def reset_loss_cache() -> LossDictType:
-        return {ResultsKey.LOSS: [], ResultsKey.SLIDE_ID: [], ResultsKey.TILE_ID: []}
+    def reset_loss_cache(self) -> LossDictType:
+        keys = [ResultsKey.LOSS, ResultsKey.SLIDE_ID]
+        if self.save_tile_ids:
+            keys.append(ResultsKey.TILE_ID)
+        return {key: [] for key in keys}
 
     def is_time_to_cache_loss_values(self, trainer: Trainer) -> bool:
         return (trainer.current_epoch - self.patience) % self.epochs_interval == 0
 
-    def dump_loss_cache(self, current_epoch: int) -> None:
-        """Dumps the loss cache to a csv file"""
+    def save_loss_cache(self, current_epoch: int) -> None:
+        """Saves the loss cache to a csv file"""
         loss_cache_df = pd.DataFrame(self.loss_cache)
         loss_cache_df = loss_cache_df.sort_values(by=ResultsKey.LOSS, ascending=False)
         loss_cache_df.to_csv(self.cache_folder / LOSS_VALUES_FILENAME.format(current_epoch), index=False)
@@ -150,9 +162,8 @@ class LossAnalysisCallback(Callback):
         """Merges the loss caches from all the workers into a single loss cache"""
         loss_cache = self.reset_loss_cache()
         for loss_cache_per_device in loss_caches:
-            loss_cache[ResultsKey.LOSS].extend(loss_cache_per_device[ResultsKey.LOSS])
-            loss_cache[ResultsKey.SLIDE_ID].extend(loss_cache_per_device[ResultsKey.SLIDE_ID])
-            loss_cache[ResultsKey.TILE_ID].extend(loss_cache_per_device[ResultsKey.TILE_ID])
+            for key in loss_cache.keys():
+                loss_cache[key].extend(loss_cache_per_device[key])
         return loss_cache
 
     def gather_loss_cache(self, rank: int) -> None:
@@ -281,11 +292,11 @@ class LossAnalysisCallback(Callback):
                 logging.warning(f"Error while checking for NaNs in loss values for slide {slide_id} with error {e}.")
                 print("Loos values:", loss)
                 self.exception_slides.append(slide_id)
-        self.dump_slide_ids(self.nan_slides)
-        self.dump_slide_ids(self.exception_slides)
+        self.save_slide_ids(self.nan_slides)
+        self.save_slide_ids(self.exception_slides)
 
-    def dump_slide_ids(self, slide_ids: List[str]) -> None:
-        """Dumps the slides ids in a csv file."""
+    def save_slide_ids(self, slide_ids: List[str]) -> None:
+        """Dumps the slides ids in a txt file."""
         if slide_ids:
             with open(self.exception_folder / "nan_slides.txt", "w") as f:
                 for slide_id in slide_ids:
@@ -316,16 +327,17 @@ class LossAnalysisCallback(Callback):
                 loss = pl_module.loss_fn_no_reduction(bag_logits.squeeze(1), bag_labels.float())
             self.loss_cache[ResultsKey.LOSS].extend(loss.tolist())
             self.loss_cache[ResultsKey.SLIDE_ID].extend(np.array([slides[0] for slides in batch[ResultsKey.SLIDE_ID]]))
-            self.loss_cache[ResultsKey.TILE_ID].extend(
-                [TILES_JOIN_TOKEN.join(tiles) for tiles in batch[ResultsKey.TILE_ID]]
-            )
+            if self.save_tile_ids:
+                self.loss_cache[ResultsKey.TILE_ID].extend(
+                    [TILES_JOIN_TOKEN.join(tiles) for tiles in batch[ResultsKey.TILE_ID]]
+                )
 
     def on_train_epoch_end(self, trainer: Trainer, pl_module: BaseDeepMILModule) -> None:  # type: ignore
         """Gathers loss values per slide from all processes at the end of each epoch and saves them to a csv file."""
         if self.is_time_to_cache_loss_values(trainer):
             self.gather_loss_cache(rank=pl_module.global_rank)
             if pl_module.global_rank == 0:
-                self.dump_loss_cache(trainer.current_epoch)
+                self.save_loss_cache(trainer.current_epoch)
         self.loss_cache = self.reset_loss_cache()
 
     def on_train_end(self, trainer: Trainer, pl_module: BaseDeepMILModule) -> None:  # type: ignore
