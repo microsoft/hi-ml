@@ -5,6 +5,7 @@
 
 import os
 import torch
+import param
 import logging
 import numpy as np
 import pandas as pd
@@ -28,19 +29,67 @@ HIGHEST, LOWEST = "highest", "lowest"
 LossDictType = Dict[str, List]
 
 
-class LossValuesAnalysisCallback(Callback):
+class LossCallbackParams(param.Parameterized):
+    """Parameters class to group all attributes for loss values analysis callback"""
+
+    analyse_loss_values: bool = param.Boolean(
+        False,
+        doc="If True, will use `LossValuesAnalysisCallback` to cache loss values per slide/epoch for further analysis."
+        "See `LossValuesAnalysisCallback` for more details.",
+    )
+    loss_analysis_patience: int = param.Integer(
+        0,
+        bounds=(0, None),
+        doc="Number of epochs to wait before starting loss values per slide analysis. Default: 0, It will start"
+        "caching loss values per epoch immediately. Use lv_patience > 0 to wait for a few epochs before starting "
+        "the analysis.",
+    )
+    loss_analysis_epochs_interval: int = param.Integer(
+        1,
+        bounds=(1, None),
+        doc="Epochs interval to save loss values. Default: 1, It will save loss values every epoch. Use "
+        "lv_every_n_epochs > 1 to save loss values every n epochs.",
+    )
+    num_slides_scatter: int = param.Integer(
+        10,
+        bounds=(1, None),
+        doc="Number of slides to plot in the scatter plot. Default: 10, It will plot a scatter of the 10 slides "
+        "with highest/lowest loss values across epochs.",
+    )
+    num_slides_heatmap: int = param.Integer(
+        20,
+        bounds=(1, None),
+        doc="Number of slides to plot in the heatmap plot. Default: 20, It will plot the loss values for the 10 slides "
+        "with highest/lowest loss values.",
+    )
+
+
+class LossAnalysisCallback(Callback):
+    """Callback to analyse loss values per slide across epochs. It saves the loss values per slide in a csv file every n
+    epochs and plots the evolution of the loss values per slide in a heatmap as well as the slides with the
+    highest/lowest loss values per epoch in a scatter plot."""
+
     def __init__(
         self,
         outputs_folder: Path,
-        patience: int = 0,
-        save_every_n_epoch: int = 1,
         max_epochs: int = 30,
+        patience: int = 0,
+        epochs_interval: int = 1,
         num_slides_scatter: int = 10,
         num_slides_heatmap: int = 20,
     ) -> None:
+        """
+
+        :param outputs_folder: Path to the folder where the outputs will be saved.
+        :param patience: Number of epochs to wait before starting to cache loss values, defaults to 0.
+        :param save_every_n_epoch: Epochs interval to save loss values, defaults to 1.
+        :param max_epochs: Maximum number of epochs to train, defaults to 30.
+        :param num_slides_scatter: Number of slides to plot in the scatter plot, defaults to 10.
+        :param num_slides_heatmap: Number of slides to plot in the heatmap, defaults to 20.
+        """
 
         self.patience = patience
-        self.save_every_n_epoch = save_every_n_epoch
+        self.epochs_interval = epochs_interval
         self.max_epochs = max_epochs
         self.num_slides_scatter = num_slides_scatter
         self.num_slides_heatmap = num_slides_heatmap
@@ -49,7 +98,7 @@ class LossValuesAnalysisCallback(Callback):
         self.create_outputs_folders()
 
         self.loss_cache = self.reset_loss_cache()
-        self.epochs_range = list(range(self.patience, self.max_epochs, self.save_every_n_epoch))
+        self.epochs_range = list(range(self.patience, self.max_epochs, self.epochs_interval))
 
     @property
     def cache_folder(self) -> Path:
@@ -73,7 +122,7 @@ class LossValuesAnalysisCallback(Callback):
         return {ResultsKey.LOSS: [], ResultsKey.SLIDE_ID: [], ResultsKey.TILE_ID: []}
 
     def is_time_to_cache_loss_values(self, trainer: Trainer) -> bool:
-        return (trainer.current_epoch - self.patience) % self.save_every_n_epoch == 0
+        return (trainer.current_epoch - self.patience) % self.epochs_interval == 0
 
     def dump_loss_cache(self, current_epoch: int) -> None:
         loss_cache_df = pd.DataFrame(self.loss_cache)
@@ -153,6 +202,7 @@ class LossValuesAnalysisCallback(Callback):
         order = HIGHEST if high else LOWEST
         plt.title(f"Slides with {order} loss values per epoch.")
         plt.legend()
+        plt.grid()
         plt.savefig(self.scatter_folder / f"slides_with_{order}_loss_values.png", bbox_inches="tight")
 
     def select_loss_for_slides_of_epoch(self, epoch: int, high: bool) -> LossDictType:

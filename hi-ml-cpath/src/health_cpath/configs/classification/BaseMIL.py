@@ -14,7 +14,7 @@ from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 
 from health_azure.utils import create_from_matching_params
-from health_cpath.utils.callbacks import LossValuesAnalysisCallback
+from health_cpath.utils.callbacks import LossAnalysisCallback, LossCallbackParams
 
 from health_ml.utils import fixed_paths
 from health_ml.deep_learning_config import OptimizerParams
@@ -33,7 +33,7 @@ from health_cpath.utils.naming import MetricsKey, PlotOption, SlideKey, ModelKey
 from health_cpath.utils.tiles_selection_utils import TilesSelector
 
 
-class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
+class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackParams):
     """BaseMIL is an abstract container defining basic functionality for running MIL experiments in both slides and
     tiles settings. It is responsible for instantiating the encoder and pooling layer. Subclasses should define the
     full DeepMIL model depending on the type of dataset (tiles/slides based).
@@ -82,7 +82,6 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
             "initiliaze classifier with random weights.")
     ssl_checkpoint_run_id: str = param.String(default="", doc="Optional run id from which to load checkpoint if "
                                               "using SSLEncoder")
-    analyze_loss_values: bool = param.Boolean(False, doc="If True, will analyse loss values during training.")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -162,9 +161,16 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
                                      monitor=f"{ModelKey.VAL}/{self.primary_val_metric}",
                                      filename=self.best_checkpoint_filename,
                                      auto_insert_metric_name=False,
-                                     mode="max" if self.maximise_primary_metric else "min")]
-        if self.analyze_loss_values:
-            callbacks.append(LossValuesAnalysisCallback(outputs_folder=self.outputs_folder, max_epochs=self.max_epochs))
+                                     mode="max" if self.maximise_primary_metric else "min")
+                     ]
+        if self.analyse_loss_values:
+            callbacks.append(LossAnalysisCallback(outputs_folder=self.outputs_folder,
+                                                  max_epochs=self.max_epochs,
+                                                  patience=self.loss_analysis_patience,
+                                                  epochs_interval=self.loss_analysis_epochs_interval,
+                                                  num_slides_scatter=self.num_slides_scatter,
+                                                  num_slides_heatmap=self.num_slides_heatmap)
+                             )
         return callbacks
 
     def get_checkpoint_to_test(self) -> Path:
