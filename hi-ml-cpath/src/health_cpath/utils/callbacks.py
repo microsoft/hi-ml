@@ -245,7 +245,7 @@ class LossAnalysisCallback(Callback):
 
         :param epoch: The epoch to select the slides from.
         :param high: If True, selects the slides with the highest loss values, else selects the slides with the lowest
-            loss values.
+            loss values. If None, selects all slides.
         :return: A dictionary containing the loss values for each slide across all epochs.
         """
         loss_cache = pd.read_csv(self.cache_folder / LOSS_VALUES_FILENAME.format(epoch))
@@ -310,10 +310,12 @@ class LossAnalysisCallback(Callback):
                 if np.isnan(loss).any():
                     logging.warning(f"NaNs found in loss values for slide {slide_id}.")
                     self.nan_slides.append(slide_id)
+                    loss_values.pop(slide_id)
             except Exception as e:
                 logging.warning(f"Error while checking for NaNs in loss values for slide {slide_id} with error {e}.")
                 print("Loos values:", loss)
                 self.exception_slides.append(slide_id)
+                loss_values.pop(slide_id)
         self.save_slide_ids(self.nan_slides, NAN_SLIDES_FILENAME)
         self.save_slide_ids(self.exception_slides, EXCEPTION_SLIDES_FILENAME)
 
