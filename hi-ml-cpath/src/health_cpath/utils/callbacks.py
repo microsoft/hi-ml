@@ -143,6 +143,9 @@ class LossAnalysisCallback(Callback):
     def exception_folder(self) -> Path:
         return self.outputs_folder / "loss_exceptions"
 
+    def zfill_epoch(self, epoch: int) -> str:
+        return str(epoch).zfill(len(str(self.max_epochs)))
+
     def create_outputs_folders(self) -> None:
         folders = [
             self.cache_folder,
@@ -171,7 +174,9 @@ class LossAnalysisCallback(Callback):
         """Saves the loss cache to a csv file"""
         loss_cache_df = pd.DataFrame(self.loss_cache)
         loss_cache_df = loss_cache_df.sort_values(by=ResultsKey.LOSS, ascending=False)
-        loss_cache_df.to_csv(self.cache_folder / LOSS_VALUES_FILENAME.format(current_epoch), index=False)
+        loss_cache_df.to_csv(
+            self.cache_folder / LOSS_VALUES_FILENAME.format(self.zfill_epoch(current_epoch)), index=False
+        )
 
     def merge_loss_caches(self, loss_caches: List[LossDictType]) -> LossDictType:
         """Merges the loss caches from all the workers into a single loss cache"""
@@ -200,7 +205,7 @@ class LossAnalysisCallback(Callback):
         slides = []
         slides_loss = []
         for epoch in self.epochs_range:
-            loss_cache = pd.read_csv(self.cache_folder / LOSS_VALUES_FILENAME.format(epoch))
+            loss_cache = pd.read_csv(self.cache_folder / LOSS_VALUES_FILENAME.format(self.zfill_epoch(epoch)))
 
             if high:
                 slides.append(loss_cache[ResultsKey.SLIDE_ID][: self.num_slides_scatter])
@@ -220,7 +225,7 @@ class LossAnalysisCallback(Callback):
             loss values. If None, selects all slides.
         :return: A dictionary containing the loss values for each slide across all epochs.
         """
-        loss_cache = pd.read_csv(self.cache_folder / LOSS_VALUES_FILENAME.format(epoch))
+        loss_cache = pd.read_csv(self.cache_folder / LOSS_VALUES_FILENAME.format(self.zfill_epoch(epoch)))
 
         if high:
             slides = loss_cache[ResultsKey.SLIDE_ID][: self.num_slides_heatmap]
@@ -231,7 +236,7 @@ class LossAnalysisCallback(Callback):
 
         slides_loss_values: LossDictType = {slide_id: [] for slide_id in slides}
         for epoch in self.epochs_range:
-            loss_cache = pd.read_csv(self.cache_folder / LOSS_VALUES_FILENAME.format(epoch))
+            loss_cache = pd.read_csv(self.cache_folder / LOSS_VALUES_FILENAME.format(self.zfill_epoch(epoch)))
             loss_cache.set_index(ResultsKey.SLIDE_ID, inplace=True)
             for slide_id in slides:
                 epoch_slide_loss = loss_cache.loc[slide_id, ResultsKey.LOSS]
