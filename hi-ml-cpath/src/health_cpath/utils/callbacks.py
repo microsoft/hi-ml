@@ -258,7 +258,8 @@ class LossAnalysisCallback(Callback):
         :param epoch: The epoch to check for NaNs.
         """
         # We don't want any of these exceptions to interrupt validation. So we catch them and log them.
-        for slide_id, loss in loss_values.items():
+        loss_values_copy = loss_values.copy()
+        for slide_id, loss in loss_values_copy.items():
             try:
                 if np.isnan(loss).any():
                     logging.warning(f"NaNs found in loss values for slide {slide_id}.")
@@ -266,16 +267,14 @@ class LossAnalysisCallback(Callback):
                     loss_values.pop(slide_id)
             except Exception as e:
                 logging.warning(f"Error while checking for NaNs in loss values for slide {slide_id} with error {e}.")
-                print("Loos values:", loss)
+                logging.warning(f"Loos values that caused the issue: {loss}")
                 self.exception_slides.append(slide_id)
                 loss_values.pop(slide_id)
         self.save_slide_ids(self.nan_slides, NAN_SLIDES_FILENAME)
         self.save_slide_ids(self.exception_slides, EXCEPTION_SLIDES_FILENAME)
 
-    def save_loss_ranks(self) -> None:
+    def save_loss_ranks(self, slides_loss_values: LossDictType) -> None:
         """Saves the loss ranks for each slide across all epochs and their respective statistics in csv files."""
-        slides_loss_values = self.select_loss_for_slides_of_epoch(epoch=0, high=None)
-        self.sanity_check_loss_values(slides_loss_values)
         loss_df = pd.DataFrame(slides_loss_values).T
         loss_df.index.names = [ResultsKey.SLIDE_ID.value]
         loss_df.to_csv(self.cache_folder / ALL_EPOCHS_FILENAME)
@@ -359,10 +358,14 @@ class LossAnalysisCallback(Callback):
         self.loss_cache = self.reset_loss_cache()
 
     def on_train_end(self, trainer: Trainer, pl_module: BaseDeepMILModule) -> None:  # type: ignore
-        """Hook called at the end of training. We use it to plot the loss heatmap and scrater plot."""
+        """Hook called at the end of training. Plot the loss heatmap and scratter plots after ranking the slides by loss
+        values."""
 
         if pl_module.global_rank == 0:
-            self.save_loss_ranks()
+            slides_loss_values = self.select_loss_for_slides_of_epoch(epoch=0, high=None)
+            self.sanity_check_loss_values(slides_loss_values)
+
+            self.save_loss_ranks(slides_loss_values)
 
             slides, slides_loss = self.select_loss_slides_across_epochs(high=True)
             self.plot_slides_loss_scatter(slides, slides_loss, high=True)
