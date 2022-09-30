@@ -224,7 +224,7 @@ class LossAnalysisCallback(Callback):
 
         if high:
             slides = loss_cache[ResultsKey.SLIDE_ID][: self.num_slides_heatmap]
-        elif not high:
+        elif high is False:
             slides = loss_cache[ResultsKey.SLIDE_ID][-self.num_slides_heatmap:]
         else:
             slides = loss_cache[ResultsKey.SLIDE_ID]
@@ -280,7 +280,7 @@ class LossAnalysisCallback(Callback):
         loss_df.to_csv(self.cache_folder / ALL_EPOCHS_FILENAME)
         loss_ranks = loss_df.rank(ascending=False)
         loss_ranks.to_csv(self.rank_folder / LOSS_RANKS_FILENAME)
-        loss_ranks_stats = loss_ranks.T.describe().T.sort_values("mean", ascending=True)
+        loss_ranks_stats = loss_ranks.T.describe().T.sort_values("mean", ascending=False)
         loss_ranks_stats.to_csv(self.rank_folder / LOSS_RANKS_STATS_FILENAME)
 
     def plot_slides_loss_scatter(
