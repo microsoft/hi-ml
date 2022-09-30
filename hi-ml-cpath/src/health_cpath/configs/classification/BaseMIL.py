@@ -165,8 +165,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
                                      monitor=f"{ModelKey.VAL}/{self.primary_val_metric}",
                                      filename=self.best_checkpoint_filename,
                                      auto_insert_metric_name=False,
-                                     mode="max" if self.maximise_primary_metric else "min")
-                     ]
+                                     mode="max" if self.maximise_primary_metric else "min")]
         if self.analyse_loss:
             callbacks.append(LossAnalysisCallback(outputs_folder=self.outputs_folder,
                                                   max_epochs=self.max_epochs,
@@ -174,8 +173,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
                                                   epochs_interval=self.loss_analysis_epochs_interval,
                                                   num_slides_scatter=self.num_slides_scatter,
                                                   num_slides_heatmap=self.num_slides_heatmap,
-                                                  save_tile_ids=self.save_tile_ids,)
-                             )
+                                                  save_tile_ids=self.save_tile_ids,))
         return callbacks
 
     def get_checkpoint_to_test(self) -> Path:
