@@ -211,34 +211,6 @@ class LossAnalysisCallback(Callback):
 
         return np.array(slides).T, np.array(slides_loss).T
 
-    def plot_slides_loss_scatter(
-        self, slides: np.ndarray, slides_loss: np.ndarray, figure_size: Tuple[int, int] = (20, 20), high: bool = True,
-    ) -> None:
-        """Plots the slides with the highest/lowest loss values across epochs in a scatter plot
-
-        :param slides: The slides ids.
-        :param slides_loss: The loss values for each slide.
-        :param figure_size: The figure size, defaults to (20, 20)
-        :param high: If True, plots the slides with the highest loss values, else plots the slides with the lowest loss.
-        """
-        label = TOP if high else BOTTOM
-        plt.figure(figsize=figure_size)
-        for i in range(self.num_slides_scatter - 1, -1, -1):
-            plt.scatter(self.epochs_range, slides[i], label=f"{label}_{i+1}")
-            coordinates = [
-                (loss, epoch, slide) for loss, epoch, slide in zip(slides_loss[i], self.epochs_range, slides[i])
-            ]
-            for loss, epoch, slide in coordinates:
-                plt.annotate(f"{loss:.3f}", (epoch, slide))
-        plt.xlabel(X_LABEL)
-        plt.ylabel(Y_LABEL)
-        order = HIGHEST if high else LOWEST
-        plt.title(f"Slides with {order} loss values per epoch.")
-        plt.xticks(self.epochs_range)
-        plt.legend()
-        plt.grid(True, linestyle="--")
-        plt.savefig(self.scatter_folder / SCATTER_PLOT_FILENAME.format(order), bbox_inches="tight")
-
     def select_loss_for_slides_of_epoch(self, epoch: int, high: Optional[bool] = None) -> LossDictType:
         """Selects the slides with the highest/lowest loss values for a given epoch and returns the loss values for each
         slide across all epochs.
@@ -271,30 +243,6 @@ class LossAnalysisCallback(Callback):
                 slides_loss_values[slide_id].append(epoch_slide_loss)
         return slides_loss_values
 
-    def plot_loss_heatmap_for_slides_of_epoch(
-        self, slides_loss_values: LossDictType, epoch: int, high: bool, figsize: Tuple[int, int] = (15, 15)
-    ) -> None:
-        """Plots the loss values for each slide across all epochs in a heatmap.
-
-        :param slides_loss_values: The loss values for each slide across all epochs.
-        :param epoch: The epoch used to select the slides.
-        :param high: If True, plots the slides with the highest loss values, else plots the slides with the lowest loss.
-        :param figsize: The figure size, defaults to (15, 15)
-        """
-        order = HIGHEST if high else LOWEST
-        loss_values = np.array(list(slides_loss_values.values()))
-        slides = list(slides_loss_values.keys())
-        # Loss heatmap plot can go wrong. We need to catch the error and log it otherwise it will interupt validation.
-        try:
-            plt.figure(figsize=figsize)
-            _ = sns.heatmap(loss_values, linewidth=0.5, annot=True, yticklabels=slides)
-            plt.xlabel(X_LABEL)
-            plt.ylabel(Y_LABEL)
-            plt.title(f"Loss values evolution for {order} slides of epoch {epoch}")
-            plt.savefig(self.heatmap_folder / HEATMAP_PLOT_FILENAME.format(epoch, order), bbox_inches="tight")
-        except Exception as e:
-            logging.warning(f"Skipping loss heatmap because of Exception {e}")
-
     def save_slide_ids(self, slide_ids: List[str], filename: str) -> None:
         """Dumps the slides ids in a txt file."""
         if slide_ids:
@@ -309,6 +257,7 @@ class LossAnalysisCallback(Callback):
         :param order: If "highest", checks for NaNs in the highest loss values, else checks for NaNs in the lowest loss
         :param epoch: The epoch to check for NaNs.
         """
+        # We don't want any of these exceptions to interrupt validation. So we catch them and log them.
         for slide_id, loss in loss_values.items():
             try:
                 if np.isnan(loss).any():
@@ -334,6 +283,54 @@ class LossAnalysisCallback(Callback):
         loss_ranks.to_csv(self.rank_folder / LOSS_RANKS_FILENAME)
         loss_ranks_stats = loss_ranks.T.describe().T.sort_values("mean", ascending=True)
         loss_ranks_stats.to_csv(self.rank_folder / LOSS_RANKS_STATS_FILENAME)
+
+    def plot_slides_loss_scatter(
+        self, slides: np.ndarray, slides_loss: np.ndarray, figure_size: Tuple[int, int] = (20, 20), high: bool = True,
+    ) -> None:
+        """Plots the slides with the highest/lowest loss values across epochs in a scatter plot
+
+        :param slides: The slides ids.
+        :param slides_loss: The loss values for each slide.
+        :param figure_size: The figure size, defaults to (20, 20)
+        :param high: If True, plots the slides with the highest loss values, else plots the slides with the lowest loss.
+        """
+        label = TOP if high else BOTTOM
+        plt.figure(figsize=figure_size)
+        for i in range(self.num_slides_scatter - 1, -1, -1):
+            plt.scatter(self.epochs_range, slides[i], label=f"{label}_{i+1}")
+            coordinates = [
+                (loss, epoch, slide) for loss, epoch, slide in zip(slides_loss[i], self.epochs_range, slides[i])
+            ]
+            for loss, epoch, slide in coordinates:
+                plt.annotate(f"{loss:.3f}", (epoch, slide))
+        plt.xlabel(X_LABEL)
+        plt.ylabel(Y_LABEL)
+        order = HIGHEST if high else LOWEST
+        plt.title(f"Slides with {order} loss values per epoch.")
+        plt.xticks(self.epochs_range)
+        plt.legend()
+        plt.grid(True, linestyle="--")
+        plt.savefig(self.scatter_folder / SCATTER_PLOT_FILENAME.format(order), bbox_inches="tight")
+
+    def plot_loss_heatmap_for_slides_of_epoch(
+        self, slides_loss_values: LossDictType, epoch: int, high: bool, figsize: Tuple[int, int] = (15, 15)
+    ) -> None:
+        """Plots the loss values for each slide across all epochs in a heatmap.
+
+        :param slides_loss_values: The loss values for each slide across all epochs.
+        :param epoch: The epoch used to select the slides.
+        :param high: If True, plots the slides with the highest loss values, else plots the slides with the lowest loss.
+        :param figsize: The figure size, defaults to (15, 15)
+        """
+        order = HIGHEST if high else LOWEST
+        loss_values = np.array(list(slides_loss_values.values()))
+        slides = list(slides_loss_values.keys())
+        plt.figure(figsize=figsize)
+        _ = sns.heatmap(loss_values, linewidth=0.5, annot=True, yticklabels=slides)
+        plt.xlabel(X_LABEL)
+        plt.ylabel(Y_LABEL)
+        plt.title(f"Loss values evolution for {order} slides of epoch {epoch}")
+        plt.savefig(self.heatmap_folder / HEATMAP_PLOT_FILENAME.format(epoch, order), bbox_inches="tight")
 
     @torch.no_grad()
     def on_train_batch_start(  # type: ignore
