@@ -153,7 +153,7 @@ def test_on_train_epoch_end(tmp_path: Path, rank: int = 0, world_size: int = 1, 
     if rank > 0:
         time.sleep(10)  # Wait for the rank 0 to save the loss cache in a csv file
 
-    loss_cache_path = loss_callback.cache_folder / LOSS_VALUES_FILENAME.format(current_epoch)
+    loss_cache_path = loss_callback.cache_folder / LOSS_VALUES_FILENAME.format(loss_callback.zfill_epoch(current_epoch))
     assert loss_callback.cache_folder.exists()
     assert loss_cache_path.exists()
     assert loss_cache_path in loss_callback.cache_folder.iterdir()
@@ -181,7 +181,7 @@ def test_on_train_end(tmp_path: Path) -> None:
     loss_callback.on_train_end(trainer, pl_module)
 
     for epoch in range(max_epochs):
-        assert (loss_callback.cache_folder / LOSS_VALUES_FILENAME.format(epoch)).exists()
+        assert (loss_callback.cache_folder / LOSS_VALUES_FILENAME.format(loss_callback.zfill_epoch(epoch))).exists()
 
     # check save_loss_ranks outputs
     assert (loss_callback.cache_folder / ALL_EPOCHS_FILENAME).exists()
@@ -194,8 +194,10 @@ def test_on_train_end(tmp_path: Path) -> None:
 
     # check plot_loss_heatmap_for_slides_of_epoch outputs
     for epoch in range(max_epochs):
-        assert (loss_callback.heatmap_folder / HEATMAP_PLOT_FILENAME.format(epoch, HIGHEST)).exists()
-        assert (loss_callback.heatmap_folder / HEATMAP_PLOT_FILENAME.format(epoch, LOWEST)).exists()
+        filename = HEATMAP_PLOT_FILENAME.format(loss_callback.zfill_epoch(epoch), HIGHEST)
+        assert (loss_callback.heatmap_folder / filename).exists()
+        filename = HEATMAP_PLOT_FILENAME.format(loss_callback.zfill_epoch(epoch), LOWEST)
+        assert (loss_callback.heatmap_folder / filename).exists()
 
 
 def test_nans_detection(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
