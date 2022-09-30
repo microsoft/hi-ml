@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 
 import os
-import torch
+import logging
 import param
 from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Union
 
@@ -82,6 +82,10 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
             "initiliaze classifier with random weights.")
     ssl_checkpoint_run_id: str = param.String(default="", doc="Optional run id from which to load checkpoint if "
                                               "using SSLEncoder")
+    max_num_workers: int = param.Integer(10, bounds=(0, None),
+                                         doc="The maximum number of worker processes for dataloaders. Dataloaders use"
+                                             "a heuristic num_cpus/num_gpus to set the number of workers, which can be"
+                                             "very high for small num_gpus. This parameters sets an upper bound.")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -201,11 +205,14 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
 
     def get_dataloader_kwargs(self) -> dict:
         num_cpus = os.cpu_count()
+        assert num_cpus is not None  # for mypy
+        logging.info(f"os.cpu_count()={num_cpus}")
+        num_devices = self.num_gpus_per_node()
         # We ensure num_devices is not 0 for non-GPU machines
         # to avoid division by zero error when computing `workers_per_gpu`
-        num_devices = max(torch.cuda.device_count(), 1)
-        assert num_cpus is not None  # for mypy
-        workers_per_gpu = num_cpus // num_devices
+        workers_per_gpu = num_cpus // (num_devices or 1)
+        workers_per_gpu = min(self.max_num_workers, workers_per_gpu)
+        print(f"Using {workers_per_gpu} data loader worker processes per GPU")
         dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
         return dataloader_kwargs
 
