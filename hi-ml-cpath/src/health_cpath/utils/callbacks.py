@@ -261,10 +261,14 @@ class LossAnalysisCallback(Callback):
         for epoch in self.epochs_range:
             loss_cache = pd.read_csv(self.cache_folder / LOSS_VALUES_FILENAME.format(epoch))
             loss_cache.set_index(ResultsKey.SLIDE_ID, inplace=True)
-            slides_loss_values = {
-                slide_id: slides_loss_values[slide_id] + [loss_cache.loc[slide_id, ResultsKey.LOSS]]
-                for slide_id in slides
-            }
+            for slide_id in slides:
+                epoch_slide_loss = loss_cache.loc[slide_id, ResultsKey.LOSS]
+                if isinstance(epoch_slide_loss, pd.Series):
+                    # Some slides may be appear multiple times in the loss cache in DDP mode.
+                    # The Distributed Sampler may sample the same slide multiple times to even out number of samples per
+                    # device, so we only keep the first occurrence.
+                    epoch_slide_loss = epoch_slide_loss.values[0]
+                slides_loss_values[slide_id].append(epoch_slide_loss)
         return slides_loss_values
 
     def plot_loss_heatmap_for_slides_of_epoch(
