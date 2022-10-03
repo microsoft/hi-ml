@@ -1431,7 +1431,6 @@ def test_upload_to_datastore(tmp_path: Path, overwrite: bool) -> None:
     """
     ws = DEFAULT_WORKSPACE.workspace
     default_datastore: AzureBlobDatastore = ws.get_default_datastore()
-    container = default_datastore.container_name
     dummy_file_content = "Hello world"
 
     remote_data_dir = "test_data"
