@@ -32,7 +32,7 @@ SCATTER_PLOT_FILENAME = "slides_with_{}_loss_values.png"
 HEATMAP_PLOT_FILENAME = "epoch_{}_{}_slides.png"
 
 NAN_SLIDES_FILENAME = "nan_slides.txt"
-EXCEPTION_SLIDES_FILENAME = "expection_slides.txt"
+EXCEPTION_SLIDES_FILENAME = "anomaly_slides.txt"
 
 X_LABEL, Y_LABEL = "Epoch", "Slide ids"
 TOP, BOTTOM = "top", "bottom"
@@ -122,7 +122,7 @@ class LossAnalysisCallback(Callback):
         self.epochs_range = list(range(self.patience, self.max_epochs, self.epochs_interval))
 
         self.nan_slides: List[str] = []
-        self.exception_slides: List[str] = []
+        self.anomaly_slides: List[str] = []
 
     @property
     def cache_folder(self) -> Path:
@@ -262,11 +262,9 @@ class LossAnalysisCallback(Callback):
                     f.write(f"{slide_id}\n")
 
     def sanity_check_loss_values(self, loss_values: LossDictType) -> None:
-        """Checks if there are any NaNs or any other potential issues in the loss values for a given epoch and slide.
+        """Checks if there are any NaNs or any other potential annomalies in the loss values.
 
         :param loss_values: The loss values for all slides.
-        :param order: If "highest", checks for NaNs in the highest loss values, else checks for NaNs in the lowest loss
-        :param epoch: The epoch to check for NaNs.
         """
         # We don't want any of these exceptions to interrupt validation. So we catch them and log them.
         loss_values_copy = loss_values.copy()
@@ -278,11 +276,11 @@ class LossAnalysisCallback(Callback):
                     loss_values.pop(slide_id)
             except Exception as e:
                 logging.warning(f"Error while checking for NaNs in loss values for slide {slide_id} with error {e}.")
-                logging.warning(f"Loos values that caused the issue: {loss}")
-                self.exception_slides.append(slide_id)
+                logging.warning(f"Loss values that caused the issue: {loss}")
+                self.anomaly_slides.append(slide_id)
                 loss_values.pop(slide_id)
         self.save_slide_ids(self.nan_slides, NAN_SLIDES_FILENAME)
-        self.save_slide_ids(self.exception_slides, EXCEPTION_SLIDES_FILENAME)
+        self.save_slide_ids(self.anomaly_slides, EXCEPTION_SLIDES_FILENAME)
 
     def save_loss_ranks(self, slides_loss_values: LossDictType) -> None:
         """Saves the loss ranks for each slide across all epochs and their respective statistics in csv files."""
@@ -301,23 +299,24 @@ class LossAnalysisCallback(Callback):
         loss_ranks_stats.to_csv(self.rank_folder / LOSS_RANKS_STATS_FILENAME)
 
     def plot_slides_loss_scatter(
-        self, slides: np.ndarray, slides_loss: np.ndarray, figure_size: Tuple[int, int] = (20, 20), high: bool = True,
+        self,
+        slides: np.ndarray,
+        slides_loss: np.ndarray,
+        high: bool = True,
+        figsize: Tuple[float, float] = (20, 20),
     ) -> None:
         """Plots the slides with the highest/lowest loss values across epochs in a scatter plot
 
         :param slides: The slides ids.
         :param slides_loss: The loss values for each slide.
-        :param figure_size: The figure size, defaults to (20, 20)
+        :param figsize: The figure size, defaults to (20, 20)
         :param high: If True, plots the slides with the highest loss values, else plots the slides with the lowest loss.
         """
         label = TOP if high else BOTTOM
-        plt.figure(figsize=figure_size)
+        plt.figure(figsize=figsize)
         for i in range(self.num_slides_scatter - 1, -1, -1):
             plt.scatter(self.epochs_range, slides[i], label=f"{label}_{i+1}")
-            coordinates = [
-                (loss, epoch, slide) for loss, epoch, slide in zip(slides_loss[i], self.epochs_range, slides[i])
-            ]
-            for loss, epoch, slide in coordinates:
+            for loss, epoch, slide in zip(slides_loss[i], self.epochs_range, slides[i]):
                 plt.annotate(f"{loss:.3f}", (epoch, slide))
         plt.xlabel(X_LABEL)
         plt.ylabel(Y_LABEL)
@@ -329,7 +328,7 @@ class LossAnalysisCallback(Callback):
         plt.savefig(self.scatter_folder / SCATTER_PLOT_FILENAME.format(order), bbox_inches="tight")
 
     def plot_loss_heatmap_for_slides_of_epoch(
-        self, slides_loss_values: LossDictType, epoch: int, high: bool, figsize: Tuple[int, int] = (15, 15)
+        self, slides_loss_values: LossDictType, epoch: int, high: bool, figsize: Tuple[float, float] = (15, 15)
     ) -> None:
         """Plots the loss values for each slide across all epochs in a heatmap.
 
@@ -360,7 +359,7 @@ class LossAnalysisCallback(Callback):
             else:
                 loss = pl_module.loss_fn_no_reduction(bag_logits.squeeze(1), bag_labels.float())
             self.loss_cache[ResultsKey.LOSS].extend(loss.tolist())
-            self.loss_cache[ResultsKey.SLIDE_ID].extend(np.array([slides[0] for slides in batch[ResultsKey.SLIDE_ID]]))
+            self.loss_cache[ResultsKey.SLIDE_ID].extend([slides[0] for slides in batch[ResultsKey.SLIDE_ID]])
             if self.save_tile_ids:
                 self.loss_cache[ResultsKey.TILE_ID].extend(
                     [TILES_JOIN_TOKEN.join(tiles) for tiles in batch[ResultsKey.TILE_ID]]
