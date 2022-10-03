@@ -1353,8 +1353,7 @@ def delete_existing_blobs(datastore: AzureBlobDatastore, prefix: str) -> None:
     param prefix: The prefix string for the files that should be deleted.
     """
     container = datastore.container_name
-    existing_blobs = list(datastore.blob_service.list_blobs(prefix=prefix,
-                                                            container_name=container))
+    existing_blobs = list(datastore.blob_service.get_container_client(container).list_blobs(name_starts_with=prefix))
     for existing_blob in existing_blobs:
         datastore.blob_service.delete_blob(container_name=container, blob_name=existing_blob.name)
 
