@@ -175,7 +175,7 @@ class LossAnalysisCallback(Callback):
         loss_cache_df = pd.DataFrame(self.loss_cache)
         # Some slides may be appear multiple times in the loss cache in DDP mode. The Distributed Sampler may duplicate
         # some slides to even out the number of samples per device, so we only keep the first occurrence.
-        loss_cache_df.drop_duplicates(subset=ResultsKey.SLIDE_ID, inplace=True)
+        loss_cache_df.drop_duplicates(subset=ResultsKey.SLIDE_ID, inplace=True, keep="first")
         loss_cache_df = loss_cache_df.sort_values(by=ResultsKey.LOSS, ascending=False)
         loss_cache_df.to_csv(
             self.cache_folder / LOSS_VALUES_FILENAME.format(self.zfill_epoch(current_epoch)), index=False
