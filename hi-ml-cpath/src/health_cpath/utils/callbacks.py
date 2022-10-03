@@ -332,22 +332,17 @@ class LossAnalysisCallback(Callback):
         :param high: If True, plots the slides with the highest loss values, else plots the slides with the lowest loss.
         :param figsize: The figure size, defaults to (15, 15)
         """
-        try:
-            order = HIGHEST if high else LOWEST
-            loss_values = np.array(list(slides_loss_values.values()))
-            slides = list(slides_loss_values.keys())
-            plt.figure(figsize=figsize)
-            _ = sns.heatmap(loss_values, linewidth=0.5, annot=True, yticklabels=slides)
-            plt.xlabel(X_LABEL)
-            plt.ylabel(Y_LABEL)
-            plt.title(f"Loss values evolution for {order} slides of epoch {epoch}")
-            plt.savefig(
-                self.heatmap_folder / HEATMAP_PLOT_FILENAME.format(self.zfill_epoch(epoch), order), bbox_inches="tight"
-            )
-        except Exception as e:
-            logging.warning(f"Could not plot heatmap for epoch {epoch} and high={high}: {e}")
-            logging.warning(f"loss_values.shape: {loss_values.shape}")
-            logging.warning(f"loss_values: {loss_values}")
+        order = HIGHEST if high else LOWEST
+        loss_values = np.array(list(slides_loss_values.values()))
+        slides = list(slides_loss_values.keys())
+        plt.figure(figsize=figsize)
+        _ = sns.heatmap(loss_values, linewidth=0.5, annot=True, yticklabels=slides)
+        plt.xlabel(X_LABEL)
+        plt.ylabel(Y_LABEL)
+        plt.title(f"Loss values evolution for {order} slides of epoch {epoch}")
+        plt.savefig(
+            self.heatmap_folder / HEATMAP_PLOT_FILENAME.format(self.zfill_epoch(epoch), order), bbox_inches="tight"
+        )
 
     @torch.no_grad()
     def on_train_batch_start(  # type: ignore
@@ -384,20 +379,20 @@ class LossAnalysisCallback(Callback):
                 slides_loss_values = self.select_loss_for_slides_of_epoch(epoch=0, high=None)
                 self.sanity_check_loss_values(slides_loss_values)
                 self.save_loss_ranks(slides_loss_values)
+
+                slides, slides_loss = self.select_loss_slides_across_epochs(high=True)
+                self.plot_slides_loss_scatter(slides, slides_loss, high=True)
+
+                slides, slides_loss = self.select_loss_slides_across_epochs(high=False)
+                self.plot_slides_loss_scatter(slides, slides_loss, high=False)
+
+                for epoch in self.epochs_range:
+                    slides_loss_values = self.select_loss_for_slides_of_epoch(epoch, high=True)
+                    self.plot_loss_heatmap_for_slides_of_epoch(slides_loss_values, epoch, high=True)
+
+                    slides_loss_values = self.select_loss_for_slides_of_epoch(epoch, high=False)
+                    self.plot_loss_heatmap_for_slides_of_epoch(slides_loss_values, epoch, high=False)
             except Exception as e:
-                logging.warning(f"Failed to sanity check loss values: {e}")
-                import pickle
-                pickle.dump(slides_loss_values, open(self.exception_folder / "slides_loss_values.pkl", "wb"))
-
-            slides, slides_loss = self.select_loss_slides_across_epochs(high=True)
-            self.plot_slides_loss_scatter(slides, slides_loss, high=True)
-
-            slides, slides_loss = self.select_loss_slides_across_epochs(high=False)
-            self.plot_slides_loss_scatter(slides, slides_loss, high=False)
-
-            for epoch in self.epochs_range:
-                slides_loss_values = self.select_loss_for_slides_of_epoch(epoch, high=True)
-                self.plot_loss_heatmap_for_slides_of_epoch(slides_loss_values, epoch, high=True)
-
-                slides_loss_values = self.select_loss_for_slides_of_epoch(epoch, high=False)
-                self.plot_loss_heatmap_for_slides_of_epoch(slides_loss_values, epoch, high=False)
+                # If something goes wrong, we don't want to crash the training. We just log the error and carry on
+                # validation.
+                logging.warning(f"Error while detecting loss values outliers: {e}")
