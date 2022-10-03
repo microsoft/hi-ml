@@ -144,8 +144,10 @@ class LossAnalysisCallback(Callback):
     def anomalies_folder(self) -> Path:
         return self.outputs_folder / "loss_anomalies"
 
-    def zfill_epoch(self, epoch: int) -> str:
-        return str(epoch).zfill(len(str(self.max_epochs)))
+    def get_filename(self, root_folder: Path, filename: str, epoch: int, order: Optional[str] = None) -> Path:
+        zero_filled_epoch = str(epoch).zfill(len(str(self.max_epochs)))
+        filename = filename.format(zero_filled_epoch, order) if order else filename.format(zero_filled_epoch)
+        return root_folder / filename
 
     def create_outputs_folders(self) -> None:
         folders = [
@@ -178,9 +180,7 @@ class LossAnalysisCallback(Callback):
         # some slides to even out the number of samples per device, so we only keep the first occurrence.
         loss_cache_df.drop_duplicates(subset=ResultsKey.SLIDE_ID, inplace=True, keep="first")
         loss_cache_df = loss_cache_df.sort_values(by=ResultsKey.LOSS, ascending=False)
-        loss_cache_df.to_csv(
-            self.cache_folder / LOSS_VALUES_FILENAME.format(self.zfill_epoch(current_epoch)), index=False
-        )
+        loss_cache_df.to_csv(self.get_filename(self.cache_folder, LOSS_VALUES_FILENAME, current_epoch), index=False)
 
     def merge_loss_caches(self, loss_caches: List[LossDictType]) -> LossDictType:
         """Merges the loss caches from all the workers into a single loss cache"""
@@ -209,7 +209,7 @@ class LossAnalysisCallback(Callback):
         slides = []
         slides_loss = []
         for epoch in self.epochs_range:
-            loss_cache = pd.read_csv(self.cache_folder / LOSS_VALUES_FILENAME.format(self.zfill_epoch(epoch)))
+            loss_cache = pd.read_csv(self.get_filename(self.cache_folder, LOSS_VALUES_FILENAME, epoch))
 
             if high:
                 slides.append(loss_cache[ResultsKey.SLIDE_ID][: self.num_slides_scatter])
@@ -229,7 +229,7 @@ class LossAnalysisCallback(Callback):
             loss values. If None, selects all slides.
         :return: A dictionary containing the loss values for each slide across all epochs.
         """
-        loss_cache = pd.read_csv(self.cache_folder / LOSS_VALUES_FILENAME.format(self.zfill_epoch(epoch)))
+        loss_cache = pd.read_csv(self.get_filename(self.cache_folder, LOSS_VALUES_FILENAME, epoch))
 
         if high:
             slides = loss_cache[ResultsKey.SLIDE_ID][: self.num_slides_heatmap]
@@ -240,7 +240,7 @@ class LossAnalysisCallback(Callback):
 
         slides_loss_values: LossDictType = {slide_id: [] for slide_id in slides}
         for epoch in self.epochs_range:
-            loss_cache = pd.read_csv(self.cache_folder / LOSS_VALUES_FILENAME.format(self.zfill_epoch(epoch)))
+            loss_cache = pd.read_csv(self.get_filename(self.cache_folder, LOSS_VALUES_FILENAME, epoch))
             loss_cache.set_index(ResultsKey.SLIDE_ID, inplace=True)
             slides_loss_values = {
                 slide_id: slides_loss_values[slide_id] + [loss_cache.loc[slide_id, ResultsKey.LOSS]]
@@ -340,9 +340,7 @@ class LossAnalysisCallback(Callback):
         plt.xlabel(X_LABEL)
         plt.ylabel(Y_LABEL)
         plt.title(f"Loss values evolution for {order} slides of epoch {epoch}")
-        plt.savefig(
-            self.heatmap_folder / HEATMAP_PLOT_FILENAME.format(self.zfill_epoch(epoch), order), bbox_inches="tight"
-        )
+        plt.savefig(self.get_filename(self.heatmap_folder, HEATMAP_PLOT_FILENAME, epoch, order), bbox_inches="tight")
 
     @torch.no_grad()
     def on_train_batch_start(  # type: ignore
