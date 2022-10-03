@@ -368,7 +368,7 @@ class LossAnalysisCallback(Callback):
             self.gather_loss_cache(rank=pl_module.global_rank)
             if pl_module.global_rank == 0:
                 self.save_loss_cache(trainer.current_epoch)
-        self.loss_cache = self.reset_loss_cache()
+        self.loss_cache = self.reset_loss_cache()  # reset loss cache for all processes
 
     def on_train_end(self, trainer: Trainer, pl_module: BaseDeepMILModule) -> None:  # type: ignore
         """Hook called at the end of training. Plot the loss heatmap and scratter plots after ranking the slides by loss

@@ -132,12 +132,14 @@ def test_on_train_batch_start(tmp_path: Path, mock_panda_tiles_root_dir: Path) -
 def get_loss_cache(n_slides: int = 4, rank: int = 0) -> LossDictType:
     return {
         ResultsKey.LOSS: list(range(1, n_slides + 1)),
-        ResultsKey.SLIDE_ID: [f"id_{i * (rank + 1)}" for i in range(n_slides)],
-        ResultsKey.TILE_ID: [f"a${i * (rank + 1)}$b" for i in range(n_slides)],
+        ResultsKey.SLIDE_ID: [f"id_{i}" for i in range(rank * n_slides, (rank + 1) * n_slides)],
+        ResultsKey.TILE_ID: [f"a${i * (rank + 1)}$b" for i in range(rank * n_slides, (rank + 1) * n_slides)],
     }
 
 
-def test_on_train_epoch_end(tmp_path: Path, rank: int = 0, world_size: int = 1, device: str = "cpu") -> None:
+def test_on_train_epoch_end(
+    tmp_path: Path, duplicate: bool = False, rank: int = 0, world_size: int = 1, device: str = "cpu"
+) -> None:
     current_epoch = 5
     n_slides_per_process = 4
     trainer = MagicMock(current_epoch=current_epoch)
@@ -145,6 +147,9 @@ def test_on_train_epoch_end(tmp_path: Path, rank: int = 0, world_size: int = 1, 
 
     loss_callback = LossAnalysisCallback(outputs_folder=tmp_path, num_slides_heatmap=2, num_slides_scatter=2)
     loss_callback.loss_cache = get_loss_cache(rank=rank, n_slides=n_slides_per_process)
+    if duplicate:
+        # Duplicate slide "id_0" and to test that the duplicates are removed
+        loss_callback.loss_cache[ResultsKey.SLIDE_ID][0] = "id_0"
 
     _assert_loss_cache_contains_n_elements(loss_callback.loss_cache, n_slides_per_process)
     loss_callback.on_train_epoch_end(trainer, pl_module)
@@ -160,14 +165,19 @@ def test_on_train_epoch_end(tmp_path: Path, rank: int = 0, world_size: int = 1, 
     assert loss_cache_path in loss_callback.cache_folder.iterdir()
 
     loss_cache = pd.read_csv(loss_cache_path)
-    _assert_loss_cache_contains_n_elements(loss_cache, n_slides_per_process * world_size)
+    total_slides = n_slides_per_process * world_size if not duplicate else n_slides_per_process * world_size - 1
+    _assert_loss_cache_contains_n_elements(loss_cache, total_slides)
     _assert_list_is_sorted(loss_cache[ResultsKey.LOSS].values)
 
 
 @pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
 @pytest.mark.gpu
 def test_on_train_epoch_end_distributed(tmp_path: Path) -> None:
-    run_distributed(test_on_train_epoch_end, [tmp_path], world_size=2)
+    # Test that the loss cache is saved correctly when using multiple GPUs
+    # First scenario: no duplicates
+    run_distributed(test_on_train_epoch_end, [tmp_path, False], world_size=2)
+    # Second scenario: introduce duplicates
+    run_distributed(test_on_train_epoch_end, [tmp_path, True], world_size=2)
 
 
 def test_on_train_end(tmp_path: Path) -> None:
