@@ -53,14 +53,14 @@ class LossCallbackParams(param.Parameterized):
         0,
         bounds=(0, None),
         doc="Number of epochs to wait before starting loss values per slide analysis. Default: 0, It will start"
-        "caching loss values per epoch immediately. Use lv_patience > 0 to wait for a few epochs before starting "
-        "the analysis.",
+        "caching loss values per epoch immediately. Use loss_analysis_patience=n>0 to wait for a few epochs "
+        "before starting the analysis.",
     )
     loss_analysis_epochs_interval: int = param.Integer(
         1,
         bounds=(1, None),
         doc="Epochs interval to save loss values. Default: 1, It will save loss values every epoch. Use "
-        "lv_every_n_epochs > 1 to save loss values every n epochs.",
+        "loss_analysis_epochs_interval=n>1 to save loss values every n epochs.",
     )
     num_slides_scatter: int = param.Integer(
         10,
@@ -71,7 +71,7 @@ class LossCallbackParams(param.Parameterized):
     num_slides_heatmap: int = param.Integer(
         20,
         bounds=(1, None),
-        doc="Number of slides to plot in the heatmap plot. Default: 20, It will plot the loss values for the 10 slides "
+        doc="Number of slides to plot in the heatmap plot. Default: 20, It will plot the loss values for the 20 slides "
         "with highest/lowest loss values.",
     )
     save_tile_ids: bool = param.Boolean(
@@ -100,7 +100,7 @@ class LossAnalysisCallback(Callback):
 
         :param outputs_folder: Path to the folder where the outputs will be saved.
         :param patience: Number of epochs to wait before starting to cache loss values, defaults to 0.
-        :param save_every_n_epoch: Epochs interval to save loss values, defaults to 1.
+        :param epochs_interval: Epochs interval to save loss values, defaults to 1.
         :param max_epochs: Maximum number of epochs to train, defaults to 30.
         :param num_slides_scatter: Number of slides to plot in the scatter plot, defaults to 10.
         :param num_slides_heatmap: Number of slides to plot in the heatmap, defaults to 20.
@@ -141,8 +141,8 @@ class LossAnalysisCallback(Callback):
         return self.outputs_folder / "loss_ranks"
 
     @property
-    def exception_folder(self) -> Path:
-        return self.outputs_folder / "loss_exceptions"
+    def anomalies_folder(self) -> Path:
+        return self.outputs_folder / "loss_anomalies"
 
     def zfill_epoch(self, epoch: int) -> str:
         return str(epoch).zfill(len(str(self.max_epochs)))
@@ -153,7 +153,7 @@ class LossAnalysisCallback(Callback):
             self.scatter_folder,
             self.heatmap_folder,
             self.rank_folder,
-            self.exception_folder,
+            self.anomalies_folder,
         ]
         for folder in folders:
             os.makedirs(folder, exist_ok=True)
@@ -164,7 +164,7 @@ class LossAnalysisCallback(Callback):
             keys.append(ResultsKey.TILE_ID)
         return {key: [] for key in keys}
 
-    def is_time_to_cache_loss_values(self, current_epoch: int) -> bool:
+    def should_cache_loss_values(self, current_epoch: int) -> bool:
         current_epoch = current_epoch + 1
         first_time = (current_epoch - self.patience) == 1
         return first_time or (
@@ -251,7 +251,7 @@ class LossAnalysisCallback(Callback):
     def save_slide_ids(self, slide_ids: List[str], filename: str) -> None:
         """Dumps the slides ids in a txt file."""
         if slide_ids:
-            with open(self.exception_folder / filename, "w") as f:
+            with open(self.anomalies_folder / filename, "w") as f:
                 for slide_id in slide_ids:
                     f.write(f"{slide_id}\n")
 
@@ -349,7 +349,7 @@ class LossAnalysisCallback(Callback):
         self, trainer: Trainer, pl_module: BaseDeepMILModule, batch: Dict, batch_idx: int, unused: int = 0,
     ) -> None:
         """Caches loss values per slide at each training step in a local variable self.loss_cache."""
-        if self.is_time_to_cache_loss_values(trainer.current_epoch):
+        if self.should_cache_loss_values(trainer.current_epoch):
             bag_logits, bag_labels, _ = pl_module.compute_bag_labels_logits_and_attn_maps(batch)
             if pl_module.n_classes > 1:
                 loss = pl_module.loss_fn_no_reduction(bag_logits, bag_labels.long())
@@ -364,7 +364,7 @@ class LossAnalysisCallback(Callback):
 
     def on_train_epoch_end(self, trainer: Trainer, pl_module: BaseDeepMILModule) -> None:  # type: ignore
         """Gathers loss values per slide from all processes at the end of each epoch and saves them to a csv file."""
-        if self.is_time_to_cache_loss_values(trainer.current_epoch):
+        if self.should_cache_loss_values(trainer.current_epoch):
             self.gather_loss_cache(rank=pl_module.global_rank)
             if pl_module.global_rank == 0:
                 self.save_loss_cache(trainer.current_epoch)

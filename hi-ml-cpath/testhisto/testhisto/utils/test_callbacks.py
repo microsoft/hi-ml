@@ -50,7 +50,7 @@ def test_loss_callback_outputs_folder_exist(tmp_path: Path) -> None:
         callback.cache_folder,
         callback.scatter_folder,
         callback.heatmap_folder,
-        callback.exception_folder,
+        callback.anomalies_folder,
     ]:
         assert folder.exists()
 
@@ -77,11 +77,11 @@ def test_loss_analysis_patience(patience: int) -> None:
 
     current_epoch = 0
     if patience > 0:
-        assert callback.is_time_to_cache_loss_values(current_epoch) is False
+        assert callback.should_cache_loss_values(current_epoch) is False
     else:
-        assert callback.is_time_to_cache_loss_values(current_epoch)
+        assert callback.should_cache_loss_values(current_epoch)
     current_epoch = 5
-    assert callback.is_time_to_cache_loss_values(current_epoch)
+    assert callback.should_cache_loss_values(current_epoch)
 
 
 @pytest.mark.parametrize("epochs_interval", [1, 2])
@@ -95,16 +95,16 @@ def test_loss_analysis_epochs_interval(epochs_interval: int) -> None:
 
     # First time to cache loss values
     current_epoch = 0
-    assert callback.is_time_to_cache_loss_values(current_epoch)
+    assert callback.should_cache_loss_values(current_epoch)
 
     current_epoch = 4  # Note that PL starts counting epochs from 0, 4th epoch is actually the 5th
     if epochs_interval == 2:
-        assert callback.is_time_to_cache_loss_values(current_epoch) is False
+        assert callback.should_cache_loss_values(current_epoch) is False
     else:
-        assert callback.is_time_to_cache_loss_values(current_epoch)
+        assert callback.should_cache_loss_values(current_epoch)
 
     current_epoch = 5
-    assert callback.is_time_to_cache_loss_values(current_epoch)
+    assert callback.should_cache_loss_values(current_epoch)
 
 
 def test_on_train_batch_start(tmp_path: Path, mock_panda_tiles_root_dir: Path) -> None:
@@ -230,4 +230,4 @@ def test_nans_detection(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> Non
     assert "NaNs found in loss values for slide id_1" in caplog.records[0].getMessage()
 
     assert loss_callback.nan_slides == ["id_1", "id_0"]
-    assert loss_callback.exception_folder / NAN_SLIDES_FILENAME in loss_callback.exception_folder.iterdir()
+    assert loss_callback.anomalies_folder / NAN_SLIDES_FILENAME in loss_callback.anomalies_folder.iterdir()
