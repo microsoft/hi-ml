@@ -173,6 +173,9 @@ class LossAnalysisCallback(Callback):
     def save_loss_cache(self, current_epoch: int) -> None:
         """Saves the loss cache to a csv file"""
         loss_cache_df = pd.DataFrame(self.loss_cache)
+        # Some slides may be appear multiple times in the loss cache in DDP mode. The Distributed Sampler may duplicate
+        # some slides to even out the number of samples per device, so we only keep the first occurrence.
+        loss_cache_df.drop_duplicates(subset=ResultsKey.SLIDE_ID, inplace=True)
         loss_cache_df = loss_cache_df.sort_values(by=ResultsKey.LOSS, ascending=False)
         loss_cache_df.to_csv(
             self.cache_folder / LOSS_VALUES_FILENAME.format(self.zfill_epoch(current_epoch)), index=False
@@ -238,14 +241,10 @@ class LossAnalysisCallback(Callback):
         for epoch in self.epochs_range:
             loss_cache = pd.read_csv(self.cache_folder / LOSS_VALUES_FILENAME.format(self.zfill_epoch(epoch)))
             loss_cache.set_index(ResultsKey.SLIDE_ID, inplace=True)
-            for slide_id in slides:
-                epoch_slide_loss = loss_cache.loc[slide_id, ResultsKey.LOSS]
-                if isinstance(epoch_slide_loss, pd.Series):
-                    # Some slides may be appear multiple times in the loss cache in DDP mode.
-                    # The Distributed Sampler may sample the same slide multiple times to even out number of samples per
-                    # device, so we only keep the first occurrence.
-                    epoch_slide_loss = epoch_slide_loss.values[0]
-                slides_loss_values[slide_id].append(epoch_slide_loss)
+            slides_loss_values = {
+                slide_id: slides_loss_values[slide_id] + [loss_cache.loc[slide_id, ResultsKey.LOSS]]
+                for slide_id in slides
+            }
         return slides_loss_values
 
     def save_slide_ids(self, slide_ids: List[str], filename: str) -> None:
@@ -326,15 +325,22 @@ class LossAnalysisCallback(Callback):
         :param high: If True, plots the slides with the highest loss values, else plots the slides with the lowest loss.
         :param figsize: The figure size, defaults to (15, 15)
         """
-        order = HIGHEST if high else LOWEST
-        loss_values = np.array(list(slides_loss_values.values()))
-        slides = list(slides_loss_values.keys())
-        plt.figure(figsize=figsize)
-        _ = sns.heatmap(loss_values, linewidth=0.5, annot=True, yticklabels=slides)
-        plt.xlabel(X_LABEL)
-        plt.ylabel(Y_LABEL)
-        plt.title(f"Loss values evolution for {order} slides of epoch {epoch}")
-        plt.savefig(self.heatmap_folder / HEATMAP_PLOT_FILENAME.format(epoch, order), bbox_inches="tight")
+        try:
+            order = HIGHEST if high else LOWEST
+            loss_values = np.array(list(slides_loss_values.values()))
+            slides = list(slides_loss_values.keys())
+            plt.figure(figsize=figsize)
+            _ = sns.heatmap(loss_values, linewidth=0.5, annot=True, yticklabels=slides)
+            plt.xlabel(X_LABEL)
+            plt.ylabel(Y_LABEL)
+            plt.title(f"Loss values evolution for {order} slides of epoch {epoch}")
+            plt.savefig(
+                self.heatmap_folder / HEATMAP_PLOT_FILENAME.format(self.zfill_epoch(epoch), order), bbox_inches="tight"
+            )
+        except Exception as e:
+            logging.warning(f"Could not plot heatmap for epoch {epoch} and high={high}: {e}")
+            logging.warning(f"loss_values.shape: {loss_values.shape}")
+            logging.warning(f"loss_values: {loss_values}")
 
     @torch.no_grad()
     def on_train_batch_start(  # type: ignore
@@ -367,10 +373,14 @@ class LossAnalysisCallback(Callback):
         values."""
 
         if pl_module.global_rank == 0:
-            slides_loss_values = self.select_loss_for_slides_of_epoch(epoch=0, high=None)
-            self.sanity_check_loss_values(slides_loss_values)
-
-            self.save_loss_ranks(slides_loss_values)
+            try:
+                slides_loss_values = self.select_loss_for_slides_of_epoch(epoch=0, high=None)
+                self.sanity_check_loss_values(slides_loss_values)
+                self.save_loss_ranks(slides_loss_values)
+            except Exception as e:
+                logging.warning(f"Failed to sanity check loss values: {e}")
+                import pickle
+                pickle.dump(slides_loss_values, open(self.exception_folder / "slides_loss_values.pkl", "wb"))
 
             slides, slides_loss = self.select_loss_slides_across_epochs(high=True)
             self.plot_slides_loss_scatter(slides, slides_loss, high=True)
