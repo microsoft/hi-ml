@@ -209,7 +209,9 @@ class LossAnalysisCallback(Callback):
         slides = []
         slides_loss = []
         for epoch in self.epochs_range:
-            loss_cache = pd.read_csv(self.get_filename(self.cache_folder, LOSS_VALUES_FILENAME, epoch))
+            loss_cache = pd.read_csv(
+                self.get_filename(self.cache_folder, LOSS_VALUES_FILENAME, epoch),
+                usecols=[ResultsKey.SLIDE_ID, ResultsKey.LOSS])
 
             if high:
                 slides.append(loss_cache[ResultsKey.SLIDE_ID][: self.num_slides_scatter])
@@ -229,7 +231,9 @@ class LossAnalysisCallback(Callback):
             loss values. If None, selects all slides.
         :return: A dictionary containing the loss values for each slide across all epochs.
         """
-        loss_cache = pd.read_csv(self.get_filename(self.cache_folder, LOSS_VALUES_FILENAME, epoch))
+        loss_cache = pd.read_csv(
+            self.get_filename(self.cache_folder, LOSS_VALUES_FILENAME, epoch),
+            usecols=[ResultsKey.SLIDE_ID, ResultsKey.LOSS])
 
         if high:
             slides = loss_cache[ResultsKey.SLIDE_ID][: self.num_slides_heatmap]
@@ -240,7 +244,9 @@ class LossAnalysisCallback(Callback):
 
         slides_loss_values: LossDictType = {slide_id: [] for slide_id in slides}
         for epoch in self.epochs_range:
-            loss_cache = pd.read_csv(self.get_filename(self.cache_folder, LOSS_VALUES_FILENAME, epoch))
+            loss_cache = pd.read_csv(
+                self.get_filename(self.cache_folder, LOSS_VALUES_FILENAME, epoch),
+                usecols=[ResultsKey.SLIDE_ID, ResultsKey.LOSS])
             loss_cache.set_index(ResultsKey.SLIDE_ID, inplace=True)
             slides_loss_values = {
                 slide_id: slides_loss_values[slide_id] + [loss_cache.loc[slide_id, ResultsKey.LOSS]]
