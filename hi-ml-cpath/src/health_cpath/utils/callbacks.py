@@ -285,7 +285,7 @@ class LossAnalysisCallback(Callback):
         loss_df.index.names = [ResultsKey.SLIDE_ID.value]
         loss_df.to_csv(self.cache_folder / ALL_EPOCHS_FILENAME)
 
-        loss_stats = loss_df.describe().T.sort_values(by="mean", ascending=False)
+        loss_stats = loss_df.T.describe().T.sort_values(by="mean", ascending=False)
         loss_stats.to_csv(self.rank_folder / LOSS_STATS_FILENAME)
 
         loss_ranks = loss_df.rank(ascending=False)
