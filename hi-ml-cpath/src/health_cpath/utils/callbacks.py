@@ -25,6 +25,7 @@ TILES_JOIN_TOKEN = "$"
 LOSS_VALUES_FILENAME = "epoch_{}.csv"
 ALL_EPOCHS_FILENAME = "all_epochs.csv"
 LOSS_RANKS_FILENAME = "loss_ranks.csv"
+LOSS_STATS_FILENAME = "loss_stats.csv"
 LOSS_RANKS_STATS_FILENAME = "loss_ranks_stats.csv"
 
 SCATTER_PLOT_FILENAME = "slides_with_{}_loss_values.png"
@@ -279,11 +280,17 @@ class LossAnalysisCallback(Callback):
 
     def save_loss_ranks(self, slides_loss_values: LossDictType) -> None:
         """Saves the loss ranks for each slide across all epochs and their respective statistics in csv files."""
+
         loss_df = pd.DataFrame(slides_loss_values).T
         loss_df.index.names = [ResultsKey.SLIDE_ID.value]
         loss_df.to_csv(self.cache_folder / ALL_EPOCHS_FILENAME)
+
+        loss_stats = loss_df.describe().T.sort_values(by="mean", ascending=False)
+        loss_stats.to_csv(self.rank_folder / LOSS_STATS_FILENAME)
+
         loss_ranks = loss_df.rank(ascending=False)
         loss_ranks.to_csv(self.rank_folder / LOSS_RANKS_FILENAME)
+
         loss_ranks_stats = loss_ranks.T.describe().T.sort_values("mean", ascending=False)
         loss_ranks_stats.to_csv(self.rank_folder / LOSS_RANKS_STATS_FILENAME)
 

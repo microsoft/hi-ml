@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 from health_cpath.utils.callbacks import (
+    LOSS_STATS_FILENAME,
     LOWEST,
     HIGHEST,
     ALL_EPOCHS_FILENAME,
@@ -185,6 +186,7 @@ def test_on_train_end(tmp_path: Path) -> None:
 
     # check save_loss_ranks outputs
     assert (loss_callback.cache_folder / ALL_EPOCHS_FILENAME).exists()
+    assert (loss_callback.rank_folder / LOSS_STATS_FILENAME).is_file()
     assert (loss_callback.rank_folder / LOSS_RANKS_FILENAME).exists()
     assert (loss_callback.rank_folder / LOSS_RANKS_STATS_FILENAME).exists()
 
