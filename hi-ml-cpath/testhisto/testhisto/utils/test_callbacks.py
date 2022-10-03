@@ -26,8 +26,8 @@ from testhisto.mocks.container import MockDeepSMILETilesPanda
 from testhisto.utils.utils_testhisto import run_distributed
 
 
-def _assert_list_is_sorted(list_: np.ndarray) -> None:
-    assert all(list_ == sorted(list_, reverse=True))
+def _assert_is_sorted(array: np.ndarray) -> None:
+    assert np.all(np.diff(array) >= 0)
 
 
 def _assert_loss_cache_contains_n_elements(loss_cache: LossDictType, n: int) -> None:
@@ -162,12 +162,12 @@ def test_on_train_epoch_end(
     loss_cache_path = loss_callback.get_filename(loss_callback.cache_folder, LOSS_VALUES_FILENAME, current_epoch)
     assert loss_callback.cache_folder.exists()
     assert loss_cache_path.exists()
-    assert loss_cache_path in loss_callback.cache_folder.iterdir()
+    assert loss_cache_path.parent == loss_callback.cache_folder
 
     loss_cache = pd.read_csv(loss_cache_path)
     total_slides = n_slides_per_process * world_size if not duplicate else n_slides_per_process * world_size - 1
     _assert_loss_cache_contains_n_elements(loss_cache, total_slides)
-    _assert_list_is_sorted(loss_cache[ResultsKey.LOSS].values)
+    _assert_is_sorted(loss_cache[ResultsKey.LOSS].values)
 
 
 @pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
@@ -230,4 +230,4 @@ def test_nans_detection(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> Non
     assert "NaNs found in loss values for slide id_1" in caplog.records[0].getMessage()
 
     assert loss_callback.nan_slides == ["id_1", "id_0"]
-    assert loss_callback.anomalies_folder / NAN_SLIDES_FILENAME in loss_callback.anomalies_folder.iterdir()
+    assert (loss_callback.anomalies_folder / NAN_SLIDES_FILENAME).parent == loss_callback.anomalies_folder

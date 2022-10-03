@@ -14,7 +14,7 @@ from health_cpath.utils.naming import PlotOption
 
 
 class MockDeepSMILETilesPanda(DeepSMILETilesPanda):
-    def __init__(self, tmp_path: Path, analyse_path: bool = False, **kwargs: Any) -> None:
+    def __init__(self, tmp_path: Path, analyse_loss: bool = False, **kwargs: Any) -> None:
         default_kwargs = dict(
             # Model parameters:
             pool_type=AttentionLayer.__name__,
@@ -38,7 +38,7 @@ class MockDeepSMILETilesPanda(DeepSMILETilesPanda):
             max_epochs=2,
             crossval_count=1,
             ssl_checkpoint_run_id="",
-            analyse_loss=analyse_path,
+            analyse_loss=analyse_loss,
         )
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
