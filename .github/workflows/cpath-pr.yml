@@ -215,7 +215,7 @@ jobs:
           cd ${{ env.folder }}
           make smoke_test_crck_flexible_finetuning_aml
 
-  smoke_test_crck_loss_analysis_aml:
+  smoke_test_crck_loss_analysis:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
