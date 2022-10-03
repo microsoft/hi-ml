@@ -26,7 +26,7 @@ from health_azure import AzureRunInfo, submit_to_azure_if_needed  # noqa: E402
 from health_azure.datasets import create_dataset_configs  # noqa: E402
 from health_azure.logging import logging_to_stdout   # noqa: E402
 from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
-from health_azure.amulet import prepare_amulet_job  # noqa: E402
+from health_azure.amulet import prepare_amulet_job, is_amulet_job  # noqa: E402
 from health_azure.utils import (get_workspace, is_local_rank_zero, is_running_in_azure_ml,  # noqa: E402
                                 set_environment_variables_for_multi_node,
                                 create_argparser, parse_arguments, ParserResult, apply_overrides)
@@ -286,6 +286,11 @@ class Runner:
             if suffix:
                 current_name = self.lightning_container.tag or azure_run_info.run.display_name
                 azure_run_info.run.display_name = f"{current_name} {suffix}"
+
+            # Add tags and arguments to Amulet runs
+            if is_amulet_job():
+                azure_run_info.run.set_tags(self.additional_run_tags(script_params))
+                azure_run_info.run
 
         # submit_to_azure_if_needed calls sys.exit after submitting to AzureML. We only reach this when running
         # the script locally or in AzureML.
