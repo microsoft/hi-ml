@@ -246,8 +246,7 @@ class LossAnalysisCallback(Callback):
         for epoch in self.epochs_range:
             loss_cache = pd.read_csv(
                 self.get_filename(self.cache_folder, LOSS_VALUES_FILENAME, epoch),
-                usecols=[ResultsKey.SLIDE_ID, ResultsKey.LOSS])
-            loss_cache.set_index(ResultsKey.SLIDE_ID, inplace=True)
+                usecols=[ResultsKey.SLIDE_ID, ResultsKey.LOSS], index_col=ResultsKey.SLIDE_ID)
             slides_loss_values = {
                 slide_id: slides_loss_values[slide_id] + [loss_cache.loc[slide_id, ResultsKey.LOSS]]
                 for slide_id in slides
@@ -379,7 +378,7 @@ class LossAnalysisCallback(Callback):
 
         if pl_module.global_rank == 0:
             try:
-                slides_loss_values = self.select_loss_for_slides_of_epoch(epoch=0, high=None)
+                slides_loss_values = self.select_loss_for_slides_of_epoch(epoch=0, high=None)  # losses for all slides
                 self.sanity_check_loss_values(slides_loss_values)
                 self.save_loss_ranks(slides_loss_values)
 
