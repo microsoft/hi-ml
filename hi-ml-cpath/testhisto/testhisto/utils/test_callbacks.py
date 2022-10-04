@@ -7,21 +7,8 @@ import pandas as pd
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from health_cpath.utils.callbacks import (
-    LOSS_STATS_FILENAME,
-    LOWEST,
-    HIGHEST,
-    ALL_EPOCHS_FILENAME,
-    LOSS_VALUES_FILENAME,
-    LOSS_RANKS_FILENAME,
-    LOSS_RANKS_STATS_FILENAME,
-    HEATMAP_PLOT_FILENAME,
-    NAN_SLIDES_FILENAME,
-    SCATTER_PLOT_FILENAME,
-    LossAnalysisCallback,
-    LossCacheDictType,
-)
 from health_cpath.utils.naming import ResultsKey
+from health_cpath.utils.callbacks import LossAnalysisCallback, LossCacheDictType
 from testhisto.mocks.container import MockDeepSMILETilesPanda
 from testhisto.utils.utils_testhisto import run_distributed
 
@@ -159,7 +146,7 @@ def test_on_train_epoch_end(
     if rank > 0:
         time.sleep(10)  # Wait for rank 0 to save the loss cache in a csv file
 
-    loss_cache_path = loss_callback.get_filepath(loss_callback.cache_folder, LOSS_VALUES_FILENAME, current_epoch)
+    loss_cache_path = loss_callback.get_loss_cache_file(current_epoch)
     assert loss_callback.cache_folder.exists()
     assert loss_cache_path.exists()
     assert loss_cache_path.parent == loss_callback.cache_folder
@@ -192,24 +179,22 @@ def test_on_train_end(tmp_path: Path) -> None:
     loss_callback.on_train_end(trainer, pl_module)
 
     for epoch in range(max_epochs):
-        assert loss_callback.get_filepath(loss_callback.cache_folder, LOSS_VALUES_FILENAME, epoch).exists()
+        assert loss_callback.get_loss_cache_file(epoch).exists()
 
     # check save_loss_ranks outputs
-    assert (loss_callback.cache_folder / ALL_EPOCHS_FILENAME).exists()
-    assert (loss_callback.rank_folder / LOSS_STATS_FILENAME).is_file()
-    assert (loss_callback.rank_folder / LOSS_RANKS_FILENAME).exists()
-    assert (loss_callback.rank_folder / LOSS_RANKS_STATS_FILENAME).exists()
+    assert loss_callback.get_all_epochs_loss_cache_file().exists()
+    assert loss_callback.get_loss_stats_file().exists()
+    assert loss_callback.get_loss_ranks_file().exists()
+    assert loss_callback.get_loss_ranks_stats_file().exists()
 
     # check plot_slides_loss_scatter outputs
-    assert (loss_callback.scatter_folder / SCATTER_PLOT_FILENAME.format(HIGHEST)).exists()
-    assert (loss_callback.scatter_folder / SCATTER_PLOT_FILENAME.format(LOWEST)).exists()
+    assert loss_callback.get_scatter_plot_file(loss_callback.HIGHEST).exists()
+    assert loss_callback.get_scatter_plot_file(loss_callback.LOWEST).exists()
 
     # check plot_loss_heatmap_for_slides_of_epoch outputs
     for epoch in range(max_epochs):
-        filename = loss_callback.get_filepath(loss_callback.heatmap_folder, HEATMAP_PLOT_FILENAME, epoch, HIGHEST)
-        assert (loss_callback.heatmap_folder / filename).exists()
-        filename = loss_callback.get_filepath(loss_callback.heatmap_folder, HEATMAP_PLOT_FILENAME, epoch, LOWEST)
-        assert (loss_callback.heatmap_folder / filename).exists()
+        assert loss_callback.get_heatmap_plot_file(epoch, loss_callback.HIGHEST).exists()
+        assert loss_callback.get_heatmap_plot_file(epoch, loss_callback.LOWEST).exists()
 
 
 def test_nans_detection(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
@@ -231,4 +216,5 @@ def test_nans_detection(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> Non
     assert "NaNs found in loss values for slide id_1" in caplog.records[0].getMessage()
 
     assert loss_callback.nan_slides == ["id_1", "id_0"]
-    assert (loss_callback.anomalies_folder / NAN_SLIDES_FILENAME).parent == loss_callback.anomalies_folder
+    assert loss_callback.get_nan_slides_file().exists()
+    assert loss_callback.get_nan_slides_file().parent == loss_callback.anomalies_folder
