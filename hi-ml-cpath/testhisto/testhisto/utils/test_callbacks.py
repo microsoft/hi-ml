@@ -27,7 +27,7 @@ from testhisto.utils.utils_testhisto import run_distributed
 
 
 def _assert_is_sorted(array: np.ndarray) -> None:
-    assert np.all(np.diff(array) >= 0)
+    assert np.all(np.diff(array) <= 0)
 
 
 def _assert_loss_cache_contains_n_elements(loss_cache: LossCacheDictType, n: int) -> None:
@@ -148,7 +148,7 @@ def test_on_train_epoch_end(
     loss_callback = LossAnalysisCallback(outputs_folder=tmp_path, num_slides_heatmap=2, num_slides_scatter=2)
     loss_callback.loss_cache = get_loss_cache(rank=rank, n_slides=n_slides_per_process)
     if duplicate:
-        # Duplicate slide "id_0" and to test that the duplicates are removed
+        # Duplicate slide "id_0" to test that the duplicates are removed
         loss_callback.loss_cache[ResultsKey.SLIDE_ID][0] = "id_0"
 
     _assert_loss_cache_contains_n_elements(loss_callback.loss_cache, n_slides_per_process)
