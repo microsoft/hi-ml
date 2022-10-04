@@ -38,8 +38,8 @@ X_LABEL, Y_LABEL = "Epoch", "Slide ids"
 TOP, BOTTOM = "top", "bottom"
 HIGHEST, LOWEST = "highest", "lowest"
 
-LossDictType = Dict[ResultsKey, List]
-
+LossCacheDictType = Dict[ResultsKey, List]
+LossDictType = Dict[str, List]
 
 class LossCallbackParams(param.Parameterized):
     """Parameters class to group all attributes for loss values analysis callback"""
@@ -155,7 +155,7 @@ class LossAnalysisCallback(Callback):
         for folder in folders:
             os.makedirs(folder, exist_ok=True)
 
-    def reset_loss_cache(self) -> LossDictType:
+    def reset_loss_cache(self) -> LossCacheDictType:
         keys = [ResultsKey.LOSS, ResultsKey.SLIDE_ID]
         if self.save_tile_ids:
             keys.append(ResultsKey.TILE_ID)
@@ -177,7 +177,7 @@ class LossAnalysisCallback(Callback):
             current_epoch > self.patience and (current_epoch - self.patience) % self.epochs_interval == 0
         )
 
-    def merge_loss_caches(self, loss_caches: List[LossDictType]) -> LossDictType:
+    def merge_loss_caches(self, loss_caches: List[LossCacheDictType]) -> LossCacheDictType:
         """Merges the loss caches from all the workers into a single loss cache"""
         loss_cache = self.reset_loss_cache()
         for loss_cache_per_device in loss_caches:

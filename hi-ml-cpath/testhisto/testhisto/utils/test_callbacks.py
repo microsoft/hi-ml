@@ -19,7 +19,7 @@ from health_cpath.utils.callbacks import (
     NAN_SLIDES_FILENAME,
     SCATTER_PLOT_FILENAME,
     LossAnalysisCallback,
-    LossDictType,
+    LossCacheDictType,
 )
 from health_cpath.utils.naming import ResultsKey
 from testhisto.mocks.container import MockDeepSMILETilesPanda
@@ -30,7 +30,7 @@ def _assert_is_sorted(array: np.ndarray) -> None:
     assert np.all(np.diff(array) >= 0)
 
 
-def _assert_loss_cache_contains_n_elements(loss_cache: LossDictType, n: int) -> None:
+def _assert_loss_cache_contains_n_elements(loss_cache: LossCacheDictType, n: int) -> None:
     for key in loss_cache:
         assert len(loss_cache[key]) == n
 
@@ -129,7 +129,7 @@ def test_on_train_batch_start(tmp_path: Path, mock_panda_tiles_root_dir: Path) -
     _assert_loss_cache_contains_n_elements(callback.loss_cache, 2 * batch_size)
 
 
-def get_loss_cache(n_slides: int = 4, rank: int = 0) -> LossDictType:
+def get_loss_cache(n_slides: int = 4, rank: int = 0) -> LossCacheDictType:
     return {
         ResultsKey.LOSS: list(range(1, n_slides + 1)),
         ResultsKey.SLIDE_ID: [f"id_{i}" for i in range(rank * n_slides, (rank + 1) * n_slides)],
