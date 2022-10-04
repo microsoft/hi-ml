@@ -159,7 +159,7 @@ def test_on_train_epoch_end(
     if rank > 0:
         time.sleep(10)  # Wait for rank 0 to save the loss cache in a csv file
 
-    loss_cache_path = loss_callback.get_filename(loss_callback.cache_folder, LOSS_VALUES_FILENAME, current_epoch)
+    loss_cache_path = loss_callback.get_filepath(loss_callback.cache_folder, LOSS_VALUES_FILENAME, current_epoch)
     assert loss_callback.cache_folder.exists()
     assert loss_cache_path.exists()
     assert loss_cache_path.parent == loss_callback.cache_folder
@@ -192,7 +192,7 @@ def test_on_train_end(tmp_path: Path) -> None:
     loss_callback.on_train_end(trainer, pl_module)
 
     for epoch in range(max_epochs):
-        assert loss_callback.get_filename(loss_callback.cache_folder, LOSS_VALUES_FILENAME, epoch).exists()
+        assert loss_callback.get_filepath(loss_callback.cache_folder, LOSS_VALUES_FILENAME, epoch).exists()
 
     # check save_loss_ranks outputs
     assert (loss_callback.cache_folder / ALL_EPOCHS_FILENAME).exists()
@@ -206,9 +206,9 @@ def test_on_train_end(tmp_path: Path) -> None:
 
     # check plot_loss_heatmap_for_slides_of_epoch outputs
     for epoch in range(max_epochs):
-        filename = loss_callback.get_filename(loss_callback.heatmap_folder, HEATMAP_PLOT_FILENAME, epoch, HIGHEST)
+        filename = loss_callback.get_filepath(loss_callback.heatmap_folder, HEATMAP_PLOT_FILENAME, epoch, HIGHEST)
         assert (loss_callback.heatmap_folder / filename).exists()
-        filename = loss_callback.get_filename(loss_callback.heatmap_folder, HEATMAP_PLOT_FILENAME, epoch, LOWEST)
+        filename = loss_callback.get_filepath(loss_callback.heatmap_folder, HEATMAP_PLOT_FILENAME, epoch, LOWEST)
         assert (loss_callback.heatmap_folder / filename).exists()
 
 

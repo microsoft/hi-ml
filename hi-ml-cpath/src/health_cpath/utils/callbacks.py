@@ -32,7 +32,7 @@ SCATTER_PLOT_FILENAME = "slides_with_{}_loss_values.png"
 HEATMAP_PLOT_FILENAME = "epoch_{}_{}_slides.png"
 
 NAN_SLIDES_FILENAME = "nan_slides.txt"
-EXCEPTION_SLIDES_FILENAME = "anomaly_slides.txt"
+ANOMALIES_SLIDES_FILENAME = "anomaly_slides.txt"
 
 X_LABEL, Y_LABEL = "Epoch", "Slide ids"
 TOP, BOTTOM = "top", "bottom"
@@ -162,13 +162,19 @@ class LossAnalysisCallback(Callback):
             keys.append(ResultsKey.TILE_ID)
         return {key: [] for key in keys}
 
-    def get_filename(self, root_folder: Path, filename: str, epoch: int, order: Optional[str] = None) -> Path:
+    def get_filepath(self, root_folder: Path, filename: str, epoch: int, order: Optional[str] = None) -> Path:
         zero_filled_epoch = str(epoch).zfill(len(str(self.max_epochs)))
         filename = filename.format(zero_filled_epoch, order) if order else filename.format(zero_filled_epoch)
         return root_folder / filename
 
+    def get_loss_cache_filepath(self, epoch: int) -> Path:
+        return self.get_filepath(self.cache_folder, LOSS_VALUES_FILENAME, epoch)
+
+    def get_scatter_plot_filepath(self, epoch: int) -> Path:
+        return self.get_filepath(self.scatter_folder, SCATTER_PLOT_FILENAME, epoch)
+
     def read_loss_cache(self, epoch: int, idx_col: Optional[ResultsKey] = None) -> pd.DataFrame:
-        return pd.read_csv(self.get_filename(self.cache_folder, LOSS_VALUES_FILENAME, epoch),
+        return pd.read_csv(self.get_filepath(self.cache_folder, LOSS_VALUES_FILENAME, epoch),
                            usecols=[ResultsKey.SLIDE_ID, ResultsKey.LOSS], index_col=idx_col)
 
     def should_cache_loss_values(self, current_epoch: int) -> bool:
@@ -203,7 +209,7 @@ class LossAnalysisCallback(Callback):
         # some slides to even out the number of samples per device, so we only keep the first occurrence.
         loss_cache_df.drop_duplicates(subset=ResultsKey.SLIDE_ID, inplace=True, keep="first")
         loss_cache_df = loss_cache_df.sort_values(by=ResultsKey.LOSS, ascending=False)
-        filename = self.get_filename(self.cache_folder, LOSS_VALUES_FILENAME, current_epoch)
+        filename = self.get_filepath(self.cache_folder, LOSS_VALUES_FILENAME, current_epoch)
         loss_cache_df.to_csv(filename, index=False)
 
     def _select_values_for_epoch(
@@ -295,7 +301,7 @@ class LossAnalysisCallback(Callback):
                 self.anomaly_slides.append(slide_id)
                 loss_values.pop(slide_id)
         self.save_slide_ids(self.nan_slides, NAN_SLIDES_FILENAME)
-        self.save_slide_ids(self.anomaly_slides, EXCEPTION_SLIDES_FILENAME)
+        self.save_slide_ids(self.anomaly_slides, ANOMALIES_SLIDES_FILENAME)
 
     def save_loss_ranks(self, slides_loss_values: LossDictType) -> None:
         """Saves the loss ranks for each slide across all epochs and their respective statistics in csv files."""
@@ -360,7 +366,7 @@ class LossAnalysisCallback(Callback):
         plt.xlabel(X_LABEL)
         plt.ylabel(Y_LABEL)
         plt.title(f"Loss values evolution for {order} slides of epoch {epoch}")
-        plt.savefig(self.get_filename(self.heatmap_folder, HEATMAP_PLOT_FILENAME, epoch, order), bbox_inches="tight")
+        plt.savefig(self.get_filepath(self.heatmap_folder, HEATMAP_PLOT_FILENAME, epoch, order), bbox_inches="tight")
 
     @torch.no_grad()
     def on_train_batch_start(  # type: ignore
