@@ -201,7 +201,7 @@ def test_nans_detection(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> Non
     max_epochs = 2
     n_slides = 4
     loss_callback = LossAnalysisCallback(
-        outputs_folder=tmp_path, max_epochs=2, num_slides_heatmap=2, num_slides_scatter=2
+        outputs_folder=tmp_path, max_epochs=max_epochs, num_slides_heatmap=2, num_slides_scatter=2
     )
     for epoch in range(max_epochs):
         loss_callback.loss_cache = get_loss_cache(n_slides)
@@ -218,3 +218,21 @@ def test_nans_detection(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> Non
     assert loss_callback.nan_slides == ["id_1", "id_0"]
     assert loss_callback.get_nan_slides_file().exists()
     assert loss_callback.get_nan_slides_file().parent == loss_callback.anomalies_folder
+
+
+@pytest.mark.parametrize("log_exceptions", [True, False])
+def test_log_exceptions_flag(log_exceptions: bool, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    max_epochs = 3
+    trainer = MagicMock()
+    pl_module = MagicMock(global_rank=0)
+    loss_callback = LossAnalysisCallback(
+        outputs_folder=tmp_path, max_epochs=max_epochs,
+        num_slides_heatmap=2, num_slides_scatter=2, log_exceptions=log_exceptions
+    )
+    message = "Error while detecting loss values outliers:"
+    if log_exceptions:
+        loss_callback.on_train_end(trainer, pl_module)
+        assert message in caplog.records[-1].getMessage()
+    else:
+        with pytest.raises(Exception, match=fr"{message}"):
+            loss_callback.on_train_end(trainer, pl_module)

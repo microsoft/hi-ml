@@ -449,4 +449,4 @@ class LossAnalysisCallback(Callback):
                 else:
                     # If we want to debug the error, we raise it. This will crash the training. This is useful when
                     # running smoke tests.
-                    raise e
+                    raise Exception(f"Error while detecting loss values outliers: {e}")
