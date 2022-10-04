@@ -220,17 +220,21 @@ class LossAnalysisCallback(Callback):
         loss_cache_df.to_csv(self.get_loss_cache_file(current_epoch), index=False)
 
     def _select_values_for_epoch(
-        self, key: ResultsKey, epoch: int, high: Optional[bool] = None, num_values: Optional[int] = None
-    ) -> np.ndarray:
+        self, keys: List[ResultsKey], epoch: int, high: Optional[bool] = None, num_values: Optional[int] = None
+    ) -> List[np.ndarray]:
         loss_cache = self.read_loss_cache(epoch)
-        values = loss_cache[key].values
-        if high is not None:
-            assert num_values is not None, "num_values must be specified if high is specified"
-            if high:
-                return values[:num_values]
-            elif not high:
-                return values[-num_values:]
-        return values
+        return_values = []
+        for key in keys:
+            values = loss_cache[key].values
+            if high is not None:
+                assert num_values is not None, "num_values must be specified if high is specified"
+                if high:
+                    return_values.append(values[:num_values])
+                elif not high:
+                    return_values.append(values[-num_values:])
+            else:
+                return_values.append(values)
+        return return_values
 
     def select_slides_for_epoch(
         self, epoch: int, high: Optional[bool] = None, num_slides: Optional[int] = None
@@ -242,19 +246,18 @@ class LossAnalysisCallback(Callback):
             loss values. If None, selects all slides.
         :param num_slides: The number of slides to select. If None, selects all slides.
         """
-        return self._select_values_for_epoch(ResultsKey.SLIDE_ID, epoch, high, num_slides)
+        return self._select_values_for_epoch([ResultsKey.SLIDE_ID], epoch, high, num_slides)[0]
 
-    def select_slides_losses_for_epoch(
-        self, epoch: int, high: Optional[bool] = None, num_slides: Optional[int] = None
-    ) -> np.ndarray:
-        """Selects loss values of slides in ascending/descending order of loss at a given epoch
+    def select_slides_losses_for_epoch(self, epoch: int, high: Optional[bool] = None) -> Tuple[np.ndarray, np.ndarray]:
+        """Selects slides and loss values of slides in ascending/descending order of loss at a given epoch
 
         :param epoch: The epoch to select the slides from.
         :param high: If True, selects the slides with the highest loss values, else selects the slides with the lowest
             loss values. If None, selects all slides.
-        :param num_slides: The number of slides to select. If None, selects all slides.
         """
-        return self._select_values_for_epoch(ResultsKey.LOSS, epoch, high, num_slides)
+        keys = [ResultsKey.SLIDE_ID, ResultsKey.LOSS]
+        return_values = self._select_values_for_epoch(keys, epoch, high, self.num_slides_scatter)
+        return return_values[0], return_values[1]
 
     def select_all_losses_for_selected_slides(self, slides: np.ndarray) -> LossDictType:
         """Selects the loss values for a given set of slides"""
@@ -275,8 +278,7 @@ class LossAnalysisCallback(Callback):
         slides = []
         slides_loss = []
         for epoch in self.epochs_range:
-            epoch_slides = self.select_slides_for_epoch(epoch, high, self.num_slides_scatter)
-            epoch_slides_loss = self.select_slides_losses_for_epoch(epoch, high, self.num_slides_scatter)
+            epoch_slides, epoch_slides_loss = self.select_slides_losses_for_epoch(epoch, high)
             slides.append(epoch_slides)
             slides_loss.append(epoch_slides_loss)
 
@@ -407,7 +409,7 @@ class LossAnalysisCallback(Callback):
 
         if pl_module.global_rank == 0:
             try:
-                all_slides = self.select_slides_for_epoch(epoch=0)
+                all_slides = self.select_slides_for_epoch(epoch=0)[0]
                 all_loss_values_per_slides = self.select_all_losses_for_selected_slides(all_slides)
 
                 self.sanity_check_loss_values(all_loss_values_per_slides)
@@ -420,7 +422,7 @@ class LossAnalysisCallback(Callback):
                 self.plot_slides_loss_scatter(bottom_slides, bottom_slides_loss, high=False)
 
                 for epoch in self.epochs_range:
-                    epoch_slides = self.select_slides_for_epoch(epoch)
+                    epoch_slides = self.select_slides_for_epoch(epoch)[0]
 
                     top_slides = epoch_slides[:self.num_slides_heatmap]
                     top_slides_loss_values = self.select_all_losses_for_selected_slides(top_slides)
