@@ -80,6 +80,7 @@ class MLRunner:
                                                     run_context=RUN_CONTEXT)
         self.trainer: Optional[Trainer] = None
         self.azureml_run_for_logging: Optional[Run] = None
+        self.mlflow_run_for_logging: Optional[str] = None
 
     def set_run_tags_from_parent(self) -> None:
         """
@@ -117,6 +118,7 @@ class MLRunner:
             # the provided local datasets for VM runs, or the AzureML mount points when running in AML.
             # This must happen before container setup because that could already read datasets.
             input_datasets = azure_run_info.input_datasets
+            print(f"Setting the following datasets as local datasets: {input_datasets}")
             if len(input_datasets) > 0:
                 local_datasets: List[Path] = []
                 for i, dataset in enumerate(input_datasets):
@@ -302,8 +304,10 @@ class MLRunner:
                 container=self.container,
                 resume_from_checkpoint=checkpoint_path,
                 num_nodes=1,
-                azureml_run_for_logging=self.azureml_run_for_logging
+                azureml_run_for_logging=self.azureml_run_for_logging,
+                mlflow_run_for_logging=self.mlflow_run_for_logging
             )
+            trainer.loggers
 
             # Change to the outputs folder so that the model can write to current working directory, and still
             # everything is put into the right place in AzureML (there, only the contents of the "outputs" folder

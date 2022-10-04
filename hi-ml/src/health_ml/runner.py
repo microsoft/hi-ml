@@ -28,8 +28,8 @@ from health_azure import AzureRunInfo, submit_to_azure_if_needed  # noqa: E402
 from health_azure.datasets import create_dataset_configs  # noqa: E402
 from health_azure.logging import logging_to_stdout   # noqa: E402
 from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
-from health_azure.utils import (get_workspace, is_local_rank_zero, is_running_in_azure_ml,  # noqa: E402
-                                set_environment_variables_for_multi_node,
+from health_azure.utils import (get_workspace, get_workspace_client, is_local_rank_zero,  # noqa: E402
+                                is_running_in_azure_ml, set_environment_variables_for_multi_node,
                                 create_argparser, parse_arguments, ParserResult, apply_overrides)
 
 from health_ml.experiment_config import ExperimentConfig  # noqa: E402
@@ -228,7 +228,9 @@ class Runner:
         except ValueError:
             raise ValueError("Unable to submit the script to AzureML because no workspace configuration file "
                                 "(config.json) was found.")
-        default_datastore = workspace.get_default_datastore().name #if workspace is not None else ""
+
+        datastore = self.lightning_container.datastore_name or workspace.get_default_datastore().name
+        # default_datastore = workspace.get_default_datastore().name #if workspace is not None else ""
 
         local_datasets = self.lightning_container.local_datasets
         all_local_datasets = [Path(p) for p in local_datasets] if len(local_datasets) > 0 else []
@@ -239,10 +241,12 @@ class Runner:
             create_dataset_configs(all_azure_dataset_ids=self.lightning_container.azure_datasets,
                                    all_dataset_mountpoints=self.lightning_container.dataset_mountpoints,
                                    all_local_datasets=all_local_datasets,  # type: ignore
-                                   datastore=default_datastore,
+                                   datastore=datastore,
                                    use_mounting=use_mounting)
         hyperdrive_config = self.lightning_container.get_hyperdrive_config()
         if self.experiment_config.cluster and not is_running_in_azure_ml():
+            workspace_client = get_workspace_client()
+
             env_file = choose_conda_env_file(env_file=self.experiment_config.conda_env)
             logging.info(f"Using this Conda environment definition: {env_file}")
             check_conda_environment(env_file)
@@ -253,9 +257,10 @@ class Runner:
                 script_params=script_params,
                 conda_environment_file=env_file,
                 aml_workspace=workspace,
+                workspace_client=workspace_client,
                 compute_cluster_name=self.experiment_config.cluster,
                 environment_variables=environment_variables,
-                default_datastore=default_datastore,
+                default_datastore=datastore,
                 experiment_name=self.lightning_container.effective_experiment_name,
                 input_datasets=input_datasets,  # type: ignore
                 num_nodes=self.experiment_config.num_nodes,
@@ -270,6 +275,7 @@ class Runner:
                 tags=self.additional_run_tags(script_params)
             )
         else:
+            print(f"Environment variables: {os.environ}")
             azure_run_info = submit_to_azure_if_needed(
                 input_datasets=input_datasets,  # type: ignore
                 # default_datastore=default_datastore,

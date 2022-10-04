@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import json
 import logging
 import tempfile
 from pathlib import Path
@@ -78,8 +79,9 @@ def get_or_create_dataset(datastore_name: str, dataset_name: str, workspace: Uni
             logging.info("Dataset found.")
             return azureml_dataset
 
-    def _retrieve_v2_dataset(dataset_name, workspace):
-        raise NotImplementedError
+    def _retrieve_v2_dataset(dataset_name: str, workspace: MLClient):
+        aml_data = workspace.data.get(name=dataset_name)
+        return aml_data
 
     def _create_v1_dataset(datastore_name: str, dataset_name: str, workspace: Union[Workspace, MLClient] ):
         logging.info(f"Retrieving datastore '{datastore_name}' from AzureML workspace")
@@ -97,12 +99,12 @@ def get_or_create_dataset(datastore_name: str, dataset_name: str, workspace: Uni
     def _create_v2_dataset(datastore_name: str, dataset_name: str) -> Data:
         if not datastore_name:
             raise ValueError(f"Cannot create data asset without datastore name")
-        logging.info(f"Creating a new dataset from data in folder '{dataset_name}' in the datastore")
+        logging.info(f"Creating a new Data asset from data in folder '{dataset_name}' in the datastore")
         # Ensure that there is a / at the end of the file path, otherwise folder that share a prefix could create
         # trouble (for example, folders foo and foo_bar exist, and I'm trying to create a dataset from "foo")
         # azureml_dataset = Dataset.File.from_files(path=(datastore, dataset_name + "/"))
         azureml_data_asset = Data(
-            path=f"azureml://datastores/{datastore_name}/paths/{dataset_name}",
+            path=f"azureml://datastores/{datastore_name}/paths/{dataset_name}/",
             type=AssetTypes.URI_FOLDER,
             description="<description>",
             name=dataset_name,
@@ -145,7 +147,6 @@ def get_or_create_dataset(datastore_name: str, dataset_name: str, workspace: Uni
         return aml_dataset
     else:
         raise ValueError("unknown format of workspace")
-    return aml_dataset
 
 
 def _input_dataset_key(index: int) -> str:
@@ -255,12 +256,14 @@ class DatasetConfig:
         azureml_dataset = get_or_create_dataset(workspace=workspace,
                                                 dataset_name=self.name,
                                                 datastore_name=self.datastore)
+        # If running on windows then self.target_folder may be a WindowsPath, make sure it is
+        # in posix format for Azure.
+        # logging.info("Getting named input from V1 Azure ML Dataset")
+        use_mounting = False if self.use_mounting is None else self.use_mounting
+
         if isinstance(azureml_dataset, FileDataset):
-            # If running on windows then self.target_folder may be a WindowsPath, make sure it is
-            # in posix format for Azure.
             named_input = azureml_dataset.as_named_input(_input_dataset_key(index=dataset_index))
             path_on_compute = self.target_folder.as_posix() if self.target_folder is not None else None
-            use_mounting = False if self.use_mounting is None else self.use_mounting
             if use_mounting:
                 status += "mounted at "
                 result = named_input.as_mount(path_on_compute)
@@ -275,6 +278,7 @@ class DatasetConfig:
             return result
 
         elif isinstance(azureml_dataset, Data):
+            logging.info("Creating V2 data asset")
             named_input = Input(type=AssetTypes.URI_FOLDER, path=azureml_dataset.path)
             if use_mounting:
                 status += "will be mounted at "
@@ -283,7 +287,6 @@ class DatasetConfig:
                 status += "will be downloaded to "
                 named_input.mode = "download"
             return named_input
-
         else:
             raise ValueError("Unrecognised azureml data type")
 
@@ -315,6 +318,17 @@ class DatasetConfig:
             result = dataset.as_upload()
         logging.info(status)
         return result
+
+    def __repr__(self):
+        info_dict = dict(
+            name = self.name,
+            datastore = self.datastore,
+            version = self.version,
+            use_mounting = self.use_mounting,
+            target_folder = self.target_folder,
+            local_folder = self.local_folder,
+        )
+        return json.dumps(info_dict)
 
 
 StrOrDatasetConfig = Union[str, DatasetConfig]

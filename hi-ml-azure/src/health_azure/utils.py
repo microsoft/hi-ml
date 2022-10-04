@@ -40,7 +40,8 @@ from azureml.train.hyperdrive import HyperDriveRun
 
 from azure.ai.ml import MLClient
 from azure.ai.ml.entities import AzureBlobDatastore, Job  #, Environment, Workspace
-from azure.identity import ClientSecretCredential, DeviceCodeCredential
+from azure.identity import (ClientSecretCredential, DeviceCodeCredential, DefaultAzureCredential,
+                            AzureCliCredential, ManagedIdentityCredential)
 from mlflow.entities import Run as MLFlowRun
 from mlflow.tracking import MlflowClient
 
@@ -2050,20 +2051,24 @@ def get_credential() -> Union[ClientSecretCredential, DeviceCodeCredential]:
     tenant_id = get_secret_from_environment(ENV_TENANT_ID, allow_missing=True)
     service_principal_password = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
     if service_principal_id and tenant_id and service_principal_password:
+        logging.info(
+            "Using interactive login to Azure. To use Service Principal authentication, set the environment "
+            f"variables {ENV_SERVICE_PRINCIPAL_ID}, {ENV_SERVICE_PRINCIPAL_PASSWORD}, and {ENV_TENANT_ID}"
+        )
         return ClientSecretCredential(
             tenant_id=tenant_id,
             client_id=service_principal_id,
             client_secret=service_principal_password)
-    # try:
-    #     credential = DefaultAzureCredential()
-    #     # Check if given credential can get token successfully.
-    #     credential.get_token("https://management.azure.com/.default")
-    # except Exception as ex:
-    logging.info(
-        "Using interactive login to Azure. To use Service Principal authentication, set the environment "
-        f"variables {ENV_SERVICE_PRINCIPAL_ID}, {ENV_SERVICE_PRINCIPAL_PASSWORD}, and {ENV_TENANT_ID}"
-    )
-    return DeviceCodeCredential()
+    try:
+        print(f"Environment varaibles : {os.environ}")
+        client_id = os.environ.get('DEFAULT_IDENTITY_CLIENT_ID')
+        credential = ManagedIdentityCredential(client_id=client_id)
+        # credential = DefaultAzureCredential()
+        # Check if given credential can get token successfully.
+        credential.get_token("https://management.azure.com/.default")
+        return credential
+    except Exception:
+        return None
 
 
 def get_workspace_client(
@@ -2089,8 +2094,8 @@ def get_workspace_client(
                     resource_group_name=workspace.resource_group,
                     workspace_name=workspace.name,
                     credential=credential)
-            except ValueError:
-                raise ValueError("Couldn't connect to MLClient since we couldn't locate a workspace")
+            except ValueError as e:
+                raise ValueError(f"Couldn't connect to MLClient: {e}")
         logging.info(f"Logged into AzureML workspace {workspace_client.workspace_name}")
         return workspace_client
 
@@ -2101,73 +2106,9 @@ def retrieve_workspace_from_client(client: MLClient) -> Workspace:
     return workspace
 
 
-# def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_path: Optional[PathOrString] = None
-#     ) -> Workspace:
-#     """
-#     Retrieve an Azure ML workspace from one of several places:
-#       1. If the function has been called during an AML run (i.e. on an Azure agent), returns the associated workspace
-#       2. If a Workspace object has been provided by the user, return that
-#       3. If a path to a Workspace config file has been provided, load the workspace according to that.
-#     If not running inside AML and neither a workspace nor the config file are provided, the code will try to locate a
-#     config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
-#     file will be used to instantiate the workspace.
-#     :param aml_workspace: If provided this is returned as the AzureML Workspace.
-#     :param workspace_config_path: If not provided with an AzureML Workspace, then load one given the information in this
-#         config
-#     :return: An AzureML workspace.
-#     """
-#     if is_running_in_azure_ml(RUN_CONTEXT):
-#         return RUN_CONTEXT.experiment.workspace
-
-#     if aml_workspace:
-#         return aml_workspace
-
-#     if workspace_config_path is None:
-#         workspace_config_path = find_file_in_parent_to_pythonpath(WORKSPACE_CONFIG_JSON)
-#         if workspace_config_path:
-#             logging.info(f"Using the workspace config file {str(workspace_config_path.absolute())}")
-#         else:
-#             raise ValueError("No workspace config file given, nor can we find one.")
-
-#     if isinstance(workspace_config_path, Path):
-#         workspace_config_path = str(workspace_config_path)
-#     if Path(workspace_config_path).is_file():
-#         workspace_client = get_workspace_client(workspace_config_path)
-#         workspace = retrieve_workspace_from_client(workspace_client)
-#         return workspace
-
-#     raise ValueError("Workspace config file does not exist or cannot be read.")
-
-
 def fetch_job(client: MLClient, run_id: str) -> Job:
     job = client.jobs.get(run_id)
     return job
-
-
-def get_credential() -> Union[ClientSecretCredential, DeviceCodeCredential]:
-    service_principal_id = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_ID, allow_missing=True)
-    tenant_id = get_secret_from_environment(ENV_TENANT_ID, allow_missing=True)
-    service_principal_password = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
-    if service_principal_id and tenant_id and service_principal_password:
-        return ClientSecretCredential(
-            tenant_id=tenant_id,
-            client_id=service_principal_id,
-            client_secret=service_principal_password)
-    # try:
-    #     credential = DefaultAzureCredential()
-    #     # Check if given credential can get token successfully.
-    #     credential.get_token("https://management.azure.com/.default")
-    # except Exception as ex:
-    logging.info(
-        "Using interactive login to Azure. To use Service Principal authentication, set the environment "
-        f"variables {ENV_SERVICE_PRINCIPAL_ID}, {ENV_SERVICE_PRINCIPAL_PASSWORD}, and {ENV_TENANT_ID}"
-    )
-    return DeviceCodeCredential()
-
-
-def set_mlflow_tracking_uri(mlflow_client: MlflowClient) -> None:
-    if not mlflow_client.get_tracking_uri():
-        mlflow_client.set_tracking_uri()
 
 
 def get_mlflow_run(mlflow_run_id: str) -> MLFlowRun:

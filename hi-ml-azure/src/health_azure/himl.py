@@ -19,9 +19,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
 
-from azure.ai.ml import MLClient, Input
-from azure.ai.ml.constants import AssetTypes
-from azure.ai.ml.entities import Job
+from azure.ai.ml import MLClient, Input, Output
+from azure.ai.ml.constants import AssetTypes, InputOutputModes
+from azure.ai.ml.entities import Data, Job
 from azureml._base_sdk_common import user_agent
 from azureml.core import ComputeTarget, Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
@@ -30,7 +30,7 @@ from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig, GridParameterSampling, PrimaryMetricGoal, choice
 from azureml.dataprep.fuse.daemon import MountContext
 
-from health_azure.utils import (ENV_AMLT_DATAREFERENCE_DATA, ENV_AMLT_DATAREFERENCE_OUTPUT, create_python_environment,
+from health_azure.utils import (ENV_AMLT_DATAREFERENCE_DATA, ENV_AMLT_DATAREFERENCE_OUTPUT, ENV_RESOURCE_GROUP, ENV_SERVICE_PRINCIPAL_ID, ENV_SERVICE_PRINCIPAL_PASSWORD, ENV_SUBSCRIPTION_ID, ENV_TENANT_ID, ENV_WORKSPACE_NAME, create_python_environment,
                                 create_run_recovery_id, find_file_in_parent_to_pythonpath, is_amulet_job,
                                 is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
                                 run_duration_string_to_seconds, to_azure_friendly_string, RUN_CONTEXT, get_workspace,
@@ -50,6 +50,9 @@ RUN_RECOVERY_FILE = "most_recent_run.txt"
 SDK_NAME = "innereye"
 SDK_VERSION = "2.0"
 
+INPUT_DATASETS_ARG_NAME = "input_datasets"
+OUTPUT_DATASETS_ARG_NAME = "output_datasets"
+
 
 @dataclass
 class AzureRunInfo:
@@ -64,7 +67,7 @@ class AzureRunInfo:
     """A list of folders that contain all the datasets that the script uses as inputs. Input datasets must be
      specified when calling `submit_to_azure_if_needed`. Here, they are made available as Path objects. If no input
      datasets are specified, the list is empty."""
-    v2_input_datasets: Optional[Dict[str, Input]]
+    # v2_input_datasets: Optional[Dict[str, Input]]
     output_datasets: List[Optional[Path]]
     """A list of folders that contain all the datasets that the script uses as outputs. Output datasets must be
          specified when calling `submit_to_azure_if_needed`. Here, they are made available as Path objects. If no output
@@ -322,12 +325,11 @@ def create_script_run(snapshot_root_directory: Optional[Path] = None,
         arguments=script_params)
 
 
-
-
 def submit_run2(workspace: Optional[Workspace],
                 experiment_name: str,
                 script_run_config: Union[ScriptRunConfig, HyperDriveConfig],
                 v2_input_datasets: Optional[Dict[str, Input]] = None,
+                v2_output_datasets: Optional[Dict[str, Output]] = None,
                 tags: Optional[Dict[str, str]] = None,
                 wait_for_completion: bool = False,
                 wait_for_completion_show_output: bool = False,
@@ -347,6 +349,11 @@ def submit_run2(workspace: Optional[Workspace],
     args = script_run_config.arguments
     arg_str = " ".join(args)
     cmd = script + " " + arg_str
+    if len(v2_input_datasets) > 0:
+        cmd += " --input_datasets=${{inputs.input_datasets}}"
+    if len(v2_output_datasets) > 0:
+        cmd += " --output_datasets=${{outputs.output_datasets}}"
+
     source_directory = Path(script_run_config.source_directory)
     docs_folder = source_directory / "docs" / "source"
     for doc_file in docs_folder.glob("*.md"):
@@ -356,15 +363,27 @@ def submit_run2(workspace: Optional[Workspace],
 
     compute_target = script_run_config.run_config.target
     environment = script_run_config.run_config.environment.name + "@latest"
+
+    input_datasets_v1 = script_run_config.run_config.data
+    print(f"Input data from script run config: {input_datasets_v1}")
+
+    print(f"V2 input datasets: {v2_input_datasets}")
     # command="python main.py --iris-csv ${{inputs.iris_csv}} --learning-rate ${{inputs.learning_rate}} --boosting
     # $#{{inputs.boosting}}"
     # inputs = get_v2_inputs_from_model()
+    env_vars_copy = {
+        "AZURE_TENANT_ID": os.environ.get(ENV_TENANT_ID),
+        "AZURE_CLIENT_ID": os.environ.get(ENV_SERVICE_PRINCIPAL_ID),
+        "AZURE_CLIENT_SECRET": os.environ.get(ENV_SERVICE_PRINCIPAL_PASSWORD),
+    }
     command_job = command(
         code=str(source_directory),
         command=cmd,
-        inputs = v2_input_datasets,  # TODO
+        inputs = v2_input_datasets,
+        outputs = v2_output_datasets,
         # todo: how to pass a newly created environment?
         environment=environment,
+        environment_variables=env_vars_copy,
         compute=compute_target,
         base_path=str(source_directory)
     )
@@ -444,18 +463,44 @@ def _str_to_path(s: Optional[PathOrString]) -> Optional[Path]:
     return s
 
 
-def create_v2_inputs(input_datasets: List[DatasetConfig]) -> Input:
+def create_v2_inputs(workspace_client: MLClient, input_datasets: List[DatasetConfig]) -> Input:
     inputs = {}
+
     for input_dataset in input_datasets:
+        version = input_dataset.version or 1
+        data_asset: Data = workspace_client.data.get(input_dataset.name, version=version)
+        data_path = data_asset.id
+        v1_datastore_path = f"azureml://datastores/{input_dataset.datastore}/paths/datasets/{input_dataset.name}"
+        # v2_dataset_path = f"azureml:{input_dataset.name}:1"
         dataset_name = input_dataset.name
-        inputs[dataset_name] = Input(type=AssetTypes.URI_FOLDER, path=dataset_name)
+
+        inputs[INPUT_DATASETS_ARG_NAME] = Input(
+            type=AssetTypes.URI_FOLDER,
+            path=data_path,
+            # mode=InputOutputModes.DIRECT,
+        )
     return inputs
 
+
+def create_v2_outputs(output_datasets: List[DatasetConfig]) -> Dict[str, Output]:
+    outputs = {}
+
+    for output_dataset in output_datasets:
+        v1_datastore_path = f"azureml://datastores/{output_dataset.datastore}/paths/{output_dataset.name}"
+        v2_dataset_path = f"azureml:{output_dataset.name}@latest"
+        dataset_name = output_dataset.name
+        outputs[OUTPUT_DATASETS_ARG_NAME] = Output(
+            type=AssetTypes.URI_FOLDER,
+            path=v1_datastore_path,
+            mode=InputOutputModes.DIRECT,
+        )
+    return outputs
 
 def submit_to_azure_if_needed(  # type: ignore
         compute_cluster_name: str = "",
         entry_script: Optional[PathOrString] = None,
         aml_workspace: Optional[Workspace] = None,
+        workspace_client: Optional[MLClient] = None,
         workspace_config_file: Optional[PathOrString] = None,
         snapshot_root_directory: Optional[PathOrString] = None,
         script_params: Optional[List[str]] = None,
@@ -538,6 +583,9 @@ def submit_to_azure_if_needed(  # type: ignore
         otherwise we return a AzureRunInfo object.
     """
     _package_setup()
+    print(f"In submit_to_azure_if_needed")
+    print(f"Input datasets: {input_datasets}")
+    print(f"V2 input datasets: {v2_input_datasets}")
     workspace_config_path = _str_to_path(workspace_config_file)
     snapshot_root_directory = _str_to_path(snapshot_root_directory)
     cleaned_input_datasets = _replace_string_datasets(input_datasets or [],
@@ -575,11 +623,11 @@ def submit_to_azure_if_needed(  # type: ignore
         mounted_input_datasets, mount_contexts = setup_local_datasets(cleaned_input_datasets,
                                                                       aml_workspace,
                                                                       workspace_config_path)
-        v2_input_datasets = create_v2_inputs(cleaned_input_datasets)
+        print(f"Mounted input datasets: {mounted_input_datasets}")
 
         return AzureRunInfo(
             input_datasets=mounted_input_datasets,
-            v2_input_datasets=v2_input_datasets,
+            # v2_input_datasets=v2_input_datasets,
             output_datasets=[d.local_folder for d in cleaned_output_datasets],
             mount_contexts=mount_contexts,
             run=None,
@@ -594,6 +642,11 @@ def submit_to_azure_if_needed(  # type: ignore
 
     workspace = get_workspace(aml_workspace, workspace_config_path)
     print(f"Loaded AzureML workspace {workspace.name}")
+
+    v2_input_datasets = create_v2_inputs(workspace_client, cleaned_input_datasets)
+    print(f"V2 input datasets: {v2_input_datasets}")
+    v2_output_datasets = create_v2_outputs(cleaned_output_datasets)
+    print(f"V2 output datasets: {v2_output_datasets}")
 
     if conda_environment_file is None:
         conda_environment_file = find_file_in_parent_to_pythonpath(CONDA_ENVIRONMENT_FILE)
@@ -635,6 +688,7 @@ def submit_to_azure_if_needed(  # type: ignore
             lines_to_append=lines_to_append):
         run = submit_run2(workspace=workspace,
                           v2_input_datasets=v2_input_datasets,
+                          v2_output_datasets=v2_output_datasets,
                           experiment_name=effective_experiment_name,
                           script_run_config=config_to_submit,
                           tags=tags,
@@ -726,20 +780,34 @@ def _generate_azure_datasets(
         logging.info(f"Stitched returned input datasets: {returned_input_datasets}")
         logging.info(f"Stitched returned output datasets: {returned_output_datasets}")
     else:
-        print(f"Run context {RUN_CONTEXT}")
-        print(f"datasets in run context: {RUN_CONTEXT.input_datasets}")
-        print(f"run details: {RUN_CONTEXT.get_details()}")
+        print(f"Cleaned input datasets: {cleaned_input_datasets}")
+        # print(f"Environment variables: {os.environ}")
+        # print(f"Run context {RUN_CONTEXT}")
+        # print(f"datasets in run context: {RUN_CONTEXT.input_datasets}")
+        # print(f"run details: {RUN_CONTEXT.get_details()}")
         print(f"datasets in run details: {RUN_CONTEXT.get_details()['inputDatasets']}")
         try:
-            returned_input_datasets = [Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)])
-                                    for index in range(len(cleaned_input_datasets))]
-            returned_output_datasets = [Path(RUN_CONTEXT.output_datasets[_output_dataset_key(index)])
-                                        for index in range(len(cleaned_output_datasets))]
+            if len(RUN_CONTEXT.input_datasets) > 0:
+                returned_input_datasets = [Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)])
+                                        for index in range(len(cleaned_input_datasets))]
+                returned_output_datasets = [Path(RUN_CONTEXT.output_datasets[_output_dataset_key(index)])
+                                            for index in range(len(cleaned_output_datasets))]
+            else:
+                raise ValueError("Run context has no input datasets associated")
         except:
-            pass
-            # from argparse import ArgumentParser
-            # parser = ArgumentParser()
-            # parser.add_argument("--")
+            print(f"Sys args: {sys.argv}")
+            returned_input_datasets = []
+            returned_output_datasets = []
+            for sys_arg in sys.argv:
+                if INPUT_DATASETS_ARG_NAME in sys_arg:
+                    input_dataset_strings = sys_arg.split("--" + INPUT_DATASETS_ARG_NAME + "=")[-1].split(",")
+                    returned_input_datasets += [Path(p) for p in input_dataset_strings]
+                if OUTPUT_DATASETS_ARG_NAME in sys_arg:
+                    output_dataset_strings = sys_arg.split("--" + OUTPUT_DATASETS_ARG_NAME + "=")[-1].split(",")
+                    returned_output_datasets += [Path(p) for p in output_dataset_strings]
+
+            print(f"Returned input datasets: {returned_input_datasets}")
+            print(f"Returned output datasets: {returned_output_datasets}")
 
     return AzureRunInfo(
         input_datasets=returned_input_datasets,  # type: ignore

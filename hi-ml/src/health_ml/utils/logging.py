@@ -5,8 +5,10 @@
 import argparse
 import logging
 import math
+from multiprocessing.sharedctypes import Value
 import numbers
 import operator
+import os
 import sys
 import time
 from datetime import datetime
@@ -322,22 +324,40 @@ class AzureMLProgressBar(ProgressBarBase):
 class MLFlowLogger(LightningLoggerBase):
     HYPERPARAMS_NAME = "hyperparams"
 
-    def __init__(self, ml_client: MLClient, experiment_name: str):
-        workspace_name = ml_client.workspace_name
-        self.experiment_name = experiment_name
-        if is_running_in_azure_ml():
-            mlflow_uri = ml_client.workspaces.get(workspace_name).mlflow_tracking_uri
+    def _start_run(self, mlflow_run_id: Optional[str] = None) -> None:
+        """
+        Start an MLFlow run. If an existing run id is given,
 
-        else:
-            mlflow_uri = ""
-        self.mlflow_run = mlflow.start_run()
-        mlflow.set_tracking_uri(mlflow_uri)
-        mlflow.set_experiment(experiment_name)
+        :param mlflow_run_id: _description_, defaults to None
+        :return: _description_
+        """
+        mlflow.set_tracking_uri(self.mlflow_uri)
+        mlflow.set_experiment(self.experiment_name)
+        run = mlflow.start_run(run_id=mlflow_run_id)
+        return run
+
+    def __init__(self, experiment_name: Optional[str] = None, mlflow_uri: Optional[str] = None,
+                 run: Optional[str] = None):
+        experiment_name = experiment_name or os.environ.get("MLFLOW_EXPERIMENT_NAME")
+        self.experiment_name = experiment_name
+        mlflow_uri = mlflow_uri or os.environ.get("MLFLOW_TRACKING_URI", "")
+        self.mlflow_uri = mlflow_uri
+        run_id = run or os.environ.get("MLFLOW_RUN_ID")
+        self.run_id = run_id
+        if run_id is not None:
+            print("Found existing run id}")
+            self._start_run(mlflow_run_id=run_id)
+        logging.info(f"MLFlow logger info: experiment name: {experiment_name}, run id: {run_id} URI: {mlflow_uri}")
+        if not is_running_in_azure_ml:
+            self._start_run()
+
+        # if mlflow_uri is None:
+        # mlflow_uri = ml_client.workspaces.get(workspace_name).mlflow_tracking_uri
 
         # except UnsupportedModelRegistryStoreURIException as e:
         #     logging.warning(f"Unable to initialise MLFlow logger due to the following error: {e}")
 
-
+    @rank_zero_only
     def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
         is_epoch_metric = "epoch" in metrics
         for key, value in metrics.items():
@@ -345,6 +365,7 @@ class MLFlowLogger(LightningLoggerBase):
             # All step-level metrics with step
             mlflow.log_metric(key, value, step=None if is_epoch_metric else step)
 
+    @rank_zero_only
     def log_hyperparams(self, params: Union[argparse.Namespace, Dict[str, Any]]) -> None:
         """
         Logs the given model hyperparameters to MLFlow. Namespaces are converted to dictionaries.
@@ -354,14 +375,23 @@ class MLFlowLogger(LightningLoggerBase):
         if params is None:
             return
         params_final = _preprocess_hyperparams(self, params)
-        if len(params_final) > 0:
-            # Log hyperparameters. Each "step" is one hyperparameter
-            # mlflow.log_params(self.HYPERPARAMS_NAME, {"name": list(params_final.keys()),
-            #                                            "value": list(params_final.values())})
-            mlflow.log_params(params_final)
+        print(f"Attempting to log hyperparameters: {params_final}")
+        retrieved_run = mlflow.get_run(run_id=self.run_id)
+        run_data = retrieved_run.data
+        existing_params = run_data.params
+        existing_keys = existing_params.keys()
+        new_params = {}
 
-    # def log_graph(self, model: LightningModule, input_array: Optional[Tensor] = None) -> None
-    #     pass
+        for key, val in params_final.items():
+            if key in existing_params:
+                num_related_keys = len([k for k in existing_keys if key in k])
+                new_key = key + f"_{num_related_keys}"
+                new_params[new_key] = val
+            else:
+                new_params[key] = val
+
+        if len(params_final) > 0:
+            mlflow.log_params(new_params)
 
     def experiment(self) -> Optional[str]:
         return self.experiment_name
@@ -372,6 +402,7 @@ class MLFlowLogger(LightningLoggerBase):
     def version(self) -> int:
         return 0
 
+    @rank_zero_only
     def finalize(self, status: str) -> None:
         mlflow.end_run()
 
