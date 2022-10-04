@@ -24,6 +24,9 @@ from uuid import uuid4
 
 import pytest
 from _pytest.capture import CaptureFixture
+from azure.ai.ml import Input, Output
+from azure.ai.ml.constants import AssetTypes
+from azure.ai.ml.entities import Data
 from azureml._restclient.constants import RunStatus
 from azureml.core import ComputeTarget, Environment, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
@@ -1318,3 +1321,39 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock, moc
                         hyperdrive_config=crossval_config)
                     mock_submit_run.assert_called_once()
                     mock_hyperdrive_config.assert_called_once()
+
+
+def test_create_v2_inputs() -> None:
+    mock_ml_client = MagicMock()
+    mock_data_name = "mock_data"
+    mock_data_version = "1"
+    mock_data_path = "path/to/mock/data"
+    mock_ml_client.data.get.return_value = Data(
+        name=mock_data_name,
+        version=mock_data_version,
+        id=mock_data_path
+        )
+
+    mock_input_dataconfigs = [DatasetConfig(name="dummy_dataset")]
+    inputs = himl.create_v2_inputs(mock_ml_client, mock_input_dataconfigs)
+    assert isinstance(inputs, Dict)
+    assert len(inputs) == len(mock_input_dataconfigs)
+    input_entry = inputs[himl.INPUT_DATASETS_ARG_NAME]
+    assert isinstance(input_entry, Input)
+    assert input_entry.type == AssetTypes.URI_FOLDER
+    assert input_entry.path == mock_data_path
+
+
+def test_create_v2_outputs():
+    mock_datastore_name = "dummy_datastore"
+    mock_data_name = "dummy_dataset"
+
+    mock_output_dataconfigs = [DatasetConfig(name=mock_data_name, datastore=mock_datastore_name)]
+    outputs = himl.create_v2_outputs(mock_output_dataconfigs)
+    assert isinstance(outputs, Dict)
+    assert len(outputs) == len(mock_output_dataconfigs)
+    output_entry = outputs[himl.OUTPUT_DATASETS_ARG_NAME]
+    assert isinstance(output_entry, Output)
+    assert output_entry.type == AssetTypes.URI_FOLDER
+    expected_path = f"azureml://datastores/{mock_datastore_name}/paths/{mock_data_name}"
+    assert expected_path in output_entry['path']
