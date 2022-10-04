@@ -401,11 +401,11 @@ class LossAnalysisCallback(Callback):
                 self.sanity_check_loss_values(all_loss_values_per_slides)
                 self.save_loss_ranks(all_loss_values_per_slides)
 
-                slides, slides_loss = self.select_slides_and_losses_across_epochs(high=True)
-                self.plot_slides_loss_scatter(slides, slides_loss, high=True)
+                top_slides, top_slides_loss = self.select_slides_and_losses_across_epochs(high=True)
+                self.plot_slides_loss_scatter(top_slides, top_slides_loss, high=True)
 
-                slides, slides_loss = self.select_slides_and_losses_across_epochs(high=False)
-                self.plot_slides_loss_scatter(slides, slides_loss, high=False)
+                bottom_slides, bottom_slides_loss = self.select_slides_and_losses_across_epochs(high=False)
+                self.plot_slides_loss_scatter(bottom_slides, bottom_slides_loss, high=False)
 
                 for epoch in self.epochs_range:
                     epoch_slides = self.select_slides_for_epoch(epoch)
