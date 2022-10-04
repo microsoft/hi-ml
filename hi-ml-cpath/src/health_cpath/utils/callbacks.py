@@ -249,10 +249,8 @@ class LossAnalysisCallback(Callback):
         slides_loss_values: LossDictType = {slide_id: [] for slide_id in slides}
         for epoch in self.epochs_range:
             loss_cache = self.read_loss_cache(epoch, idx_col=ResultsKey.SLIDE_ID)
-            slides_loss_values = {
-                slide_id: slides_loss_values[slide_id] + [loss_cache.loc[slide_id, ResultsKey.LOSS]]
-                for slide_id in slides
-            }
+            for slide_id in slides:
+                slides_loss_values[slide_id].append(loss_cache.loc[slide_id, ResultsKey.LOSS])
         return slides_loss_values
 
     def select_slides_and_losses_across_epochs(self, high: bool = True) -> Tuple[np.ndarray, np.ndarray]:
