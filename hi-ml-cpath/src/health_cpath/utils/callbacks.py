@@ -63,7 +63,7 @@ class LossCallbackParams(param.Parameterized):
         "loss_analysis_epochs_interval=n>1 to save loss values every n epochs.",
     )
     num_slides_scatter: int = param.Integer(
-        10,
+        20,
         bounds=(1, None),
         doc="Number of slides to plot in the scatter plot. Default: 10, It will plot a scatter of the 10 slides "
         "with highest/lowest loss values across epochs.",
@@ -144,11 +144,6 @@ class LossAnalysisCallback(Callback):
     def anomalies_folder(self) -> Path:
         return self.outputs_folder / "loss_anomalies"
 
-    def get_filename(self, root_folder: Path, filename: str, epoch: int, order: Optional[str] = None) -> Path:
-        zero_filled_epoch = str(epoch).zfill(len(str(self.max_epochs)))
-        filename = filename.format(zero_filled_epoch, order) if order else filename.format(zero_filled_epoch)
-        return root_folder / filename
-
     def create_outputs_folders(self) -> None:
         folders = [
             self.cache_folder,
@@ -166,21 +161,21 @@ class LossAnalysisCallback(Callback):
             keys.append(ResultsKey.TILE_ID)
         return {key: [] for key in keys}
 
+    def get_filename(self, root_folder: Path, filename: str, epoch: int, order: Optional[str] = None) -> Path:
+        zero_filled_epoch = str(epoch).zfill(len(str(self.max_epochs)))
+        filename = filename.format(zero_filled_epoch, order) if order else filename.format(zero_filled_epoch)
+        return root_folder / filename
+
+    def read_loss_cache(self, epoch: int, idx_col: Optional[ResultsKey] = None) -> pd.DataFrame:
+        return pd.read_csv(self.get_filename(self.cache_folder, LOSS_VALUES_FILENAME, epoch),
+                           usecols=[ResultsKey.SLIDE_ID, ResultsKey.LOSS], index_col=idx_col)
+
     def should_cache_loss_values(self, current_epoch: int) -> bool:
         current_epoch = current_epoch + 1
         first_time = (current_epoch - self.patience) == 1
         return first_time or (
             current_epoch > self.patience and (current_epoch - self.patience) % self.epochs_interval == 0
         )
-
-    def save_loss_cache(self, current_epoch: int) -> None:
-        """Saves the loss cache to a csv file"""
-        loss_cache_df = pd.DataFrame(self.loss_cache)
-        # Some slides may be appear multiple times in the loss cache in DDP mode. The Distributed Sampler may duplicate
-        # some slides to even out the number of samples per device, so we only keep the first occurrence.
-        loss_cache_df.drop_duplicates(subset=ResultsKey.SLIDE_ID, inplace=True, keep="first")
-        loss_cache_df = loss_cache_df.sort_values(by=ResultsKey.LOSS, ascending=False)
-        loss_cache_df.to_csv(self.get_filename(self.cache_folder, LOSS_VALUES_FILENAME, current_epoch), index=False)
 
     def merge_loss_caches(self, loss_caches: List[LossDictType]) -> LossDictType:
         """Merges the loss caches from all the workers into a single loss cache"""
@@ -200,7 +195,66 @@ class LossAnalysisCallback(Callback):
                 if rank == 0:
                     self.loss_cache = self.merge_loss_caches(loss_caches)  # type: ignore
 
-    def select_loss_slides_across_epochs(self, high: bool = True) -> Tuple[np.ndarray, np.ndarray]:
+    def save_loss_cache(self, current_epoch: int) -> None:
+        """Saves the loss cache to a csv file"""
+        loss_cache_df = pd.DataFrame(self.loss_cache)
+        # Some slides may be appear multiple times in the loss cache in DDP mode. The Distributed Sampler duplicate
+        # some slides to even out the number of samples per device, so we only keep the first occurrence.
+        loss_cache_df.drop_duplicates(subset=ResultsKey.SLIDE_ID, inplace=True, keep="first")
+        loss_cache_df = loss_cache_df.sort_values(by=ResultsKey.LOSS, ascending=False)
+        filename = self.get_filename(self.cache_folder, LOSS_VALUES_FILENAME, current_epoch)
+        loss_cache_df.to_csv(filename, index=False)
+
+    def _select_values_for_epoch(
+        self, key: ResultsKey, epoch: int, high: Optional[bool] = None, num_values: Optional[int] = None
+    ) -> np.ndarray:
+        loss_cache = self.read_loss_cache(epoch)
+        values = loss_cache[key].values
+        if high is not None:
+            assert num_values is not None, "num_values must be specified if high is specified"
+            if high:
+                return values[:num_values]
+            elif not high:
+                return values[-num_values:]
+        return values
+
+    def select_slides_for_epoch(
+        self, epoch: int, high: Optional[bool] = None, num_slides: Optional[int] = None
+    ) -> np.ndarray:
+        """Selects slides in ascending/descending order of loss values at a given epoch
+
+        :param epoch: The epoch to select the slides from.
+        :param high: If True, selects the slides with the highest loss values, else selects the slides with the lowest
+            loss values. If None, selects all slides.
+        :param num_slides: The number of slides to select. If None, selects all slides.
+        """
+        return self._select_values_for_epoch(ResultsKey.SLIDE_ID, epoch, high, num_slides)
+
+    def select_slides_losses_for_epoch(
+        self, epoch: int, high: Optional[bool] = None, num_slides: Optional[int] = None
+    ) -> np.ndarray:
+        """Selects loss values of slides in ascending/descending order of loss at a given epoch
+
+        :param epoch: The epoch to select the slides from.
+        :param high: If True, selects the slides with the highest loss values, else selects the slides with the lowest
+            loss values. If None, selects all slides.
+        :param num_slides: The number of slides to select. If None, selects all slides.
+        """
+        return self._select_values_for_epoch(ResultsKey.LOSS, epoch, high, num_slides)
+
+    def select_all_losses_for_selected_slides(self, slides: np.ndarray) -> LossDictType:
+        """Selects the loss values for a given set of slides"""
+
+        slides_loss_values: LossDictType = {slide_id: [] for slide_id in slides}
+        for epoch in self.epochs_range:
+            loss_cache = self.read_loss_cache(epoch, idx_col=ResultsKey.SLIDE_ID)
+            slides_loss_values = {
+                slide_id: slides_loss_values[slide_id] + [loss_cache.loc[slide_id, ResultsKey.LOSS]]
+                for slide_id in slides
+            }
+        return slides_loss_values
+
+    def select_slides_and_losses_across_epochs(self, high: bool = True) -> Tuple[np.ndarray, np.ndarray]:
         """Selects the slides with the highest/lowest loss values across epochs
 
         :param high: If True, selects the slides with the highest loss values, else selects the slides with the lowest
@@ -209,49 +263,12 @@ class LossAnalysisCallback(Callback):
         slides = []
         slides_loss = []
         for epoch in self.epochs_range:
-            loss_cache = pd.read_csv(
-                self.get_filename(self.cache_folder, LOSS_VALUES_FILENAME, epoch),
-                usecols=[ResultsKey.SLIDE_ID, ResultsKey.LOSS])
-
-            if high:
-                slides.append(loss_cache[ResultsKey.SLIDE_ID][: self.num_slides_scatter])
-                slides_loss.append(loss_cache[ResultsKey.LOSS][: self.num_slides_scatter])
-            else:
-                slides.append(loss_cache[ResultsKey.SLIDE_ID][-self.num_slides_scatter:])
-                slides_loss.append(loss_cache[ResultsKey.LOSS][-self.num_slides_scatter:])
+            epoch_slides = self.select_slides_for_epoch(epoch, high, self.num_slides_scatter)
+            epoch_slides_loss = self.select_slides_losses_for_epoch(epoch, high, self.num_slides_scatter)
+            slides.append(epoch_slides)
+            slides_loss.append(epoch_slides_loss)
 
         return np.array(slides).T, np.array(slides_loss).T
-
-    def select_loss_for_slides_of_epoch(self, epoch: int, high: Optional[bool] = None) -> LossDictType:
-        """Selects the slides with the highest/lowest loss values for a given epoch and returns the loss values for each
-        slide across all epochs.
-
-        :param epoch: The epoch to select the slides from.
-        :param high: If True, selects the slides with the highest loss values, else selects the slides with the lowest
-            loss values. If None, selects all slides.
-        :return: A dictionary containing the loss values for each slide across all epochs.
-        """
-        loss_cache = pd.read_csv(
-            self.get_filename(self.cache_folder, LOSS_VALUES_FILENAME, epoch),
-            usecols=[ResultsKey.SLIDE_ID, ResultsKey.LOSS])
-
-        if high:
-            slides = loss_cache[ResultsKey.SLIDE_ID][: self.num_slides_heatmap]
-        elif high is False:
-            slides = loss_cache[ResultsKey.SLIDE_ID][-self.num_slides_heatmap:]
-        else:
-            slides = loss_cache[ResultsKey.SLIDE_ID]
-
-        slides_loss_values: LossDictType = {slide_id: [] for slide_id in slides}
-        for epoch in self.epochs_range:
-            loss_cache = pd.read_csv(
-                self.get_filename(self.cache_folder, LOSS_VALUES_FILENAME, epoch),
-                usecols=[ResultsKey.SLIDE_ID, ResultsKey.LOSS], index_col=ResultsKey.SLIDE_ID)
-            slides_loss_values = {
-                slide_id: slides_loss_values[slide_id] + [loss_cache.loc[slide_id, ResultsKey.LOSS]]
-                for slide_id in slides
-            }
-        return slides_loss_values
 
     def save_slide_ids(self, slide_ids: List[str], filename: str) -> None:
         """Dumps the slides ids in a txt file."""
@@ -302,7 +319,7 @@ class LossAnalysisCallback(Callback):
         slides: np.ndarray,
         slides_loss: np.ndarray,
         high: bool = True,
-        figsize: Tuple[float, float] = (20, 20),
+        figsize: Tuple[float, float] = (30, 30),
     ) -> None:
         """Plots the slides with the highest/lowest loss values across epochs in a scatter plot
 
@@ -322,7 +339,7 @@ class LossAnalysisCallback(Callback):
         order = HIGHEST if high else LOWEST
         plt.title(f"Slides with {order} loss values per epoch.")
         plt.xticks(self.epochs_range)
-        plt.legend()
+        plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
         plt.grid(True, linestyle="--")
         plt.savefig(self.scatter_folder / SCATTER_PLOT_FILENAME.format(order), bbox_inches="tight")
 
@@ -378,22 +395,29 @@ class LossAnalysisCallback(Callback):
 
         if pl_module.global_rank == 0:
             try:
-                slides_loss_values = self.select_loss_for_slides_of_epoch(epoch=0, high=None)  # losses for all slides
-                self.sanity_check_loss_values(slides_loss_values)
-                self.save_loss_ranks(slides_loss_values)
+                all_slides = self.select_slides_for_epoch(epoch=0)
+                all_loss_values_per_slides = self.select_all_losses_for_selected_slides(all_slides)
 
-                slides, slides_loss = self.select_loss_slides_across_epochs(high=True)
+                self.sanity_check_loss_values(all_loss_values_per_slides)
+                self.save_loss_ranks(all_loss_values_per_slides)
+
+                slides, slides_loss = self.select_slides_and_losses_across_epochs(high=True)
                 self.plot_slides_loss_scatter(slides, slides_loss, high=True)
 
-                slides, slides_loss = self.select_loss_slides_across_epochs(high=False)
+                slides, slides_loss = self.select_slides_and_losses_across_epochs(high=False)
                 self.plot_slides_loss_scatter(slides, slides_loss, high=False)
 
                 for epoch in self.epochs_range:
-                    slides_loss_values = self.select_loss_for_slides_of_epoch(epoch, high=True)
-                    self.plot_loss_heatmap_for_slides_of_epoch(slides_loss_values, epoch, high=True)
+                    epoch_slides = self.select_slides_for_epoch(epoch)
 
-                    slides_loss_values = self.select_loss_for_slides_of_epoch(epoch, high=False)
-                    self.plot_loss_heatmap_for_slides_of_epoch(slides_loss_values, epoch, high=False)
+                    top_slides = epoch_slides[:self.num_slides_heatmap]
+                    top_slides_loss_values = self.select_all_losses_for_selected_slides(top_slides)
+                    self.plot_loss_heatmap_for_slides_of_epoch(top_slides_loss_values, epoch, high=True)
+
+                    bottom_slides = epoch_slides[-self.num_slides_heatmap:]
+                    bottom_slides_loss_values = self.select_all_losses_for_selected_slides(bottom_slides)
+                    self.plot_loss_heatmap_for_slides_of_epoch(bottom_slides_loss_values, epoch, high=False)
+
             except Exception as e:
                 # If something goes wrong, we don't want to crash the training. We just log the error and carry on
                 # validation.
