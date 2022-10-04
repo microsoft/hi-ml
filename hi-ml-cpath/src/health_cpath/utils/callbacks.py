@@ -41,6 +41,7 @@ HIGHEST, LOWEST = "highest", "lowest"
 LossCacheDictType = Dict[ResultsKey, List]
 LossDictType = Dict[str, List]
 
+
 class LossCallbackParams(param.Parameterized):
     """Parameters class to group all attributes for loss values analysis callback"""
 
