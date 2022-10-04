@@ -173,7 +173,8 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
                                                   epochs_interval=self.loss_analysis_epochs_interval,
                                                   num_slides_scatter=self.num_slides_scatter,
                                                   num_slides_heatmap=self.num_slides_heatmap,
-                                                  save_tile_ids=self.save_tile_ids,))
+                                                  save_tile_ids=self.save_tile_ids,
+                                                  log_exceptions=self.log_exceptions))
         return callbacks
 
     def get_checkpoint_to_test(self) -> Path:

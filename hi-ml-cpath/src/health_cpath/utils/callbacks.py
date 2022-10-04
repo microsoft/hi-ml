@@ -62,6 +62,11 @@ class LossCallbackParams(param.Parameterized):
         doc="If True, will save the tile ids for each bag in the loss cache. Default: True. If False, will only save "
         "the slide ids and their loss values.",
     )
+    log_exceptions: bool = param.Boolean(
+        True,
+        doc="If True, will log exceptions raised during loss values analysis. Default: True. If False, will raise the "
+        "intercepted exceptions.",
+    )
 
 
 class LossAnalysisCallback(Callback):
@@ -83,6 +88,7 @@ class LossAnalysisCallback(Callback):
         num_slides_scatter: int = 10,
         num_slides_heatmap: int = 20,
         save_tile_ids: bool = False,
+        log_exceptions: bool = True,
     ) -> None:
         """
 
@@ -94,6 +100,8 @@ class LossAnalysisCallback(Callback):
         :param num_slides_heatmap: Number of slides to plot in the heatmap, defaults to 20.
         :param save_tile_ids: If True, will save the tile ids of the tiles in the bag in the loss cache, defaults to
         False. This is useful to analyse the tiles that are contributing to the loss value of a slide.
+        :param log_exceptions: If True, will log exceptions raised during loss values analysis, defaults to True. If
+        False will raise the intercepted exceptions.
         """
 
         self.patience = patience
@@ -102,6 +110,7 @@ class LossAnalysisCallback(Callback):
         self.num_slides_scatter = num_slides_scatter
         self.num_slides_heatmap = num_slides_heatmap
         self.save_tile_ids = save_tile_ids
+        self.log_exceptions = log_exceptions
 
         self.outputs_folder = outputs_folder / "loss_values_callback"
         self.create_outputs_folders()
@@ -409,7 +418,7 @@ class LossAnalysisCallback(Callback):
 
         if pl_module.global_rank == 0:
             try:
-                all_slides = self.select_slides_for_epoch(epoch=0)[0]
+                all_slides = self.select_slides_for_epoch(epoch=0)
                 all_loss_values_per_slides = self.select_all_losses_for_selected_slides(all_slides)
 
                 self.sanity_check_loss_values(all_loss_values_per_slides)
@@ -422,7 +431,7 @@ class LossAnalysisCallback(Callback):
                 self.plot_slides_loss_scatter(bottom_slides, bottom_slides_loss, high=False)
 
                 for epoch in self.epochs_range:
-                    epoch_slides = self.select_slides_for_epoch(epoch)[0]
+                    epoch_slides = self.select_slides_for_epoch(epoch)
 
                     top_slides = epoch_slides[:self.num_slides_heatmap]
                     top_slides_loss_values = self.select_all_losses_for_selected_slides(top_slides)
@@ -433,6 +442,11 @@ class LossAnalysisCallback(Callback):
                     self.plot_loss_heatmap_for_slides_of_epoch(bottom_slides_loss_values, epoch, high=False)
 
             except Exception as e:
-                # If something goes wrong, we don't want to crash the training. We just log the error and carry on
-                # validation.
-                logging.warning(f"Error while detecting loss values outliers: {e}")
+                if self.log_exceptions:
+                    # If something goes wrong, we don't want to crash the training. We just log the error and carry on
+                    # validation.
+                    logging.warning(f"Error while detecting loss values outliers: {e}")
+                else:
+                    # If we want to debug the error, we raise it. This will crash the training. This is useful when
+                    # running smoke tests.
+                    raise e

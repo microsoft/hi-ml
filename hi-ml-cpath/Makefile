@@ -183,7 +183,7 @@ endef
 
 define LOSS_ANALYSIS_ARGS
 --analyse_loss=True --loss_analysis_patience=0 --loss_analysis_epochs_interval=1 \
---num_slides_scatter=2 --num_slides_heatmap=2 --save_tile_ids=True
+--num_slides_scatter=2 --num_slides_heatmap=2 --save_tile_ids=True --log_exceptions=False
 endef
 
 # The following test takes around 5 minutes
