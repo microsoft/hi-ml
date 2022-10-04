@@ -223,8 +223,9 @@ def test_nans_detection(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> Non
         loss_callback.loss_cache[ResultsKey.LOSS][epoch] = np.nan
         loss_callback.save_loss_cache(epoch)
 
-    slides_loss_values = loss_callback.select_loss_for_slides_of_epoch(epoch=0, high=None)
-    loss_callback.sanity_check_loss_values(slides_loss_values)
+    all_slides = loss_callback.select_slides_for_epoch(epoch=0)
+    all_loss_values_per_slides = loss_callback.select_all_losses_for_selected_slides(all_slides)
+    loss_callback.sanity_check_loss_values(all_loss_values_per_slides)
 
     assert "NaNs found in loss values for slide id_0" in caplog.records[-1].getMessage()
     assert "NaNs found in loss values for slide id_1" in caplog.records[0].getMessage()
