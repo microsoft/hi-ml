@@ -14,6 +14,7 @@ from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 
 from health_azure.utils import create_from_matching_params
+from health_cpath.utils.callbacks import LossAnalysisCallback, LossCallbackParams
 
 from health_ml.utils import fixed_paths
 from health_ml.deep_learning_config import OptimizerParams
@@ -32,7 +33,7 @@ from health_cpath.utils.naming import MetricsKey, PlotOption, SlideKey, ModelKey
 from health_cpath.utils.tiles_selection_utils import TilesSelector
 
 
-class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
+class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackParams):
     """BaseMIL is an abstract container defining basic functionality for running MIL experiments in both slides and
     tiles settings. It is responsible for instantiating the encoder and pooling layer. Subclasses should define the
     full DeepMIL model depending on the type of dataset (tiles/slides based).
@@ -159,12 +160,22 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
         return outputs_handler
 
     def get_callbacks(self) -> List[Callback]:
-        return [*super().get_callbacks(),
-                ModelCheckpoint(dirpath=self.checkpoint_folder,
-                                monitor=f"{ModelKey.VAL}/{self.primary_val_metric}",
-                                filename=self.best_checkpoint_filename,
-                                auto_insert_metric_name=False,
-                                mode="max" if self.maximise_primary_metric else "min")]
+        callbacks = [*super().get_callbacks(),
+                     ModelCheckpoint(dirpath=self.checkpoint_folder,
+                                     monitor=f"{ModelKey.VAL}/{self.primary_val_metric}",
+                                     filename=self.best_checkpoint_filename,
+                                     auto_insert_metric_name=False,
+                                     mode="max" if self.maximise_primary_metric else "min")]
+        if self.analyse_loss:
+            callbacks.append(LossAnalysisCallback(outputs_folder=self.outputs_folder,
+                                                  max_epochs=self.max_epochs,
+                                                  patience=self.loss_analysis_patience,
+                                                  epochs_interval=self.loss_analysis_epochs_interval,
+                                                  num_slides_scatter=self.num_slides_scatter,
+                                                  num_slides_heatmap=self.num_slides_heatmap,
+                                                  save_tile_ids=self.save_tile_ids,
+                                                  log_exceptions=self.log_exceptions))
+        return callbacks
 
     def get_checkpoint_to_test(self) -> Path:
         """
