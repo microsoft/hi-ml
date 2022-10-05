@@ -21,11 +21,11 @@ jobs:
 - name: TilesPandaImageNetMIL
   sku: G1
   command:
-  - python hi-ml/src/health_ml/runner.py --model=health_cpath.TilesPandaImageNetMIL --is_finetune --batch_size=2
+  - python hi-ml/src/health_ml/runner.py --model=health_cpath.TilesPandaImageNetMIL --tune_encoder --batch_size=2
     --crossval_count=0 --num_top_slides=2 --num_top_tiles=2 --max_bag_size=3 --max_bag_size_inf=3
     --mount_in_azureml=True --pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2
 
 - name: SlidesPandaImageNetMIL
   sku: G1
   command:
-  - python hi-ml/src/health_ml/runner.py --model=health_cpath.SlidesPandaImageNetMIL --is_finetune --crossval_count=0 --num_top_slides=2 --num_top_tiles=2 --max_bag_size=3 --max_bag_size_inf=3
+  - python hi-ml/src/health_ml/runner.py --model=health_cpath.SlidesPandaImageNetMIL --tune_encoder --crossval_count=0 --num_top_slides=2 --num_top_tiles=2 --max_bag_size=3 --max_bag_size_inf=3
