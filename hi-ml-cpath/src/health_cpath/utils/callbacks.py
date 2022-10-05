@@ -164,7 +164,7 @@ class LossAnalysisCallback(Callback):
         return root_folder / filename
 
     def get_loss_cache_file(self, epoch: int) -> Path:
-        return self._get_file(self.cache_folder, "epoch_{}.csv", epoch)
+        return self._get_file(root_folder=self.cache_folder, filename="epoch_{}.csv", epoch=epoch)
 
     def get_all_epochs_loss_cache_file(self) -> Path:
         return self.cache_folder / "all_epochs.csv"
@@ -188,7 +188,8 @@ class LossAnalysisCallback(Callback):
         return self.scatter_folder / "slides_with_{}_loss_values.png".format(order)
 
     def get_heatmap_plot_file(self, epoch: int, order: str) -> Path:
-        return self.heatmap_folder / self._get_file(self.heatmap_folder, "epoch_{}_{}_slides.png", epoch, order)
+        return self._get_file(
+            root_folder=self.heatmap_folder, filename="epoch_{}_{}_slides.png", epoch=epoch, order=order)
 
     def read_loss_cache(self, epoch: int, idx_col: Optional[ResultsKey] = None) -> pd.DataFrame:
         columns = [ResultsKey.SLIDE_ID, ResultsKey.LOSS]
