@@ -19,7 +19,7 @@ from ruamel import yaml
 from ruamel.yaml.comments import CommentedMap as OrderedDict, CommentedSeq as OrderedList
 from typing import Any, Dict, List, Optional, Tuple
 from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, DEFAULT
 from uuid import uuid4
 
 import pytest
@@ -1304,23 +1304,26 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock, moc
     cross_validation_metric_name = cross_validation_metric_name or ""
     mock_sys_args.return_value = ["", "--azureml"]
     with patch.object(Environment, "get", return_value="dummy_env"):
-        with patch("azureml.core.Workspace") as mock_workspace:
-            mock_workspace.compute_targets = {"foo": mock_compute_cluster}
-            with patch("health_azure.himl.submit_run") as mock_submit_run:
-                with patch("health_azure.himl.HyperDriveConfig") as mock_hyperdrive_config:
-                    crossval_config = himl.create_crossval_hyperdrive_config(
-                        num_splits=2,
-                        cross_val_index_arg_name="cross_val_split_index",
-                        metric_name=cross_validation_metric_name)
-                    himl.submit_to_azure_if_needed(
-                        aml_workspace=mock_workspace,
-                        entry_script=Path(__file__),
-                        compute_cluster_name="foo",
-                        aml_environment_name="dummy_env",
-                        submit_to_azureml=True,
-                        hyperdrive_config=crossval_config)
-                    mock_submit_run.assert_called_once()
-                    mock_hyperdrive_config.assert_called_once()
+        # with patch("health_azure.utils.get_workspace") as mock_get_workspace:
+        mock_workspace = MagicMock()
+        mock_workspace.compute_targets = {"foo": mock_compute_cluster}
+        # mock_get_workspace.return_value = mock_workspace
+        with patch("health_azure.himl.submit_run") as mock_submit_run:
+            with patch("health_azure.himl.HyperDriveConfig") as mock_hyperdrive_config:
+                crossval_config = himl.create_crossval_hyperdrive_config(
+                    num_splits=2,
+                    cross_val_index_arg_name="cross_val_split_index",
+                    metric_name=cross_validation_metric_name)
+                himl.submit_to_azure_if_needed(
+                    aml_workspace=mock_workspace,
+                    entry_script=Path(__file__),
+                    compute_cluster_name="foo",
+                    aml_environment_name="dummy_env",
+                    submit_to_azureml=True,
+                    hyperdrive_config=crossval_config,
+                    use_aml_sdk_v1=True)
+                mock_submit_run.assert_called_once()
+                mock_hyperdrive_config.assert_called_once()
 
 
 def test_create_v2_inputs() -> None:
@@ -1332,7 +1335,7 @@ def test_create_v2_inputs() -> None:
         name=mock_data_name,
         version=mock_data_version,
         id=mock_data_path
-        )
+    )
 
     mock_input_dataconfigs = [DatasetConfig(name="dummy_dataset")]
     inputs = himl.create_v2_inputs(mock_ml_client, mock_input_dataconfigs)
@@ -1357,3 +1360,48 @@ def test_create_v2_outputs():
     assert output_entry.type == AssetTypes.URI_FOLDER
     expected_path = f"azureml://datastores/{mock_datastore_name}/paths/{mock_data_name}"
     assert expected_path in output_entry['path']
+
+
+def test_submit_to_azure_if_needed_v2() -> None:
+    """
+    Check that submit_run_v2 is called when submit_to_azure_if_needed is called, unless use_aml_sdk_v1 is
+    set to True, in which case submit_run should be called instead
+    """
+    dummy_input_datasets = []
+    dummy_mount_contexts = []
+
+    with patch.multiple(
+        "health_azure.himl",
+        _package_setup=DEFAULT,
+        get_workspace=DEFAULT,
+        get_workspace_client=DEFAULT,
+        create_run_configuration=DEFAULT,
+        create_script_run=DEFAULT,
+        append_to_amlignore=DEFAULT,
+        exit=DEFAULT
+    ) as mocks:
+        mock_script_run = mocks["create_script_run"].return_value
+        mock_script_run.script = "dummy_script"
+        mock_script_run.source_directory = "dummy_dir"
+
+        with patch("health_azure.himl.setup_local_datasets") as mock_setup_datasets:
+            mock_setup_datasets.return_value = dummy_input_datasets, dummy_mount_contexts
+            with patch("health_azure.himl.submit_run_v2") as mock_submit_run_v2:
+                return_value = himl.submit_to_azure_if_needed(
+                    workspace_config_file="mockconfig.json",
+                    snapshot_root_directory="dummy",
+                    submit_to_azureml=True,
+                )
+                mock_submit_run_v2.assert_called_once()
+                assert return_value is None
+
+            # Now supply use_aml_sdk_v1=True, and check that submit_run is called
+            with patch("health_azure.himl.submit_run") as mock_submit_run:
+                return_value = himl.submit_to_azure_if_needed(
+                    workspace_config_file="mockconfig.json",
+                    snapshot_root_directory="dummy",
+                    submit_to_azureml=True,
+                    use_aml_sdk_v1=True,
+                )
+                mock_submit_run.assert_called_once()
+                assert return_value is None

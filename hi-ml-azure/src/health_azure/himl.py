@@ -30,7 +30,8 @@ from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig, GridParameterSampling, PrimaryMetricGoal, choice
 from azureml.dataprep.fuse.daemon import MountContext
 
-from health_azure.utils import (ENV_AMLT_DATAREFERENCE_DATA, ENV_AMLT_DATAREFERENCE_OUTPUT, ENV_RESOURCE_GROUP, ENV_SERVICE_PRINCIPAL_ID, ENV_SERVICE_PRINCIPAL_PASSWORD, ENV_SUBSCRIPTION_ID, ENV_TENANT_ID, ENV_WORKSPACE_NAME, create_python_environment,
+from health_azure.utils import (ENV_AMLT_DATAREFERENCE_DATA, ENV_AMLT_DATAREFERENCE_OUTPUT, ENV_SERVICE_PRINCIPAL_ID,
+                                ENV_SERVICE_PRINCIPAL_PASSWORD, ENV_TENANT_ID, create_python_environment,
                                 create_run_recovery_id, find_file_in_parent_to_pythonpath, is_amulet_job,
                                 is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
                                 run_duration_string_to_seconds, to_azure_friendly_string, RUN_CONTEXT, get_workspace,
@@ -220,7 +221,8 @@ def create_run_configuration(workspace: Workspace,
         run_config.node_count = distributed_job_config.node_count
 
     if input_datasets or output_datasets:
-        ws = get_workspace_client(subscription_id=workspace.subscription_id, resource_group=workspace.resource_group, workspace_name=workspace.name)
+        ws = get_workspace_client(subscription_id=workspace.subscription_id, resource_group=workspace.resource_group,
+                                  workspace_name=workspace.name)
         inputs, outputs = convert_himl_to_azureml_datasets(cleaned_input_datasets=input_datasets or [],
                                                            cleaned_output_datasets=output_datasets or [],
                                                            workspace=ws)
@@ -325,16 +327,16 @@ def create_script_run(snapshot_root_directory: Optional[Path] = None,
         arguments=script_params)
 
 
-def submit_run2(workspace: Optional[Workspace],
-                experiment_name: str,
-                script_run_config: Union[ScriptRunConfig, HyperDriveConfig],
-                v2_input_datasets: Optional[Dict[str, Input]] = None,
-                v2_output_datasets: Optional[Dict[str, Output]] = None,
-                tags: Optional[Dict[str, str]] = None,
-                wait_for_completion: bool = False,
-                wait_for_completion_show_output: bool = False,
-                workspace_config_path: Optional[PathOrString] = None,
-                ml_client: Optional[MLClient] = None) -> Job:
+def submit_run_v2(workspace: Optional[Workspace],
+                  experiment_name: str,
+                  script_run_config: Union[ScriptRunConfig, HyperDriveConfig],
+                  v2_input_datasets: Optional[Dict[str, Input]] = None,
+                  v2_output_datasets: Optional[Dict[str, Output]] = None,
+                  tags: Optional[Dict[str, str]] = None,
+                  wait_for_completion: bool = False,
+                  wait_for_completion_show_output: bool = False,
+                  workspace_config_path: Optional[PathOrString] = None,
+                  ml_client: Optional[MLClient] = None) -> Job:
     if ml_client is None:
         if workspace is not None:
             ml_client = get_workspace_client(subscription_id=workspace.subscription_id, resource_group=workspace.
@@ -342,7 +344,7 @@ def submit_run2(workspace: Optional[Workspace],
         elif workspace_config_path is not None:
             ml_client = get_workspace_client(workspace_config_path=workspace_config_path)
         else:
-             raise ValueError("Either workspace or workspace_config_path must be specified to connect to the Workspace")
+            raise ValueError("Either workspace or workspace_config_path must be specified to connect to the Workspace")
         # raise ValueError(f"Must provide a value for ml_client to submit a job with v2 of the AML SDK")
     from azure.ai.ml import command, Input
     script = script_run_config.script
@@ -379,8 +381,8 @@ def submit_run2(workspace: Optional[Workspace],
     command_job = command(
         code=str(source_directory),
         command=cmd,
-        inputs = v2_input_datasets,
-        outputs = v2_output_datasets,
+        inputs=v2_input_datasets,
+        outputs=v2_output_datasets,
         # todo: how to pass a newly created environment?
         environment=environment,
         environment_variables=env_vars_copy,
@@ -392,7 +394,8 @@ def submit_run2(workspace: Optional[Workspace],
     return returned_job
 
 
-def download_job_outputs_logs(ml_client: MLClient, job_name: str, file_to_download_path: Optional[str] = None, download_dir: Optional[PathOrString] = None):
+def download_job_outputs_logs(ml_client: MLClient, job_name: str, file_to_download_path: Optional[str] = None,
+    download_dir: Optional[PathOrString] = None):
     download_dir = download_dir or Path("outputs")
     download_dir = download_dir / job_name
     ml_client.jobs.download(job_name, output_name=file_to_download_path, download_path=download_dir)
@@ -470,9 +473,8 @@ def create_v2_inputs(workspace_client: MLClient, input_datasets: List[DatasetCon
         version = input_dataset.version or 1
         data_asset: Data = workspace_client.data.get(input_dataset.name, version=version)
         data_path = data_asset.id
-        v1_datastore_path = f"azureml://datastores/{input_dataset.datastore}/paths/datasets/{input_dataset.name}"
+        # v1_datastore_path = f"azureml://datastores/{input_dataset.datastore}/paths/datasets/{input_dataset.name}"
         # v2_dataset_path = f"azureml:{input_dataset.name}:1"
-        dataset_name = input_dataset.name
 
         inputs[INPUT_DATASETS_ARG_NAME] = Input(
             type=AssetTypes.URI_FOLDER,
@@ -484,17 +486,16 @@ def create_v2_inputs(workspace_client: MLClient, input_datasets: List[DatasetCon
 
 def create_v2_outputs(output_datasets: List[DatasetConfig]) -> Dict[str, Output]:
     outputs = {}
-
     for output_dataset in output_datasets:
         v1_datastore_path = f"azureml://datastores/{output_dataset.datastore}/paths/{output_dataset.name}"
-        v2_dataset_path = f"azureml:{output_dataset.name}@latest"
-        dataset_name = output_dataset.name
+        # v2_data_asset_path = f"azureml:{output_dataset.name}@latest"
         outputs[OUTPUT_DATASETS_ARG_NAME] = Output(
             type=AssetTypes.URI_FOLDER,
             path=v1_datastore_path,
             mode=InputOutputModes.DIRECT,
         )
     return outputs
+
 
 def submit_to_azure_if_needed(  # type: ignore
         compute_cluster_name: str = "",
@@ -526,6 +527,7 @@ def submit_to_azure_if_needed(  # type: ignore
         after_submission: Optional[Callable[[Run], None]] = None,
         hyperdrive_config: Optional[HyperDriveConfig] = None,
         create_output_folders: bool = True,
+        use_aml_sdk_v1: bool = False,
 ) -> AzureRunInfo:  # pragma: no cover
     """
     Submit a folder to Azure, if needed and run it.
@@ -583,9 +585,6 @@ def submit_to_azure_if_needed(  # type: ignore
         otherwise we return a AzureRunInfo object.
     """
     _package_setup()
-    print(f"In submit_to_azure_if_needed")
-    print(f"Input datasets: {input_datasets}")
-    print(f"V2 input datasets: {v2_input_datasets}")
     workspace_config_path = _str_to_path(workspace_config_file)
     snapshot_root_directory = _str_to_path(snapshot_root_directory)
     cleaned_input_datasets = _replace_string_datasets(input_datasets or [],
@@ -623,11 +622,9 @@ def submit_to_azure_if_needed(  # type: ignore
         mounted_input_datasets, mount_contexts = setup_local_datasets(cleaned_input_datasets,
                                                                       aml_workspace,
                                                                       workspace_config_path)
-        print(f"Mounted input datasets: {mounted_input_datasets}")
 
         return AzureRunInfo(
             input_datasets=mounted_input_datasets,
-            # v2_input_datasets=v2_input_datasets,
             output_datasets=[d.local_folder for d in cleaned_output_datasets],
             mount_contexts=mount_contexts,
             run=None,
@@ -642,11 +639,6 @@ def submit_to_azure_if_needed(  # type: ignore
 
     workspace = get_workspace(aml_workspace, workspace_config_path)
     print(f"Loaded AzureML workspace {workspace.name}")
-
-    v2_input_datasets = create_v2_inputs(workspace_client, cleaned_input_datasets)
-    print(f"V2 input datasets: {v2_input_datasets}")
-    v2_output_datasets = create_v2_outputs(cleaned_output_datasets)
-    print(f"V2 output datasets: {v2_output_datasets}")
 
     if conda_environment_file is None:
         conda_environment_file = find_file_in_parent_to_pythonpath(CONDA_ENVIRONMENT_FILE)
@@ -686,14 +678,25 @@ def submit_to_azure_if_needed(  # type: ignore
     with append_to_amlignore(
             amlignore=amlignore_path,
             lines_to_append=lines_to_append):
-        run = submit_run2(workspace=workspace,
-                          v2_input_datasets=v2_input_datasets,
-                          v2_output_datasets=v2_output_datasets,
-                          experiment_name=effective_experiment_name,
-                          script_run_config=config_to_submit,
-                          tags=tags,
-                          wait_for_completion=wait_for_completion,
-                          wait_for_completion_show_output=wait_for_completion_show_output)
+        if use_aml_sdk_v1:
+            run = submit_run(workspace=workspace,
+                             experiment_name=effective_experiment_name,
+                             script_run_config=config_to_submit,
+                             tags=tags,
+                             wait_for_completion=wait_for_completion,
+                             wait_for_completion_show_output=wait_for_completion_show_output)
+        else:
+
+            v2_input_datasets = create_v2_inputs(workspace_client, cleaned_input_datasets)
+            v2_output_datasets = create_v2_outputs(cleaned_output_datasets)
+            run = submit_run_v2(workspace=workspace,
+                                v2_input_datasets=v2_input_datasets,
+                                v2_output_datasets=v2_output_datasets,
+                                experiment_name=effective_experiment_name,
+                                script_run_config=config_to_submit,
+                                tags=tags,
+                                wait_for_completion=wait_for_completion,
+                                wait_for_completion_show_output=wait_for_completion_show_output)
 
     if after_submission is not None:
         after_submission(run)
@@ -716,7 +719,8 @@ def _write_run_recovery_file(run: Run) -> None:
 def convert_himl_to_azureml_datasets(
         cleaned_input_datasets: List[DatasetConfig],
         cleaned_output_datasets: List[DatasetConfig],
-        workspace: Union[Workspace, MLClient]) -> Tuple[Dict[str, DatasetConsumptionConfig], Dict[str, OutputFileDatasetConfig]]:
+        workspace: Union[Workspace, MLClient]) -> Tuple[Dict[str, DatasetConsumptionConfig],
+                                                        Dict[str, OutputFileDatasetConfig]]:
     """
     Convert the cleaned input and output datasets into dictionaries of DatasetConsumptionConfigs for use in AzureML.
 
@@ -781,15 +785,12 @@ def _generate_azure_datasets(
         logging.info(f"Stitched returned output datasets: {returned_output_datasets}")
     else:
         print(f"Cleaned input datasets: {cleaned_input_datasets}")
-        # print(f"Environment variables: {os.environ}")
-        # print(f"Run context {RUN_CONTEXT}")
-        # print(f"datasets in run context: {RUN_CONTEXT.input_datasets}")
-        # print(f"run details: {RUN_CONTEXT.get_details()}")
+
         print(f"datasets in run details: {RUN_CONTEXT.get_details()['inputDatasets']}")
         try:
             if len(RUN_CONTEXT.input_datasets) > 0:
                 returned_input_datasets = [Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)])
-                                        for index in range(len(cleaned_input_datasets))]
+                                           for index in range(len(cleaned_input_datasets))]
                 returned_output_datasets = [Path(RUN_CONTEXT.output_datasets[_output_dataset_key(index)])
                                             for index in range(len(cleaned_output_datasets))]
             else:

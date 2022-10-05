@@ -447,12 +447,11 @@ def setup_local_datasets(dataset_configs: List[DatasetConfig],
     :return: Pair of: list of optional paths to the input datasets, list of mountcontexts, one for each mounted dataset.
     """
     workspace = find_workspace_for_local_datasets(aml_workspace, workspace_config_path, dataset_configs)
-    ws = get_workspace_client(subscription_id=workspace.subscription_id, resource_group=workspace.resource_group, workspace_name=workspace.name)
     mounted_input_datasets: List[Optional[Path]] = []
     mount_contexts: List[MountContext] = []
 
     for d in dataset_configs:
-        target_path, mount_context = d.to_input_dataset_local(ws)
+        target_path, mount_context = d.to_input_dataset_local(workspace)
 
         mounted_input_datasets.append(target_path)
 

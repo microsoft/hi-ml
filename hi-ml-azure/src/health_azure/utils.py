@@ -25,7 +25,6 @@ from typing import (Any, Callable, DefaultDict, Dict, Generator, Iterable, List,
                     Union)
 
 import conda_merge
-import mlflow
 import pandas as pd
 import param
 
@@ -34,14 +33,13 @@ from azureml.core import Environment, Experiment, Run, Workspace, get_run
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.run import _OfflineRun
-from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.train.hyperdrive import HyperDriveRun
 
 
 from azure.ai.ml import MLClient
-from azure.ai.ml.entities import AzureBlobDatastore, Job  #, Environment, Workspace
+from azure.ai.ml.entities import AzureBlobDatastore, Job
 from azure.identity import (ClientSecretCredential, DeviceCodeCredential, DefaultAzureCredential,
-                            AzureCliCredential, ManagedIdentityCredential)
+                            ManagedIdentityCredential)
 from mlflow.entities import Run as MLFlowRun
 from mlflow.tracking import MlflowClient
 
@@ -720,8 +718,8 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
     if is_running_in_azure_ml(RUN_CONTEXT):
         return RUN_CONTEXT.experiment.workspace
 
-    # If aml_workspace has been provided, check that it is a V1 Workspace as V2 Workspaces have different properties
-    if aml_workspace and isinstance(aml_workspace, Workspace):
+    # If aml_workspace has been provided, use that
+    if aml_workspace:
         return aml_workspace
 
     if workspace_config_path is None:
