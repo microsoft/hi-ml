@@ -158,13 +158,13 @@ class LossAnalysisCallback(Callback):
             keys.append(ResultsKey.TILE_ID)
         return {key: [] for key in keys}
 
-    def _get_file(self, root_folder: Path, filename: str, epoch: int, order: Optional[str] = None) -> Path:
+    def _get_filename(self, filename: str, epoch: int, order: Optional[str] = None) -> str:
         zero_filled_epoch = str(epoch).zfill(len(str(self.max_epochs)))
         filename = filename.format(zero_filled_epoch, order) if order else filename.format(zero_filled_epoch)
-        return root_folder / filename
+        return filename
 
     def get_loss_cache_file(self, epoch: int) -> Path:
-        return self._get_file(self.cache_folder, "epoch_{}.csv", epoch)
+        return self.cache_folder / self._get_filename(filename="epoch_{}.csv", epoch=epoch)
 
     def get_all_epochs_loss_cache_file(self) -> Path:
         return self.cache_folder / "all_epochs.csv"
@@ -188,7 +188,7 @@ class LossAnalysisCallback(Callback):
         return self.scatter_folder / "slides_with_{}_loss_values.png".format(order)
 
     def get_heatmap_plot_file(self, epoch: int, order: str) -> Path:
-        return self.heatmap_folder / self._get_file(self.heatmap_folder, "epoch_{}_{}_slides.png", epoch, order)
+        return self.heatmap_folder / self._get_filename(filename="epoch_{}_{}_slides.png", epoch=epoch, order=order)
 
     def read_loss_cache(self, epoch: int, idx_col: Optional[ResultsKey] = None) -> pd.DataFrame:
         columns = [ResultsKey.SLIDE_ID, ResultsKey.LOSS]
