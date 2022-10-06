@@ -351,12 +351,6 @@ class MLFlowLogger(LightningLoggerBase):
         if not is_running_in_azure_ml:
             self._start_run()
 
-        # if mlflow_uri is None:
-        # mlflow_uri = ml_client.workspaces.get(workspace_name).mlflow_tracking_uri
-
-        # except UnsupportedModelRegistryStoreURIException as e:
-        #     logging.warning(f"Unable to initialise MLFlow logger due to the following error: {e}")
-
     @rank_zero_only
     def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
         is_epoch_metric = "epoch" in metrics

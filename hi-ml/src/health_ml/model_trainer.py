@@ -93,8 +93,6 @@ def create_lightning_trainer(container: LightningContainer,
             message += "s per node with DDP"
     logging.info(f"Using {message}")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
-    # azureml_logger = AzureMLLogger(enable_logging_outside_azure_ml=container.log_from_vm,
-    #                                run=azureml_run_for_logging)
     mlflow_logger = MLFlowLogger(run=mlflow_run_for_logging)
     loggers = [tensorboard_logger, mlflow_logger]
     storing_logger = StoringLogger()

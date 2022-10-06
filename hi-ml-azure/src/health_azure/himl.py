@@ -68,7 +68,6 @@ class AzureRunInfo:
     """A list of folders that contain all the datasets that the script uses as inputs. Input datasets must be
      specified when calling `submit_to_azure_if_needed`. Here, they are made available as Path objects. If no input
      datasets are specified, the list is empty."""
-    # v2_input_datasets: Optional[Dict[str, Input]]
     output_datasets: List[Optional[Path]]
     """A list of folders that contain all the datasets that the script uses as outputs. Output datasets must be
          specified when calling `submit_to_azure_if_needed`. Here, they are made available as Path objects. If no output
@@ -351,7 +350,6 @@ def submit_run_v2(workspace: Optional[Workspace],
             ml_client = get_workspace_client(workspace_config_path=workspace_config_path)
         else:
             raise ValueError("Either workspace or workspace_config_path must be specified to connect to the Workspace")
-        # raise ValueError(f"Must provide a value for ml_client to submit a job with v2 of the AML SDK")
 
     script = script_run_config.script
     args = script_run_config.arguments
@@ -389,7 +387,6 @@ def submit_run_v2(workspace: Optional[Workspace],
         command=cmd,
         inputs=v2_input_datasets,
         outputs=v2_output_datasets,
-        # todo: how to pass a newly created environment?
         environment=environment,
         environment_variables=env_vars_copy,
         compute=compute_target,
@@ -481,13 +478,14 @@ def create_v2_inputs(workspace_client: MLClient, input_datasets: List[DatasetCon
         version = input_dataset.version or 1
         data_asset: Data = workspace_client.data.get(input_dataset.name, version=version)
         data_path = data_asset.id
-        # v1_datastore_path = f"azureml://datastores/{input_dataset.datastore}/paths/datasets/{input_dataset.name}"
+        # Note that there are alternative formats that the input path can take, such as:
+        # v1_datastore_path = f"azureml://datastores/{input_dataset.datastore}/paths/<path_to_dataset>"
         # v2_dataset_path = f"azureml:{input_dataset.name}:1"
 
         inputs[INPUT_DATASETS_ARG_NAME] = Input(
             type=AssetTypes.URI_FOLDER,
             path=data_path,
-            # mode=InputOutputModes.DIRECT,
+            mode=InputOutputModes.DIRECT,
         )
     return inputs
 
@@ -496,6 +494,7 @@ def create_v2_outputs(output_datasets: List[DatasetConfig]) -> Dict[str, Output]
     outputs = {}
     for output_dataset in output_datasets:
         v1_datastore_path = f"azureml://datastores/{output_dataset.datastore}/paths/{output_dataset.name}"
+        # Note that there are alternative formats that the input path can take, such as:
         # v2_data_asset_path = f"azureml:{output_dataset.name}@latest"
         outputs[OUTPUT_DATASETS_ARG_NAME] = Output(
             type=AssetTypes.URI_FOLDER,
@@ -800,9 +799,6 @@ def _generate_azure_datasets(
         logging.info(f"Stitched returned input datasets: {returned_input_datasets}")
         logging.info(f"Stitched returned output datasets: {returned_output_datasets}")
     else:
-        print(f"Cleaned input datasets: {cleaned_input_datasets}")
-
-        print(f"datasets in run details: {RUN_CONTEXT.get_details()['inputDatasets']}")
         try:
             if len(RUN_CONTEXT.input_datasets) > 0:
                 returned_input_datasets = [Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)])
@@ -812,7 +808,6 @@ def _generate_azure_datasets(
             else:
                 raise ValueError("Run context has no input datasets associated")
         except:
-            print(f"Sys args: {sys.argv}")
             returned_input_datasets = []
             returned_output_datasets = []
             for sys_arg in sys.argv:
@@ -822,9 +817,6 @@ def _generate_azure_datasets(
                 if OUTPUT_DATASETS_ARG_NAME in sys_arg:
                     output_dataset_strings = sys_arg.split("--" + OUTPUT_DATASETS_ARG_NAME + "=")[-1].split(",")
                     returned_output_datasets += [Path(p) for p in output_dataset_strings]
-
-            print(f"Returned input datasets: {returned_input_datasets}")
-            print(f"Returned output datasets: {returned_output_datasets}")
 
     return AzureRunInfo(
         input_datasets=returned_input_datasets,  # type: ignore

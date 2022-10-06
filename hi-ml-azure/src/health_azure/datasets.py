@@ -163,10 +163,8 @@ def get_or_create_dataset(datastore_name: str,
         try:
             aml_dataset = _get_or_create_v2_dataset(datastore_name, dataset_name, workspace_client)
         except HttpResponseError as e:
-            if "Cannot create V2 Data Version in V1 Data Container" in e.message:
-                logging.info("This appears to be a V1 Data Container. Reverting to API V1 to create this Dataset")
-            # Retrieve a v1 workspace connection to save create the dataset inside
-            # workspace = get_workspace(aml_workspace=workspace)
+            if "Cannot create v2 Data Version in v1 Data Container" in e.message:
+                logging.info("This appears to be a v1 Data Container. Reverting to API v1 to create this Dataset")
             aml_dataset = _get_or_create_v1_dataset(datastore_name, dataset_name, workspace)
 
         return aml_dataset
@@ -289,7 +287,6 @@ class DatasetConfig:
                                                 strictly_aml_v1=strictly_aml_v1)
         # If running on windows then self.target_folder may be a WindowsPath, make sure it is
         # in posix format for Azure.
-        # logging.info("Getting named input from V1 Azure ML Dataset")
         use_mounting = False if self.use_mounting is None else self.use_mounting
 
         named_input = azureml_dataset.as_named_input(_input_dataset_key(index=dataset_index))

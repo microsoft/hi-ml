@@ -1321,10 +1321,8 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock, moc
     cross_validation_metric_name = cross_validation_metric_name or ""
     mock_sys_args.return_value = ["", "--azureml"]
     with patch.object(Environment, "get", return_value="dummy_env"):
-        # with patch("health_azure.utils.get_workspace") as mock_get_workspace:
         mock_workspace = MagicMock()
         mock_workspace.compute_targets = {"foo": mock_compute_cluster}
-        # mock_get_workspace.return_value = mock_workspace
         with patch("health_azure.himl.submit_run") as mock_submit_run:
             with patch("health_azure.himl.HyperDriveConfig") as mock_hyperdrive_config:
                 crossval_config = himl.create_crossval_hyperdrive_config(

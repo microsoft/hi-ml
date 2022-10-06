@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 #  ------------------------------------------------------------------------------------------
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
@@ -221,7 +220,6 @@ class Runner:
         # Get default datastore from the provided workspace. Authentication can take a few seconds, hence only do
         # that if we are really submitting to AzureML.
         workspace: Optional[Workspace] = None
-        # if self.experiment_config.cluster:
         try:
             workspace = get_workspace()
         except ValueError:
@@ -229,7 +227,6 @@ class Runner:
                              "(config.json) was found.")
 
         datastore = self.lightning_container.datastore_name or workspace.get_default_datastore().name
-        # default_datastore = workspace.get_default_datastore().name #if workspace is not None else ""
 
         local_datasets = self.lightning_container.local_datasets
         all_local_datasets = [Path(p) for p in local_datasets] if len(local_datasets) > 0 else []
@@ -279,7 +276,6 @@ class Runner:
             azure_run_info = submit_to_azure_if_needed(
                 strictly_aml_v1=self.experiment_config.strictly_aml_v1,
                 input_datasets=input_datasets,  # type: ignore
-                # default_datastore=default_datastore,
                 submit_to_azureml=False)
         if azure_run_info.run:
             # This code is only reached inside Azure. Set display name again - this will now affect
