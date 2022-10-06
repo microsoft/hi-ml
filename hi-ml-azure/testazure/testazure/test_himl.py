@@ -265,10 +265,10 @@ def test_to_datasets(
         mock_workspace: mock.MagicMock,
         mock_dataset_consumption_config: mock.MagicMock,
         mock_output_file_dataset_config: mock.MagicMock) -> None:
-    def to_input_dataset(workspace: Workspace, dataset_index: int, ) -> DatasetConsumptionConfig:
+    def to_input_dataset(workspace: Workspace, dataset_index: int, use_aml_sdk_v1: bool) -> DatasetConsumptionConfig:
         return mock_dataset_consumption_config
 
-    def to_output_dataset(workspace: Workspace, dataset_index: int, ) -> DatasetConsumptionConfig:
+    def to_output_dataset(workspace: Workspace, dataset_index: int, use_aml_sdk_v1: bool) -> DatasetConsumptionConfig:
         return mock_output_file_dataset_config
 
     mock_dataset_consumption_config.name = "A Consumption Config"
@@ -279,12 +279,14 @@ def test_to_datasets(
         himl.convert_himl_to_azureml_datasets(
             cleaned_input_datasets=[mock_dataset_config, mock_dataset_config],
             cleaned_output_datasets=[],
+            use_aml_sdk_v1=True,
             workspace=mock_workspace)
         assert "already an input dataset with name" in str(ex1)
     with pytest.raises(ValueError) as ex2:
         himl.convert_himl_to_azureml_datasets(
             cleaned_input_datasets=[mock_dataset_config, mock_dataset_config],
             cleaned_output_datasets=[],
+            use_aml_sdk_v1=True,
             workspace=mock_workspace)
         assert "already an output dataset with name" in str(ex2)
 
@@ -293,6 +295,7 @@ def test_to_datasets(
     inputs, outputs = himl.convert_himl_to_azureml_datasets(
         cleaned_input_datasets=cleaned_input_datasets,
         cleaned_output_datasets=cleaned_output_datasets,
+        use_aml_sdk_v1=True,
         workspace=mock_workspace)
     assert len(inputs) == 1
     assert len(outputs) == 1
@@ -314,12 +317,14 @@ def test_create_run_configuration_fails(
     with pytest.raises(ValueError) as e:
         himl.create_run_configuration(
             compute_cluster_name="b",
+            use_aml_sdk_v1=True,
             workspace=mock_workspace)
     assert "One of the two arguments 'aml_environment_name' or 'conda_environment_file' must be given." == str(e.value)
     with pytest.raises(ValueError) as e:
         himl.create_run_configuration(
             conda_environment_file=Path(__file__),
             compute_cluster_name="b",
+            use_aml_sdk_v1=True,
             workspace=mock_workspace)
     assert "Could not find the compute target b in the AzureML workspace" in str(e.value)
     assert existing_compute_target in str(e.value)
@@ -421,6 +426,7 @@ def test_create_run_configuration_correct_env(mock_create_environment: MagicMock
             mock_environment_get.side_effect = Exception()
             run_config = himl.create_run_configuration(workspace=mock_workspace,
                                                        compute_cluster_name="dummy_compute_cluster",
+                                                       use_aml_sdk_v1=True,
                                                        conda_environment_file=conda_env_path)
 
             # check that mock_register has been called once with the expected args
@@ -438,6 +444,7 @@ def test_create_run_configuration_correct_env(mock_create_environment: MagicMock
 
             _ = himl.create_run_configuration(mock_workspace,
                                               "dummy_compute_cluster",
+                                              use_aml_sdk_v1=True,
                                               conda_environment_file=conda_env_path)
 
             # check mock_register has still only been called once
@@ -463,6 +470,7 @@ def test_create_run_configuration_correct_env(mock_create_environment: MagicMock
             with pytest.raises(Exception) as e:
                 himl.create_run_configuration(mock_workspace,
                                               "dummy_compute_cluster",
+                                              True,
                                               conda_environment_file=conda_env_path)
                 assert "you must specify the python version" in str(e)
 
@@ -476,6 +484,7 @@ def test_create_run_configuration_correct_env(mock_create_environment: MagicMock
                 mock_environment_get.side_effect = Exception()
                 run_config = himl.create_run_configuration(mock_workspace,
                                                            "dummy_compute_cluster",
+                                                           True,
                                                            conda_environment_file=conda_env_path)
             assert run_config.environment == dummy_env
 
@@ -1049,7 +1058,7 @@ def test_mounting_and_downloading_dataset(tmp_path: Path) -> None:
                                            use_mounting=use_mounting,
                                            target_folder=target_path)
             logging.info(f"ready to {action}")
-            paths, mount_contexts = setup_local_datasets(dataset_configs=[dataset_config], aml_workspace=workspace)
+            paths, mount_contexts = setup_local_datasets(dataset_configs=[dataset_config], use_aml_sdk_v1=True, aml_workspace=workspace)
             logging.info(f"{action} done")
             path = paths[0]
             assert path is not None
