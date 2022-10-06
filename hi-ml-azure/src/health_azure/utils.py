@@ -2049,7 +2049,8 @@ def get_credential() -> Union[ClientSecretCredential, DeviceCodeCredential]:
         try:
             credential = DefaultAzureCredential()
             credential.get_token("https://management.azure.com/.default")
-        except:
+        except Exception as e:
+            logging.warning(f"Unable to get credential via DefaultAzureCredential: {e}")
             credential = DeviceCodeCredential()
             credential.get_token("https://management.azure.com/.default")
         return credential

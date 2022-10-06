@@ -733,8 +733,8 @@ def convert_himl_to_azureml_datasets(
         cleaned_output_datasets: List[DatasetConfig],
         strictly_aml_v1: bool,
         workspace: Workspace,
-        workspace_client: Optional[MLClient] = None,
-    ) -> Tuple[Dict[str, DatasetConsumptionConfig], Dict[str, OutputFileDatasetConfig]]:
+        workspace_client: Optional[MLClient] = None
+) -> Tuple[Dict[str, DatasetConsumptionConfig], Dict[str, OutputFileDatasetConfig]]:
     """
     Convert the cleaned input and output datasets into dictionaries of DatasetConsumptionConfigs for use in AzureML.
 
@@ -799,7 +799,8 @@ def _generate_azure_datasets(
         logging.info(f"Stitched returned input datasets: {returned_input_datasets}")
         logging.info(f"Stitched returned output datasets: {returned_output_datasets}")
     else:
-        try:
+        if hasattr(RUN_CONTEXT, "input_datasets"):
+            # This is a v1 Job, so we can get the input datasets from the run context
             if len(RUN_CONTEXT.input_datasets) > 0:
                 returned_input_datasets = [Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)])
                                            for index in range(len(cleaned_input_datasets))]
@@ -807,7 +808,8 @@ def _generate_azure_datasets(
                                             for index in range(len(cleaned_output_datasets))]
             else:
                 raise ValueError("Run context has no input datasets associated")
-        except:
+        else:
+            # This is a v2 Job, so we need to get the input datasets from the command line args
             returned_input_datasets = []
             returned_output_datasets = []
             for sys_arg in sys.argv:
