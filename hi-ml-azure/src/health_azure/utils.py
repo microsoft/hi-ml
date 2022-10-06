@@ -1434,7 +1434,7 @@ def download_file_if_necessary(run: Run, filename: str, output_file: Path, overw
         output_file.parent.mkdir(exist_ok=True, parents=True)
         _download_file_from_run(run, filename, output_file, validate_checksum=True)
         assert output_file.exists()
-        logging.info("File is downloaded at", output_file)
+        logging.info(f"File is downloaded at {output_file}")
     return output_file
 
 
