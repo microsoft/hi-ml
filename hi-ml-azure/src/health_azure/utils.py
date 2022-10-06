@@ -1309,7 +1309,7 @@ def get_run_file_names(run: Run, prefix: str = "") -> List[str]:
     :return: A list of paths within the Run's container
     """
     all_files = run.get_file_names()
-    print(f"Selecting files with prefix {prefix}")
+    logging.info(f"Selecting files with prefix {prefix}")
     return [f for f in all_files if f.startswith(prefix)] if prefix else all_files
 
 
@@ -1429,12 +1429,12 @@ def download_file_if_necessary(run: Run, filename: str, output_file: Path, overw
     :return: Local path to the downloaded file.
     """
     if not overwrite and output_file.exists():
-        print("File already exists at", output_file)
+        logging.info("File already exists at", output_file)
     else:
         output_file.parent.mkdir(exist_ok=True, parents=True)
         _download_file_from_run(run, filename, output_file, validate_checksum=True)
         assert output_file.exists()
-        print("File is downloaded at", output_file)
+        logging.info("File is downloaded at", output_file)
     return output_file
 
 
