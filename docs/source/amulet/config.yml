@@ -1,3 +1,4 @@
+---
 environment:
   image: azureml/openmpi3.1.2-cuda10.2-cudnn7-ubuntu18.04:latest
   conda_yaml_file: $CONFIG_DIR/environment.yml
@@ -22,9 +23,9 @@ jobs:
 # either use a different name or respond with "replace existing job" if Amulet
 # complains that a job of that name already exists.
 - name: Amulet Example on CPU
- sku: C1
- command:
- - python docs/source/amulet/amulet_script.py
+  sku: C1
+  command:
+  - python docs/source/amulet/amulet_script.py
 - name: Amulet Example with 2 GPUs on same node, don't delete RANK
   sku: G2
   command:
