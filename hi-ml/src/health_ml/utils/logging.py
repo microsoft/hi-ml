@@ -17,15 +17,12 @@ from typing import Any, Callable, Dict, Mapping, Optional, Union
 
 import mlflow
 import torch
-from azure.ai.ml import MLClient
 from azureml.core import Run, Workspace
-from mlflow.tracking.registry import UnsupportedModelRegistryStoreURIException
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import ProgressBarBase
 from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.utilities.distributed import rank_zero_only
 from pytorch_lightning.utilities.logger import _convert_params, _flatten_dict, _sanitize_params
-from torch import Tensor
 
 from health_azure import is_running_in_azure_ml
 from health_azure.utils import PathOrString, RUN_CONTEXT, create_aml_run_object

@@ -30,6 +30,7 @@ from azureml.core import Experiment, Run, ScriptRunConfig, Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.environment import CondaDependencies
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
+from azureml._vendor.azure_storage.blob import ContainerClient
 
 import health_azure.utils as util
 from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore
@@ -853,8 +854,8 @@ def test_set_environment_variables_for_multi_node(caplog: LogCaptureFixture) -> 
         with mock.patch.dict(os.environ, env_dict_with_master_var, clear=True):
             util.set_environment_variables_for_multi_node()
             out = caplog.messages[-1]
-            assert f"Distributed training: MASTER_ADDR = {master_addr_mock}, MASTER_PORT = "
-            f"{port_mock}, NODE_RANK = {node_rank_mock}" in out
+            assert (f"Distributed training: MASTER_ADDR = {master_addr_mock}, MASTER_PORT = "
+                    f"{port_mock}, NODE_RANK = {node_rank_mock}") in out
             assert os.environ[ENV_MASTER_ADDR] == master_addr_mock
             assert os.environ[ENV_MASTER_PORT] == port_mock
 
@@ -875,8 +876,8 @@ def test_set_environment_variables_for_multi_node(caplog: LogCaptureFixture) -> 
         with mock.patch.dict(os.environ, env_dict_with_mpi_master_var, clear=True):
             util.set_environment_variables_for_multi_node()
             out = caplog.messages[-1]
-            assert f"Distributed training: MASTER_ADDR = {mpi_master_addr_mock}, MASTER_PORT = "
-            f"{port_mock}, NODE_RANK = {node_rank_mock}" in out
+            assert (f"Distributed training: MASTER_ADDR = {mpi_master_addr_mock}, MASTER_PORT = "
+                    f"{port_mock}, NODE_RANK = {node_rank_mock}") in out
             assert os.environ[ENV_MASTER_ADDR] == mpi_master_addr_mock
             assert os.environ[ENV_MASTER_PORT] == port_mock
 
@@ -896,8 +897,8 @@ def test_set_environment_variables_for_multi_node(caplog: LogCaptureFixture) -> 
         with mock.patch.dict(os.environ, env_dict_with_env_master_ip_var, clear=True):
             util.set_environment_variables_for_multi_node()
             out = caplog.messages[-1]
-            assert f"Distributed training: MASTER_ADDR = {master_ip_mock}, MASTER_PORT = "
-            f"{port_mock}, NODE_RANK = {node_rank_mock}" in out
+            assert (f"Distributed training: MASTER_ADDR = {master_ip_mock}, MASTER_PORT = "
+                    f"{port_mock}, NODE_RANK = {node_rank_mock}") in out
             assert os.environ[ENV_MASTER_ADDR] == master_ip_mock
             assert os.environ[ENV_MASTER_PORT] == port_mock
 
@@ -916,8 +917,8 @@ def test_set_environment_variables_for_multi_node(caplog: LogCaptureFixture) -> 
         with mock.patch.dict(os.environ, env_dict_with_mpi_master_var_no_master_port, clear=True):
             util.set_environment_variables_for_multi_node()
             out = caplog.messages[-1]
-            assert f"Distributed training: MASTER_ADDR = {mpi_master_addr_mock}, MASTER_PORT = "
-            f"{MASTER_PORT_DEFAULT}, NODE_RANK = {node_rank_mock}" in out
+            assert (f"Distributed training: MASTER_ADDR = {mpi_master_addr_mock}, MASTER_PORT = "
+                    f"{MASTER_PORT_DEFAULT}, NODE_RANK = {node_rank_mock}") in out
             assert os.environ[ENV_MASTER_ADDR] == mpi_master_addr_mock
             assert os.environ[ENV_MASTER_PORT] == str(MASTER_PORT_DEFAULT)
 
@@ -973,8 +974,8 @@ def test_set_env_vars_multi_node_split_master_addr(
             with mock.patch.dict(os.environ, env_dict_with_master_var, clear=True):
                 util.set_environment_variables_for_multi_node()
                 out = caplog.messages[-1]
-                assert f"Distributed training: MASTER_ADDR = {addr}, MASTER_PORT = "
-                f"{port}, NODE_RANK = {node_rank_mock}" in out
+                assert (f"Distributed training: MASTER_ADDR = {addr}, MASTER_PORT = "
+                        f"{port}, NODE_RANK = {node_rank_mock}") in out
     else:
         with pytest.raises(ValueError) as ex:
             with mock.patch.dict(os.environ, env_dict_with_master_var, clear=True):
@@ -1346,17 +1347,32 @@ def test_get_run_source(dummy_recovery_id: str,
             assert isinstance(script_config.run, str)
 
 
-def delete_existing_blobs(datastore: AzureBlobDatastore, prefix: str) -> None:
+def get_container_client(datastore: AzureBlobDatastore) -> ContainerClient:
+    """Gets a ContainerClient to interact with the blobs in the given datastore.
+
+    param datastore: The datastore from which the files should be read.
+    """
+    return datastore.blob_service.get_container_client(datastore.container_name)
+
+
+def get_blobs_in_datastore(datastore: AzureBlobDatastore, prefix: str) -> List[Any]:
+    """Gets all blobs in the datastore where the name starts with the given prefix.
+
+    param datastore: The datastore from which the files should be read.
+    param prefix: The prefix string for the files that should be returned.
+    """
+    return list(get_container_client(datastore).list_blobs(name_starts_with=prefix))
+
+
+def delete_blobs_in_datastore(datastore: AzureBlobDatastore, prefix: str) -> None:
     """Deletes all existing files in blob storage at the location that the test uses.
 
     param datastore: The datastore from which the files should be deleted.
     param prefix: The prefix string for the files that should be deleted.
     """
-    container = datastore.container_name
-    existing_blobs = list(datastore.blob_service.list_blobs(prefix=prefix,
-                                                            container_name=container))
-    for existing_blob in existing_blobs:
-        datastore.blob_service.delete_blob(container_name=container, blob_name=existing_blob.name)
+    container_client = get_container_client(datastore)
+    for existing_blob in get_blobs_in_datastore(datastore, prefix):
+        container_client.delete_blob(existing_blob.name)
 
 
 @pytest.mark.parametrize("overwrite", [True, False])
@@ -1374,7 +1390,7 @@ def test_download_from_datastore(tmp_path: Path, overwrite: bool) -> None:
     local_data_path.mkdir()
     test_data_path_remote = "test_data/abc"
 
-    delete_existing_blobs(datastore=default_datastore, prefix=test_data_path_remote)
+    delete_blobs_in_datastore(datastore=default_datastore, prefix=test_data_path_remote)
     try:
         # Create dummy data files and upload to datastore (checking they are uploaded)
         dummy_filenames = []
@@ -1387,8 +1403,7 @@ def test_download_from_datastore(tmp_path: Path, overwrite: bool) -> None:
         default_datastore.upload(str(local_data_path), test_data_path_remote, overwrite=False)
         # Wait a bit because there seem to be spurious errors with files not yet existing at this point
         time.sleep(0.1)
-        existing = list(default_datastore.blob_service.list_blobs(prefix=test_data_path_remote,
-                                                                  container_name=default_datastore.container_name))
+        existing = get_blobs_in_datastore(default_datastore, prefix=test_data_path_remote)
         assert len(existing) == num_dummy_files
 
         # Check that the file doesn't currently exist at download location
@@ -1403,7 +1418,7 @@ def test_download_from_datastore(tmp_path: Path, overwrite: bool) -> None:
         expected_download_paths = [expected_local_download_dir / dummy_filename for dummy_filename in dummy_filenames]
         assert all([p.exists() for p in expected_download_paths])
     finally:
-        delete_existing_blobs(datastore=default_datastore, prefix=test_data_path_remote)
+        delete_blobs_in_datastore(datastore=default_datastore, prefix=test_data_path_remote)
 
 
 @pytest.mark.parametrize("overwrite", [True, False])
@@ -1416,14 +1431,13 @@ def test_upload_to_datastore(tmp_path: Path, overwrite: bool) -> None:
     """
     ws = DEFAULT_WORKSPACE.workspace
     default_datastore: AzureBlobDatastore = ws.get_default_datastore()
-    container = default_datastore.container_name
     dummy_file_content = "Hello world"
 
     remote_data_dir = "test_data"
     dummy_file_name = Path("abc/uploaded_file.txt")
     expected_remote_path = Path(remote_data_dir) / dummy_file_name.name
 
-    delete_existing_blobs(datastore=default_datastore, prefix=str(expected_remote_path.as_posix()))
+    delete_blobs_in_datastore(datastore=default_datastore, prefix=str(expected_remote_path.as_posix()))
 
     try:
         # Create a dummy data file and upload to datastore
@@ -1436,11 +1450,10 @@ def test_upload_to_datastore(tmp_path: Path, overwrite: bool) -> None:
         # Wait a bit because there seem to be spurious errors with files not yet existing at this point
         time.sleep(0.1)
 
-        existing_blobs = list(default_datastore.blob_service.list_blobs(prefix=str(expected_remote_path.as_posix()),
-                                                                        container_name=container))
+        existing_blobs = get_blobs_in_datastore(default_datastore, prefix=str(expected_remote_path.as_posix()))
         assert len(existing_blobs) == 1
     finally:
-        delete_existing_blobs(datastore=default_datastore, prefix=str(expected_remote_path.as_posix()))
+        delete_blobs_in_datastore(datastore=default_datastore, prefix=str(expected_remote_path.as_posix()))
 
 
 @pytest.mark.parametrize("arguments, run_id", [

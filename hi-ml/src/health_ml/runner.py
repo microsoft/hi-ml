@@ -26,6 +26,7 @@ from health_azure import AzureRunInfo, submit_to_azure_if_needed  # noqa: E402
 from health_azure.datasets import create_dataset_configs  # noqa: E402
 from health_azure.logging import logging_to_stdout   # noqa: E402
 from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
+from health_azure.amulet import prepare_amulet_job  # noqa: E402
 from health_azure.utils import (get_workspace, get_workspace_client, is_local_rank_zero,  # noqa: E402
                                 is_running_in_azure_ml, set_environment_variables_for_multi_node,
                                 create_argparser, parse_arguments, ParserResult, apply_overrides)
@@ -305,6 +306,7 @@ class Runner:
         # Suppress the logging from all processes but the one for GPU 0 on each node, to make log files more readable
         logging_to_stdout("INFO" if is_local_rank_zero() else "ERROR")
         package_setup_and_hacks()
+        prepare_amulet_job()
 
         # Set environment variables for multi-node training if needed. This function will terminate early
         # if it detects that it is not in a multi-node environment.

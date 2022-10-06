@@ -18,9 +18,10 @@ from azureml.train.hyperdrive import HyperDriveConfig
 
 from health_azure import create_crossval_hyperdrive_config
 from health_azure.himl import create_grid_hyperdrive_config
-from health_azure.utils import (RUN_CONTEXT, PathOrString, is_global_rank_zero, is_running_in_azure_ml,
-                                get_amlt_aml_working_dir, is_amulet_job, ENV_AMLT_PROJECT_NAME, ENV_AMLT_INPUT_OUTPUT,
-                                ENV_AMLT_SNAPSHOT_DIR, ENV_AMLT_AZ_BATCHAI_DIR)
+from health_azure.amulet import (ENV_AMLT_PROJECT_NAME, ENV_AMLT_INPUT_OUTPUT,
+                                 ENV_AMLT_SNAPSHOT_DIR, ENV_AMLT_AZ_BATCHAI_DIR,
+                                 is_amulet_job, get_amulet_aml_working_dir)
+from health_azure.utils import (RUN_CONTEXT, PathOrString, is_global_rank_zero, is_running_in_azure_ml)
 from health_ml.utils import fixed_paths
 from health_ml.utils.common_utils import (CHECKPOINT_FOLDER,
                                           create_unique_timestamp_id,
@@ -121,7 +122,7 @@ class ExperimentFolderHandler(Parameterized):
                 # Job submitted via Amulet
                 amlt_root_folder = Path(os.environ[ENV_AMLT_INPUT_OUTPUT])
                 project_name = os.environ[ENV_AMLT_PROJECT_NAME]
-                snapshot_dir = get_amlt_aml_working_dir()
+                snapshot_dir = get_amulet_aml_working_dir()
                 assert snapshot_dir, \
                     f"Either {ENV_AMLT_SNAPSHOT_DIR} or {ENV_AMLT_AZ_BATCHAI_DIR} must exist in env vars"
                 print(f"Found the following environment variables set by Amulet: "

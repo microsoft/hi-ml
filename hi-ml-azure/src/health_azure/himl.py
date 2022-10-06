@@ -30,12 +30,12 @@ from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig, GridParameterSampling, PrimaryMetricGoal, choice
 from azureml.dataprep.fuse.daemon import MountContext
 
-from health_azure.utils import (ENV_AMLT_DATAREFERENCE_DATA, ENV_AMLT_DATAREFERENCE_OUTPUT, ENV_SERVICE_PRINCIPAL_ID,
-                                ENV_SERVICE_PRINCIPAL_PASSWORD, ENV_TENANT_ID, create_python_environment,
-                                create_run_recovery_id, find_file_in_parent_to_pythonpath, is_amulet_job,
+from health_azure.amulet import (ENV_AMLT_DATAREFERENCE_DATA, ENV_AMLT_DATAREFERENCE_OUTPUT, is_amulet_job)
+from health_azure.utils import (create_python_environment, create_run_recovery_id, find_file_in_parent_to_pythonpath,
                                 is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
                                 run_duration_string_to_seconds, to_azure_friendly_string, RUN_CONTEXT, get_workspace,
-                                PathOrString, DEFAULT_ENVIRONMENT_VARIABLES, get_workspace_client)
+                                PathOrString, DEFAULT_ENVIRONMENT_VARIABLES, get_workspace_client,
+                                ENV_SERVICE_PRINCIPAL_ID, ENV_SERVICE_PRINCIPAL_PASSWORD, ENV_TENANT_ID)
 from health_azure.datasets import (DatasetConfig, StrOrDatasetConfig, _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets, setup_local_datasets)
 
