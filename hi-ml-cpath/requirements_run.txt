@@ -17,3 +17,5 @@ torch==1.10
 torchmetrics==0.6.0
 umap-learn==0.5.2
 yacs==0.1.8
+--pre
+azure-ai-ml

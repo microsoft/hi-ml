@@ -136,6 +136,7 @@ def validate_compute_cluster(workspace: Workspace, compute_cluster_name: str, nu
 
 def create_run_configuration(workspace: Workspace,
                              compute_cluster_name: str,
+                             use_aml_sdk_v1: bool,
                              conda_environment_file: Optional[Path] = None,
                              aml_environment_name: str = "",
                              environment_variables: Optional[Dict[str, str]] = None,
@@ -145,6 +146,7 @@ def create_run_configuration(workspace: Workspace,
                              docker_shm_size: str = "",
                              num_nodes: int = 1,
                              max_run_duration: str = "",
+                             workspace_client: Optional[MLClient] = None,
                              input_datasets: Optional[List[DatasetConfig]] = None,
                              output_datasets: Optional[List[DatasetConfig]] = None,
                              ) -> RunConfiguration:
@@ -221,11 +223,12 @@ def create_run_configuration(workspace: Workspace,
         run_config.node_count = distributed_job_config.node_count
 
     if input_datasets or output_datasets:
-        ws = get_workspace_client(subscription_id=workspace.subscription_id, resource_group=workspace.resource_group,
-                                  workspace_name=workspace.name)
         inputs, outputs = convert_himl_to_azureml_datasets(cleaned_input_datasets=input_datasets or [],
                                                            cleaned_output_datasets=output_datasets or [],
-                                                           workspace=ws)
+                                                           use_aml_sdk_v1=use_aml_sdk_v1,
+                                                           workspace=workspace,
+                                                           workspace_client=workspace_client,
+                                                           )
         run_config.data = inputs
         run_config.output_data = outputs
 
@@ -620,8 +623,11 @@ def submit_to_azure_if_needed(  # type: ignore
         logs_folder.mkdir(exist_ok=True)
 
         mounted_input_datasets, mount_contexts = setup_local_datasets(cleaned_input_datasets,
+                                                                      use_aml_sdk_v1,
                                                                       aml_workspace,
-                                                                      workspace_config_path)
+                                                                      workspace_client,
+                                                                      workspace_config_path,
+                                                                    )
 
         return AzureRunInfo(
             input_datasets=mounted_input_datasets,
@@ -638,6 +644,7 @@ def submit_to_azure_if_needed(  # type: ignore
         snapshot_root_directory = Path.cwd()
 
     workspace = get_workspace(aml_workspace, workspace_config_path)
+    workspace_client = get_workspace_client(workspace_client)
     print(f"Loaded AzureML workspace {workspace.name}")
 
     if conda_environment_file is None:
@@ -647,6 +654,7 @@ def submit_to_azure_if_needed(  # type: ignore
 
     run_config = create_run_configuration(
         workspace=workspace,
+        workspace_client=workspace_client,
         compute_cluster_name=compute_cluster_name,
         aml_environment_name=aml_environment_name,
         conda_environment_file=conda_environment_file,
@@ -658,7 +666,8 @@ def submit_to_azure_if_needed(  # type: ignore
         num_nodes=num_nodes,
         max_run_duration=max_run_duration,
         input_datasets=cleaned_input_datasets,
-        output_datasets=cleaned_output_datasets
+        output_datasets=cleaned_output_datasets,
+        use_aml_sdk_v1=use_aml_sdk_v1
     )
     script_run_config = create_script_run(snapshot_root_directory=snapshot_root_directory,
                                           entry_script=entry_script,
@@ -719,8 +728,11 @@ def _write_run_recovery_file(run: Run) -> None:
 def convert_himl_to_azureml_datasets(
         cleaned_input_datasets: List[DatasetConfig],
         cleaned_output_datasets: List[DatasetConfig],
-        workspace: Union[Workspace, MLClient]) -> Tuple[Dict[str, DatasetConsumptionConfig],
-                                                        Dict[str, OutputFileDatasetConfig]]:
+        use_aml_sdk_v1: bool,
+        workspace: Workspace,
+        workspace_client: Optional[MLClient] = None,
+    ) -> Tuple[Dict[str, DatasetConsumptionConfig],
+               Dict[str, OutputFileDatasetConfig]]:
     """
     Convert the cleaned input and output datasets into dictionaries of DatasetConsumptionConfigs for use in AzureML.
 
@@ -731,7 +743,8 @@ def convert_himl_to_azureml_datasets(
     """
     inputs = {}
     for index, d in enumerate(cleaned_input_datasets):
-        consumption = d.to_input_dataset(workspace=workspace, dataset_index=index)
+        consumption = d.to_input_dataset(dataset_index=index, workspace=workspace, use_aml_sdk_v1=use_aml_sdk_v1,
+                                         workspace_client=workspace_client)
         if isinstance(consumption, DatasetConsumptionConfig):
             if consumption.name in inputs:
                 raise ValueError(f"There is already an input dataset with name '{consumption.name}' set up?")

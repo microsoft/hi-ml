@@ -376,22 +376,24 @@ class MLFlowLogger(LightningLoggerBase):
             return
         params_final = _preprocess_hyperparams(self, params)
         print(f"Attempting to log hyperparameters: {params_final}")
-        retrieved_run = mlflow.get_run(run_id=self.run_id)
-        run_data = retrieved_run.data
-        existing_params = run_data.params
-        existing_keys = existing_params.keys()
-        new_params = {}
+        if self.run_id is not None:
+            retrieved_run = mlflow.get_run(run_id=self.run_id)
+            run_data = retrieved_run.data
+            existing_params = run_data.params
+            existing_keys = existing_params.keys()
+            new_params = {}
 
-        for key, val in params_final.items():
-            if key in existing_params:
-                num_related_keys = len([k for k in existing_keys if key in k])
-                new_key = key + f"_{num_related_keys}"
-                new_params[new_key] = val
-            else:
-                new_params[key] = val
+            for key, val in params_final.items():
+                if key in existing_params:
+                    num_related_keys = len([k for k in existing_keys if key in k])
+                    new_key = key + f"_{num_related_keys}"
+                    new_params[new_key] = val
+                else:
+                    new_params[key] = val
+            params_final = new_params
 
         if len(params_final) > 0:
-            mlflow.log_params(new_params)
+            mlflow.log_params(params_final)
 
     def experiment(self) -> Optional[str]:
         return self.experiment_name

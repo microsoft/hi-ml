@@ -2069,33 +2069,36 @@ def get_credential() -> Union[ClientSecretCredential, DeviceCodeCredential]:
         return None
 
 
-def get_workspace_client(
-    workspace_config_path: Optional[str] = None,
-    subscription_id: Optional[str] = None,
-    resource_group: Optional[str] = None,
-    workspace_name: str = None
-) -> MLClient:
-        credential = get_credential()
-        if workspace_config_path:
-            workspace_client = MLClient.from_config(credential=credential, path=str(workspace_config_path))
-        elif subscription_id and resource_group and workspace_name:
-            workspace_client = MLClient(
-                subscription_id=subscription_id,
-                resource_group_name=resource_group,
-                workspace_name=workspace_name,
-                credential=credential)
-        else:
-            try:
-                workspace = get_workspace()
-                workspace_client = MLClient(
-                    subscription_id=workspace.subscription_id,
-                    resource_group_name=workspace.resource_group,
-                    workspace_name=workspace.name,
-                    credential=credential)
-            except ValueError as e:
-                raise ValueError(f"Couldn't connect to MLClient: {e}")
-        logging.info(f"Logged into AzureML workspace {workspace_client.workspace_name}")
+def get_workspace_client(workspace_client: Optional[MLClient] = None,
+                         workspace_config_path: Optional[str] = None,
+                         subscription_id: Optional[str] = None,
+                         resource_group: Optional[str] = None,
+                         workspace_name: str = None
+                         ) -> MLClient:
+    if workspace_client:
         return workspace_client
+
+    credential = get_credential()
+    if workspace_config_path:
+        workspace_client = MLClient.from_config(credential=credential, path=str(workspace_config_path))
+    elif subscription_id and resource_group and workspace_name:
+        workspace_client = MLClient(
+            subscription_id=subscription_id,
+            resource_group_name=resource_group,
+            workspace_name=workspace_name,
+            credential=credential)
+    else:
+        try:
+            workspace = get_workspace()
+            workspace_client = MLClient(
+                subscription_id=workspace.subscription_id,
+                resource_group_name=workspace.resource_group,
+                workspace_name=workspace.name,
+                credential=credential)
+        except ValueError as e:
+            raise ValueError(f"Couldn't connect to MLClient: {e}")
+    logging.info(f"Logged into AzureML workspace {workspace_client.workspace_name}")
+    return workspace_client
 
 
 def retrieve_workspace_from_client(client: MLClient) -> Workspace:
