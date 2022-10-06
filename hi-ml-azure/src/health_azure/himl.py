@@ -136,7 +136,7 @@ def validate_compute_cluster(workspace: Workspace, compute_cluster_name: str, nu
 
 def create_run_configuration(workspace: Workspace,
                              compute_cluster_name: str,
-                             use_aml_sdk_v1: bool,
+                             strictly_aml_v1: bool,
                              conda_environment_file: Optional[Path] = None,
                              aml_environment_name: str = "",
                              environment_variables: Optional[Dict[str, str]] = None,
@@ -225,7 +225,7 @@ def create_run_configuration(workspace: Workspace,
     if input_datasets or output_datasets:
         inputs, outputs = convert_himl_to_azureml_datasets(cleaned_input_datasets=input_datasets or [],
                                                            cleaned_output_datasets=output_datasets or [],
-                                                           use_aml_sdk_v1=use_aml_sdk_v1,
+                                                           strictly_aml_v1=strictly_aml_v1,
                                                            workspace=workspace,
                                                            workspace_client=workspace_client,
                                                            )
@@ -501,6 +501,7 @@ def create_v2_outputs(output_datasets: List[DatasetConfig]) -> Dict[str, Output]
 
 
 def submit_to_azure_if_needed(  # type: ignore
+        strictly_aml_v1: bool,
         compute_cluster_name: str = "",
         entry_script: Optional[PathOrString] = None,
         aml_workspace: Optional[Workspace] = None,
@@ -530,7 +531,6 @@ def submit_to_azure_if_needed(  # type: ignore
         after_submission: Optional[Callable[[Run], None]] = None,
         hyperdrive_config: Optional[HyperDriveConfig] = None,
         create_output_folders: bool = True,
-        use_aml_sdk_v1: bool = False,
 ) -> AzureRunInfo:  # pragma: no cover
     """
     Submit a folder to Azure, if needed and run it.
@@ -623,7 +623,7 @@ def submit_to_azure_if_needed(  # type: ignore
         logs_folder.mkdir(exist_ok=True)
 
         mounted_input_datasets, mount_contexts = setup_local_datasets(cleaned_input_datasets,
-                                                                      use_aml_sdk_v1,
+                                                                      strictly_aml_v1,
                                                                       aml_workspace,
                                                                       workspace_client,
                                                                       workspace_config_path,
@@ -667,7 +667,7 @@ def submit_to_azure_if_needed(  # type: ignore
         max_run_duration=max_run_duration,
         input_datasets=cleaned_input_datasets,
         output_datasets=cleaned_output_datasets,
-        use_aml_sdk_v1=use_aml_sdk_v1
+        strictly_aml_v1=strictly_aml_v1
     )
     script_run_config = create_script_run(snapshot_root_directory=snapshot_root_directory,
                                           entry_script=entry_script,
@@ -687,7 +687,7 @@ def submit_to_azure_if_needed(  # type: ignore
     with append_to_amlignore(
             amlignore=amlignore_path,
             lines_to_append=lines_to_append):
-        if use_aml_sdk_v1:
+        if strictly_aml_v1:
             run = submit_run(workspace=workspace,
                              experiment_name=effective_experiment_name,
                              script_run_config=config_to_submit,
@@ -728,7 +728,7 @@ def _write_run_recovery_file(run: Run) -> None:
 def convert_himl_to_azureml_datasets(
         cleaned_input_datasets: List[DatasetConfig],
         cleaned_output_datasets: List[DatasetConfig],
-        use_aml_sdk_v1: bool,
+        strictly_aml_v1: bool,
         workspace: Workspace,
         workspace_client: Optional[MLClient] = None,
     ) -> Tuple[Dict[str, DatasetConsumptionConfig],
@@ -743,7 +743,7 @@ def convert_himl_to_azureml_datasets(
     """
     inputs = {}
     for index, d in enumerate(cleaned_input_datasets):
-        consumption = d.to_input_dataset(dataset_index=index, workspace=workspace, use_aml_sdk_v1=use_aml_sdk_v1,
+        consumption = d.to_input_dataset(dataset_index=index, workspace=workspace, strictly_aml_v1=strictly_aml_v1,
                                          workspace_client=workspace_client)
         if isinstance(consumption, DatasetConsumptionConfig):
             if consumption.name in inputs:

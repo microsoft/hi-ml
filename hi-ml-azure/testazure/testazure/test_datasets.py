@@ -69,19 +69,19 @@ def test_dataset_input() -> None:
     workspace = DEFAULT_WORKSPACE.workspace
     # This dataset must exist in the workspace already, or at least in blob storage.
     dataset_config = DatasetConfig(name="hello_world", datastore=DEFAULT_DATASTORE)
-    aml_dataset = dataset_config.to_input_dataset(dataset_index=1, workspace=workspace, use_aml_sdk_v1=True)
+    aml_dataset = dataset_config.to_input_dataset(dataset_index=1, workspace=workspace, strictly_aml_v1=True)
     assert isinstance(aml_dataset, DatasetConsumptionConfig)
     assert aml_dataset.path_on_compute is None
     assert aml_dataset.mode == "download"
     # Downloading or mounting to a given path
     target_folder = "/tmp/foo"
     dataset_config = DatasetConfig(name="hello_world", datastore=DEFAULT_DATASTORE, target_folder=target_folder)
-    aml_dataset = dataset_config.to_input_dataset(dataset_index=1, workspace=workspace, use_aml_sdk_v1=True)
+    aml_dataset = dataset_config.to_input_dataset(dataset_index=1, workspace=workspace, strictly_aml_v1=True)
     assert isinstance(aml_dataset, DatasetConsumptionConfig)
     assert aml_dataset.path_on_compute == target_folder
     # Use mounting instead of downloading
     dataset_config = DatasetConfig(name="hello_world", datastore=DEFAULT_DATASTORE, use_mounting=True)
-    aml_dataset = dataset_config.to_input_dataset(dataset_index=1, workspace=workspace, use_aml_sdk_v1=True)
+    aml_dataset = dataset_config.to_input_dataset(dataset_index=1, workspace=workspace, strictly_aml_v1=True)
     assert isinstance(aml_dataset, DatasetConsumptionConfig)
     assert aml_dataset.mode == "mount"
 
@@ -97,7 +97,7 @@ def test_dataset_input_target_empty(target_folder: PathOrString) -> None:
     workspace = DEFAULT_WORKSPACE.workspace
     # This dataset must exist in the workspace already, or at least in blob storage.
     dataset_config = DatasetConfig(name="hello_world", datastore=DEFAULT_DATASTORE, target_folder=target_folder)
-    aml_dataset = dataset_config.to_input_dataset(workspace=workspace, dataset_index=1, use_aml_sdk_v1=True)
+    aml_dataset = dataset_config.to_input_dataset(workspace=workspace, dataset_index=1, strictly_aml_v1=True)
     assert isinstance(aml_dataset, DatasetConsumptionConfig)
     assert aml_dataset.path_on_compute is None
 
@@ -171,7 +171,7 @@ def test_get_dataset() -> None:
         get_or_create_dataset(workspace=workspace,
                               datastore_name=DEFAULT_DATASTORE,
                               dataset_name="",
-                              use_aml_sdk_v1=True)
+                              strictly_aml_v1=True)
     assert "No dataset name" in str(ex)
     # Check first that there is no dataset yet of that name. If there is, delete that dataset (it would come
     # from previous runs of this test)
@@ -187,7 +187,7 @@ def test_get_dataset() -> None:
     dataset = get_or_create_dataset(workspace=workspace,
                                     datastore_name=DEFAULT_DATASTORE,
                                     dataset_name=tiny_dataset,
-                                    use_aml_sdk_v1=True)
+                                    strictly_aml_v1=True)
     assert isinstance(dataset, FileDataset)
     # We should now be able to get that dataset without special means
     dataset2 = Dataset.get_by_name(workspace, name=tiny_dataset)

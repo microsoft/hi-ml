@@ -273,7 +273,7 @@ class Runner:
                 create_output_folders=False,
                 after_submission=after_submission_hook,
                 tags=self.additional_run_tags(script_params),
-                use_aml_sdk_v1=self.experiment_config.use_aml_sdk_v1,
+                strictly_aml_v1=self.experiment_config.strictly_aml_v1,
             )
         else:
             print(f"Environment variables: {os.environ}")

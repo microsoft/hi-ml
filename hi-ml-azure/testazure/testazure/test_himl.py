@@ -265,10 +265,10 @@ def test_to_datasets(
         mock_workspace: mock.MagicMock,
         mock_dataset_consumption_config: mock.MagicMock,
         mock_output_file_dataset_config: mock.MagicMock) -> None:
-    def to_input_dataset(workspace: Workspace, dataset_index: int, use_aml_sdk_v1: bool) -> DatasetConsumptionConfig:
+    def to_input_dataset(workspace: Workspace, dataset_index: int, strictly_aml_v1: bool) -> DatasetConsumptionConfig:
         return mock_dataset_consumption_config
 
-    def to_output_dataset(workspace: Workspace, dataset_index: int, use_aml_sdk_v1: bool) -> DatasetConsumptionConfig:
+    def to_output_dataset(workspace: Workspace, dataset_index: int, strictly_aml_v1: bool) -> DatasetConsumptionConfig:
         return mock_output_file_dataset_config
 
     mock_dataset_consumption_config.name = "A Consumption Config"
@@ -279,14 +279,14 @@ def test_to_datasets(
         himl.convert_himl_to_azureml_datasets(
             cleaned_input_datasets=[mock_dataset_config, mock_dataset_config],
             cleaned_output_datasets=[],
-            use_aml_sdk_v1=True,
+            strictly_aml_v1=True,
             workspace=mock_workspace)
         assert "already an input dataset with name" in str(ex1)
     with pytest.raises(ValueError) as ex2:
         himl.convert_himl_to_azureml_datasets(
             cleaned_input_datasets=[mock_dataset_config, mock_dataset_config],
             cleaned_output_datasets=[],
-            use_aml_sdk_v1=True,
+            strictly_aml_v1=True,
             workspace=mock_workspace)
         assert "already an output dataset with name" in str(ex2)
 
@@ -295,7 +295,7 @@ def test_to_datasets(
     inputs, outputs = himl.convert_himl_to_azureml_datasets(
         cleaned_input_datasets=cleaned_input_datasets,
         cleaned_output_datasets=cleaned_output_datasets,
-        use_aml_sdk_v1=True,
+        strictly_aml_v1=True,
         workspace=mock_workspace)
     assert len(inputs) == 1
     assert len(outputs) == 1
@@ -317,14 +317,14 @@ def test_create_run_configuration_fails(
     with pytest.raises(ValueError) as e:
         himl.create_run_configuration(
             compute_cluster_name="b",
-            use_aml_sdk_v1=True,
+            strictly_aml_v1=True,
             workspace=mock_workspace)
     assert "One of the two arguments 'aml_environment_name' or 'conda_environment_file' must be given." == str(e.value)
     with pytest.raises(ValueError) as e:
         himl.create_run_configuration(
             conda_environment_file=Path(__file__),
             compute_cluster_name="b",
-            use_aml_sdk_v1=True,
+            strictly_aml_v1=True,
             workspace=mock_workspace)
     assert "Could not find the compute target b in the AzureML workspace" in str(e.value)
     assert existing_compute_target in str(e.value)
@@ -426,7 +426,7 @@ def test_create_run_configuration_correct_env(mock_create_environment: MagicMock
             mock_environment_get.side_effect = Exception()
             run_config = himl.create_run_configuration(workspace=mock_workspace,
                                                        compute_cluster_name="dummy_compute_cluster",
-                                                       use_aml_sdk_v1=True,
+                                                       strictly_aml_v1=True,
                                                        conda_environment_file=conda_env_path)
 
             # check that mock_register has been called once with the expected args
@@ -444,7 +444,7 @@ def test_create_run_configuration_correct_env(mock_create_environment: MagicMock
 
             _ = himl.create_run_configuration(mock_workspace,
                                               "dummy_compute_cluster",
-                                              use_aml_sdk_v1=True,
+                                              strictly_aml_v1=True,
                                               conda_environment_file=conda_env_path)
 
             # check mock_register has still only been called once
@@ -1058,7 +1058,7 @@ def test_mounting_and_downloading_dataset(tmp_path: Path) -> None:
                                            use_mounting=use_mounting,
                                            target_folder=target_path)
             logging.info(f"ready to {action}")
-            paths, mount_contexts = setup_local_datasets(dataset_configs=[dataset_config], use_aml_sdk_v1=True, aml_workspace=workspace)
+            paths, mount_contexts = setup_local_datasets(dataset_configs=[dataset_config], strictly_aml_v1=True, aml_workspace=workspace)
             logging.info(f"{action} done")
             path = paths[0]
             assert path is not None
@@ -1330,7 +1330,7 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock, moc
                     aml_environment_name="dummy_env",
                     submit_to_azureml=True,
                     hyperdrive_config=crossval_config,
-                    use_aml_sdk_v1=True)
+                    strictly_aml_v1=True)
                 mock_submit_run.assert_called_once()
                 mock_hyperdrive_config.assert_called_once()
 
@@ -1373,7 +1373,7 @@ def test_create_v2_outputs():
 
 def test_submit_to_azure_if_needed_v2() -> None:
     """
-    Check that submit_run_v2 is called when submit_to_azure_if_needed is called, unless use_aml_sdk_v1 is
+    Check that submit_run_v2 is called when submit_to_azure_if_needed is called, unless strictly_aml_v1 is
     set to True, in which case submit_run should be called instead
     """
     dummy_input_datasets = []
@@ -1404,13 +1404,13 @@ def test_submit_to_azure_if_needed_v2() -> None:
                 mock_submit_run_v2.assert_called_once()
                 assert return_value is None
 
-            # Now supply use_aml_sdk_v1=True, and check that submit_run is called
+            # Now supply strictly_aml_v1=True, and check that submit_run is called
             with patch("health_azure.himl.submit_run") as mock_submit_run:
                 return_value = himl.submit_to_azure_if_needed(
                     workspace_config_file="mockconfig.json",
                     snapshot_root_directory="dummy",
                     submit_to_azureml=True,
-                    use_aml_sdk_v1=True,
+                    strictly_aml_v1=True,
                 )
                 mock_submit_run.assert_called_once()
                 assert return_value is None
