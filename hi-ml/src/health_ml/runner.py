@@ -4,7 +4,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import argparse
-from email.policy import default
 import logging
 import os
 import param
@@ -227,7 +226,7 @@ class Runner:
             workspace = get_workspace()
         except ValueError:
             raise ValueError("Unable to submit the script to AzureML because no workspace configuration file "
-                                "(config.json) was found.")
+                             "(config.json) was found.")
 
         datastore = self.lightning_container.datastore_name or workspace.get_default_datastore().name
         # default_datastore = workspace.get_default_datastore().name #if workspace is not None else ""
@@ -252,6 +251,7 @@ class Runner:
             check_conda_environment(env_file)
 
             azure_run_info = submit_to_azure_if_needed(
+                strictly_aml_v1=self.experiment_config.strictly_aml_v1,
                 entry_script=entry_script,
                 snapshot_root_directory=root_folder,
                 script_params=script_params,
@@ -273,11 +273,11 @@ class Runner:
                 create_output_folders=False,
                 after_submission=after_submission_hook,
                 tags=self.additional_run_tags(script_params),
-                strictly_aml_v1=self.experiment_config.strictly_aml_v1,
             )
         else:
             print(f"Environment variables: {os.environ}")
             azure_run_info = submit_to_azure_if_needed(
+                strictly_aml_v1=self.experiment_config.strictly_aml_v1,
                 input_datasets=input_datasets,  # type: ignore
                 # default_datastore=default_datastore,
                 submit_to_azureml=False)

@@ -13,10 +13,10 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.profiler import BaseProfiler, SimpleProfiler, AdvancedProfiler, PyTorchProfiler
 
-from health_azure.utils import RUN_CONTEXT, is_running_in_azure_ml, get_workspace_client
+from health_azure.utils import RUN_CONTEXT, is_running_in_azure_ml
 
 from health_ml.lightning_container import LightningContainer
-from health_ml.utils import AzureMLLogger, AzureMLProgressBar
+from health_ml.utils import AzureMLProgressBar
 from health_ml.utils.common_utils import AUTOSAVE_CHECKPOINT_FILE_NAME, EXPERIMENT_SUMMARY_FILE
 from health_ml.utils.lightning_loggers import StoringLogger
 from health_ml.utils.logging import MLFlowLogger

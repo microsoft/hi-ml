@@ -19,12 +19,12 @@ from ruamel import yaml
 from ruamel.yaml.comments import CommentedMap as OrderedDict, CommentedSeq as OrderedList
 from typing import Any, Dict, List, Optional, Tuple
 from unittest import mock
-from unittest.mock import MagicMock, patch, DEFAULT
+from unittest.mock import MagicMock, create_autospec, patch, DEFAULT
 from uuid import uuid4
 
 import pytest
 from _pytest.capture import CaptureFixture
-from azure.ai.ml import Input, Output
+from azure.ai.ml import Input, Output, MLClient
 from azure.ai.ml.constants import AssetTypes
 from azure.ai.ml.entities import Data
 from azureml._restclient.constants import RunStatus
@@ -257,20 +257,23 @@ def test_validate_compute_real(tmp_path: Path) -> None:
 
 @pytest.mark.fast
 @patch("azureml.data.OutputFileDatasetConfig")
-@patch("health_azure.himl.DatasetConsumptionConfig")
+# @patch("health_azure.himl.DatasetConsumptionConfig")
 @patch("health_azure.himl.Workspace")
 @patch("health_azure.himl.DatasetConfig")
 def test_to_datasets(
         mock_dataset_config: mock.MagicMock,
         mock_workspace: mock.MagicMock,
-        mock_dataset_consumption_config: mock.MagicMock,
+        # mock_dataset_consumption_config: mock.MagicMock,
         mock_output_file_dataset_config: mock.MagicMock) -> None:
-    def to_input_dataset(workspace: Workspace, dataset_index: int, strictly_aml_v1: bool) -> DatasetConsumptionConfig:
+    def to_input_dataset(workspace: Workspace, dataset_index: int, strictly_aml_v1: bool,
+                         workspace_client: Optional[MLClient] = None) -> DatasetConsumptionConfig:
         return mock_dataset_consumption_config
 
-    def to_output_dataset(workspace: Workspace, dataset_index: int, strictly_aml_v1: bool) -> DatasetConsumptionConfig:
+    def to_output_dataset(workspace: Workspace, dataset_index: int) -> DatasetConsumptionConfig:
         return mock_output_file_dataset_config
 
+    mock_dataset_consumption_config = mock.create_autospec(DatasetConsumptionConfig)
+    mock_dataset_consumption_config.__class__.return_value = DatasetConsumptionConfig
     mock_dataset_consumption_config.name = "A Consumption Config"
     mock_output_file_dataset_config.name = "An Output File Dataset Config"
     mock_dataset_config.to_input_dataset = to_input_dataset
@@ -349,9 +352,9 @@ def test_create_run_configuration(
     mock_env_name = "Mock Env"
     mock_environment_get.return_value = mock_env_name
     mock_workspace.compute_targets = {existing_compute_target: mock_compute_cluster}
-    aml_input_dataset = MagicMock()
+    aml_input_dataset = create_autospec(DatasetConsumptionConfig)
     aml_input_dataset.name = "dataset_in"
-    aml_output_dataset = MagicMock()
+    aml_output_dataset = create_autospec(DatasetConsumptionConfig)
     aml_output_dataset.name = "dataset_out"
     mock_to_input_dataset.return_value = aml_input_dataset
     mock_to_output_dataset.return_value = aml_output_dataset
@@ -365,6 +368,7 @@ def test_create_run_configuration(
         output_datasets=[DatasetConfig(name="output1")],
         docker_shm_size="2g",
         environment_variables={"foo": "bar"},
+        strictly_aml_v1=True
     )
     assert isinstance(run_config, RunConfiguration)
     assert run_config.target == existing_compute_target
@@ -1058,7 +1062,11 @@ def test_mounting_and_downloading_dataset(tmp_path: Path) -> None:
                                            use_mounting=use_mounting,
                                            target_folder=target_path)
             logging.info(f"ready to {action}")
-            paths, mount_contexts = setup_local_datasets(dataset_configs=[dataset_config], strictly_aml_v1=True, aml_workspace=workspace)
+            paths, mount_contexts = setup_local_datasets(
+                dataset_configs=[dataset_config],
+                strictly_aml_v1=True,
+                aml_workspace=workspace
+            )
             logging.info(f"{action} done")
             path = paths[0]
             assert path is not None

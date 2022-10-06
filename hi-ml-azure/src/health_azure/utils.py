@@ -698,8 +698,7 @@ def find_file_in_parent_to_pythonpath(file_name: str) -> Optional[Path]:
     return find_file_in_parent_folders(file_name=file_name, stop_at_path=pythonpaths)
 
 
-def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_path: Optional[Path] = None
-) -> Workspace:
+def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_path: Optional[Path] = None) -> Workspace:
     """
     Retrieve an Azure ML Workspace from one of several places:
       1. If the function has been called during an AML run (i.e. on an Azure agent), returns the associated workspace
@@ -2040,9 +2039,6 @@ def check_is_any_of(message: str, actual: Optional[str], valid: Iterable[Optiona
         all_valid = ", ".join(["<None>" if v is None else v for v in valid])
         raise ValueError("{} must be one of [{}], but got: {}".format(message, all_valid, actual))
 
-###################################################################################################
-##################################### NEW UTILS ##################################################
-###################################################################################################
 
 def get_credential() -> Union[ClientSecretCredential, DeviceCodeCredential]:
     service_principal_id = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_ID, allow_missing=True)
@@ -2058,7 +2054,12 @@ def get_credential() -> Union[ClientSecretCredential, DeviceCodeCredential]:
             client_id=service_principal_id,
             client_secret=service_principal_password)
     if not is_running_in_azure_ml() or is_running_on_azure_agent():
-        credential = DeviceCodeCredential()
+        try:
+            credential = DefaultAzureCredential()
+            credential.get_token("https://management.azure.com/.default")
+        except:
+            credential = DeviceCodeCredential()
+            credential.get_token("https://management.azure.com/.default")
         return credential
     else:
         try:
@@ -2119,7 +2120,7 @@ def fetch_job(client: MLClient, run_id: str) -> Job:
 
 def get_mlflow_run(mlflow_run_id: str) -> MLFlowRun:
     mlflow_client = MlflowClient()
-    mlflow_run = MlflowClient().get_run(mlflow_run_id)
+    mlflow_run = mlflow_client.get_run(mlflow_run_id)
     return mlflow_run
 
 

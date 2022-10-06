@@ -6,8 +6,6 @@
 import param
 import sys
 from pathlib import Path
-from typing import List
-
 import health_azure.utils as azure_util
 from health_azure.himl import download_job_outputs_logs
 
@@ -31,14 +29,14 @@ def main() -> None:  # pragma: no cover
     output_dir = download_config.output_dir
     output_dir.mkdir(exist_ok=True)
 
-    files_to_download=download_config.files_to_download
+    files_to_download = download_config.files_to_download
 
     workspace = azure_util.get_workspace()
     ml_client = azure_util.get_workspace_client(
         subscription_id=workspace.subscription_id,
         resource_group=workspace.resource_group,
         workspace_name=workspace.name
-        )
+    )
     for run_id in download_config.run:
         download_job_outputs_logs(ml_client, run_id, file_to_download_path=files_to_download, download_dir=output_dir)
         print("Successfully downloaded output and log files")

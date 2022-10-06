@@ -75,6 +75,7 @@ def _retrieve_v1_dataset(dataset_name, workspace):
     logging.info("Dataset found.")
     return azureml_dataset
 
+
 def _create_v1_dataset(datastore_name: str, dataset_name: str, workspace: Union[Workspace, MLClient]):
     logging.info(f"Retrieving datastore '{datastore_name}' from AzureML workspace")
     # Ensure that a v1 workspace is used
@@ -459,7 +460,7 @@ def setup_local_datasets(dataset_configs: List[DatasetConfig],
     mount_contexts: List[MountContext] = []
 
     for d in dataset_configs:
-        target_path, mount_context = d.to_input_dataset_local(workspace, workspace_client, strictly_aml_v1)
+        target_path, mount_context = d.to_input_dataset_local(strictly_aml_v1, workspace, workspace_client)
 
         mounted_input_datasets.append(target_path)
 

@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
 
-from azure.ai.ml import MLClient, Input, Output
+from azure.ai.ml import MLClient, Input, Output, command
 from azure.ai.ml.constants import AssetTypes, InputOutputModes
 from azure.ai.ml.entities import Data, Job
 from azureml._base_sdk_common import user_agent
@@ -136,7 +136,7 @@ def validate_compute_cluster(workspace: Workspace, compute_cluster_name: str, nu
 
 def create_run_configuration(workspace: Workspace,
                              compute_cluster_name: str,
-                             strictly_aml_v1: bool,
+                             strictly_aml_v1: bool = False,
                              conda_environment_file: Optional[Path] = None,
                              aml_environment_name: str = "",
                              environment_variables: Optional[Dict[str, str]] = None,
@@ -342,14 +342,17 @@ def submit_run_v2(workspace: Optional[Workspace],
                   ml_client: Optional[MLClient] = None) -> Job:
     if ml_client is None:
         if workspace is not None:
-            ml_client = get_workspace_client(subscription_id=workspace.subscription_id, resource_group=workspace.
-            resource_group, workspace_name=workspace.name)
+            ml_client = get_workspace_client(
+                subscription_id=workspace.subscription_id,
+                resource_group=workspace.
+                resource_group, workspace_name=workspace.name
+            )
         elif workspace_config_path is not None:
             ml_client = get_workspace_client(workspace_config_path=workspace_config_path)
         else:
             raise ValueError("Either workspace or workspace_config_path must be specified to connect to the Workspace")
         # raise ValueError(f"Must provide a value for ml_client to submit a job with v2 of the AML SDK")
-    from azure.ai.ml import command, Input
+
     script = script_run_config.script
     args = script_run_config.arguments
     arg_str = " ".join(args)
@@ -397,8 +400,10 @@ def submit_run_v2(workspace: Optional[Workspace],
     return returned_job
 
 
-def download_job_outputs_logs(ml_client: MLClient, job_name: str, file_to_download_path: Optional[str] = None,
-    download_dir: Optional[PathOrString] = None):
+def download_job_outputs_logs(ml_client: MLClient,
+                              job_name: str,
+                              file_to_download_path: Optional[str] = None,
+                              download_dir: Optional[PathOrString] = None):
     download_dir = download_dir or Path("outputs")
     download_dir = download_dir / job_name
     ml_client.jobs.download(job_name, output_name=file_to_download_path, download_path=download_dir)
@@ -501,7 +506,7 @@ def create_v2_outputs(output_datasets: List[DatasetConfig]) -> Dict[str, Output]
 
 
 def submit_to_azure_if_needed(  # type: ignore
-        strictly_aml_v1: bool,
+        strictly_aml_v1: bool = False,
         compute_cluster_name: str = "",
         entry_script: Optional[PathOrString] = None,
         aml_workspace: Optional[Workspace] = None,
@@ -626,8 +631,7 @@ def submit_to_azure_if_needed(  # type: ignore
                                                                       strictly_aml_v1,
                                                                       aml_workspace,
                                                                       workspace_client,
-                                                                      workspace_config_path,
-                                                                    )
+                                                                      workspace_config_path)
 
         return AzureRunInfo(
             input_datasets=mounted_input_datasets,
@@ -731,8 +735,7 @@ def convert_himl_to_azureml_datasets(
         strictly_aml_v1: bool,
         workspace: Workspace,
         workspace_client: Optional[MLClient] = None,
-    ) -> Tuple[Dict[str, DatasetConsumptionConfig],
-               Dict[str, OutputFileDatasetConfig]]:
+    ) -> Tuple[Dict[str, DatasetConsumptionConfig], Dict[str, OutputFileDatasetConfig]]:
     """
     Convert the cleaned input and output datasets into dictionaries of DatasetConsumptionConfigs for use in AzureML.
 
@@ -743,7 +746,7 @@ def convert_himl_to_azureml_datasets(
     """
     inputs = {}
     for index, d in enumerate(cleaned_input_datasets):
-        consumption = d.to_input_dataset(dataset_index=index, workspace=workspace, strictly_aml_v1=strictly_aml_v1,
+        consumption = d.to_input_dataset(index, workspace, strictly_aml_v1,
                                          workspace_client=workspace_client)
         if isinstance(consumption, DatasetConsumptionConfig):
             if consumption.name in inputs:
