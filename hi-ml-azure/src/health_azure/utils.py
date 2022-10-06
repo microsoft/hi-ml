@@ -2057,16 +2057,21 @@ def get_credential() -> Union[ClientSecretCredential, DeviceCodeCredential]:
             tenant_id=tenant_id,
             client_id=service_principal_id,
             client_secret=service_principal_password)
-    try:
-        print(f"Environment varaibles : {os.environ}")
-        client_id = os.environ.get('DEFAULT_IDENTITY_CLIENT_ID')
-        credential = ManagedIdentityCredential(client_id=client_id)
-        # credential = DefaultAzureCredential()
-        # Check if given credential can get token successfully.
-        credential.get_token("https://management.azure.com/.default")
+    if not is_running_in_azure_ml() or is_running_on_azure_agent():
+        credential = DeviceCodeCredential()
         return credential
-    except Exception:
-        return None
+    else:
+        try:
+            print(f"Environment varaibles : {os.environ}")
+            client_id = os.environ.get('DEFAULT_IDENTITY_CLIENT_ID')
+            credential = ManagedIdentityCredential(client_id=client_id)
+            # credential = DefaultAzureCredential()
+            # Check if given credential can get token successfully.
+            credential.get_token("https://management.azure.com/.default")
+            return credential
+        except Exception as e:
+            logging.warning(f"Unable to get credential: {e}")
+            return None
 
 
 def get_workspace_client(workspace_client: Optional[MLClient] = None,
