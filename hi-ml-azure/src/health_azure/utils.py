@@ -1429,7 +1429,7 @@ def download_file_if_necessary(run: Run, filename: str, output_file: Path, overw
     :return: Local path to the downloaded file.
     """
     if not overwrite and output_file.exists():
-        logging.info("File already exists at", output_file)
+        logging.info(f"File already exists at {output_file}")
     else:
         output_file.parent.mkdir(exist_ok=True, parents=True)
         _download_file_from_run(run, filename, output_file, validate_checksum=True)
