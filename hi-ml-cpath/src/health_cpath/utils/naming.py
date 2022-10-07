@@ -50,6 +50,7 @@ class ResultsKey(str, Enum):
     FEATURES = 'features'
     IMAGE_PATH = 'image_path'
     LOSS = 'loss'
+    LOSS_PER_SAMPLE = 'loss_per_sample'
     PROB = 'prob'
     CLASS_PROBS = 'prob_class'
     PRED_LABEL = 'pred_label'

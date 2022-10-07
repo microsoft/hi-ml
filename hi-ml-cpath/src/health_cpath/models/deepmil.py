@@ -100,8 +100,7 @@ class BaseDeepMILModule(LightningModule):
         self.aggregation_fn, self.num_pooling = pooling_params.get_pooling_layer(self.encoder.num_encoding)
         self.classifier_fn = self.get_classifier()
         self.activation_fn = self.get_activation()
-        self.loss_fn = self.get_loss()
-        self.loss_fn_no_reduction = self.get_loss(reduction="none")
+        self.loss_fn = self.get_loss(reduction="none")
 
         # Metrics Objects
         self.train_metrics = self.get_metrics()
@@ -297,6 +296,7 @@ class BaseDeepMILModule(LightningModule):
 
     def _shared_step(self, batch: Dict, batch_idx: int, stage: str) -> BatchResultsType:
 
+        results = dict()
         bag_logits, bag_labels, bag_attn_list = self.compute_bag_labels_logits_and_attn_maps(batch)
 
         if self.n_classes > 1:
@@ -312,8 +312,9 @@ class BaseDeepMILModule(LightningModule):
             predicted_labels = round(predicted_probs).int()
             probs_perclass = Tensor([[1.0 - predicted_probs[i][0].item(), predicted_probs[i][0].item()]
                                      for i in range(len(predicted_probs))])
-
-        loss = loss.view(-1, 1)
+        if stage in [ModelKey.TRAIN, ModelKey.VAL]:
+            results[ResultsKey.LOSS_PER_SAMPLE] = loss.detach().cpu().numpy()
+        loss = loss.mean().view(-1, 1)
         predicted_labels = predicted_labels.view(-1, 1)
         batch_size = predicted_labels.shape[0]
 
@@ -322,7 +323,6 @@ class BaseDeepMILModule(LightningModule):
 
         bag_labels = bag_labels.view(-1, 1)
 
-        results = dict()
         for metric_object in self.get_metrics_dict(stage).values():
             metric_object.update(predicted_probs, bag_labels.view(batch_size,).int())
         results.update({ResultsKey.LOSS: loss,
@@ -341,13 +341,14 @@ class BaseDeepMILModule(LightningModule):
             self.outputs_handler.tiles_selector.update_slides_selection(batch, results)
         return results
 
-    def training_step(self, batch: Dict, batch_idx: int) -> Tensor:  # type: ignore
+    def training_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
         train_result = self._shared_step(batch, batch_idx, ModelKey.TRAIN)
         self.log('train/loss', train_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
                  sync_dist=True)
         if self.verbose:
             print(f"After loading images batch {batch_idx} -", _format_cuda_memory_stats())
-        return train_result[ResultsKey.LOSS]
+        return {ResultsKey.LOSS: train_result[ResultsKey.LOSS],
+                ResultsKey.LOSS_PER_SAMPLE: train_result[ResultsKey.LOSS_PER_SAMPLE]}
 
     def validation_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
         val_result = self._shared_step(batch, batch_idx, ModelKey.VAL)
