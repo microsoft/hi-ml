@@ -69,14 +69,21 @@ def get_datastore(workspace: Workspace, datastore_name: str) -> Union[Datastore,
     return datastore
 
 
-def _retrieve_v1_dataset(dataset_name, workspace):
+def _retrieve_v1_dataset(dataset_name: str, workspace: Workspace) -> Optional[FileDataset]:
+    """
+    Retrieve an Azure ML v1 Dataset if it exists, otherwise return None
+
+    :param dataset_name: The name of the Dataset to look for.
+    :param workspace: An Azure ML Workspace object for retrieving the Dataset.
+    :return: A Dataset object if it is found, else None.
+    """
     logging.info(f"Trying to retrieve AzureML Dataset '{dataset_name}'")
     azureml_dataset = Dataset.get_by_name(workspace, name=dataset_name)
-    logging.info("Dataset found.")
     return azureml_dataset
 
 
-def _create_v1_dataset(datastore_name: str, dataset_name: str, workspace: Union[Workspace, MLClient]):
+def _create_v1_dataset(datastore_name: str, dataset_name: str, workspace: Union[Workspace, MLClient]
+                       ) -> FileDataset:
     logging.info(f"Retrieving datastore '{datastore_name}' from AzureML workspace")
     # Ensure that a v1 workspace is used
     workspace = get_workspace(aml_workspace=workspace)
@@ -91,25 +98,49 @@ def _create_v1_dataset(datastore_name: str, dataset_name: str, workspace: Union[
 
 
 def _get_or_create_v1_dataset(datastore_name: str, dataset_name: str, workspace: Workspace) -> Dataset:
+    """
+    Attempt to retrieve a v1 Dataset object and return that, otherwise atempts to create and register
+    a v1 Dataset and return that.
+
+    :param datastore_name: The name of the Datastore to either retrieve or create and register the Dataset in.
+    :param dataset_name: The name of the Dataset to be retrieved or registered.
+    :param workspace: An Azure ML Workspace object.
+    :return: An Azure ML Dataset object with the provided dataset name, in the provided datastore.
+    """
     try:
         azureml_dataset = _retrieve_v1_dataset(dataset_name, workspace)
+        assert azureml_dataset is not None
     except Exception:
         azureml_dataset = _create_v1_dataset(datastore_name, dataset_name, workspace)
     return azureml_dataset
 
 
-def _retrieve_v2_dataset(dataset_name: str, workspace_client: MLClient):
+def _retrieve_v2_dataset(dataset_name: str, workspace_client: MLClient) -> Data:
+    """
+    Attempt to retrieve a v2 Data Asset using a provided Azure ML Workspace connection. If
+    no Data asset can be found with a matching name, the underlying code will raise an Exception
+
+    :param dataset_name: The name of the dataset to look for.
+    :param workspace_client: An Azure MLClient object for interacting with Azure resources.
+    :return: An Azure Data asset representing the dataset if found, otherwise an Exception will be raised.
+    """
     aml_data = workspace_client.data.get(name=dataset_name)
     return aml_data
 
 
 def _create_v2_dataset(datastore_name: str, dataset_name: str, workspace_client: MLClient) -> Data:
+    """
+    Create or update a v2 Data asset in the specified Datastore
+
+    :param datastore_name: The name of the datastore in which to create or update the Data asset.
+    :param dataset_name: The name of the dataset to be created.
+    :param workspace_client: An Azure MLClient object for interacting with Azure resources.
+    :raises ValueError: If no datastore name is provided to define where to create the data
+    :return: The created or updated Data asset.
+    """
     if not datastore_name:
         raise ValueError("Cannot create data asset without datastore name")
     logging.info(f"Creating a new Data asset from data in folder '{dataset_name}' in the datastore")
-    # Ensure that there is a / at the end of the file path, otherwise folder that share a prefix could create
-    # trouble (for example, folders foo and foo_bar exist, and I'm trying to create a dataset from "foo")
-    # azureml_dataset = Dataset.File.from_files(path=(datastore, dataset_name + "/"))
     azureml_data_asset = Data(
         path=f"azureml://datastores/{datastore_name}/paths/{dataset_name}/",
         type=AssetTypes.URI_FOLDER,
@@ -122,6 +153,15 @@ def _create_v2_dataset(datastore_name: str, dataset_name: str, workspace_client:
 
 
 def _get_or_create_v2_dataset(datastore_name: str, dataset_name: str, workspace_client: MLClient) -> Dataset:
+    """
+    Attempt to retrieve a v2 Dataset object and return that, otherwise atempts to create and register
+    a v2 Dataset and return that.
+
+    :param datastore_name: The name of the Datastore to either retrieve or create and register the Data asset in.
+    :param dataset_name: The name of the Data asset to be retrieved or registered.
+    :param workspace_client: An Azure MLClient object for interacting with Azure resources.
+    :return: An Azure Data asset object with the provided dataset name, in the provided datastore
+    """
     try:
         azureml_dataset = _retrieve_v2_dataset(dataset_name, workspace_client)
     except Exception:
@@ -153,7 +193,6 @@ def get_or_create_dataset(datastore_name: str,
         Otherwise, attempt to use Azure ML SDK v2.
     :param workspace_client: An MLClient object for interacting with AML v2 datastores.
     """
-
     if not dataset_name:
         raise ValueError("No dataset name provided.")
     if strictly_aml_v1:
@@ -161,6 +200,7 @@ def get_or_create_dataset(datastore_name: str,
         return aml_dataset
     else:
         try:
+            workspace_client = get_workspace_client(workspace_client=workspace_client)
             aml_dataset = _get_or_create_v2_dataset(datastore_name, dataset_name, workspace_client)
         except HttpResponseError as e:
             if "Cannot create v2 Data Version in v1 Data Container" in e.message:
@@ -252,6 +292,7 @@ class DatasetConfig:
                                                 dataset_name=self.name,
                                                 datastore_name=self.datastore,
                                                 strictly_aml_v1=strictly_aml_v1)
+        assert isinstance(azureml_dataset, FileDataset)
         target_path = self.target_folder or Path(tempfile.mkdtemp())
         use_mounting = self.use_mounting if self.use_mounting is not None else False
         if use_mounting:
@@ -288,7 +329,7 @@ class DatasetConfig:
         # If running on windows then self.target_folder may be a WindowsPath, make sure it is
         # in posix format for Azure.
         use_mounting = False if self.use_mounting is None else self.use_mounting
-
+        assert isinstance(azureml_dataset, FileDataset)
         named_input = azureml_dataset.as_named_input(_input_dataset_key(index=dataset_index))
         path_on_compute = self.target_folder.as_posix() if self.target_folder is not None else None
         if use_mounting:

@@ -355,10 +355,12 @@ def submit_run_v2(workspace: Optional[Workspace],
     args = script_run_config.arguments
     arg_str = " ".join(args)
     cmd = script + " " + arg_str
-    if len(v2_input_datasets) > 0:
-        cmd += " --input_datasets=${{inputs.input_datasets}}"
-    if len(v2_output_datasets) > 0:
-        cmd += " --output_datasets=${{outputs.output_datasets}}"
+    if v2_input_datasets:
+        if len(v2_input_datasets) > 0:
+            cmd += " --input_datasets=${{inputs.input_datasets}}"
+    if v2_output_datasets:
+        if len(v2_output_datasets) > 0:
+            cmd += " --output_datasets=${{outputs.output_datasets}}"
 
     source_directory = Path(script_run_config.source_directory)
     docs_folder = source_directory / "docs" / "source"
@@ -400,8 +402,8 @@ def submit_run_v2(workspace: Optional[Workspace],
 def download_job_outputs_logs(ml_client: MLClient,
                               job_name: str,
                               file_to_download_path: Optional[str] = None,
-                              download_dir: Optional[PathOrString] = None):
-    download_dir = download_dir or Path("outputs")
+                              download_dir: Optional[PathOrString] = None) -> None:
+    download_dir = Path(download_dir) if download_dir else Path("outputs")
     download_dir = download_dir / job_name
     ml_client.jobs.download(job_name, output_name=file_to_download_path, download_path=download_dir)
 
@@ -471,9 +473,8 @@ def _str_to_path(s: Optional[PathOrString]) -> Optional[Path]:
     return s
 
 
-def create_v2_inputs(workspace_client: MLClient, input_datasets: List[DatasetConfig]) -> Input:
+def create_v2_inputs(workspace_client: MLClient, input_datasets: List[DatasetConfig]) -> Dict[str, Input]:
     inputs = {}
-
     for input_dataset in input_datasets:
         version = input_dataset.version or 1
         data_asset: Data = workspace_client.data.get(input_dataset.name, version=version)

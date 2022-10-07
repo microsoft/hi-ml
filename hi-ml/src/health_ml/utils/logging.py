@@ -364,7 +364,7 @@ class MLFlowLogger(LightningLoggerBase):
         """
         if params is None:
             return
-        params_final = _preprocess_hyperparams(self, params)
+        params_final = _preprocess_hyperparams(params)
         print(f"Attempting to log hyperparameters: {params_final}")
         if self.run_id is not None:
             retrieved_run = mlflow.get_run(run_id=self.run_id)
@@ -399,11 +399,12 @@ class MLFlowLogger(LightningLoggerBase):
         mlflow.end_run()
 
 
-def _preprocess_hyperparams(self, params: Any) -> Dict[str, str]:
+def _preprocess_hyperparams(params: Any) -> Dict[str, str]:
     """
     Converts arbitrary hyperparameters to a simple dictionary structure, in particular argparse Namespaces.
     Nested dictionaries are converted to folder-like strings, like ``{'a': {'b': 'c'}} -> {'a/b': 'c'}``.
     All hyperparameter values are converted to strings, because Run.log_table can't deal with mixed datatypes.
+
     :param params: The parameters to convert
     :return: A dictionary mapping from string to string.
     """

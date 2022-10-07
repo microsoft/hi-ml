@@ -33,11 +33,12 @@ from azureml.core import Environment, Experiment, Run, Workspace, get_run
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.run import _OfflineRun
+from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.train.hyperdrive import HyperDriveRun
 
 
 from azure.ai.ml import MLClient
-from azure.ai.ml.entities import AzureBlobDatastore, Job
+from azure.ai.ml.entities import Job
 from azure.identity import (ClientSecretCredential, DeviceCodeCredential, DefaultAzureCredential,
                             ManagedIdentityCredential)
 from mlflow.entities import Run as MLFlowRun
@@ -104,6 +105,8 @@ DEFAULT_ENVIRONMENT_VARIABLES = {
 }
 
 PathOrString = Union[Path, str]
+CredentialType = Union[ClientSecretCredential, DeviceCodeCredential, DefaultAzureCredential,
+                       ManagedIdentityCredential]
 
 
 class IntTuple(param.NumericTuple):
@@ -2032,7 +2035,17 @@ def check_is_any_of(message: str, actual: Optional[str], valid: Iterable[Optiona
         raise ValueError("{} must be one of [{}], but got: {}".format(message, all_valid, actual))
 
 
-def get_credential() -> Union[ClientSecretCredential, DeviceCodeCredential]:
+def get_credential() -> Optional[CredentialType]:
+    """
+    Get a credential for authenticating with Azure.There are multiple ways to retrieve a credential.
+    If environment variables pertaining to details of a Service Principal are available, those will be used
+    to authenticate. Other methods include identifying an Azure managed identity, cached credentials from
+    VS code, Azure CLI, Powershell etc. If none of these are available, and the script is not currently
+    running inside of Azure ML or another Azure agent, will attempt to retrieve a credential via a
+    device code (which requires the user to visit a link and enter a provided code). Otherwise returns None.
+
+    :return: Any of the aforementioned credentials if available, else None.
+    """
     service_principal_id = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_ID, allow_missing=True)
     tenant_id = get_secret_from_environment(ENV_TENANT_ID, allow_missing=True)
     service_principal_password = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
@@ -2041,35 +2054,26 @@ def get_credential() -> Union[ClientSecretCredential, DeviceCodeCredential]:
             "Using interactive login to Azure. To use Service Principal authentication, set the environment "
             f"variables {ENV_SERVICE_PRINCIPAL_ID}, {ENV_SERVICE_PRINCIPAL_PASSWORD}, and {ENV_TENANT_ID}"
         )
-        return ClientSecretCredential(
+        cs_cred = ClientSecretCredential(
             tenant_id=tenant_id,
             client_id=service_principal_id,
             client_secret=service_principal_password)
-    if not is_running_in_azure_ml() or is_running_on_azure_agent():
-        try:
-            credential = DefaultAzureCredential()
-            credential.get_token("https://management.azure.com/.default")
-        except Exception as e:
-            logging.warning(f"Unable to get credential via DefaultAzureCredential: {e}")
-            credential = DeviceCodeCredential()
-            credential.get_token("https://management.azure.com/.default")
-        return credential
+        cs_cred.get_token("https://management.azure.com/.default")
+        return cs_cred
     else:
-        try:
-            print(f"Environment varaibles : {os.environ}")
-            client_id = os.environ.get('DEFAULT_IDENTITY_CLIENT_ID')
-            credential = ManagedIdentityCredential(client_id=client_id)
-            # credential = DefaultAzureCredential()
-            # Check if given credential can get token successfully.
-            credential.get_token("https://management.azure.com/.default")
-            return credential
-        except Exception as e:
-            logging.warning(f"Unable to get credential: {e}")
-            return None
+        if not is_running_in_azure_ml() or is_running_on_azure_agent():
+            def_cred = DefaultAzureCredential()
+            def_cred.get_token("https://management.azure.com/.default")
+            return def_cred
+        if not is_running_in_azure_ml() or is_running_on_azure_agent():
+            dc_cred = DeviceCodeCredential()
+            dc_cred.get_token("https://management.azure.com/.default")
+            return dc_cred
+    return None
 
 
 def get_workspace_client(workspace_client: Optional[MLClient] = None,
-                         workspace_config_path: Optional[str] = None,
+                         workspace_config_path: Optional[PathOrString] = None,
                          subscription_id: Optional[str] = None,
                          resource_group: Optional[str] = None,
                          workspace_name: str = None
@@ -2078,6 +2082,8 @@ def get_workspace_client(workspace_client: Optional[MLClient] = None,
         return workspace_client
 
     credential = get_credential()
+    if credential is None:
+        raise ValueError("Can't connect to MLClient without a valid credential")
     if workspace_config_path:
         workspace_client = MLClient.from_config(credential=credential, path=str(workspace_config_path))
     elif subscription_id and resource_group and workspace_name:
