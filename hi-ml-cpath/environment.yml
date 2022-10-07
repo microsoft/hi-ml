@@ -89,7 +89,7 @@ dependencies:
     - azureml-dataprep-native==38.0.0
     - azureml-dataprep-rslex==2.6.3
     - azureml-dataset-runtime==1.43.0
-    - azure-ai-ml>=0.1.0b6
+    - azure-ai-ml>=0.1.0b3
     - azureml-mlflow==1.43.0
     - azureml-telemetry==1.43.0
     - azureml-tensorboard==1.43.0
