@@ -404,7 +404,6 @@ def _preprocess_hyperparams(params: Any) -> Dict[str, str]:
     Converts arbitrary hyperparameters to a simple dictionary structure, in particular argparse Namespaces.
     Nested dictionaries are converted to folder-like strings, like ``{'a': {'b': 'c'}} -> {'a/b': 'c'}``.
     All hyperparameter values are converted to strings, because Run.log_table can't deal with mixed datatypes.
-
     :param params: The parameters to convert
     :return: A dictionary mapping from string to string.
     """

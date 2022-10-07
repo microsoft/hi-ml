@@ -730,11 +730,11 @@ def _write_run_recovery_file(run: Run) -> None:
 
 
 def convert_himl_to_azureml_datasets(
-        cleaned_input_datasets: List[DatasetConfig],
-        cleaned_output_datasets: List[DatasetConfig],
-        strictly_aml_v1: bool,
-        workspace: Workspace,
-        workspace_client: Optional[MLClient] = None
+    cleaned_input_datasets: List[DatasetConfig],
+    cleaned_output_datasets: List[DatasetConfig],
+    strictly_aml_v1: bool,
+    workspace: Workspace,
+    workspace_client: Optional[MLClient] = None,
 ) -> Tuple[Dict[str, DatasetConsumptionConfig], Dict[str, OutputFileDatasetConfig]]:
     """
     Convert the cleaned input and output datasets into dictionaries of DatasetConsumptionConfigs for use in AzureML.
