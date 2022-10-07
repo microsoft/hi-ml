@@ -1,3 +1,4 @@
+azure-ai-ml>=0.1.0b6
 azureml-core>=1.42.0
 azureml-dataset-runtime[fuse]>=1.42.0
 azureml-tensorboard>=1.42.0
@@ -9,6 +10,4 @@ protobuf<4.0
 pysocks>=1.5.8
 ruamel.yaml>=0.16.12
 tensorboard>=2.6.0
-typing-extensions>=4.3.0
---pre
-azure-ai-ml
+typing-extensions>=4.3.0#
