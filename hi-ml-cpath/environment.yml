@@ -84,6 +84,7 @@ dependencies:
     - azure-mgmt-keyvault==10.0.0
     - azure-mgmt-resource==21.1.0
     - azure-mgmt-storage==20.0.0
+    - azure-storage-blob==12.5.0
     - azureml-core==1.43.0
     - azureml-dataprep==4.0.4
     - azureml-dataprep-native==38.0.0
