@@ -60,6 +60,7 @@ class ResultsKey(str, Enum):
     TILE_TOP = 'top'
     TILE_RIGHT = 'right'
     TILE_BOTTOM = 'bottom'
+    ENTROPY = 'entropy'
 
 
 class MetricsKey(str, Enum):

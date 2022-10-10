@@ -14,7 +14,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import Callback
 
@@ -22,7 +22,7 @@ from health_cpath.models.deepmil import BaseDeepMILModule
 from health_cpath.utils.naming import ModelKey, ResultsKey
 from health_cpath.utils.output_utils import BatchResultsType
 
-LossCacheDictType = Dict[ResultsKey, List]
+LossCacheDictType = Dict[Union[ResultsKey, str], List]
 LossDictType = Dict[str, List]
 
 
@@ -113,6 +113,7 @@ class LossAnalysisCallback(Callback):
         self.patience = patience
         self.epochs_interval = epochs_interval
         self.max_epochs = max_epochs
+        self.n_classes = n_classes
         self.num_slides_scatter = num_slides_scatter
         self.num_slides_heatmap = num_slides_heatmap
         self.save_tile_ids = save_tile_ids
@@ -147,8 +148,8 @@ class LossAnalysisCallback(Callback):
     def anomalies_folder(self, stage: ModelKey) -> Path:
         return self.outputs_folder / f"{stage}/loss_anomalies"
 
-    def entropy_folder(self, stage: ModelKey, label: int) -> Path:
-        return self.outputs_folder / f"{stage}/entropy/{label}"
+    def entropy_folder(self, stage: ModelKey) -> Path:
+        return self.outputs_folder / f"{stage}/entropy"
 
     def create_outputs_folders(self) -> None:
         folders = [
@@ -157,17 +158,15 @@ class LossAnalysisCallback(Callback):
             self.heatmap_folder,
             self.stats_folder,
             self.anomalies_folder,
+            self.entropy_folder,
         ]
         stages = [ModelKey.TRAIN, ModelKey.VAL]
         for folder in folders:
             for stage in stages:
                 os.makedirs(folder(stage), exist_ok=True)
-        for stage in stages:
-            for label in range(self.n_classes):
-                os.makedirs(self.entropy_folder(stage, label), exist_ok=True)
 
     def reset_loss_cache(self, loss_cache: Optional[LossCacheDictType] = None) -> LossCacheDictType:
-        keys = [ResultsKey.LOSS, ResultsKey.SLIDE_ID]
+        keys = [ResultsKey.LOSS, ResultsKey.SLIDE_ID, ResultsKey.ENTROPY]
         if self.save_tile_ids:
             keys.append(ResultsKey.TILE_ID)
         empty_loss_cache: LossCacheDictType = {key: [] for key in keys}
@@ -428,11 +427,23 @@ class LossAnalysisCallback(Callback):
         plt.title(f"Loss values evolution for {order} slides of epoch {epoch}")
         plt.savefig(self.get_heatmap_plot_file(epoch, order, stage), bbox_inches="tight")
 
+    @staticmethod
+    def compute_entropy(class_probs: torch.Tensor) -> List[float]:
+        """Computes the entropy of the class probabilities.
+
+        :param class_probs: The class probabilities.
+        :return: The entropy.
+        """
+        from torch.distributions import Categorical
+        pmf = Categorical(probs=class_probs.T)
+        return pmf.entropy().tolist()
+
     def update_loss_cache(self, trainer: Trainer, outputs: BatchResultsType, batch: Dict, stage: ModelKey) -> None:
         if self.should_cache_loss_values(trainer.current_epoch):
             loss_cache = self.get_loss_cache(stage)
             loss_cache[ResultsKey.LOSS].extend(outputs[ResultsKey.LOSS_PER_SAMPLE])
             loss_cache[ResultsKey.SLIDE_ID].extend([slides[0] for slides in batch[ResultsKey.SLIDE_ID]])
+            loss_cache[ResultsKey.ENTROPY].extend(self.compute_entropy(outputs[ResultsKey.CLASS_PROBS]))
             if self.save_tile_ids:
                 loss_cache[ResultsKey.TILE_ID].extend(
                     [self.TILES_JOIN_TOKEN.join(tiles) for tiles in batch[ResultsKey.TILE_ID]]
