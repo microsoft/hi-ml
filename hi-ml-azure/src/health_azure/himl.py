@@ -479,16 +479,16 @@ def _str_to_path(s: Optional[PathOrString]) -> Optional[Path]:
 
 
 def create_v2_inputs(workspace_client: MLClient, input_datasets: List[DatasetConfig]) -> Dict[str, Input]:
-    inputs = {}
+    inputs: Dict[str, Input] = {}
     for input_dataset in input_datasets:
         version = input_dataset.version or 1
         data_asset: Data = workspace_client.data.get(input_dataset.name, version=str(version))
-        data_path = data_asset.id
+        data_path = data_asset.id or ""
         # Note that there are alternative formats that the input path can take, such as:
         # v1_datastore_path = f"azureml://datastores/{input_dataset.datastore}/paths/<path_to_dataset>"
         # v2_dataset_path = f"azureml:{input_dataset.name}:1"
 
-        inputs[INPUT_DATASETS_ARG_NAME] = Input(
+        inputs[INPUT_DATASETS_ARG_NAME] = Input(  # type: ignore
             type=AssetTypes.URI_FOLDER,  # type: ignore
             path=data_path,
             mode=InputOutputModes.DIRECT,
@@ -502,7 +502,7 @@ def create_v2_outputs(output_datasets: List[DatasetConfig]) -> Dict[str, Output]
         v1_datastore_path = f"azureml://datastores/{output_dataset.datastore}/paths/{output_dataset.name}"
         # Note that there are alternative formats that the input path can take, such as:
         # v2_data_asset_path = f"azureml:{output_dataset.name}@latest"
-        outputs[OUTPUT_DATASETS_ARG_NAME] = Output(
+        outputs[OUTPUT_DATASETS_ARG_NAME] = Output(  # type: ignore
             type=AssetTypes.URI_FOLDER,
             path=v1_datastore_path,
             mode=InputOutputModes.DIRECT,

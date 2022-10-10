@@ -1360,7 +1360,8 @@ def test_create_v2_inputs() -> None:
     input_entry = inputs[himl.INPUT_DATASETS_ARG_NAME]
     assert isinstance(input_entry, Input)
     assert input_entry.type == AssetTypes.URI_FOLDER
-    assert input_entry.path == mock_data_path
+    actual_path: str = input_entry.path  # type: ignore
+    assert actual_path == mock_data_path
 
 
 def test_create_v2_outputs() -> None:

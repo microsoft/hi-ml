@@ -1,8 +1,8 @@
 azure-ai-ml>=0.1.0b6
 azureml-core>=1.42.0
 azureml-dataset-runtime[fuse]>=1.42.0
-azureml-mlflow>=1.43.0
-azure-storage-blob==12.5.0
+azureml-mlflow>=1.46.0
+azure-storage-blob==12.10.0
 azureml-tensorboard>=1.42.0
 azureml-train-core>=1.42.0
 conda-merge>=0.1.5
