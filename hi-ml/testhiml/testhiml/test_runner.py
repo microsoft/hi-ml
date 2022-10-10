@@ -105,7 +105,8 @@ def test_submit_to_azureml_if_needed(mock_get_workspace: MagicMock,
                                      mock_get_env_files: MagicMock,
                                      mock_runner: Runner
                                      ) -> None:
-    def _mock_dont_submit_to_aml(strictly_aml_v1: bool, input_datasets: List[DatasetConfig], submit_to_azureml: bool  # type: ignore
+    def _mock_dont_submit_to_aml(strictly_aml_v1: bool, input_datasets: List[DatasetConfig],
+                                 submit_to_azureml: bool  # type: ignore
                                  ) -> AzureRunInfo:
         datasets_input = [d.target_folder for d in input_datasets] if input_datasets else []
         return AzureRunInfo(input_datasets=datasets_input,

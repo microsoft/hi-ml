@@ -221,13 +221,19 @@ class Runner:
         # Get default datastore from the provided workspace. Authentication can take a few seconds, hence only do
         # that if we are really submitting to AzureML.
         workspace: Optional[Workspace] = None
-        try:
-            workspace = get_workspace()
-        except ValueError:
-            raise ValueError("Unable to submit the script to AzureML because no workspace configuration file "
-                             "(config.json) was found.")
-        assert workspace is not None  # for pyright
-        datastore = self.lightning_container.datastore_name or workspace.get_default_datastore().name
+        if self.experiment_config.cluster:
+            try:
+                workspace = get_workspace()
+            except ValueError:
+                raise ValueError("Unable to submit the script to AzureML because no workspace configuration file "
+                                 "(config.json) was found.")
+            # assert workspace is not None  # for pyright
+        if self.lightning_container.datastore_name:
+            datastore = self.lightning_container.datastore_name
+        elif workspace:
+            datastore = workspace.get_default_datastore().name
+        else:
+            datastore = ""
 
         local_datasets = self.lightning_container.local_datasets
         all_local_datasets = [Path(p) for p in local_datasets] if len(local_datasets) > 0 else []

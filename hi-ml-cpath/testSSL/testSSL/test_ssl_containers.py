@@ -109,7 +109,7 @@ def _compare_stored_metrics(runner: Runner, expected_metrics: Dict[str, float], 
 
 
 @pytest.mark.flaky(reruns=3)
-def test_ssl_container_cifar10_resnet_simclr() -> None:
+def test_ssl_container_cifar10_resnet_simclr(tmp_path: Path) -> None:
     """
     Tests:
         - training of SSL model on cifar10 for one epoch
