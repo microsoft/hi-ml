@@ -347,8 +347,10 @@ class BaseDeepMILModule(LightningModule):
                  sync_dist=True)
         if self.verbose:
             print(f"After loading images batch {batch_idx} -", _format_cuda_memory_stats())
-        return {ResultsKey.LOSS: train_result[ResultsKey.LOSS],
-                ResultsKey.LOSS_PER_SAMPLE: train_result[ResultsKey.LOSS_PER_SAMPLE]}
+        results = {ResultsKey.LOSS: train_result[ResultsKey.LOSS]}
+        if ResultsKey.LOSS_PER_SAMPLE in train_result:
+            results[ResultsKey.LOSS_PER_SAMPLE] = train_result[ResultsKey.LOSS_PER_SAMPLE]
+        return results
 
     def validation_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
         val_result = self._shared_step(batch, batch_idx, ModelKey.VAL)
