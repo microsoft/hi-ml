@@ -1327,7 +1327,9 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock,
     """
     cross_validation_metric_name = cross_validation_metric_name or ""
     mock_sys_args.return_value = ["", "--azureml"]
-    with check_config_json(tmp_path, shared_config_json=get_shared_config_json()):
+    with patch("health_azure.himl.get_workspace_client") as mock_get_workspace_client:
+        mock_workspace_client = MagicMock()
+        mock_get_workspace_client.return_value = mock_workspace_client
         with patch.object(Environment, "get", return_value="dummy_env"):
             mock_workspace = MagicMock()
             mock_workspace.compute_targets = {"foo": mock_compute_cluster}
@@ -1341,6 +1343,7 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock,
                             metric_name=cross_validation_metric_name)
                         himl.submit_to_azure_if_needed(
                             aml_workspace=mock_workspace,
+                            workspace_client=mock_workspace_client,
                             entry_script=Path(__file__),
                             compute_cluster_name="foo",
                             aml_environment_name="dummy_env",
