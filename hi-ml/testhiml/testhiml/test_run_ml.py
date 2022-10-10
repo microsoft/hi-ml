@@ -9,8 +9,6 @@ from pathlib import Path
 from typing import Generator
 from unittest.mock import DEFAULT, MagicMock, Mock, patch
 
-from azureml._restclient.constants import RunStatus
-
 from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
@@ -351,7 +349,6 @@ def test_log_on_vm(log_from_vm: bool) -> None:
     assert len(runner.trainer.loggers) > 1
     logger = runner.trainer.loggers[1]
     assert isinstance(logger, MLFlowLogger)
-
 
 
 def test_experiment_name() -> None:
