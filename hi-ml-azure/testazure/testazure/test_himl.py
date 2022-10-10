@@ -73,7 +73,7 @@ logger.setLevel(logging.DEBUG)
 # region Small fast local unit tests
 
 @pytest.mark.fast
-def test_submit_to_azure_if_needed_returns_immediately() -> None:
+def test_submit_to_azure_if_needed_returns_immediately(tmp_path: Path) -> None:
     """
     Test that himl.submit_to_azure_if_needed can be called, and returns immediately.
     """
@@ -89,14 +89,15 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
         # _find_file(CONDA_ENVIRONMENT_FILE) in submit_to_azure_if_needed
         if _is_running_in_github_pipeline():
             assert "No workspace config file given, nor can we find one" in str(ex)
-    with mock.patch("sys.argv", [""]):
-        result = himl.submit_to_azure_if_needed(
-            entry_script=Path(__file__),
-            compute_cluster_name="foo",
-            conda_environment_file=Path("env.yml"))
-        assert isinstance(result, himl.AzureRunInfo)
-        assert not result.is_running_in_azure_ml
-        assert result.run is None
+    with check_config_json(tmp_path, shared_config_json=get_shared_config_json()):
+        with mock.patch("sys.argv", [""]):
+            result = himl.submit_to_azure_if_needed(
+                entry_script=Path(__file__),
+                compute_cluster_name="foo",
+                conda_environment_file=Path("env.yml"))
+            assert isinstance(result, himl.AzureRunInfo)
+            assert not result.is_running_in_azure_ml
+            assert result.run is None
 
 
 def _is_running_in_github_pipeline() -> bool:
