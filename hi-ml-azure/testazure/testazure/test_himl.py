@@ -77,19 +77,20 @@ def test_submit_to_azure_if_needed_returns_immediately(tmp_path: Path) -> None:
     """
     Test that himl.submit_to_azure_if_needed can be called, and returns immediately.
     """
-    with mock.patch("sys.argv", ["", "--azureml"]):
-        with pytest.raises(Exception) as ex:
-            himl.submit_to_azure_if_needed(
-                aml_workspace=None,
-                workspace_config_file=None,
-                entry_script=Path(__file__),
-                compute_cluster_name="foo",
-                snapshot_root_directory=Path(__file__).parent)
-        # N.B. This assert may fail when run locally since we may find a workspace_config_file through the call to
-        # _find_file(CONDA_ENVIRONMENT_FILE) in submit_to_azure_if_needed
-        if _is_running_in_github_pipeline():
-            assert "No workspace config file given, nor can we find one" in str(ex)
     with check_config_json(tmp_path, shared_config_json=get_shared_config_json()):
+        with mock.patch("sys.argv", ["", "--azureml"]):
+            with pytest.raises(Exception) as ex:
+                himl.submit_to_azure_if_needed(
+                    aml_workspace=None,
+                    workspace_config_file=None,
+                    entry_script=Path(__file__),
+                    compute_cluster_name="foo",
+                    snapshot_root_directory=Path(__file__).parent)
+            # N.B. This assert may fail when run locally since we may find a workspace_config_file through the call to
+            # _find_file(CONDA_ENVIRONMENT_FILE) in submit_to_azure_if_needed
+            if _is_running_in_github_pipeline():
+                assert "No workspace config file given, nor can we find one" in str(ex)
+
         with mock.patch("sys.argv", [""]):
             result = himl.submit_to_azure_if_needed(
                 entry_script=Path(__file__),
@@ -1314,33 +1315,36 @@ def test_create_crossval_hyperdrive_config(_: MagicMock, num_crossval_splits: in
 @pytest.mark.parametrize("cross_validation_metric_name", [None, "accuracy"])
 @patch("sys.argv")
 @patch("health_azure.himl.exit")
-def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock, mock_exit: MagicMock,
+def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock,
+                                                   mock_exit: MagicMock,
                                                    mock_compute_cluster: MagicMock,
-                                                   cross_validation_metric_name: Optional[str]) -> None:
+                                                   cross_validation_metric_name: Optional[str],
+                                                   tmp_path: Path) -> None:
     """
     Test that himl.submit_to_azure_if_needed can be called, and returns immediately.
     """
     cross_validation_metric_name = cross_validation_metric_name or ""
     mock_sys_args.return_value = ["", "--azureml"]
-    with patch.object(Environment, "get", return_value="dummy_env"):
-        mock_workspace = MagicMock()
-        mock_workspace.compute_targets = {"foo": mock_compute_cluster}
-        with patch("health_azure.himl.submit_run") as mock_submit_run:
-            with patch("health_azure.himl.HyperDriveConfig") as mock_hyperdrive_config:
-                crossval_config = himl.create_crossval_hyperdrive_config(
-                    num_splits=2,
-                    cross_val_index_arg_name="cross_val_split_index",
-                    metric_name=cross_validation_metric_name)
-                himl.submit_to_azure_if_needed(
-                    aml_workspace=mock_workspace,
-                    entry_script=Path(__file__),
-                    compute_cluster_name="foo",
-                    aml_environment_name="dummy_env",
-                    submit_to_azureml=True,
-                    hyperdrive_config=crossval_config,
-                    strictly_aml_v1=True)
-                mock_submit_run.assert_called_once()
-                mock_hyperdrive_config.assert_called_once()
+    with check_config_json(tmp_path, shared_config_json=get_shared_config_json()):
+        with patch.object(Environment, "get", return_value="dummy_env"):
+            mock_workspace = MagicMock()
+            mock_workspace.compute_targets = {"foo": mock_compute_cluster}
+            with patch("health_azure.himl.submit_run") as mock_submit_run:
+                with patch("health_azure.himl.HyperDriveConfig") as mock_hyperdrive_config:
+                    crossval_config = himl.create_crossval_hyperdrive_config(
+                        num_splits=2,
+                        cross_val_index_arg_name="cross_val_split_index",
+                        metric_name=cross_validation_metric_name)
+                    himl.submit_to_azure_if_needed(
+                        aml_workspace=mock_workspace,
+                        entry_script=Path(__file__),
+                        compute_cluster_name="foo",
+                        aml_environment_name="dummy_env",
+                        submit_to_azureml=True,
+                        hyperdrive_config=crossval_config,
+                        strictly_aml_v1=True)
+                    mock_submit_run.assert_called_once()
+                    mock_hyperdrive_config.assert_called_once()
 
 
 def test_create_v2_inputs() -> None:
