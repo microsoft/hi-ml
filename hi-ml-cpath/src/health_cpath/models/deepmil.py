@@ -350,6 +350,7 @@ class BaseDeepMILModule(LightningModule):
         results = {ResultsKey.LOSS: train_result[ResultsKey.LOSS]}
         if ResultsKey.LOSS_PER_SAMPLE in train_result:
             results[ResultsKey.LOSS_PER_SAMPLE] = train_result[ResultsKey.LOSS_PER_SAMPLE]
+            results[ResultsKey.CLASS_PROBS] = train_result[ResultsKey.CLASS_PROBS]
         return results
 
     def validation_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore

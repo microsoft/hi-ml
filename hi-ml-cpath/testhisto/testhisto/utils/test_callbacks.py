@@ -24,7 +24,7 @@ def _assert_loss_cache_contains_n_elements(loss_cache: LossCacheDictType, n: int
 
 def dump_loss_cache_for_epochs(loss_callback: LossAnalysisCallback, epochs: int) -> None:
     for epoch in range(epochs):
-        loss_callback.loss_cache = get_loss_cache()
+        loss_callback.train_loss_cache = get_loss_cache()
         loss_callback.save_loss_cache(epoch)
 
 
@@ -53,7 +53,7 @@ def test_analyse_loss_param(analyse_loss: bool) -> None:
 def test_save_tile_ids_param(save_tile_ids: bool) -> None:
     callback = LossAnalysisCallback(outputs_folder=Path("foo"), save_tile_ids=save_tile_ids)
     assert callback.save_tile_ids == save_tile_ids
-    assert (ResultsKey.TILE_ID in callback.loss_cache) == save_tile_ids
+    assert (ResultsKey.TILE_ID in callback.train_loss_cache) == save_tile_ids
 
 
 @pytest.mark.parametrize("patience", [0, 1, 2])
@@ -106,14 +106,14 @@ def test_on_train_batch_start(tmp_path: Path, mock_panda_tiles_root_dir: Path) -
     batch = next(iter(container.data_module.train_dataloader()))
 
     callback = LossAnalysisCallback(outputs_folder=tmp_path)
-    _assert_loss_cache_contains_n_elements(callback.loss_cache, 0)
+    _assert_loss_cache_contains_n_elements(callback.train_loss_cache, 0)
 
     callback.on_train_batch_start(trainer, container.model, batch, 0, None)  # type: ignore
-    _assert_loss_cache_contains_n_elements(callback.loss_cache, batch_size)
+    _assert_loss_cache_contains_n_elements(callback.train_loss_cache, batch_size)
 
     batch = next(iter(container.data_module.train_dataloader()))
     callback.on_train_batch_start(trainer, container.model, batch, 1, None)  # type: ignore
-    _assert_loss_cache_contains_n_elements(callback.loss_cache, 2 * batch_size)
+    _assert_loss_cache_contains_n_elements(callback.train_loss_cache, 2 * batch_size)
 
 
 def get_loss_cache(n_slides: int = 4, rank: int = 0) -> LossCacheDictType:
@@ -133,15 +133,15 @@ def test_on_train_epoch_end(
     pl_module = MagicMock(global_rank=rank)
 
     loss_callback = LossAnalysisCallback(outputs_folder=tmp_path, num_slides_heatmap=2, num_slides_scatter=2)
-    loss_callback.loss_cache = get_loss_cache(rank=rank, n_slides=n_slides_per_process)
+    loss_callback.train_loss_cache = get_loss_cache(rank=rank, n_slides=n_slides_per_process)
     if duplicate:
         # Duplicate slide "id_0" to test that the duplicates are removed
-        loss_callback.loss_cache[ResultsKey.SLIDE_ID][0] = "id_0"
+        loss_callback.train_loss_cache[ResultsKey.SLIDE_ID][0] = "id_0"
 
-    _assert_loss_cache_contains_n_elements(loss_callback.loss_cache, n_slides_per_process)
+    _assert_loss_cache_contains_n_elements(loss_callback.train_loss_cache, n_slides_per_process)
     loss_callback.on_train_epoch_end(trainer, pl_module)
     # Loss cache is flushed after each epoch
-    _assert_loss_cache_contains_n_elements(loss_callback.loss_cache, 0)
+    _assert_loss_cache_contains_n_elements(loss_callback.train_loss_cache, 0)
 
     if rank > 0:
         time.sleep(10)  # Wait for rank 0 to save the loss cache in a csv file
@@ -204,8 +204,8 @@ def test_nans_detection(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> Non
         outputs_folder=tmp_path, max_epochs=max_epochs, num_slides_heatmap=2, num_slides_scatter=2
     )
     for epoch in range(max_epochs):
-        loss_callback.loss_cache = get_loss_cache(n_slides)
-        loss_callback.loss_cache[ResultsKey.LOSS][epoch] = np.nan
+        loss_callback.train_loss_cache = get_loss_cache(n_slides)
+        loss_callback.train_loss_cache[ResultsKey.LOSS][epoch] = np.nan
         loss_callback.save_loss_cache(epoch)
 
     all_slides = loss_callback.select_slides_for_epoch(epoch=0)

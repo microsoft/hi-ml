@@ -85,6 +85,7 @@ class LossAnalysisCallback(Callback):
         self,
         outputs_folder: Path,
         max_epochs: int = 30,
+        n_classes: int = 2,
         patience: int = 0,
         epochs_interval: int = 1,
         num_slides_scatter: int = 10,
@@ -99,6 +100,7 @@ class LossAnalysisCallback(Callback):
         :param patience: Number of epochs to wait before starting to cache loss values, defaults to 0.
         :param epochs_interval: Epochs interval to save loss values, defaults to 1.
         :param max_epochs: Maximum number of epochs to train, defaults to 30.
+        :param n_classes: Number of classes, defaults to 2.
         :param num_slides_scatter: Number of slides to plot in the scatter plot, defaults to 10.
         :param num_slides_heatmap: Number of slides to plot in the heatmap, defaults to 20.
         :param save_tile_ids: If True, will save the tile ids of the tiles in the bag in the loss cache, defaults to
@@ -116,35 +118,37 @@ class LossAnalysisCallback(Callback):
         self.save_tile_ids = save_tile_ids
         self.log_exceptions = log_exceptions
 
-        self.outputs_folder = outputs_folder / "loss_values_callback"
+        self.outputs_folder = outputs_folder / "loss_analysis_callback"
         if create_outputs_folders:
             self.create_outputs_folders()
 
-        self.loss_cache = self.reset_loss_cache()
+        self.train_loss_cache = self.reset_loss_cache()
+        self.val_loss_cache = self.reset_loss_cache()
         self.epochs_range = list(range(self.patience, self.max_epochs, self.epochs_interval))
 
         self.nan_slides: List[str] = []
         self.anomaly_slides: List[str] = []
 
-    @property
-    def cache_folder(self) -> Path:
-        return self.outputs_folder / "loss_cache"
+    def get_loss_cache(self, stage: ModelKey) -> LossCacheDictType:
+        return self.train_loss_cache if stage == ModelKey.TRAIN else self.val_loss_cache
 
-    @property
-    def scatter_folder(self) -> Path:
-        return self.outputs_folder / "loss_scatter"
+    def cache_folder(self, stage: ModelKey) -> Path:
+        return self.outputs_folder / f"{stage}/loss_cache"
 
-    @property
-    def heatmap_folder(self) -> Path:
-        return self.outputs_folder / "loss_heatmap"
+    def scatter_folder(self, stage: ModelKey) -> Path:
+        return self.outputs_folder / f"{stage}/loss_scatter"
 
-    @property
-    def stats_folder(self) -> Path:
-        return self.outputs_folder / "loss_stats"
+    def heatmap_folder(self, stage: ModelKey) -> Path:
+        return self.outputs_folder / f"{stage}/loss_heatmap"
 
-    @property
-    def anomalies_folder(self) -> Path:
-        return self.outputs_folder / "loss_anomalies"
+    def stats_folder(self, stage: ModelKey) -> Path:
+        return self.outputs_folder / f"{stage}/loss_stats"
+
+    def anomalies_folder(self, stage: ModelKey) -> Path:
+        return self.outputs_folder / f"{stage}/loss_anomalies"
+
+    def entropy_folder(self, stage: ModelKey, label: int) -> Path:
+        return self.outputs_folder / f"{stage}/entropy/{label}"
 
     def create_outputs_folders(self) -> None:
         folders = [
@@ -154,53 +158,63 @@ class LossAnalysisCallback(Callback):
             self.stats_folder,
             self.anomalies_folder,
         ]
+        stages = [ModelKey.TRAIN, ModelKey.VAL]
         for folder in folders:
-            for stage in [ModelKey.TRAIN.value, ModelKey.VAL.value]:
-                os.makedirs(folder / stage, exist_ok=True)
+            for stage in stages:
+                os.makedirs(folder(stage), exist_ok=True)
+        for stage in stages:
+            for label in range(self.n_classes):
+                os.makedirs(self.entropy_folder(stage, label), exist_ok=True)
 
-    def reset_loss_cache(self) -> LossCacheDictType:
+    def reset_loss_cache(self, loss_cache: Optional[LossCacheDictType] = None) -> LossCacheDictType:
         keys = [ResultsKey.LOSS, ResultsKey.SLIDE_ID]
         if self.save_tile_ids:
             keys.append(ResultsKey.TILE_ID)
-        return {key: [] for key in keys}
+        empty_loss_cache: LossCacheDictType = {key: [] for key in keys}
+        if loss_cache is not None:
+            loss_cache = empty_loss_cache
+        return empty_loss_cache
 
     def _get_filename(self, filename: str, epoch: int, order: Optional[str] = None) -> str:
         zero_filled_epoch = str(epoch).zfill(len(str(self.max_epochs)))
         filename = filename.format(zero_filled_epoch, order) if order else filename.format(zero_filled_epoch)
         return filename
 
-    def get_loss_cache_file(self, epoch: int, stage: str) -> Path:
-        return self.cache_folder / stage / self._get_filename(filename="epoch_{}.csv", epoch=epoch)
+    def get_loss_cache_file(self, epoch: int, stage: ModelKey) -> Path:
+        return self.cache_folder(stage) / self._get_filename(filename="epoch_{}.csv", epoch=epoch)
 
-    def get_all_epochs_loss_cache_file(self, stage: str) -> Path:
-        return self.cache_folder / stage / "all_epochs.csv"
+    def get_all_epochs_loss_cache_file(self, stage: ModelKey) -> Path:
+        return self.cache_folder(stage) / f"all_epochs_{stage}.csv"
 
-    def get_loss_stats_file(self, stage: str) -> Path:
-        return self.stats_folder / stage / "loss_stats.csv"
+    def get_loss_stats_file(self, stage: ModelKey) -> Path:
+        return self.stats_folder(stage) / f"loss_stats_{stage}.csv"
 
-    def get_loss_ranks_file(self, stage: str) -> Path:
-        return self.stats_folder / stage / "loss_ranks.csv"
+    def get_loss_ranks_file(self, stage: ModelKey) -> Path:
+        return self.stats_folder(stage) / f"loss_ranks_{stage}.csv"
 
-    def get_loss_ranks_stats_file(self, stage: str) -> Path:
-        return self.stats_folder / stage / "loss_ranks_stats.csv"
+    def get_loss_ranks_stats_file(self, stage: ModelKey) -> Path:
+        return self.stats_folder(stage) / f"loss_ranks_stats_{stage}.csv"
 
-    def get_nan_slides_file(self, stage: str) -> Path:
-        return self.anomalies_folder / stage / "nan_slides.txt"
+    def get_nan_slides_file(self, stage: ModelKey) -> Path:
+        return self.anomalies_folder(stage) / f"nan_slides_{stage}.txt"
 
-    def get_anomaly_slides_file(self, stage: str) -> Path:
-        return self.anomalies_folder / stage / "anomaly_slides.txt"
+    def get_anomaly_slides_file(self, stage: ModelKey) -> Path:
+        return self.anomalies_folder(stage) / f"anomaly_slides_{stage}.txt"
 
-    def get_scatter_plot_file(self, order: str, stage: str) -> Path:
-        return self.scatter_folder / stage / f"slides_with_{order}_loss_values.png"
+    def get_scatter_plot_file(self, order: str, stage: ModelKey) -> Path:
+        return self.scatter_folder(stage) / f"slides_with_{order}_loss_values_{stage}.png"
 
-    def get_heatmap_plot_file(self, epoch: int, order: str, stage: str) -> Path:
-        return self.heatmap_folder / stage / self._get_filename("epoch_{}_{}_slides.png", epoch, order)
+    def get_heatmap_plot_file(self, epoch: int, order: str, stage: ModelKey) -> Path:
+        tmp_filename = "epoch_{}_{}_slides_train.png" if stage == ModelKey.TRAIN else "epoch_{}_{}_slides_val.png"
+        return self.heatmap_folder(stage) / self._get_filename(tmp_filename, epoch, order)
 
-    def read_loss_cache(self, epoch: int, stage: str, idx_col: Optional[ResultsKey] = None) -> pd.DataFrame:
+    def read_loss_cache(self, epoch: int, stage: ModelKey, idx_col: Optional[ResultsKey] = None) -> pd.DataFrame:
         columns = [ResultsKey.SLIDE_ID, ResultsKey.LOSS]
         return pd.read_csv(self.get_loss_cache_file(epoch, stage), index_col=idx_col, usecols=columns)
 
     def should_cache_loss_values(self, current_epoch: int) -> bool:
+        if current_epoch >= self.max_epochs:
+            return False  # Don't cache loss values for the extra validation epoch
         current_epoch = current_epoch + 1
         first_time = (current_epoch - self.patience) == 1
         return first_time or (
@@ -215,19 +229,20 @@ class LossAnalysisCallback(Callback):
                 loss_cache[key].extend(loss_cache_per_device[key])
         return loss_cache
 
-    def gather_loss_cache(self, rank: int) -> None:
+    def gather_loss_cache(self, rank: int, loss_cache: LossCacheDictType) -> None:
         """Gathers the loss cache from all the workers"""
         if torch.distributed.is_initialized():
             world_size = torch.distributed.get_world_size()
             if world_size > 1:
                 loss_caches = [None] * world_size
-                torch.distributed.all_gather_object(loss_caches, self.loss_cache)
+                torch.distributed.all_gather_object(loss_caches, loss_cache)
                 if rank == 0:
-                    self.loss_cache = self.merge_loss_caches(loss_caches)  # type: ignore
+                    loss_cache = self.merge_loss_caches(loss_caches)  # type: ignore
 
-    def save_loss_cache(self, current_epoch: int, stage: str) -> None:
+    def save_loss_cache(self, current_epoch: int, stage: ModelKey) -> None:
         """Saves the loss cache to a csv file"""
-        loss_cache_df = pd.DataFrame(self.loss_cache)
+        loss_cache = self.get_loss_cache(stage)
+        loss_cache_df = pd.DataFrame(loss_cache)
         # Some slides may be appear multiple times in the loss cache in DDP mode. The Distributed Sampler duplicate
         # some slides to even out the number of samples per device, so we only keep the first occurrence.
         loss_cache_df.drop_duplicates(subset=ResultsKey.SLIDE_ID, inplace=True, keep="first")
@@ -238,7 +253,7 @@ class LossAnalysisCallback(Callback):
         self,
         keys: List[ResultsKey],
         epoch: int,
-        stage: str,
+        stage: ModelKey,
         high: Optional[bool] = None,
         num_values: Optional[int] = None
     ) -> List[np.ndarray]:
@@ -257,7 +272,7 @@ class LossAnalysisCallback(Callback):
         return return_values
 
     def select_slides_for_epoch(
-        self, epoch: int, stage: str, high: Optional[bool] = None, num_slides: Optional[int] = None
+        self, epoch: int, stage: ModelKey, high: Optional[bool] = None, num_slides: Optional[int] = None
     ) -> np.ndarray:
         """Selects slides in ascending/descending order of loss values at a given epoch
 
@@ -270,7 +285,7 @@ class LossAnalysisCallback(Callback):
         return self._select_values_for_epoch([ResultsKey.SLIDE_ID], epoch, stage, high, num_slides)[0]
 
     def select_slides_losses_for_epoch(
-        self, epoch: int, stage: str, high: Optional[bool] = None
+        self, epoch: int, stage: ModelKey, high: Optional[bool] = None
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Selects slides and loss values of slides in ascending/descending order of loss at a given epoch
 
@@ -283,7 +298,7 @@ class LossAnalysisCallback(Callback):
         return_values = self._select_values_for_epoch(keys, epoch, stage, high, self.num_slides_scatter)
         return return_values[0], return_values[1]
 
-    def select_all_losses_for_selected_slides(self, slides: np.ndarray, stage: str) -> LossDictType:
+    def select_all_losses_for_selected_slides(self, slides: np.ndarray, stage: ModelKey) -> LossDictType:
         """Selects the loss values for a given set of slides"""
 
         slides_loss_values: LossDictType = {slide_id: [] for slide_id in slides}
@@ -294,7 +309,7 @@ class LossAnalysisCallback(Callback):
         return slides_loss_values
 
     def select_slides_and_losses_across_epochs(
-        self, stage: str, high: bool = True
+        self, stage: ModelKey, high: bool = True
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Selects the slides with the highest/lowest loss values across epochs
 
@@ -318,7 +333,7 @@ class LossAnalysisCallback(Callback):
                 for slide_id in slide_ids:
                     f.write(f"{slide_id}\n")
 
-    def sanity_check_loss_values(self, loss_values: LossDictType, stage: str) -> None:
+    def sanity_check_loss_values(self, loss_values: LossDictType, stage: ModelKey) -> None:
         """Checks if there are any NaNs or any other potential annomalies in the loss values.
 
         :param loss_values: The loss values for all slides.
@@ -340,7 +355,7 @@ class LossAnalysisCallback(Callback):
         self.save_slide_ids(self.nan_slides, self.get_nan_slides_file(stage))
         self.save_slide_ids(self.anomaly_slides, self.get_anomaly_slides_file(stage))
 
-    def save_loss_ranks(self, slides_loss_values: LossDictType, stage: str) -> None:
+    def save_loss_ranks(self, slides_loss_values: LossDictType, stage: ModelKey) -> None:
         """Saves the loss ranks for each slide across all epochs and their respective statistics in csv files."""
 
         loss_df = pd.DataFrame(slides_loss_values).T
@@ -360,7 +375,7 @@ class LossAnalysisCallback(Callback):
         self,
         slides: np.ndarray,
         slides_loss: np.ndarray,
-        stage: str,
+        stage: ModelKey,
         high: bool = True,
         figsize: Tuple[float, float] = (30, 30),
     ) -> None:
@@ -391,7 +406,7 @@ class LossAnalysisCallback(Callback):
         self,
         slides_loss_values: LossDictType,
         epoch: int,
-        stage: str,
+        stage: ModelKey,
         high: bool,
         figsize: Tuple[float, float] = (15, 15)
     ) -> None:
@@ -413,23 +428,25 @@ class LossAnalysisCallback(Callback):
         plt.title(f"Loss values evolution for {order} slides of epoch {epoch}")
         plt.savefig(self.get_heatmap_plot_file(epoch, order, stage), bbox_inches="tight")
 
-    def _cache_loss_slides(self, trainer: Trainer, outputs: BatchResultsType, batch: Dict) -> None:
+    def update_loss_cache(self, trainer: Trainer, outputs: BatchResultsType, batch: Dict, stage: ModelKey) -> None:
         if self.should_cache_loss_values(trainer.current_epoch):
-            self.loss_cache[ResultsKey.LOSS].extend(outputs[ResultsKey.LOSS_PER_SAMPLE])
-            self.loss_cache[ResultsKey.SLIDE_ID].extend([slides[0] for slides in batch[ResultsKey.SLIDE_ID]])
+            loss_cache = self.get_loss_cache(stage)
+            loss_cache[ResultsKey.LOSS].extend(outputs[ResultsKey.LOSS_PER_SAMPLE])
+            loss_cache[ResultsKey.SLIDE_ID].extend([slides[0] for slides in batch[ResultsKey.SLIDE_ID]])
             if self.save_tile_ids:
-                self.loss_cache[ResultsKey.TILE_ID].extend(
+                loss_cache[ResultsKey.TILE_ID].extend(
                     [self.TILES_JOIN_TOKEN.join(tiles) for tiles in batch[ResultsKey.TILE_ID]]
                 )
 
-    def synchronise_processes_and_reset(self, trainer: Trainer, pl_module: BaseDeepMILModule, stage: str) -> None:
+    def synchronise_processes_and_reset(self, trainer: Trainer, pl_module: BaseDeepMILModule, stage: ModelKey) -> None:
         if self.should_cache_loss_values(trainer.current_epoch):
-            self.gather_loss_cache(rank=pl_module.global_rank)
+            loss_cache = self.get_loss_cache(stage)
+            self.gather_loss_cache(rank=pl_module.global_rank, loss_cache=loss_cache)
             if pl_module.global_rank == 0:
                 self.save_loss_cache(trainer.current_epoch, stage)
-        self.loss_cache = self.reset_loss_cache()  # reset loss cache for all processes
+            self.reset_loss_cache(loss_cache)  # reset loss cache for all processes
 
-    def save_loss_outliers_analaysis_results(self, stage: str) -> None:
+    def save_loss_outliers_analaysis_results(self, stage: ModelKey) -> None:
         all_slides = self.select_slides_for_epoch(epoch=0, stage=stage)
         all_loss_values_per_slides = self.select_all_losses_for_selected_slides(all_slides, stage=stage)
 
@@ -452,10 +469,10 @@ class LossAnalysisCallback(Callback):
             bottom_slides = epoch_slides[-self.num_slides_heatmap:]
             bottom_slides_loss_values = self.select_all_losses_for_selected_slides(bottom_slides, stage=stage)
             self.plot_loss_heatmap_for_slides_of_epoch(bottom_slides_loss_values, epoch, stage, high=False)
+        loss_cache = self.get_loss_cache(stage)
+        self.reset_loss_cache(loss_cache)
 
-        self.loss_cache = self.reset_loss_cache()
-
-    def handle_loss_exceptions(self, stage: str, exception: Exception) -> None:
+    def handle_loss_exceptions(self, stage: ModelKey, exception: Exception) -> None:
         if self.log_exceptions:
             # If something goes wrong, we don't want to crash the training. We just log the error and carry on
             # validation.
@@ -475,7 +492,7 @@ class LossAnalysisCallback(Callback):
         unused: int = 0
     ) -> None:
         """Caches train loss values per slide at each training step in a local variable self.loss_cache."""
-        self._cache_loss_slides(trainer, outputs, batch)
+        self.update_loss_cache(trainer, outputs, batch, stage=ModelKey.TRAIN)
 
     def on_validation_batch_end(  # type: ignore
         self,
@@ -487,24 +504,24 @@ class LossAnalysisCallback(Callback):
         dataloader_idx: int
     ) -> None:
         """Caches validation loss values per slide at each training step in a local variable self.loss_cache."""
-        self._cache_loss_slides(trainer, outputs, batch)
+        self.update_loss_cache(trainer, outputs, batch, stage=ModelKey.VAL)
 
     def on_train_epoch_end(self, trainer: Trainer, pl_module: BaseDeepMILModule) -> None:  # type: ignore
         """Gathers loss values per slide from all processes at the end of each epoch and saves them to a csv file."""
-        self.synchronise_processes_and_reset(trainer, pl_module, ModelKey.TRAIN.value)
+        self.synchronise_processes_and_reset(trainer, pl_module, ModelKey.TRAIN)
 
     def on_validation_epoch_end(self, trainer: Trainer, pl_module: BaseDeepMILModule) -> None:  # type: ignore
         """Gathers loss values per slide from all processes at the end of each epoch and saves them to a csv file."""
-        self.synchronise_processes_and_reset(trainer, pl_module, ModelKey.VAL.value)
+        self.synchronise_processes_and_reset(trainer, pl_module, ModelKey.VAL)
 
     def on_train_end(self, trainer: Trainer, pl_module: BaseDeepMILModule) -> None:  # type: ignore
         """Hook called at the end of training. Plot the loss heatmap and scratter plots after ranking the slides by loss
         values."""
         if pl_module.global_rank == 0:
             try:
-                self.save_loss_outliers_analaysis_results(stage=ModelKey.TRAIN.value)
+                self.save_loss_outliers_analaysis_results(stage=ModelKey.TRAIN)
             except Exception as e:
-                self.handle_loss_exceptions(stage=ModelKey.TRAIN.value, exception=e)
+                self.handle_loss_exceptions(stage=ModelKey.TRAIN, exception=e)
 
     def on_validation_end(self, trainer: Trainer, pl_module: BaseDeepMILModule) -> None:  # type: ignore
         """Hook called at the end of validation. Plot the loss heatmap and scratter plots after ranking the slides by
@@ -512,6 +529,6 @@ class LossAnalysisCallback(Callback):
         epoch = trainer.current_epoch
         if pl_module.global_rank == 0 and not pl_module._run_extra_val_epoch and epoch == self.max_epochs:
             try:
-                self.save_loss_outliers_analaysis_results(stage=ModelKey.VAL.value)
+                self.save_loss_outliers_analaysis_results(stage=ModelKey.VAL)
             except Exception as e:
-                self.handle_loss_exceptions(stage=ModelKey.VAL.value, exception=e)
+                self.handle_loss_exceptions(stage=ModelKey.VAL, exception=e)
