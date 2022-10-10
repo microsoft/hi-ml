@@ -494,7 +494,6 @@ def setup_local_datasets(dataset_configs: List[DatasetConfig],
     :return: Pair of: list of optional paths to the input datasets, list of mountcontexts, one for each mounted dataset.
     """
     workspace = find_workspace_for_local_datasets(aml_workspace, workspace_config_path, dataset_configs)
-    workspace_client = get_workspace_client(workspace_client)
     mounted_input_datasets: List[Optional[Path]] = []
     mount_contexts: List[MountContext] = []
 

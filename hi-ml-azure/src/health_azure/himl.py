@@ -634,9 +634,9 @@ def submit_to_azure_if_needed(  # type: ignore
 
         mounted_input_datasets, mount_contexts = setup_local_datasets(cleaned_input_datasets,
                                                                       strictly_aml_v1,
-                                                                      aml_workspace,
-                                                                      workspace_client,
-                                                                      workspace_config_path)
+                                                                      aml_workspace=aml_workspace,
+                                                                      workspace_client=workspace_client,
+                                                                      workspace_config_path=workspace_config_path)
 
         return AzureRunInfo(
             input_datasets=mounted_input_datasets,
