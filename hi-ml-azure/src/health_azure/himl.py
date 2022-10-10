@@ -653,7 +653,7 @@ def submit_to_azure_if_needed(  # type: ignore
         snapshot_root_directory = Path.cwd()
 
     workspace = get_workspace(aml_workspace, workspace_config_path)
-    workspace_client = get_workspace_client(workspace_client)
+    workspace_client = get_workspace_client(workspace_client=workspace_client, aml_workspace=workspace)
     print(f"Loaded AzureML workspace {workspace.name}")
 
     if conda_environment_file is None:

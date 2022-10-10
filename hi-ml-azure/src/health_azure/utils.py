@@ -2073,17 +2073,37 @@ def get_credential() -> Optional[CredentialType]:
 
 
 def get_workspace_client(workspace_client: Optional[MLClient] = None,
+                         aml_workspace: Optional[Workspace] = None,
                          workspace_config_path: Optional[PathOrString] = None,
                          subscription_id: Optional[str] = None,
                          resource_group: Optional[str] = None,
-                         workspace_name: str = ""
+                         workspace_name: str = "",
                          ) -> MLClient:
+    """
+    Instantiate an MLClient for interacting with Azure resources via v2 of the Azure ML SDK.
+    If a workspace_client is provided, return that. Otherwise, create one using workspace details
+    coming from either an existing Workspace object, a config.json file or passed in as an argument.
+
+    :param workspace_client: An optional existing MLClient object to be returned.
+    :param aml_workspace: An optional Workspace object to take connection details from.
+    :param workspace_config_path: An optional path toa  config.json file containing details of the Workspace.
+    :param subscription_id: An optional subscription ID.
+    :param resource_group: An optional resource group name.
+    :param workspace_name: An optional workspace name.
+    :return: An instance of MLClient to interact with Azure resources.
+    """
     if workspace_client:
         return workspace_client
 
     credential = get_credential()
     if credential is None:
         raise ValueError("Can't connect to MLClient without a valid credential")
+    if aml_workspace is not None:
+        workspace_client = MLClient(
+            subscription_id=aml_workspace.subscription_id,
+            resource_group_name=aml_workspace.resource_group,
+            workspace_name=aml_workspace.name,
+            credential=credential)
     if workspace_config_path:
         workspace_client = MLClient.from_config(credential=credential, path=str(workspace_config_path))
     elif subscription_id and resource_group and workspace_name:
