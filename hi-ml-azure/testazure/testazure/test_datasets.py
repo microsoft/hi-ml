@@ -76,12 +76,12 @@ def test_dataset_input() -> None:
     # Downloading or mounting to a given path
     target_folder = "/tmp/foo"
     dataset_config = DatasetConfig(name="hello_world", datastore=DEFAULT_DATASTORE, target_folder=target_folder)
-    aml_dataset = dataset_config.to_input_dataset(dataset_index=1, workspace=workspace, strictly_aml_v1=True)
+    aml_dataset: DatasetConsumptionConfig = dataset_config.to_input_dataset(dataset_index=1, workspace=workspace, strictly_aml_v1=True)
     assert isinstance(aml_dataset, DatasetConsumptionConfig)
     assert aml_dataset.path_on_compute == target_folder
     # Use mounting instead of downloading
     dataset_config = DatasetConfig(name="hello_world", datastore=DEFAULT_DATASTORE, use_mounting=True)
-    aml_dataset = dataset_config.to_input_dataset(dataset_index=1, workspace=workspace, strictly_aml_v1=True)
+    aml_dataset: DatasetConsumptionConfig = dataset_config.to_input_dataset(dataset_index=1, workspace=workspace, strictly_aml_v1=True)
     assert isinstance(aml_dataset, DatasetConsumptionConfig)
     assert aml_dataset.mode == "mount"
 
@@ -97,7 +97,7 @@ def test_dataset_input_target_empty(target_folder: PathOrString) -> None:
     workspace = DEFAULT_WORKSPACE.workspace
     # This dataset must exist in the workspace already, or at least in blob storage.
     dataset_config = DatasetConfig(name="hello_world", datastore=DEFAULT_DATASTORE, target_folder=target_folder)
-    aml_dataset = dataset_config.to_input_dataset(workspace=workspace, dataset_index=1, strictly_aml_v1=True)
+    aml_dataset: DatasetConsumptionConfig = dataset_config.to_input_dataset(workspace=workspace, dataset_index=1, strictly_aml_v1=True)
     assert isinstance(aml_dataset, DatasetConsumptionConfig)
     assert aml_dataset.path_on_compute is None
 

@@ -226,7 +226,7 @@ class Runner:
         except ValueError:
             raise ValueError("Unable to submit the script to AzureML because no workspace configuration file "
                              "(config.json) was found.")
-
+        assert workspace is not None  # for pyright
         datastore = self.lightning_container.datastore_name or workspace.get_default_datastore().name
 
         local_datasets = self.lightning_container.local_datasets

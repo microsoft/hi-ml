@@ -358,9 +358,14 @@ def submit_run_v2(workspace: Optional[Workspace],
     if v2_input_datasets:
         if len(v2_input_datasets) > 0:
             cmd += " --input_datasets=${{inputs.input_datasets}}"
+    else:
+        v2_input_datasets = {}
+
     if v2_output_datasets:
         if len(v2_output_datasets) > 0:
             cmd += " --output_datasets=${{outputs.output_datasets}}"
+    else:
+        v2_output_datasets = {}
 
     source_directory = Path(script_run_config.source_directory)
     docs_folder = source_directory / "docs" / "source"
@@ -401,7 +406,7 @@ def submit_run_v2(workspace: Optional[Workspace],
 
 def download_job_outputs_logs(ml_client: MLClient,
                               job_name: str,
-                              file_to_download_path: Optional[str] = None,
+                              file_to_download_path: str = "",
                               download_dir: Optional[PathOrString] = None) -> None:
     download_dir = Path(download_dir) if download_dir else Path("outputs")
     download_dir = download_dir / job_name
@@ -477,14 +482,14 @@ def create_v2_inputs(workspace_client: MLClient, input_datasets: List[DatasetCon
     inputs = {}
     for input_dataset in input_datasets:
         version = input_dataset.version or 1
-        data_asset: Data = workspace_client.data.get(input_dataset.name, version=version)
+        data_asset: Data = workspace_client.data.get(input_dataset.name, version=str(version))
         data_path = data_asset.id
         # Note that there are alternative formats that the input path can take, such as:
         # v1_datastore_path = f"azureml://datastores/{input_dataset.datastore}/paths/<path_to_dataset>"
         # v2_dataset_path = f"azureml:{input_dataset.name}:1"
 
         inputs[INPUT_DATASETS_ARG_NAME] = Input(
-            type=AssetTypes.URI_FOLDER,
+            type=AssetTypes.URI_FOLDER,  # type: ignore
             path=data_path,
             mode=InputOutputModes.DIRECT,
         )

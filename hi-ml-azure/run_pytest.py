@@ -68,8 +68,8 @@ class RunPytestConfig(param.Parameterized):
         default="",
         doc="A folder name that should be added to sys.path. The folder name should be relative to repository root."
     )
-    use_aml_sdk_v1: bool = param.Boolean(default=False, doc="If True, use AzureML v1 SDK. If False (default), use "
-                                                            "the v2 of the SDK")
+    strictly_aml_v1: bool = param.Boolean(default=False, doc="If True, use AzureML v1 SDK. If False (default), use "
+                                                             "the v2 of the SDK")
 
 
 def run_pytest(folder_to_test: str, pytest_mark: str, coverage_module: str) -> None:
@@ -172,7 +172,7 @@ if __name__ == "__main__":
         root_config_json = himl_root / WORKSPACE_CONFIG_JSON
         with check_config_json(script_folder=Path.cwd(), shared_config_json=root_config_json):
             submit_to_azure_if_needed(
-                use_aml_sdk_v1=config.use_aml_sdk_v1,
+                strictly_aml_v1=config.strictly_aml_v1,
                 compute_cluster_name=config.cluster,
                 submit_to_azureml=submit_to_azureml,
                 wait_for_completion=True,

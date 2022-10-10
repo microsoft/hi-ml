@@ -2076,7 +2076,7 @@ def get_workspace_client(workspace_client: Optional[MLClient] = None,
                          workspace_config_path: Optional[PathOrString] = None,
                          subscription_id: Optional[str] = None,
                          resource_group: Optional[str] = None,
-                         workspace_name: str = None
+                         workspace_name: str = ""
                          ) -> MLClient:
     if workspace_client:
         return workspace_client
@@ -2107,7 +2107,7 @@ def get_workspace_client(workspace_client: Optional[MLClient] = None,
 
 
 def retrieve_workspace_from_client(client: MLClient) -> Workspace:
-    workspace_name = client.workspace_name
+    workspace_name = client.workspace_name or ""
     workspace = client.workspaces.get(workspace_name)
     return workspace
 

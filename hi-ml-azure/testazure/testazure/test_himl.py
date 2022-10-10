@@ -31,6 +31,7 @@ from azureml._restclient.constants import RunStatus
 from azureml.core import ComputeTarget, Environment, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
+from azureml.dataprep.fuse.daemon import MountContext
 from azureml.train.hyperdrive import HyperDriveConfig
 
 import health_azure.himl as himl
@@ -1362,7 +1363,7 @@ def test_create_v2_inputs() -> None:
     assert input_entry.path == mock_data_path
 
 
-def test_create_v2_outputs():
+def test_create_v2_outputs() -> None:
     mock_datastore_name = "dummy_datastore"
     mock_data_name = "dummy_dataset"
 
@@ -1382,8 +1383,8 @@ def test_submit_to_azure_if_needed_v2() -> None:
     Check that submit_run_v2 is called when submit_to_azure_if_needed is called, unless strictly_aml_v1 is
     set to True, in which case submit_run should be called instead
     """
-    dummy_input_datasets = []
-    dummy_mount_contexts = []
+    dummy_input_datasets: List[Optional[Path]] = []
+    dummy_mount_contexts: List[MountContext] = []
 
     with patch.multiple(
         "health_azure.himl",
