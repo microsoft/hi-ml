@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 
 import os
+from async_timeout import Any
 import torch
 import param
 import logging
@@ -13,7 +14,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import Callback
 
