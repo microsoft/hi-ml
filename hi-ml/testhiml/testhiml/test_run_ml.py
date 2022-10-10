@@ -353,7 +353,6 @@ def test_log_on_vm(log_from_vm: bool) -> None:
     assert isinstance(logger, MLFlowLogger)
 
 
-
 def test_experiment_name() -> None:
     """Test that the experiment name is set correctly, choosing either the experiment name given on the commandline
     or the model name"""
