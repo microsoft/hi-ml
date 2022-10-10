@@ -77,7 +77,8 @@ def test_submit_to_azure_if_needed_returns_immediately(tmp_path: Path) -> None:
     """
     Test that himl.submit_to_azure_if_needed can be called, and returns immediately.
     """
-    with check_config_json(tmp_path, shared_config_json=get_shared_config_json()):
+    shared_config_json = get_shared_config_json()
+    with check_config_json(tmp_path, shared_config_json=shared_config_json):
         with mock.patch("sys.argv", ["", "--azureml"]):
             with pytest.raises(Exception) as ex:
                 himl.submit_to_azure_if_needed(
@@ -95,7 +96,7 @@ def test_submit_to_azure_if_needed_returns_immediately(tmp_path: Path) -> None:
             result = himl.submit_to_azure_if_needed(
                 entry_script=Path(__file__),
                 compute_cluster_name="foo",
-                conda_environment_file=Path("env.yml"))
+                conda_environment_file=shared_config_json)
             assert isinstance(result, himl.AzureRunInfo)
             assert not result.is_running_in_azure_ml
             assert result.run is None
@@ -1319,16 +1320,17 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock,
                                                    mock_exit: MagicMock,
                                                    mock_compute_cluster: MagicMock,
                                                    cross_validation_metric_name: Optional[str],
-                                                   tmp_path: Path) -> None:
+                                                   ) -> None:
     """
     Test that himl.submit_to_azure_if_needed can be called, and returns immediately.
     """
     cross_validation_metric_name = cross_validation_metric_name or ""
     mock_sys_args.return_value = ["", "--azureml"]
-    with check_config_json(tmp_path, shared_config_json=get_shared_config_json()):
-        with patch.object(Environment, "get", return_value="dummy_env"):
-            mock_workspace = MagicMock()
-            mock_workspace.compute_targets = {"foo": mock_compute_cluster}
+    with patch.object(Environment, "get", return_value="dummy_env"):
+        mock_workspace = MagicMock()
+        mock_workspace.compute_targets = {"foo": mock_compute_cluster}
+        with patch("health_azure.datasets.setup_local_datasets") as mock_setup_local_datasets:
+            mock_setup_local_datasets.return_value = [], []
             with patch("health_azure.himl.submit_run") as mock_submit_run:
                 with patch("health_azure.himl.HyperDriveConfig") as mock_hyperdrive_config:
                     crossval_config = himl.create_crossval_hyperdrive_config(

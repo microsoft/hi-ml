@@ -716,7 +716,7 @@ def submit_to_azure_if_needed(  # type: ignore
                                 wait_for_completion=wait_for_completion,
                                 wait_for_completion_show_output=wait_for_completion_show_output)
 
-    if after_submission is not None:
+    if after_submission is not None and isinstance(run, Run):
         after_submission(run)
     exit(0)
 
