@@ -256,6 +256,7 @@ class LossAnalysisCallback(Callback):
         high: Optional[bool] = None,
         num_values: Optional[int] = None
     ) -> List[np.ndarray]:
+        """Selects the values corresponding to keys from a dataframe for the given epoch and stage"""
         loss_cache = self.read_loss_cache(epoch, stage)
         return_values = []
         for key in keys:
@@ -298,7 +299,11 @@ class LossAnalysisCallback(Callback):
         return return_values[0], return_values[1]
 
     def select_all_losses_for_selected_slides(self, slides: np.ndarray, stage: ModelKey) -> LossDictType:
-        """Selects the loss values for a given set of slides"""
+        """Selects the loss values for a given set of slides
+
+        :param slides: The slides to select the loss values for.
+        :param stage: The model's stage (train/val).
+        """
 
         slides_loss_values: LossDictType = {slide_id: [] for slide_id in slides}
         for epoch in self.epochs_range:
@@ -355,7 +360,11 @@ class LossAnalysisCallback(Callback):
         self.save_slide_ids(self.anomaly_slides, self.get_anomaly_slides_file(stage))
 
     def save_loss_ranks(self, slides_loss_values: LossDictType, stage: ModelKey) -> None:
-        """Saves the loss ranks for each slide across all epochs and their respective statistics in csv files."""
+        """Saves the loss ranks for each slide across all epochs and their respective statistics in csv files.
+
+        :param slides_loss_values: The loss values for all slides.
+        :param stage: The model's stage (train/val).
+        """
 
         loss_df = pd.DataFrame(slides_loss_values).T
         loss_df.index.names = [ResultsKey.SLIDE_ID.value]
@@ -432,13 +441,11 @@ class LossAnalysisCallback(Callback):
         """Computes the entropy of the class probabilities.
 
         :param class_probs: The class probabilities.
-        :return: The entropy.
         """
-        from torch.distributions import Categorical
-        pmf = Categorical(probs=class_probs.T)
-        return pmf.entropy().tolist()
+        return (-torch.sum(class_probs * torch.log(class_probs), dim=1)).tolist()
 
     def update_loss_cache(self, trainer: Trainer, outputs: BatchResultsType, batch: Dict, stage: ModelKey) -> None:
+        """Updates the loss cache with the loss values for the current batch."""
         if self.should_cache_loss_values(trainer.current_epoch):
             loss_cache = self.get_loss_cache(stage)
             loss_cache[ResultsKey.LOSS].extend(outputs[ResultsKey.LOSS_PER_SAMPLE])
@@ -450,6 +457,7 @@ class LossAnalysisCallback(Callback):
                 )
 
     def synchronise_processes_and_reset(self, trainer: Trainer, pl_module: BaseDeepMILModule, stage: ModelKey) -> None:
+        """Synchronises the processes in DDP mode and resets the loss cache for the next epoch."""
         if self.should_cache_loss_values(trainer.current_epoch):
             loss_cache = self.get_loss_cache(stage)
             self.gather_loss_cache(rank=pl_module.global_rank, loss_cache=loss_cache)
@@ -458,6 +466,7 @@ class LossAnalysisCallback(Callback):
             self.reset_loss_cache(loss_cache)  # reset loss cache for all processes
 
     def save_loss_outliers_analaysis_results(self, stage: ModelKey) -> None:
+        """Saves the loss outliers analysis results."""
         all_slides = self.select_slides_for_epoch(epoch=0, stage=stage)
         all_loss_values_per_slides = self.select_all_losses_for_selected_slides(all_slides, stage=stage)
 
@@ -484,6 +493,7 @@ class LossAnalysisCallback(Callback):
         self.reset_loss_cache(loss_cache)
 
     def handle_loss_exceptions(self, stage: ModelKey, exception: Exception) -> None:
+        """Handles the loss exceptions."""
         if self.log_exceptions:
             # If something goes wrong, we don't want to crash the training. We just log the error and carry on
             # validation.
