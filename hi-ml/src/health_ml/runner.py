@@ -1,3 +1,5 @@
+#! /usr/bin/env python
+
 #  ------------------------------------------------------------------------------------------
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
@@ -279,7 +281,6 @@ class Runner:
                 tags=self.additional_run_tags(script_params),
             )
         else:
-            print(f"Environment variables: {os.environ}")
             azure_run_info = submit_to_azure_if_needed(
                 strictly_aml_v1=self.experiment_config.strictly_aml_v1,
                 input_datasets=input_datasets,  # type: ignore

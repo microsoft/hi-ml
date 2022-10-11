@@ -260,7 +260,7 @@ class BaseDeepMILModule(LightningModule):
 
     def training_step(self, batch: Dict, batch_idx: int) -> Tensor:  # type: ignore
         train_result = self._shared_step(batch, batch_idx, ModelKey.TRAIN)
-        self.log('train/loss', train_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
+        self.log('train/loss', train_result[ResultsKey.LOSS], on_epoch=True, on_step=False, logger=True,
                  sync_dist=True)
         if self.verbose:
             print(f"After loading images batch {batch_idx} -", _format_cuda_memory_stats())
@@ -268,7 +268,7 @@ class BaseDeepMILModule(LightningModule):
 
     def validation_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
         val_result = self._shared_step(batch, batch_idx, ModelKey.VAL)
-        self.log('val/loss', val_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
+        self.log('val/loss', val_result[ResultsKey.LOSS], on_epoch=False, on_step=True, logger=True,
                  sync_dist=True)
         return val_result
 

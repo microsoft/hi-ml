@@ -27,6 +27,7 @@ from azureml.core import ComputeTarget, Environment, Experiment, Run, RunConfigu
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
 from azureml.data import OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
+from azureml.exceptions import UserErrorException
 from azureml.train.hyperdrive import HyperDriveConfig, GridParameterSampling, PrimaryMetricGoal, choice
 from azureml.dataprep.fuse.daemon import MountContext
 
@@ -394,7 +395,7 @@ def submit_run_v2(workspace: Optional[Workspace],
         base_path=str(source_directory)
     )
     returned_job = ml_client.jobs.create_or_update(command_job)
-    print(f"URL to job: {returned_job.services['Studio'].endpoint}")
+    print(f"URL to job: {returned_job.services['Studio'].endpoint}")  # type: ignore
     return returned_job
 
 
@@ -485,7 +486,7 @@ def create_v2_inputs(workspace_client: MLClient, input_datasets: List[DatasetCon
         inputs[INPUT_DATASETS_ARG_NAME] = Input(  # type: ignore
             type=AssetTypes.URI_FOLDER,  # type: ignore
             path=data_path,
-            mode=InputOutputModes.DIRECT,
+            mode=InputOutputModes.MOUNT,
         )
     return inputs
 
@@ -798,27 +799,28 @@ def _generate_azure_datasets(
                                     cleaned_output_datasets]
         logging.info(f"Stitched returned input datasets: {returned_input_datasets}")
         logging.info(f"Stitched returned output datasets: {returned_output_datasets}")
-    else:
-        if hasattr(RUN_CONTEXT, "input_datasets"):
-            # This is a v1 Job, so we can get the input datasets from the run context
-            if len(RUN_CONTEXT.input_datasets) > 0:
-                returned_input_datasets = [Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)])
-                                           for index in range(len(cleaned_input_datasets))]
-                returned_output_datasets = [Path(RUN_CONTEXT.output_datasets[_output_dataset_key(index)])
-                                            for index in range(len(cleaned_output_datasets))]
-            else:
-                raise ValueError("Run context has no input datasets associated")
+    try:
+        # This is a v1 Job, so we can get the input datasets from the run context
+        if hasattr(RUN_CONTEXT, "input_datasets") and len(RUN_CONTEXT.input_datasets) > 0:
+            returned_input_datasets = [Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)])
+                                       for index in range(len(cleaned_input_datasets))]
+            returned_output_datasets = [Path(RUN_CONTEXT.output_datasets[_output_dataset_key(index)])
+                                        for index in range(len(cleaned_output_datasets))]
         else:
-            # This is a v2 Job, so we need to get the input datasets from the command line args
-            returned_input_datasets = []
-            returned_output_datasets = []
-            for sys_arg in sys.argv:
-                if INPUT_DATASETS_ARG_NAME in sys_arg:
-                    input_dataset_strings = sys_arg.split("--" + INPUT_DATASETS_ARG_NAME + "=")[-1].split(",")
-                    returned_input_datasets += [Path(p) for p in input_dataset_strings]
-                if OUTPUT_DATASETS_ARG_NAME in sys_arg:
-                    output_dataset_strings = sys_arg.split("--" + OUTPUT_DATASETS_ARG_NAME + "=")[-1].split(",")
-                    returned_output_datasets += [Path(p) for p in output_dataset_strings]
+            raise ValueError("Run context has no input datasets associated")
+    # Resolving RUN_CONTEXT's input_datasets sometimes causes an Exception in AML SDK v2 that complains that
+    # "The given saved dataset id is malformed" but sometimes returns an empty list, so a KeyError is raised
+    except (UserErrorException, KeyError):
+        # This is a v2 Job, so we need to get the input datasets from the command line args
+        returned_input_datasets = []
+        returned_output_datasets = []
+        for sys_arg in sys.argv:
+            if INPUT_DATASETS_ARG_NAME in sys_arg:
+                input_dataset_strings = sys_arg.split("--" + INPUT_DATASETS_ARG_NAME + "=")[-1].split(",")
+                returned_input_datasets += [Path(p) for p in input_dataset_strings]
+            if OUTPUT_DATASETS_ARG_NAME in sys_arg:
+                output_dataset_strings = sys_arg.split("--" + OUTPUT_DATASETS_ARG_NAME + "=")[-1].split(",")
+                returned_output_datasets += [Path(p) for p in output_dataset_strings]
 
     return AzureRunInfo(
         input_datasets=returned_input_datasets,  # type: ignore
