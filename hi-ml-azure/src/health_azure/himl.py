@@ -804,7 +804,7 @@ def _generate_azure_datasets(
         if hasattr(RUN_CONTEXT, "input_datasets"):
             if len(RUN_CONTEXT.input_datasets) > 0:
                 returned_input_datasets = [Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)])
-                                        for index in range(len(cleaned_input_datasets))]
+                                           for index in range(len(cleaned_input_datasets))]
                 returned_output_datasets = [Path(RUN_CONTEXT.output_datasets[_output_dataset_key(index)])
                                             for index in range(len(cleaned_output_datasets))]
         else:
