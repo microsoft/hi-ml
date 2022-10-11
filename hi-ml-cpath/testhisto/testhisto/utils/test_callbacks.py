@@ -117,8 +117,7 @@ def test_loss_analysis_epochs_interval(epochs_interval: int) -> None:
 
 def test_on_train_and_val_batch_end(tmp_path: Path, mock_panda_tiles_root_dir: Path) -> None:
     batch_size = 2
-    container = MockDeepSMILETilesPanda(tmp_path=mock_panda_tiles_root_dir)
-    container.batch_size = batch_size
+    container = MockDeepSMILETilesPanda(tmp_path=mock_panda_tiles_root_dir, analyse_loss=True, batch_size=batch_size)
     container.setup()
     container.create_lightning_module_and_store()
 
