@@ -6,7 +6,7 @@ import pandas as pd
 
 from pathlib import Path
 
-from typing import Callable
+from typing import Callable, List
 from unittest.mock import MagicMock, patch
 from health_cpath.configs.classification.BaseMIL import BaseMIL
 
@@ -36,10 +36,7 @@ def get_loss_cache(n_slides: int = 4, rank: int = 0) -> LossCacheDictType:
 
 def dump_loss_cache_for_epochs(loss_callback: LossAnalysisCallback, epochs: int, stage: ModelKey) -> None:
     for epoch in range(epochs):
-        if stage == ModelKey.TRAIN:
-            loss_callback.train_loss_cache = get_loss_cache(n_slides=4, rank=0)
-        elif stage == ModelKey.VAL:
-            loss_callback.val_loss_cache = get_loss_cache(n_slides=4, rank=0)
+        loss_callback.loss_cache[stage] = get_loss_cache(n_slides=4, rank=0)
         loss_callback.save_loss_cache(epoch, stage)
 
 
@@ -70,8 +67,8 @@ def test_analyse_loss_param(analyse_loss: bool) -> None:
 def test_save_tile_ids_param(save_tile_ids: bool) -> None:
     callback = LossAnalysisCallback(outputs_folder=Path("foo"), save_tile_ids=save_tile_ids)
     assert callback.save_tile_ids == save_tile_ids
-    assert (ResultsKey.TILE_ID in callback.train_loss_cache) == save_tile_ids
-    assert (ResultsKey.TILE_ID in callback.val_loss_cache) == save_tile_ids
+    assert (ResultsKey.TILE_ID in callback.loss_cache[ModelKey.TRAIN]) == save_tile_ids
+    assert (ResultsKey.TILE_ID in callback.loss_cache[ModelKey.VAL]) == save_tile_ids
 
 
 @pytest.mark.parametrize("patience", [0, 1, 2])
@@ -125,27 +122,22 @@ def test_on_train_and_val_batch_end(tmp_path: Path, mock_panda_tiles_root_dir: P
     trainer = MagicMock(current_epoch=current_epoch)
 
     callback = LossAnalysisCallback(outputs_folder=tmp_path)
-    _assert_loss_cache_contains_n_elements(callback.train_loss_cache, 0)
-    _assert_loss_cache_contains_n_elements(callback.val_loss_cache, 0)
+    _assert_loss_cache_contains_n_elements(callback.loss_cache[ModelKey.TRAIN], 0)
+    _assert_loss_cache_contains_n_elements(callback.loss_cache[ModelKey.VAL], 0)
 
     def _call_on_batch_end_hook(on_batch_end_hook: Callable, batch_idx: int) -> None:
         batch = next(iter(container.data_module.train_dataloader()))
         outputs = container.model.training_step(batch, batch_idx)
         on_batch_end_hook(trainer, container.model, outputs, batch, batch_idx, 0)  # type: ignore
 
-    # train batch start hook
-    _call_on_batch_end_hook(callback.on_train_batch_end, batch_idx=0)
-    _assert_loss_cache_contains_n_elements(callback.train_loss_cache, batch_size)
+    stages = [ModelKey.TRAIN, ModelKey.VAL]
+    hooks: List[Callable] = [callback.on_train_batch_end, callback.on_validation_batch_end]
+    for stage, on_batch_end_hook in zip(stages, hooks):
+        _call_on_batch_end_hook(on_batch_end_hook, batch_idx=0)
+        _assert_loss_cache_contains_n_elements(callback.loss_cache[stage], batch_size)
 
-    _call_on_batch_end_hook(callback.on_train_batch_end, batch_idx=1)
-    _assert_loss_cache_contains_n_elements(callback.train_loss_cache, 2 * batch_size)
-
-    # val batch start hook
-    _call_on_batch_end_hook(callback.on_validation_batch_end, batch_idx=0)
-    _assert_loss_cache_contains_n_elements(callback.val_loss_cache, batch_size)
-
-    _call_on_batch_end_hook(callback.on_validation_batch_end, batch_idx=1)
-    _assert_loss_cache_contains_n_elements(callback.val_loss_cache, 2 * batch_size)
+        _call_on_batch_end_hook(on_batch_end_hook, batch_idx=1)
+        _assert_loss_cache_contains_n_elements(callback.loss_cache[stage], 2 * batch_size)
 
 
 def test_on_train_and_val_epoch_end(
@@ -162,19 +154,16 @@ def test_on_train_and_val_epoch_end(
     stages = [ModelKey.TRAIN, ModelKey.VAL]
     hooks = [loss_callback.on_train_epoch_end, loss_callback.on_validation_epoch_end]
     for stage, on_epoch_hook in zip(stages, hooks):
-        mock_loss_cache = get_loss_cache(rank=rank, n_slides=n_slides_per_process)
+        loss_callback.loss_cache[stage] = get_loss_cache(rank=rank, n_slides=n_slides_per_process)
 
         if duplicate:
             # Duplicate slide "id_0" to test that the duplicates are removed
-            mock_loss_cache[ResultsKey.SLIDE_ID][0] = "id_0"
+            loss_callback.loss_cache[stage][ResultsKey.SLIDE_ID][0] = "id_0"
 
-        loss_callback.set_loss_cache(stage, loss_cache=mock_loss_cache)
-
-        # train epoch end hook
-        _assert_loss_cache_contains_n_elements(loss_callback.get_loss_cache(stage), n_slides_per_process)
+        _assert_loss_cache_contains_n_elements(loss_callback.loss_cache[stage], n_slides_per_process)
         on_epoch_hook(trainer, pl_module)
         # Loss cache is flushed after each epoch
-        _assert_loss_cache_contains_n_elements(loss_callback.get_loss_cache(stage), 0)
+        _assert_loss_cache_contains_n_elements(loss_callback.loss_cache[stage], 0)
 
         if rank > 0:
             time.sleep(10)  # Wait for rank 0 to save the loss cache in a csv file
@@ -254,9 +243,8 @@ def test_nans_detection(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> Non
     stages = [ModelKey.TRAIN, ModelKey.VAL]
     for stage in stages:
         for epoch in range(max_epochs):
-            mock_loss_cache = get_loss_cache(n_slides)
-            mock_loss_cache[ResultsKey.LOSS][epoch] = np.nan  # Introduce NaNs
-            loss_callback.set_loss_cache(stage, loss_cache=mock_loss_cache)
+            loss_callback.loss_cache[stage] = get_loss_cache(n_slides)
+            loss_callback.loss_cache[stage][ResultsKey.LOSS][epoch] = np.nan  # Introduce NaNs
             loss_callback.save_loss_cache(epoch, stage)
 
         all_slides = loss_callback.select_slides_for_epoch(epoch=0, stage=stage)

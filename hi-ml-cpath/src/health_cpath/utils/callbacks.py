@@ -121,21 +121,13 @@ class LossAnalysisCallback(Callback):
         if create_outputs_folders:
             self.create_outputs_folders()
 
-        self.train_loss_cache = self.get_empty_loss_cache()
-        self.val_loss_cache = self.get_empty_loss_cache()
+        self.loss_cache: Dict[ModelKey, LossCacheDictType] = {
+            stage: self.get_empty_loss_cache() for stage in [ModelKey.TRAIN, ModelKey.VAL]
+        }
         self.epochs_range = list(range(self.patience, self.max_epochs, self.epochs_interval))
 
         self.nan_slides: AnomalyDictType = {stage: [] for stage in [ModelKey.TRAIN, ModelKey.VAL]}
         self.anomaly_slides: AnomalyDictType = {stage: [] for stage in [ModelKey.TRAIN, ModelKey.VAL]}
-
-    def get_loss_cache(self, stage: ModelKey) -> LossCacheDictType:
-        return self.train_loss_cache if stage == ModelKey.TRAIN else self.val_loss_cache
-
-    def set_loss_cache(self, stage: ModelKey, loss_cache: LossCacheDictType) -> None:
-        if stage == ModelKey.TRAIN:
-            self.train_loss_cache = loss_cache
-        else:
-            self.val_loss_cache = loss_cache
 
     def get_cache_folder(self, stage: ModelKey) -> Path:
         return self.outputs_folder / f"{stage}/loss_cache"
@@ -229,18 +221,15 @@ class LossAnalysisCallback(Callback):
         """Gathers the loss cache from all the workers"""
         if torch.distributed.is_initialized():
             world_size = torch.distributed.get_world_size()
-            loss_cache = self.get_loss_cache(stage)
             if world_size > 1:
                 loss_caches = [None] * world_size
-                torch.distributed.all_gather_object(loss_caches, loss_cache)
+                torch.distributed.all_gather_object(loss_caches, self.loss_cache[stage])
                 if rank == 0:
-                    loss_cache = self.merge_loss_caches(loss_caches)  # type: ignore
-                    self.set_loss_cache(stage, loss_cache)
+                    self.loss_cache[stage] = self.merge_loss_caches(loss_caches)  # type: ignore
 
     def save_loss_cache(self, current_epoch: int, stage: ModelKey) -> None:
         """Saves the loss cache to a csv file"""
-        loss_cache = self.get_loss_cache(stage)
-        loss_cache_df = pd.DataFrame(loss_cache)
+        loss_cache_df = pd.DataFrame(self.loss_cache[stage])
         # Some slides may be appear multiple times in the loss cache in DDP mode. The Distributed Sampler duplicate
         # some slides to even out the number of samples per device, so we only keep the first occurrence.
         loss_cache_df.drop_duplicates(subset=ResultsKey.SLIDE_ID, inplace=True, keep="first")
@@ -449,12 +438,11 @@ class LossAnalysisCallback(Callback):
     def update_loss_cache(self, trainer: Trainer, outputs: BatchResultsType, batch: Dict, stage: ModelKey) -> None:
         """Updates the loss cache with the loss values for the current batch."""
         if self.should_cache_loss_values(trainer.current_epoch):
-            loss_cache = self.get_loss_cache(stage)
-            loss_cache[ResultsKey.LOSS].extend(outputs[ResultsKey.LOSS_PER_SAMPLE])
-            loss_cache[ResultsKey.SLIDE_ID].extend([slides[0] for slides in batch[ResultsKey.SLIDE_ID]])
-            loss_cache[ResultsKey.ENTROPY].extend(self.compute_entropy(outputs[ResultsKey.CLASS_PROBS]))
+            self.loss_cache[stage][ResultsKey.LOSS].extend(outputs[ResultsKey.LOSS_PER_SAMPLE])
+            self.loss_cache[stage][ResultsKey.SLIDE_ID].extend([slides[0] for slides in batch[ResultsKey.SLIDE_ID]])
+            self.loss_cache[stage][ResultsKey.ENTROPY].extend(self.compute_entropy(outputs[ResultsKey.CLASS_PROBS]))
             if self.save_tile_ids:
-                loss_cache[ResultsKey.TILE_ID].extend(
+                self.loss_cache[stage][ResultsKey.TILE_ID].extend(
                     [self.TILES_JOIN_TOKEN.join(tiles) for tiles in batch[ResultsKey.TILE_ID]]
                 )
 
@@ -464,7 +452,7 @@ class LossAnalysisCallback(Callback):
             self.gather_loss_cache(rank=pl_module.global_rank, stage=stage)
             if pl_module.global_rank == 0:
                 self.save_loss_cache(trainer.current_epoch, stage)
-            self.set_loss_cache(stage, self.get_empty_loss_cache())  # reset loss cache for all processes
+            self.loss_cache[stage] = self.get_empty_loss_cache()  # reset loss cache for all processes
 
     def save_loss_outliers_analaysis_results(self, stage: ModelKey) -> None:
         """Saves the loss outliers analysis results."""
@@ -490,7 +478,7 @@ class LossAnalysisCallback(Callback):
             bottom_slides = epoch_slides[-self.num_slides_heatmap:]
             bottom_slides_loss_values = self.select_all_losses_for_selected_slides(bottom_slides, stage=stage)
             self.plot_loss_heatmap_for_slides_of_epoch(bottom_slides_loss_values, epoch, stage, high=False)
-        self.set_loss_cache(stage, self.get_empty_loss_cache())  # reset loss cache
+        self.loss_cache[stage] = self.get_empty_loss_cache()  # reset loss cache
 
     def handle_loss_exceptions(self, stage: ModelKey, exception: Exception) -> None:
         """Handles the loss exceptions."""
