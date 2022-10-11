@@ -169,7 +169,6 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
         if self.analyse_loss:
             callbacks.append(LossAnalysisCallback(outputs_folder=self.outputs_folder,
                                                   max_epochs=self.max_epochs,
-                                                  n_classes=self.data_module.train_dataset.n_classes,
                                                   patience=self.loss_analysis_patience,
                                                   epochs_interval=self.loss_analysis_epochs_interval,
                                                   num_slides_scatter=self.num_slides_scatter,

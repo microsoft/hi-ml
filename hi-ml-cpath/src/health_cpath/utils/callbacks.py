@@ -86,7 +86,6 @@ class LossAnalysisCallback(Callback):
         self,
         outputs_folder: Path,
         max_epochs: int = 30,
-        n_classes: int = 2,
         patience: int = 0,
         epochs_interval: int = 1,
         num_slides_scatter: int = 10,
@@ -101,7 +100,6 @@ class LossAnalysisCallback(Callback):
         :param patience: Number of epochs to wait before starting to cache loss values, defaults to 0.
         :param epochs_interval: Epochs interval to save loss values, defaults to 1.
         :param max_epochs: Maximum number of epochs to train, defaults to 30.
-        :param n_classes: Number of classes, defaults to 2.
         :param num_slides_scatter: Number of slides to plot in the scatter plot, defaults to 10.
         :param num_slides_heatmap: Number of slides to plot in the heatmap, defaults to 20.
         :param save_tile_ids: If True, will save the tile ids of the tiles in the bag in the loss cache, defaults to
@@ -114,7 +112,6 @@ class LossAnalysisCallback(Callback):
         self.patience = patience
         self.epochs_interval = epochs_interval
         self.max_epochs = max_epochs
-        self.n_classes = n_classes
         self.num_slides_scatter = num_slides_scatter
         self.num_slides_heatmap = num_slides_heatmap
         self.save_tile_ids = save_tile_ids
