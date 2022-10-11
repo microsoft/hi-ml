@@ -49,7 +49,8 @@ def main() -> None:
         output_datasets={{ output_datasets }},
         wait_for_completion={{ wait_for_completion }},
         wait_for_completion_show_output={{ wait_for_completion_show_output }},
-        tags={{ tags }})
+        tags={{ tags }},
+        strictly_aml_v1={{ strictly_aml_v1 }})
 
     parser = ArgumentParser()
     {{ args }}

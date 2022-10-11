@@ -99,7 +99,7 @@ import sys
             """
     }
 
-    extra_args: List[str] = ["--strictly_aml_v1=True"]
+    extra_args: List[str] = []
     # For this test, do not use the latest package for the AzureML run. The script only uses torch, the logic
     # that should be tested is not in AzureML. This saves one Docker image build.
     render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args,
