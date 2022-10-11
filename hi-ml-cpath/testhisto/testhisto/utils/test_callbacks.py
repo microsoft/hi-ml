@@ -71,6 +71,7 @@ def test_save_tile_ids_param(save_tile_ids: bool) -> None:
     callback = LossAnalysisCallback(outputs_folder=Path("foo"), save_tile_ids=save_tile_ids)
     assert callback.save_tile_ids == save_tile_ids
     assert (ResultsKey.TILE_ID in callback.train_loss_cache) == save_tile_ids
+    assert (ResultsKey.TILE_ID in callback.val_loss_cache) == save_tile_ids
 
 
 @pytest.mark.parametrize("patience", [0, 1, 2])
