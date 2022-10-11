@@ -24,6 +24,7 @@ from health_cpath.utils.output_utils import BatchResultsType
 
 LossCacheDictType = Dict[Union[ResultsKey, str], List]
 LossDictType = Dict[str, List]
+AnomalyDictType = Dict[ModelKey, List[str]]
 
 
 class LossCallbackParams(param.Parameterized):
@@ -127,8 +128,8 @@ class LossAnalysisCallback(Callback):
         self.val_loss_cache = self.get_empty_loss_cache()
         self.epochs_range = list(range(self.patience, self.max_epochs, self.epochs_interval))
 
-        self.nan_slides: List[str] = []
-        self.anomaly_slides: List[str] = []
+        self.nan_slides: AnomalyDictType = {stage: [] for stage in [ModelKey.TRAIN, ModelKey.VAL]}
+        self.anomaly_slides: AnomalyDictType = {stage: [] for stage in [ModelKey.TRAIN, ModelKey.VAL]}
 
     def get_loss_cache(self, stage: ModelKey) -> LossCacheDictType:
         return self.train_loss_cache if stage == ModelKey.TRAIN else self.val_loss_cache
@@ -350,15 +351,15 @@ class LossAnalysisCallback(Callback):
             try:
                 if np.isnan(loss).any():
                     logging.warning(f"NaNs found in loss values for slide {slide_id}.")
-                    self.nan_slides.append(slide_id)
+                    self.nan_slides[stage].append(slide_id)
                     loss_values.pop(slide_id)
             except Exception as e:
                 logging.warning(f"Error while checking for NaNs in loss values for slide {slide_id} with error {e}.")
                 logging.warning(f"Loss values that caused the issue: {loss}")
-                self.anomaly_slides.append(slide_id)
+                self.anomaly_slides[stage].append(slide_id)
                 loss_values.pop(slide_id)
-        self.save_slide_ids(self.nan_slides, self.get_nan_slides_file(stage))
-        self.save_slide_ids(self.anomaly_slides, self.get_anomaly_slides_file(stage))
+        self.save_slide_ids(self.nan_slides[stage], self.get_nan_slides_file(stage))
+        self.save_slide_ids(self.anomaly_slides[stage], self.get_anomaly_slides_file(stage))
 
     def save_loss_ranks(self, slides_loss_values: LossDictType, stage: ModelKey) -> None:
         """Saves the loss ranks for each slide across all epochs and their respective statistics in csv files.
@@ -398,7 +399,7 @@ class LossAnalysisCallback(Callback):
         """
         label = self.TOP if high else self.BOTTOM
         plt.figure(figsize=figsize)
-        markers_size = [10 * i for i in range(1, self.num_slides_scatter + 1)]
+        markers_size = [15 * i for i in range(1, self.num_slides_scatter + 1)]
         markers_size = markers_size[::-1] if high else markers_size
         for i in range(self.num_slides_scatter - 1, -1, -1):
             plt.scatter(self.epochs_range, slides[i], label=f"{label}_{i+1}", s=markers_size[i])
