@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 
 import os
-from async_timeout import Any
 import torch
 import param
 import logging
@@ -12,9 +11,10 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import Callback
 
@@ -401,8 +401,9 @@ class LossAnalysisCallback(Callback):
         plt.figure(figsize=figsize)
         markers_size = [15 * i for i in range(1, self.num_slides_scatter + 1)]
         markers_size = markers_size[::-1] if high else markers_size
+        colors = cm.rainbow(np.linspace(0, 1, self.num_slides_scatter))
         for i in range(self.num_slides_scatter - 1, -1, -1):
-            plt.scatter(self.epochs_range, slides[i], label=f"{label}_{i+1}", s=markers_size[i])
+            plt.scatter(self.epochs_range, slides[i], label=f"{label}_{i+1}", s=markers_size[i], color=colors[i])
             for entropy, epoch, slide in zip(slides_entropy[i], self.epochs_range, slides[i]):
                 plt.annotate(f"{entropy:.3f}", (epoch, slide))
         plt.xlabel(self.X_LABEL)
