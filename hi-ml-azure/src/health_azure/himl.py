@@ -807,6 +807,9 @@ def _generate_azure_datasets(
                                         for index in range(len(cleaned_input_datasets))]
                 returned_output_datasets = [Path(RUN_CONTEXT.output_datasets[_output_dataset_key(index)])
                                             for index in range(len(cleaned_output_datasets))]
+            else:
+                returned_input_datasets = []
+                returned_output_datasets = []
         else:
             raise ValueError("Run context has no input datasets associated")
     # Resolving RUN_CONTEXT's input_datasets sometimes causes an Exception in AML SDK v2 that complains that
