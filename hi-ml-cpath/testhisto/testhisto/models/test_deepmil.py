@@ -101,8 +101,6 @@ def _test_lightningmodule(
     else:
         loss = module.loss_fn(bag_logits.squeeze(1), bag_labels.float())
 
-    loss = loss.mean()
-
     assert loss > 0
     assert loss.shape == ()
 
@@ -271,7 +269,8 @@ def assert_train_step(module: BaseDeepMILModule, data_module: HistoDataModule, u
     train_data_loader = data_module.train_dataloader()
     for batch_idx, batch in enumerate(train_data_loader):
         batch = move_batch_to_expected_device(batch, use_gpu)
-        loss = module.training_step(batch, batch_idx)[ResultsKey.LOSS]
+        loss = module.training_step(batch, batch_idx)
+        assert isinstance(loss, Tensor)
         loss.retain_grad()
         loss.backward()
         assert loss.grad is not None
@@ -412,7 +411,7 @@ def test_class_weights_multiclass() -> None:
     logits = Tensor(randn(1, n_classes))
     bag_label = randint(n_classes, size=(1,))
 
-    loss_weighted = module.loss_fn(logits, bag_label).mean()
+    loss_weighted = module.loss_fn(logits, bag_label)
     criterion_unweighted = nn.CrossEntropyLoss()
     loss_unweighted = criterion_unweighted(logits, bag_label)
     # The weighted and unweighted loss functions give the same loss values for batch_size = 1.
