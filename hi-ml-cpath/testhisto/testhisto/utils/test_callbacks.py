@@ -22,6 +22,14 @@ def _assert_loss_cache_contains_n_elements(loss_cache: LossCacheDictType, n: int
         assert len(loss_cache[key]) == n
 
 
+def get_loss_cache(n_slides: int = 4, rank: int = 0) -> LossCacheDictType:
+    return {
+        ResultsKey.LOSS: list(range(1, n_slides + 1)),
+        ResultsKey.SLIDE_ID: [f"id_{i}" for i in range(rank * n_slides, (rank + 1) * n_slides)],
+        ResultsKey.TILE_ID: [f"a${i * (rank + 1)}$b" for i in range(rank * n_slides, (rank + 1) * n_slides)],
+    }
+
+
 def dump_loss_cache_for_epochs(loss_callback: LossAnalysisCallback, epochs: int) -> None:
     for epoch in range(epochs):
         loss_callback.train_loss_cache = get_loss_cache()
@@ -115,13 +123,6 @@ def test_on_train_batch_start(tmp_path: Path, mock_panda_tiles_root_dir: Path) -
     callback.on_train_batch_start(trainer, container.model, batch, 1, None)  # type: ignore
     _assert_loss_cache_contains_n_elements(callback.train_loss_cache, 2 * batch_size)
 
-
-def get_loss_cache(n_slides: int = 4, rank: int = 0) -> LossCacheDictType:
-    return {
-        ResultsKey.LOSS: list(range(1, n_slides + 1)),
-        ResultsKey.SLIDE_ID: [f"id_{i}" for i in range(rank * n_slides, (rank + 1) * n_slides)],
-        ResultsKey.TILE_ID: [f"a${i * (rank + 1)}$b" for i in range(rank * n_slides, (rank + 1) * n_slides)],
-    }
 
 
 def test_on_train_epoch_end(
