@@ -101,6 +101,8 @@ def _test_lightningmodule(
     else:
         loss = module.loss_fn(bag_logits.squeeze(1), bag_labels.float())
 
+    loss = loss.mean()
+
     assert loss > 0
     assert loss.shape == ()
 
