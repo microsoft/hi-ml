@@ -412,7 +412,7 @@ def test_class_weights_multiclass() -> None:
     logits = Tensor(randn(1, n_classes))
     bag_label = randint(n_classes, size=(1,))
 
-    loss_weighted = module.loss_fn(logits, bag_label)
+    loss_weighted = module.loss_fn(logits, bag_label).mean()
     criterion_unweighted = nn.CrossEntropyLoss()
     loss_unweighted = criterion_unweighted(logits, bag_label)
     # The weighted and unweighted loss functions give the same loss values for batch_size = 1.
