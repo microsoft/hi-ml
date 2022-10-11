@@ -237,7 +237,7 @@ class LossAnalysisCallback(Callback):
                 torch.distributed.all_gather_object(loss_caches, loss_cache)
                 if rank == 0:
                     loss_cache = self.merge_loss_caches(loss_caches)  # type: ignore
-                    self.set_loss_cache(loss_cache, stage)
+                    self.set_loss_cache(stage, loss_cache)
 
     def save_loss_cache(self, current_epoch: int, stage: ModelKey) -> None:
         """Saves the loss cache to a csv file"""
@@ -398,7 +398,8 @@ class LossAnalysisCallback(Callback):
         """
         label = self.TOP if high else self.BOTTOM
         plt.figure(figsize=figsize)
-        markers_size = [10 * i for i in range(1, self.num_slides_scatter + 1)][::-1]
+        markers_size = [10 * i for i in range(1, self.num_slides_scatter + 1)]
+        markers_size = markers_size[::-1] if high else markers_size
         for i in range(self.num_slides_scatter - 1, -1, -1):
             plt.scatter(self.epochs_range, slides[i], label=f"{label}_{i+1}", s=markers_size[i])
             for entropy, epoch, slide in zip(slides_entropy[i], self.epochs_range, slides[i]):
