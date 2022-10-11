@@ -801,11 +801,12 @@ def _generate_azure_datasets(
         logging.info(f"Stitched returned output datasets: {returned_output_datasets}")
     try:
         # This is a v1 Job, so we can get the input datasets from the run context
-        if hasattr(RUN_CONTEXT, "input_datasets") and len(RUN_CONTEXT.input_datasets) > 0:
-            returned_input_datasets = [Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)])
-                                       for index in range(len(cleaned_input_datasets))]
-            returned_output_datasets = [Path(RUN_CONTEXT.output_datasets[_output_dataset_key(index)])
-                                        for index in range(len(cleaned_output_datasets))]
+        if hasattr(RUN_CONTEXT, "input_datasets"):
+            if len(RUN_CONTEXT.input_datasets) > 0:
+                returned_input_datasets = [Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)])
+                                        for index in range(len(cleaned_input_datasets))]
+                returned_output_datasets = [Path(RUN_CONTEXT.output_datasets[_output_dataset_key(index)])
+                                            for index in range(len(cleaned_output_datasets))]
         else:
             raise ValueError("Run context has no input datasets associated")
     # Resolving RUN_CONTEXT's input_datasets sometimes causes an Exception in AML SDK v2 that complains that
