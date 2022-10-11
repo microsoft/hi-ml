@@ -1272,9 +1272,11 @@ from health_azure.utils import download_files_from_run_id""",
     }
     # Run the script locally first, then in the cloud. In local runs, the workspace should be picked up from the
     # config.json file, in AzureML runs it should be read off the run context.
-    render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options, extra_args=[], expected_pass=True)
+    render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options,
+                               extra_args=["--strictly_aml_v1=True"], expected_pass=True)
     print("Local run finished")
-    render_and_run_test_script(tmp_path / "foo", RunTarget.AZUREML, extra_options, extra_args=[], expected_pass=True)
+    render_and_run_test_script(tmp_path / "foo", RunTarget.AZUREML, extra_options,
+                               extra_args=["--strictly_aml_v1=True"], expected_pass=True)
 
 
 def test_replace_directory(tmp_path: Path) -> None:
@@ -1301,10 +1303,12 @@ from health_azure.utils import replace_directory
 """
     }
 
-    render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options, extra_args=[], expected_pass=True)
+    render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options,
+                               extra_args=["--strictly_aml_v1=True"], expected_pass=True)
     print("Local run finished")
 
-    render_and_run_test_script(tmp_path / "foo", RunTarget.AZUREML, extra_options, extra_args=[], expected_pass=True)
+    render_and_run_test_script(tmp_path / "foo", RunTarget.AZUREML, extra_options,
+                               extra_args=["--strictly_aml_v1=True"], expected_pass=True)
 
 
 def test_is_global_rank_zero() -> None:

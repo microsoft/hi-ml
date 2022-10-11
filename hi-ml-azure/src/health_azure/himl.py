@@ -367,6 +367,7 @@ def submit_run_v2(workspace: Optional[Workspace],
     else:
         v2_output_datasets = {}
 
+    # Unlink any symlinked files, otherwise Azure fails to find the correct file and the run wont start
     source_directory = Path(script_run_config.source_directory)
     docs_folder = source_directory / "docs" / "source"
     for doc_file in docs_folder.glob("*.md"):
@@ -377,13 +378,6 @@ def submit_run_v2(workspace: Optional[Workspace],
     compute_target = script_run_config.run_config.target
     environment = script_run_config.run_config.environment.name + "@latest"
 
-    input_datasets_v1 = script_run_config.run_config.data
-    print(f"Input data from script run config: {input_datasets_v1}")
-
-    print(f"V2 input datasets: {v2_input_datasets}")
-    # command="python main.py --iris-csv ${{inputs.iris_csv}} --learning-rate ${{inputs.learning_rate}} --boosting
-    # $#{{inputs.boosting}}"
-    # inputs = get_v2_inputs_from_model()
     env_vars_copy = {
         "AZURE_TENANT_ID": os.environ.get(ENV_TENANT_ID),
         "AZURE_CLIENT_ID": os.environ.get(ENV_SERVICE_PRINCIPAL_ID),

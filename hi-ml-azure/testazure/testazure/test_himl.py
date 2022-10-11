@@ -970,7 +970,7 @@ def test_invoking_hello_world_config(run_target: RunTarget, use_package: bool, t
         'args': 'parser.add_argument("-m", "--message", type=str, required=True, help="The message to print out")',
         'body': 'print(f"The message was: {args.message}")'
     }
-    extra_args = [f"--message={message_guid}"]
+    extra_args = [f"--message={message_guid}", "--strictly_aml_v1=True"]
     if use_package:
         output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
     else:
@@ -1028,7 +1028,7 @@ import sys""",
         'environment_variables': f"{{'message_guid': '{message_guid}'}}",
         'body': 'print(f"The message_guid env var was: {os.getenv(\'message_guid\')}")'
     }
-    extra_args: List[str] = []
+    extra_args: List[str] = ["--strictly_aml_v1=True"]
     output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
     expected_output = f"The message_guid env var was: {message_guid}"
     assert expected_output in output
@@ -1261,7 +1261,7 @@ import sys
             print(f"Copied file: {{file.name}} from {{input_blob_name}} to {{output_blob_name}}")
         """
     }
-    extra_args: List[str] = []
+    extra_args: List[str] = ["--strictly_aml_v1=True"]
     output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
 
     for input_dataset in input_datasets:
