@@ -34,10 +34,10 @@ def test_loss_callback_outputs_folder_exist(tmp_path: Path) -> None:
     callback = LossAnalysisCallback(outputs_folder=outputs_folder)
     for folder in [
         callback.outputs_folder,
-        callback.cache_folder,
-        callback.scatter_folder,
-        callback.heatmap_folder,
-        callback.anomalies_folder,
+        callback.get_cache_folder,
+        callback.get_scatter_folder,
+        callback.get_heatmap_folder,
+        callback.get_anomalies_folder,
     ]:
         assert folder.exists()
 
@@ -147,9 +147,9 @@ def test_on_train_epoch_end(
         time.sleep(10)  # Wait for rank 0 to save the loss cache in a csv file
 
     loss_cache_path = loss_callback.get_loss_cache_file(current_epoch)
-    assert loss_callback.cache_folder.exists()
+    assert loss_callback.get_cache_folder.exists()
     assert loss_cache_path.exists()
-    assert loss_cache_path.parent == loss_callback.cache_folder
+    assert loss_cache_path.parent == loss_callback.get_cache_folder
 
     loss_cache = pd.read_csv(loss_cache_path)
     total_slides = n_slides_per_process * world_size if not duplicate else n_slides_per_process * world_size - 1
@@ -217,7 +217,7 @@ def test_nans_detection(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> Non
 
     assert loss_callback.nan_slides == ["id_1", "id_0"]
     assert loss_callback.get_nan_slides_file().exists()
-    assert loss_callback.get_nan_slides_file().parent == loss_callback.anomalies_folder
+    assert loss_callback.get_nan_slides_file().parent == loss_callback.get_anomalies_folder
 
 
 @pytest.mark.parametrize("log_exceptions", [True, False])
