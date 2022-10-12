@@ -163,13 +163,11 @@ class LossAnalysisCallback(Callback):
             keys.append(ResultsKey.TILE_ID)
         return {key: [] for key in keys}
 
-    def _get_filename(self, filename: str, epoch: int, order: Optional[str] = None) -> str:
-        zero_filled_epoch = str(epoch).zfill(len(str(self.max_epochs)))
-        filename = filename.format(zero_filled_epoch, order) if order else filename.format(zero_filled_epoch)
-        return filename
+    def _format_epoch(self, epoch: int) -> str:
+        return str(epoch).zfill(len(str(self.max_epochs)))
 
     def get_loss_cache_file(self, epoch: int, stage: ModelKey) -> Path:
-        return self.get_cache_folder(stage) / self._get_filename(filename="epoch_{}.csv", epoch=epoch)
+        return self.get_cache_folder(stage) / f"epoch_{self._format_epoch(epoch)}.csv"
 
     def get_all_epochs_loss_cache_file(self, stage: ModelKey) -> Path:
         return self.get_cache_folder(stage) / f"all_epochs_{stage}.csv"
@@ -193,8 +191,7 @@ class LossAnalysisCallback(Callback):
         return self.get_scatter_folder(stage) / f"slides_with_{order}_loss_values_{stage}.png"
 
     def get_heatmap_plot_file(self, epoch: int, order: str, stage: ModelKey) -> Path:
-        tmp_filename = "epoch_{}_{}_slides_train.png" if stage == ModelKey.TRAIN else "epoch_{}_{}_slides_val.png"
-        return self.get_heatmap_folder(stage) / self._get_filename(tmp_filename, epoch, order)
+        return self.get_heatmap_folder(stage) / f"epoch_{self._format_epoch(epoch)}_{order}_slides_{stage}.png"
 
     def read_loss_cache(self, epoch: int, stage: ModelKey, idx_col: Optional[ResultsKey] = None) -> pd.DataFrame:
         columns = [ResultsKey.SLIDE_ID, ResultsKey.LOSS, ResultsKey.ENTROPY]
