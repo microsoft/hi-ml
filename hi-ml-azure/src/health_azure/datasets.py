@@ -18,7 +18,7 @@ from azureml.data import FileDataset, OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.dataprep.fuse.daemon import MountContext
 
-from health_azure.utils import PathOrString, get_workspace, get_workspace_client
+from health_azure.utils import PathOrString, get_workspace, get_ml_client
 
 
 def get_datastore(workspace: Workspace, datastore_name: str) -> Union[Datastore, V2Datastore]:
@@ -116,26 +116,26 @@ def _get_or_create_v1_dataset(datastore_name: str, dataset_name: str, workspace:
     return azureml_dataset
 
 
-def _retrieve_v2_dataset(dataset_name: str, workspace_client: MLClient) -> Data:
+def _retrieve_v2_dataset(dataset_name: str, ml_client: MLClient) -> Data:
     """
     Attempt to retrieve a v2 Data Asset using a provided Azure ML Workspace connection. If
     no Data asset can be found with a matching name, the underlying code will raise an Exception
 
     :param dataset_name: The name of the dataset to look for.
-    :param workspace_client: An Azure MLClient object for interacting with Azure resources.
+    :param ml_client: An Azure MLClient object for interacting with Azure resources.
     :return: An Azure Data asset representing the dataset if found, otherwise an Exception will be raised.
     """
-    aml_data = workspace_client.data.get(name=dataset_name)
+    aml_data = ml_client.data.get(name=dataset_name)
     return aml_data
 
 
-def _create_v2_dataset(datastore_name: str, dataset_name: str, workspace_client: MLClient) -> Data:
+def _create_v2_dataset(datastore_name: str, dataset_name: str, ml_client: MLClient) -> Data:
     """
     Create or update a v2 Data asset in the specified Datastore
 
     :param datastore_name: The name of the datastore in which to create or update the Data asset.
     :param dataset_name: The name of the dataset to be created.
-    :param workspace_client: An Azure MLClient object for interacting with Azure resources.
+    :param ml_client: An Azure MLClient object for interacting with Azure resources.
     :raises ValueError: If no datastore name is provided to define where to create the data
     :return: The created or updated Data asset.
     """
@@ -149,24 +149,24 @@ def _create_v2_dataset(datastore_name: str, dataset_name: str, workspace_client:
         name=dataset_name,
         version=None
     )
-    workspace_client.data.create_or_update(azureml_data_asset)
+    ml_client.data.create_or_update(azureml_data_asset)
     return azureml_data_asset
 
 
-def _get_or_create_v2_dataset(datastore_name: str, dataset_name: str, workspace_client: MLClient) -> Dataset:
+def _get_or_create_v2_dataset(datastore_name: str, dataset_name: str, ml_client: MLClient) -> Dataset:
     """
     Attempt to retrieve a v2 Dataset object and return that, otherwise atempts to create and register
     a v2 Dataset and return that.
 
     :param datastore_name: The name of the Datastore to either retrieve or create and register the Data asset in.
     :param dataset_name: The name of the Data asset to be retrieved or registered.
-    :param workspace_client: An Azure MLClient object for interacting with Azure resources.
+    :param ml_client: An Azure MLClient object for interacting with Azure resources.
     :return: An Azure Data asset object with the provided dataset name, in the provided datastore
     """
     try:
-        azureml_dataset = _retrieve_v2_dataset(dataset_name, workspace_client)
+        azureml_dataset = _retrieve_v2_dataset(dataset_name, ml_client)
     except Exception:
-        azureml_dataset = _create_v2_dataset(datastore_name, dataset_name, workspace_client)
+        azureml_dataset = _create_v2_dataset(datastore_name, dataset_name, ml_client)
     return azureml_dataset
 
 
@@ -174,7 +174,7 @@ def get_or_create_dataset(datastore_name: str,
                           dataset_name: str,
                           workspace: Workspace,
                           strictly_aml_v1: bool,
-                          workspace_client: Optional[MLClient] = None,
+                          ml_client: Optional[MLClient] = None,
                           ) -> Union[FileDataset, Data]:
     """
     Looks in the AzureML datastore for a dataset of the given name. If there is no such dataset, a dataset is
@@ -192,7 +192,7 @@ def get_or_create_dataset(datastore_name: str,
     :param workspace: An AML Workspace object for interacting with AML v1 datastores.
     :param strictly_aml_v1: If True, use Azure ML SDK v1 to attempt to find or create and reigster the dataset.
         Otherwise, attempt to use Azure ML SDK v2.
-    :param workspace_client: An MLClient object for interacting with AML v2 datastores.
+    :param ml_client: An MLClient object for interacting with AML v2 datastores.
     """
     if not dataset_name:
         raise ValueError("No dataset name provided.")
@@ -201,8 +201,8 @@ def get_or_create_dataset(datastore_name: str,
         return aml_dataset
     else:
         try:
-            workspace_client = get_workspace_client(workspace_client=workspace_client)
-            aml_dataset = _get_or_create_v2_dataset(datastore_name, dataset_name, workspace_client)
+            ml_client = get_ml_client(ml_client=ml_client)
+            aml_dataset = _get_or_create_v2_dataset(datastore_name, dataset_name, ml_client)
         except HttpResponseError as e:
             if "Cannot create v2 Data Version in v1 Data Container" in e.message:
                 logging.info("This appears to be a v1 Data Container. Reverting to API v1 to create this Dataset")
@@ -267,7 +267,7 @@ class DatasetConfig:
     def to_input_dataset_local(self,
                                strictly_aml_v1: bool,
                                workspace: Workspace = None,
-                               workspace_client: Optional[MLClient] = None,
+                               ml_client: Optional[MLClient] = None,
                                ) -> Tuple[Path, Optional[MountContext]]:
         """
         Return a local path to the dataset when outside of an AzureML run.
@@ -289,7 +289,7 @@ class DatasetConfig:
             raise ValueError(f"Unable to make dataset '{self.name} available for a local run because no AzureML "
                              "workspace has been provided. Provide a workspace, or set a folder for local execution.")
         azureml_dataset: FileDataset = get_or_create_dataset(workspace=workspace,
-                                                             workspace_client=workspace_client,
+                                                             ml_client=ml_client,
                                                              dataset_name=self.name,
                                                              datastore_name=self.datastore,
                                                              strictly_aml_v1=strictly_aml_v1)
@@ -312,7 +312,7 @@ class DatasetConfig:
                          dataset_index: int,
                          workspace: Workspace,
                          strictly_aml_v1: bool,
-                         workspace_client: Optional[MLClient] = None,
+                         ml_client: Optional[MLClient] = None,
                          ) -> Union[DatasetConsumptionConfig, Input]:
         """
         Creates a configuration for using an AzureML dataset inside of an AzureML run. This will make the AzureML
@@ -323,7 +323,7 @@ class DatasetConfig:
         """
         status = f"In AzureML, dataset {self.name} (index {dataset_index}) will be "
         azureml_dataset: FileDataset = get_or_create_dataset(workspace=workspace,
-                                                             workspace_client=workspace_client,
+                                                             ml_client=ml_client,
                                                              dataset_name=self.name,
                                                              datastore_name=self.datastore,
                                                              strictly_aml_v1=strictly_aml_v1)
@@ -476,7 +476,7 @@ def find_workspace_for_local_datasets(aml_workspace: Optional[Workspace],
 def setup_local_datasets(dataset_configs: List[DatasetConfig],
                          strictly_aml_v1: bool,
                          aml_workspace: Optional[Workspace] = None,
-                         workspace_client: Optional[MLClient] = None,
+                         ml_client: Optional[MLClient] = None,
                          workspace_config_path: Optional[Path] = None,
                          ) -> Tuple[List[Optional[Path]], List[MountContext]]:
     """
@@ -498,7 +498,7 @@ def setup_local_datasets(dataset_configs: List[DatasetConfig],
     mount_contexts: List[MountContext] = []
 
     for d in dataset_configs:
-        target_path, mount_context = d.to_input_dataset_local(strictly_aml_v1, workspace, workspace_client)
+        target_path, mount_context = d.to_input_dataset_local(strictly_aml_v1, workspace, ml_client)
 
         mounted_input_datasets.append(target_path)
 

@@ -34,7 +34,7 @@ from health_azure.amulet import (ENV_AMLT_DATAREFERENCE_DATA, ENV_AMLT_DATAREFER
 from health_azure.utils import (create_python_environment, create_run_recovery_id, find_file_in_parent_to_pythonpath,
                                 is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
                                 run_duration_string_to_seconds, to_azure_friendly_string, RUN_CONTEXT, get_workspace,
-                                PathOrString, DEFAULT_ENVIRONMENT_VARIABLES, get_workspace_client,
+                                PathOrString, DEFAULT_ENVIRONMENT_VARIABLES, get_ml_client,
                                 ENV_SERVICE_PRINCIPAL_ID, ENV_SERVICE_PRINCIPAL_PASSWORD, ENV_TENANT_ID)
 from health_azure.datasets import (DatasetConfig, StrOrDatasetConfig, _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets, setup_local_datasets)
@@ -145,7 +145,7 @@ def create_run_configuration(workspace: Workspace,
                              docker_shm_size: str = "",
                              num_nodes: int = 1,
                              max_run_duration: str = "",
-                             workspace_client: Optional[MLClient] = None,
+                             ml_client: Optional[MLClient] = None,
                              input_datasets: Optional[List[DatasetConfig]] = None,
                              output_datasets: Optional[List[DatasetConfig]] = None,
                              ) -> RunConfiguration:
@@ -226,7 +226,7 @@ def create_run_configuration(workspace: Workspace,
                                                            cleaned_output_datasets=output_datasets or [],
                                                            strictly_aml_v1=strictly_aml_v1,
                                                            workspace=workspace,
-                                                           workspace_client=workspace_client,
+                                                           ml_client=ml_client,
                                                            )
         run_config.data = inputs
         run_config.output_data = outputs
@@ -341,13 +341,13 @@ def submit_run_v2(workspace: Optional[Workspace],
                   ml_client: Optional[MLClient] = None) -> Job:
     if ml_client is None:
         if workspace is not None:
-            ml_client = get_workspace_client(
+            ml_client = get_ml_client(
                 subscription_id=workspace.subscription_id,
                 resource_group=workspace.
                 resource_group, workspace_name=workspace.name
             )
         elif workspace_config_path is not None:
-            ml_client = get_workspace_client(workspace_config_path=workspace_config_path)
+            ml_client = get_ml_client(workspace_config_path=workspace_config_path)
         else:
             raise ValueError("Either workspace or workspace_config_path must be specified to connect to the Workspace")
 
@@ -472,11 +472,11 @@ def _str_to_path(s: Optional[PathOrString]) -> Optional[Path]:
     return s
 
 
-def create_v2_inputs(workspace_client: MLClient, input_datasets: List[DatasetConfig]) -> Dict[str, Input]:
+def create_v2_inputs(ml_client: MLClient, input_datasets: List[DatasetConfig]) -> Dict[str, Input]:
     inputs: Dict[str, Input] = {}
     for input_dataset in input_datasets:
         version = input_dataset.version or 1
-        data_asset: Data = workspace_client.data.get(input_dataset.name, version=str(version))
+        data_asset: Data = ml_client.data.get(input_dataset.name, version=str(version))
         data_path = data_asset.id or ""
         # Note that there are alternative formats that the input path can take, such as:
         # v1_datastore_path = f"azureml://datastores/{input_dataset.datastore}/paths/<path_to_dataset>"
@@ -509,7 +509,7 @@ def submit_to_azure_if_needed(  # type: ignore
         compute_cluster_name: str = "",
         entry_script: Optional[PathOrString] = None,
         aml_workspace: Optional[Workspace] = None,
-        workspace_client: Optional[MLClient] = None,
+        ml_client: Optional[MLClient] = None,
         workspace_config_file: Optional[PathOrString] = None,
         snapshot_root_directory: Optional[PathOrString] = None,
         script_params: Optional[List[str]] = None,
@@ -631,7 +631,7 @@ def submit_to_azure_if_needed(  # type: ignore
         mounted_input_datasets, mount_contexts = setup_local_datasets(cleaned_input_datasets,
                                                                       strictly_aml_v1,
                                                                       aml_workspace=aml_workspace,
-                                                                      workspace_client=workspace_client,
+                                                                      ml_client=ml_client,
                                                                       workspace_config_path=workspace_config_path)
 
         return AzureRunInfo(
@@ -649,7 +649,7 @@ def submit_to_azure_if_needed(  # type: ignore
         snapshot_root_directory = Path.cwd()
 
     workspace = get_workspace(aml_workspace, workspace_config_path)
-    workspace_client = get_workspace_client(workspace_client=workspace_client, aml_workspace=workspace)
+    ml_client = get_ml_client(ml_client=ml_client, aml_workspace=workspace)
     print(f"Loaded AzureML workspace {workspace.name}")
 
     if conda_environment_file is None:
@@ -659,7 +659,7 @@ def submit_to_azure_if_needed(  # type: ignore
 
     run_config = create_run_configuration(
         workspace=workspace,
-        workspace_client=workspace_client,
+        ml_client=ml_client,
         compute_cluster_name=compute_cluster_name,
         aml_environment_name=aml_environment_name,
         conda_environment_file=conda_environment_file,
@@ -701,7 +701,7 @@ def submit_to_azure_if_needed(  # type: ignore
                              wait_for_completion_show_output=wait_for_completion_show_output)
         else:
 
-            v2_input_datasets = create_v2_inputs(workspace_client, cleaned_input_datasets)
+            v2_input_datasets = create_v2_inputs(ml_client, cleaned_input_datasets)
             v2_output_datasets = create_v2_outputs(cleaned_output_datasets)
             run = submit_run_v2(workspace=workspace,
                                 v2_input_datasets=v2_input_datasets,
@@ -735,7 +735,7 @@ def convert_himl_to_azureml_datasets(
     cleaned_output_datasets: List[DatasetConfig],
     strictly_aml_v1: bool,
     workspace: Workspace,
-    workspace_client: Optional[MLClient] = None,
+    ml_client: Optional[MLClient] = None,
 ) -> Tuple[Dict[str, DatasetConsumptionConfig], Dict[str, OutputFileDatasetConfig]]:
     """
     Convert the cleaned input and output datasets into dictionaries of DatasetConsumptionConfigs for use in AzureML.
@@ -748,7 +748,7 @@ def convert_himl_to_azureml_datasets(
     inputs = {}
     for index, d in enumerate(cleaned_input_datasets):
         consumption = d.to_input_dataset(index, workspace, strictly_aml_v1,
-                                         workspace_client=workspace_client)
+                                         ml_client=ml_client)
         if isinstance(consumption, DatasetConsumptionConfig):
             if consumption.name in inputs:
                 raise ValueError(f"There is already an input dataset with name '{consumption.name}' set up?")

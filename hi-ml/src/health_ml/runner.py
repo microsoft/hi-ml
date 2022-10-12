@@ -29,7 +29,7 @@ from health_azure.datasets import create_dataset_configs  # noqa: E402
 from health_azure.logging import logging_to_stdout   # noqa: E402
 from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
 from health_azure.amulet import prepare_amulet_job  # noqa: E402
-from health_azure.utils import (get_workspace, get_workspace_client, is_local_rank_zero,  # noqa: E402
+from health_azure.utils import (get_workspace, get_ml_client, is_local_rank_zero,  # noqa: E402
                                 is_running_in_azure_ml, set_environment_variables_for_multi_node,
                                 create_argparser, parse_arguments, ParserResult, apply_overrides)
 
@@ -250,7 +250,7 @@ class Runner:
                                    use_mounting=use_mounting)
         hyperdrive_config = self.lightning_container.get_hyperdrive_config()
         if self.experiment_config.cluster and not is_running_in_azure_ml():
-            workspace_client = get_workspace_client()
+            ml_client = get_ml_client()
 
             env_file = choose_conda_env_file(env_file=self.experiment_config.conda_env)
             logging.info(f"Using this Conda environment definition: {env_file}")
@@ -263,7 +263,7 @@ class Runner:
                 script_params=script_params,
                 conda_environment_file=env_file,
                 aml_workspace=workspace,
-                workspace_client=workspace_client,
+                ml_client=ml_client,
                 compute_cluster_name=self.experiment_config.cluster,
                 environment_variables=environment_variables,
                 default_datastore=datastore,

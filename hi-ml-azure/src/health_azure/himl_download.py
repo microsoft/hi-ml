@@ -32,7 +32,7 @@ def main() -> None:  # pragma: no cover
     files_to_download = download_config.files_to_download
 
     workspace = azure_util.get_workspace()
-    ml_client = azure_util.get_workspace_client(
+    ml_client = azure_util.get_ml_client(
         subscription_id=workspace.subscription_id,
         resource_group=workspace.resource_group,
         workspace_name=workspace.name

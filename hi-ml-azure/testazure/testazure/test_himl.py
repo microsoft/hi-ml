@@ -270,7 +270,7 @@ def test_to_datasets(
         # mock_dataset_consumption_config: mock.MagicMock,
         mock_output_file_dataset_config: mock.MagicMock) -> None:
     def to_input_dataset(workspace: Workspace, dataset_index: int, strictly_aml_v1: bool,
-                         workspace_client: Optional[MLClient] = None) -> DatasetConsumptionConfig:
+                         ml_client: Optional[MLClient] = None) -> DatasetConsumptionConfig:
         return mock_dataset_consumption_config
 
     def to_output_dataset(workspace: Workspace, dataset_index: int) -> DatasetConsumptionConfig:
@@ -1326,9 +1326,9 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock,
     """
     cross_validation_metric_name = cross_validation_metric_name or ""
     mock_sys_args.return_value = ["", "--azureml"]
-    with patch("health_azure.himl.get_workspace_client") as mock_get_workspace_client:
-        mock_workspace_client = MagicMock()
-        mock_get_workspace_client.return_value = mock_workspace_client
+    with patch("health_azure.himl.get_ml_client") as mock_get_ml_client:
+        mock_ml_client = MagicMock()
+        mock_get_ml_client.return_value = mock_ml_client
         with patch.object(Environment, "get", return_value="dummy_env"):
             mock_workspace = MagicMock()
             mock_workspace.compute_targets = {"foo": mock_compute_cluster}
@@ -1342,7 +1342,7 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock,
                             metric_name=cross_validation_metric_name)
                         himl.submit_to_azure_if_needed(
                             aml_workspace=mock_workspace,
-                            workspace_client=mock_workspace_client,
+                            ml_client=mock_ml_client,
                             entry_script=Path(__file__),
                             compute_cluster_name="foo",
                             aml_environment_name="dummy_env",
@@ -1402,7 +1402,7 @@ def test_submit_to_azure_if_needed_v2() -> None:
         "health_azure.himl",
         _package_setup=DEFAULT,
         get_workspace=DEFAULT,
-        get_workspace_client=DEFAULT,
+        get_ml_client=DEFAULT,
         create_run_configuration=DEFAULT,
         create_script_run=DEFAULT,
         append_to_amlignore=DEFAULT,

@@ -225,7 +225,7 @@ def _test_hyperdrive_submission(mock_runner: Runner,
     with change_working_folder_and_add_environment(mock_runner.project_root):
         with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
             with patch("health_ml.runner.get_workspace"):
-                with patch("health_ml.runner.get_workspace_client"):
+                with patch("health_ml.runner.get_ml_client"):
                     with patch.object(sys, "argv", arguments):
                         with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
                             mock_runner.run()
@@ -254,7 +254,7 @@ def test_submit_to_azure_docker(mock_runner: Runner) -> None:
     # start in that temp folder.
     with change_working_folder_and_add_environment(mock_runner.project_root):
         with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
-            with patch("health_ml.runner.get_workspace_client"):
+            with patch("health_ml.runner.get_ml_client"):
                 with patch("health_ml.runner.get_workspace"):
                     with patch.object(sys, "argv", arguments):
                         with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
