@@ -21,6 +21,10 @@ from azureml.dataprep.fuse.daemon import MountContext
 from health_azure.utils import PathOrString, get_workspace, get_ml_client
 
 
+V2_INPUT_DATASET_ARG = " --input_datasets=${{inputs.input_datasets}}"
+V2_OUTPUT_DATASET_ARG = " --output_datasets=${{outputs.output_datasets}}"
+
+
 def get_datastore(workspace: Workspace, datastore_name: str) -> Union[Datastore, V2Datastore]:
     """
     Retrieves a datastore of a given name from an AzureML workspace. The datastore_name argument can be omitted if
@@ -268,12 +272,13 @@ class DatasetConfig:
                                strictly_aml_v1: bool,
                                workspace: Workspace = None,
                                ml_client: Optional[MLClient] = None,
-                               ) -> Tuple[Path, Optional[MountContext]]:
+                               ) -> Tuple[Optional[Path], Optional[MountContext]]:
         """
         Return a local path to the dataset when outside of an AzureML run.
         If local_folder is supplied, then this is assumed to be a local dataset, and this is returned.
         Otherwise the dataset is mounted or downloaded to either the target folder or a temporary folder and that is
-        returned.
+        returned. If self.name refers to a v2 dataset, it is not possible to mount the data here,
+        therefore a tuple of Nones will be returned.
 
         :param workspace: The AzureML workspace to read from.
         :return: Tuple of (path to dataset, optional mountcontext)
@@ -288,32 +293,34 @@ class DatasetConfig:
         if workspace is None:
             raise ValueError(f"Unable to make dataset '{self.name} available for a local run because no AzureML "
                              "workspace has been provided. Provide a workspace, or set a folder for local execution.")
-        azureml_dataset: FileDataset = get_or_create_dataset(workspace=workspace,
-                                                             ml_client=ml_client,
-                                                             dataset_name=self.name,
-                                                             datastore_name=self.datastore,
-                                                             strictly_aml_v1=strictly_aml_v1)
-        assert isinstance(azureml_dataset, FileDataset)
-        target_path = self.target_folder or Path(tempfile.mkdtemp())
-        use_mounting = self.use_mounting if self.use_mounting is not None else False
-        if use_mounting:
-            status += f"mounted at {target_path}"
-            print(status)
-            mount_context = azureml_dataset.mount(mount_point=str(target_path))
-            result = target_path, mount_context
+        azureml_dataset = get_or_create_dataset(workspace=workspace,
+                                                ml_client=ml_client,
+                                                dataset_name=self.name,
+                                                datastore_name=self.datastore,
+                                                strictly_aml_v1=strictly_aml_v1)
+        if isinstance(azureml_dataset, FileDataset):
+            target_path = self.target_folder or Path(tempfile.mkdtemp())
+            use_mounting = self.use_mounting if self.use_mounting is not None else False
+            if use_mounting:
+                status += f"mounted at {target_path}"
+                print(status)
+                mount_context = azureml_dataset.mount(mount_point=str(target_path))
+                result = target_path, mount_context
+            else:
+                status += f"downloaded to {target_path}"
+                print(status)
+                azureml_dataset.download(target_path=str(target_path), overwrite=False)
+                result = target_path, None
+            return result
         else:
-            status += f"downloaded to {target_path}"
-            print(status)
-            azureml_dataset.download(target_path=str(target_path), overwrite=False)
-            result = target_path, None
-        return result
+            return None, None
 
     def to_input_dataset(self,
                          dataset_index: int,
                          workspace: Workspace,
                          strictly_aml_v1: bool,
                          ml_client: Optional[MLClient] = None,
-                         ) -> Union[DatasetConsumptionConfig, Input]:
+                         ) -> Optional[DatasetConsumptionConfig]:
         """
         Creates a configuration for using an AzureML dataset inside of an AzureML run. This will make the AzureML
         dataset with given name available as a named input, using INPUT_0 as the key for dataset index 0.
@@ -322,29 +329,31 @@ class DatasetConfig:
         :param dataset_index: Suffix for using datasets as named inputs, the dataset will be marked INPUT_{index}
         """
         status = f"In AzureML, dataset {self.name} (index {dataset_index}) will be "
-        azureml_dataset: FileDataset = get_or_create_dataset(workspace=workspace,
-                                                             ml_client=ml_client,
-                                                             dataset_name=self.name,
-                                                             datastore_name=self.datastore,
-                                                             strictly_aml_v1=strictly_aml_v1)
+        azureml_dataset = get_or_create_dataset(workspace=workspace,
+                                                ml_client=ml_client,
+                                                dataset_name=self.name,
+                                                datastore_name=self.datastore,
+                                                strictly_aml_v1=strictly_aml_v1)
         # If running on windows then self.target_folder may be a WindowsPath, make sure it is
         # in posix format for Azure.
         use_mounting = False if self.use_mounting is None else self.use_mounting
-        assert isinstance(azureml_dataset, FileDataset)
-        named_input = azureml_dataset.as_named_input(_input_dataset_key(index=dataset_index))
-        path_on_compute = self.target_folder.as_posix() if self.target_folder is not None else None
-        if use_mounting:
-            status += "mounted at "
-            result = named_input.as_mount(path_on_compute)
+        if isinstance(azureml_dataset, FileDataset):
+            named_input = azureml_dataset.as_named_input(_input_dataset_key(index=dataset_index))
+            path_on_compute = self.target_folder.as_posix() if self.target_folder is not None else None
+            if use_mounting:
+                status += "mounted at "
+                result = named_input.as_mount(path_on_compute)
+            else:
+                status += "downloaded to "
+                result = named_input.as_download(path_on_compute)
+            if path_on_compute:
+                status += f"{path_on_compute}."
+            else:
+                status += "a randomly chosen folder."
+            print(status)
+            return result
         else:
-            status += "downloaded to "
-            result = named_input.as_download(path_on_compute)
-        if path_on_compute:
-            status += f"{path_on_compute}."
-        else:
-            status += "a randomly chosen folder."
-        print(status)
-        return result
+            return None
 
     def to_output_dataset(self,
                           workspace: Workspace,

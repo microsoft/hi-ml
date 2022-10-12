@@ -39,10 +39,11 @@ from azureml.train.hyperdrive import HyperDriveRun
 
 from azure.ai.ml import MLClient
 from azure.ai.ml.entities import Job
+from azure.ai.ml.entities import Workspace as WorkspaceV2
 from azure.core.credentials import TokenCredential
+from azure.core.exceptions import ClientAuthenticationError
 from azure.identity import (ClientSecretCredential, DeviceCodeCredential, DefaultAzureCredential)
-from mlflow.entities import Run as MLFlowRun
-from mlflow.tracking import MlflowClient
+
 
 T = TypeVar("T")
 
@@ -2033,14 +2034,82 @@ def check_is_any_of(message: str, actual: Optional[str], valid: Iterable[Optiona
         raise ValueError("{} must be one of [{}], but got: {}".format(message, all_valid, actual))
 
 
+def _validate_credential(credential: TokenCredential) -> None:
+    """
+    Validate credential by attempting to get token. If authentication has been successful, get_token
+    will succeed. Otherwise an exception will be raised
+
+    :param credential: The credential object to validate.
+    """
+    credential.get_token("https://management.azure.com/.default")
+
+
+def _get_legitimate_service_principal_credential(tenant_id: str, service_principal_id: str,
+                                                 service_principal_password: str) -> TokenCredential:
+    """
+    Create a ClientSecretCredential given a tenant id, service principal id and password
+
+    :param tenant_id: The Azure tenant id.
+    :param service_principal_id: The id of an existing Service Principal.
+    :param service_principal_password: The password of an existing Service Principal.
+    :raises ValueError: If the credential cannot be validated (i.e. authentication was unsucessful).
+    :return: The validated credential.
+    """
+    cred = ClientSecretCredential(tenant_id=tenant_id,
+                                  client_id=service_principal_id,
+                                  client_secret=service_principal_password)
+    try:
+        _validate_credential(cred)
+        logging.info("Using interactive login to Azure. To use Service Principal authentication, set the environment "
+                     f"variables {ENV_SERVICE_PRINCIPAL_ID}, {ENV_SERVICE_PRINCIPAL_PASSWORD}, and {ENV_TENANT_ID}"
+        )
+        return cred
+    except ClientAuthenticationError as e:
+        raise ValueError(f"Found environment variables for {ENV_SERVICE_PRINCIPAL_ID}, "
+                         f"{ENV_SERVICE_PRINCIPAL_PASSWORD}, and {ENV_TENANT_ID} but was "
+                         "not able to authenticate: {e}")
+
+
+def _get_legitimate_device_code_credential() -> Optional[TokenCredential]:
+    """
+    Create a DeviceCodeCredential for interacting with Azure resources. If the credential can't be
+    validated, return None.
+
+    :return: A valid Azure credential.
+    """
+    cred = DeviceCodeCredential()
+    try:
+        _validate_credential(cred)
+        return cred
+    except ClientAuthenticationError:
+        return None
+
+
+def _get_legitimate_default_credential() -> Optional[TokenCredential]:
+    """
+    Create a DefaultAzure credential for interacting with Azure resources. If the credential can't be
+    validated, return None.
+
+    :return: A valid Azure credential.
+    """
+    cred = DefaultAzureCredential()
+    try:
+        _validate_credential(cred)
+        return cred
+    except ClientAuthenticationError:
+        return None
+
+
 def get_credential() -> Optional[TokenCredential]:
     """
     Get a credential for authenticating with Azure.There are multiple ways to retrieve a credential.
     If environment variables pertaining to details of a Service Principal are available, those will be used
-    to authenticate. Other methods include identifying an Azure managed identity, cached credentials from
-    VS code, Azure CLI, Powershell etc. If none of these are available, and the script is not currently
+    to authenticate. If no environment variables exist, and the script is not currently
     running inside of Azure ML or another Azure agent, will attempt to retrieve a credential via a
-    device code (which requires the user to visit a link and enter a provided code). Otherwise returns None.
+    device code (which requires the user to visit a link and enter a provided code). If this fails, or if running in
+    Azure, DefaultAzureCredential will be used which iterates through a number of possible authentication methods
+    including identifying an Azure managed identity, cached credentials from VS code, Azure CLI, Powershell etc.
+    Otherwise returns None.
 
     :return: Any of the aforementioned credentials if available, else None.
     """
@@ -2048,26 +2117,15 @@ def get_credential() -> Optional[TokenCredential]:
     tenant_id = get_secret_from_environment(ENV_TENANT_ID, allow_missing=True)
     service_principal_password = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
     if service_principal_id and tenant_id and service_principal_password:
-        logging.info(
-            "Using interactive login to Azure. To use Service Principal authentication, set the environment "
-            f"variables {ENV_SERVICE_PRINCIPAL_ID}, {ENV_SERVICE_PRINCIPAL_PASSWORD}, and {ENV_TENANT_ID}"
-        )
-        cs_cred = ClientSecretCredential(
-            tenant_id=tenant_id,
-            client_id=service_principal_id,
-            client_secret=service_principal_password)
-        cs_cred.get_token("https://management.azure.com/.default")
-        return cs_cred
-    else:
-        if not is_running_in_azure_ml() or is_running_on_azure_agent():
-            def_cred = DefaultAzureCredential()
-            def_cred.get_token("https://management.azure.com/.default")
-            return def_cred
-        if not is_running_in_azure_ml() or is_running_on_azure_agent():
-            dc_cred = DeviceCodeCredential()
-            dc_cred.get_token("https://management.azure.com/.default")
-            return dc_cred
-    return None
+        return _get_legitimate_service_principal_credential(tenant_id, service_principal_id, service_principal_password)
+
+    if not is_running_in_azure_ml() or is_running_on_azure_agent():
+        cred = _get_legitimate_device_code_credential()
+        if cred is not None:
+            return cred
+
+    cred = _get_legitimate_default_credential()
+    return cred
 
 
 def get_ml_client(ml_client: Optional[MLClient] = None,
@@ -2075,8 +2133,7 @@ def get_ml_client(ml_client: Optional[MLClient] = None,
                   workspace_config_path: Optional[PathOrString] = None,
                   subscription_id: Optional[str] = None,
                   resource_group: Optional[str] = None,
-                  workspace_name: str = "",
-                ) -> MLClient:
+                  workspace_name: str = "") -> MLClient:
     """
     Instantiate an MLClient for interacting with Azure resources via v2 of the Azure ML SDK.
     If a ml_client is provided, return that. Otherwise, create one using workspace details
@@ -2126,30 +2183,28 @@ def get_ml_client(ml_client: Optional[MLClient] = None,
     return ml_client
 
 
-def retrieve_workspace_from_client(client: MLClient) -> Workspace:
-    workspace_name = client.workspace_name or ""
-    workspace = client.workspaces.get(workspace_name)
+def retrieve_workspace_from_client(ml_client: MLClient, workspace_name: Optional[str] = None
+                                   ) -> WorkspaceV2:
+    """
+    Get a v2 Workspace object from an MLClient object. If a workspace_name is passed, will attempt
+    to retrieve a workspace with that name. Otherweise will use the MLClient's default workspace_name
+
+    :param ml_client: An MLClient object to retrieve the Workspace from
+    :param workspace_name: An optional name of the workspace to retrieve.
+    :return: A v2 Workspace object.
+    """
+    workspace_name = workspace_name or ml_client.workspace_name
+    workspace = ml_client.workspaces.get(workspace_name)
     return workspace
 
 
-def fetch_job(client: MLClient, run_id: str) -> Job:
-    job = client.jobs.get(run_id)
+def fetch_job(ml_client: MLClient, run_id: str) -> Job:
+    """
+    Retrive a job with a given run_id from an MLClient
+
+    :param ml_client: An MLClient object.
+    :param run_id: The id of the run to retrieve.
+    :return: An Azure ML (v2) Job object.
+    """
+    job = ml_client.jobs.get(run_id)
     return job
-
-
-def get_mlflow_run(mlflow_run_id: str) -> MLFlowRun:
-    mlflow_client = MlflowClient()
-    mlflow_run = mlflow_client.get_run(mlflow_run_id)
-    return mlflow_run
-
-
-def get_last_metrics_from_mlflow_run(mlflow_run: MLFlowRun) -> Dict[str, Any]:
-    metrics = mlflow_run.data.metrics
-    # tags = mlflow_run.data.tags
-    # params = mlflow_run.data.params
-    return metrics
-
-
-def get_metric_from_mlflow_run(mlflow_client: MlflowClient) -> Dict[str, Any]:
-    metric_history = mlflow_client.get_metric_history()
-    return metric_history

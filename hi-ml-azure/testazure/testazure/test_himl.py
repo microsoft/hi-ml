@@ -261,13 +261,11 @@ def test_validate_compute_real(tmp_path: Path) -> None:
 
 @pytest.mark.fast
 @patch("azureml.data.OutputFileDatasetConfig")
-# @patch("health_azure.himl.DatasetConsumptionConfig")
 @patch("health_azure.himl.Workspace")
 @patch("health_azure.himl.DatasetConfig")
 def test_to_datasets(
         mock_dataset_config: mock.MagicMock,
         mock_workspace: mock.MagicMock,
-        # mock_dataset_consumption_config: mock.MagicMock,
         mock_output_file_dataset_config: mock.MagicMock) -> None:
     def to_input_dataset(workspace: Workspace, dataset_index: int, strictly_aml_v1: bool,
                          ml_client: Optional[MLClient] = None) -> DatasetConsumptionConfig:

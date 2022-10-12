@@ -36,7 +36,7 @@ from health_azure.utils import (create_python_environment, create_run_recovery_i
                                 run_duration_string_to_seconds, to_azure_friendly_string, RUN_CONTEXT, get_workspace,
                                 PathOrString, DEFAULT_ENVIRONMENT_VARIABLES, get_ml_client,
                                 ENV_SERVICE_PRINCIPAL_ID, ENV_SERVICE_PRINCIPAL_PASSWORD, ENV_TENANT_ID)
-from health_azure.datasets import (DatasetConfig, StrOrDatasetConfig, _input_dataset_key, _output_dataset_key,
+from health_azure.datasets import (V2_INPUT_DATASET_ARG, V2_OUTPUT_DATASET_ARG, DatasetConfig, StrOrDatasetConfig, _input_dataset_key, _output_dataset_key,
                                    _replace_string_datasets, setup_local_datasets)
 
 logger = logging.getLogger('health_azure')
@@ -332,8 +332,8 @@ def create_script_run(snapshot_root_directory: Optional[Path] = None,
 def submit_run_v2(workspace: Optional[Workspace],
                   experiment_name: str,
                   script_run_config: Union[ScriptRunConfig, HyperDriveConfig],
-                  v2_input_datasets: Optional[Dict[str, Input]] = None,
-                  v2_output_datasets: Optional[Dict[str, Output]] = None,
+                  input_datasets_v2: Optional[Dict[str, Input]] = None,
+                  output_datasets_v2: Optional[Dict[str, Output]] = None,
                   tags: Optional[Dict[str, str]] = None,
                   wait_for_completion: bool = False,
                   wait_for_completion_show_output: bool = False,
@@ -355,29 +355,25 @@ def submit_run_v2(workspace: Optional[Workspace],
     args = script_run_config.arguments
     arg_str = " ".join(args)
     cmd = script + " " + arg_str
-    if v2_input_datasets:
-        if len(v2_input_datasets) > 0:
-            cmd += " --input_datasets=${{inputs.input_datasets}}"
+    if input_datasets_v2:
+        if len(input_datasets_v2) > 0:
+            cmd += V2_INPUT_DATASET_ARG
     else:
-        v2_input_datasets = {}
+        input_datasets_v2 = {}
 
-    if v2_output_datasets:
-        if len(v2_output_datasets) > 0:
-            cmd += " --output_datasets=${{outputs.output_datasets}}"
+    if output_datasets_v2:
+        if len(output_datasets_v2) > 0:
+            cmd += V2_OUTPUT_DATASET_ARG
     else:
-        v2_output_datasets = {}
+        output_datasets_v2 = {}
 
-    # Unlink any symlinked files, otherwise Azure fails to find the correct file and the run wont start
     source_directory = Path(script_run_config.source_directory)
-    docs_folder = source_directory / "docs" / "source"
-    for doc_file in docs_folder.glob("*.md"):
-        if doc_file.is_symlink():
-            print(f"File {str(doc_file)} is symlink. Unlinking.")
-            doc_file.unlink()
 
     compute_target = script_run_config.run_config.target
     environment = script_run_config.run_config.environment.name + "@latest"
 
+    # If environment variables are set on the local machine for connecting to an MLClient,
+    # these variables should also be set within the AML job itself
     env_vars_copy = {
         "AZURE_TENANT_ID": os.environ.get(ENV_TENANT_ID),
         "AZURE_CLIENT_ID": os.environ.get(ENV_SERVICE_PRINCIPAL_ID),
@@ -386,8 +382,8 @@ def submit_run_v2(workspace: Optional[Workspace],
     command_job = command(
         code=str(source_directory),
         command=cmd,
-        inputs=v2_input_datasets,
-        outputs=v2_output_datasets,
+        inputs=input_datasets_v2,
+        outputs=output_datasets_v2,
         environment=environment,
         environment_variables=env_vars_copy,
         compute=compute_target,
@@ -402,6 +398,18 @@ def download_job_outputs_logs(ml_client: MLClient,
                               job_name: str,
                               file_to_download_path: str = "",
                               download_dir: Optional[PathOrString] = None) -> None:
+    """
+    Download output files from an mlflow job. Outputs will be downloaded to a folder named
+    `<download_dir>/<job_name>` where download_dir is either provided to this function,
+    or is "outputs". If a single file is required, the path to this file within the job can
+    be specified with 'file_to_download_path'
+
+    :param ml_client: An MLClient object.
+    :param job_name: The name (id) of the job to download output files from.
+    :param file_to_download_path: An optional path to a single file/folder to download.
+    :param download_dir: An optional folder into which to download the run files.
+    """
+
     download_dir = Path(download_dir) if download_dir else Path("outputs")
     download_dir = download_dir / job_name
     ml_client.jobs.download(job_name, output_name=file_to_download_path, download_path=download_dir)
@@ -473,6 +481,13 @@ def _str_to_path(s: Optional[PathOrString]) -> Optional[Path]:
 
 
 def create_v2_inputs(ml_client: MLClient, input_datasets: List[DatasetConfig]) -> Dict[str, Input]:
+    """
+    Create a dictionary of Azure ML v2 Input objects, required for passing input data in to an AML job
+
+    :param ml_client: An MLClient object.
+    :param input_datasets: A list of DatasetConfigs to convert to Inputs.
+    :return: A dictionary in the format "input_name": Input.
+    """
     inputs: Dict[str, Input] = {}
     for input_dataset in input_datasets:
         version = input_dataset.version or 1
@@ -491,10 +506,16 @@ def create_v2_inputs(ml_client: MLClient, input_datasets: List[DatasetConfig]) -
 
 
 def create_v2_outputs(output_datasets: List[DatasetConfig]) -> Dict[str, Output]:
+    """
+    Create a dictionary of Azure ML v2 Output objects, required for passing output data in to an AML job
+
+    :param output_datasets: A list of DatasetConfigs to convert to Outputs.
+    :return: A dictionary in the format "output_name": Output.
+    """
     outputs = {}
     for output_dataset in output_datasets:
         v1_datastore_path = f"azureml://datastores/{output_dataset.datastore}/paths/{output_dataset.name}"
-        # Note that there are alternative formats that the input path can take, such as:
+        # Note that there are alternative formats that the output path can take, such as:
         # v2_data_asset_path = f"azureml:{output_dataset.name}@latest"
         outputs[OUTPUT_DATASETS_ARG_NAME] = Output(  # type: ignore
             type=AssetTypes.URI_FOLDER,
@@ -524,7 +545,6 @@ def submit_to_azure_if_needed(  # type: ignore
         ignored_folders: Optional[List[PathOrString]] = None,
         default_datastore: str = "",
         input_datasets: Optional[List[StrOrDatasetConfig]] = None,
-        v2_input_datasets: Optional[Dict[str, Input]] = None,
         output_datasets: Optional[List[StrOrDatasetConfig]] = None,
         num_nodes: int = 1,
         wait_for_completion: bool = False,
@@ -701,11 +721,11 @@ def submit_to_azure_if_needed(  # type: ignore
                              wait_for_completion_show_output=wait_for_completion_show_output)
         else:
 
-            v2_input_datasets = create_v2_inputs(ml_client, cleaned_input_datasets)
-            v2_output_datasets = create_v2_outputs(cleaned_output_datasets)
+            input_datasets_v2 = create_v2_inputs(ml_client, cleaned_input_datasets)
+            output_datasets_v2 = create_v2_outputs(cleaned_output_datasets)
             run = submit_run_v2(workspace=workspace,
-                                v2_input_datasets=v2_input_datasets,
-                                v2_output_datasets=v2_output_datasets,
+                                input_datasets_v2=input_datasets_v2,
+                                output_datasets_v2=output_datasets_v2,
                                 experiment_name=effective_experiment_name,
                                 script_run_config=config_to_submit,
                                 tags=tags,
