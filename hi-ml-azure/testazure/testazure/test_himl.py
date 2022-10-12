@@ -571,7 +571,7 @@ def test_submit_to_azure_if_needed_azure_return(
         mock_run_context: mock.MagicMock,
         mock_generate_azure_datasets: mock.MagicMock,
         mock_workspace: mock.MagicMock,
-        ) -> None:
+) -> None:
     """
     When running in AzureML, the call to submit_to_azure_if_needed should return immediately, without trying to
     submit a new job.
