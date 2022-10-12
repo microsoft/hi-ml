@@ -124,9 +124,10 @@ def test_on_train_and_val_batch_end(tmp_path: Path, mock_panda_tiles_root_dir: P
     callback = LossAnalysisCallback(outputs_folder=tmp_path)
     _assert_loss_cache_contains_n_elements(callback.loss_cache[ModelKey.TRAIN], 0)
     _assert_loss_cache_contains_n_elements(callback.loss_cache[ModelKey.VAL], 0)
+    dataloader = iter(container.data_module.train_dataloader())
 
     def _call_on_batch_end_hook(on_batch_end_hook: Callable, batch_idx: int) -> None:
-        batch = next(iter(container.data_module.train_dataloader()))
+        batch = next(dataloader)
         outputs = container.model.training_step(batch, batch_idx)
         on_batch_end_hook(trainer, container.model, outputs, batch, batch_idx, 0)  # type: ignore
 
