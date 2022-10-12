@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import torch
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 from pytorch_lightning.utilities.rank_zero import rank_zero_warn
 from pathlib import Path
 
@@ -327,7 +327,7 @@ class BaseDeepMILModule(LightningModule):
             predicted_probs = predicted_probs.squeeze(dim=1)
 
         results = dict()
-        if stage in [ModelKey.TRAIN, ModelKey.VAL] and self.analyse_loss:
+        if self.analyse_loss and stage in [ModelKey.TRAIN, ModelKey.VAL]:
             loss_per_sample = self._compute_loss(self.loss_fn_no_reduction, bag_logits, bag_labels)
             results[ResultsKey.LOSS_PER_SAMPLE] = loss_per_sample.detach().cpu().numpy()
 
@@ -351,17 +351,17 @@ class BaseDeepMILModule(LightningModule):
             self.outputs_handler.tiles_selector.update_slides_selection(batch, results)
         return results
 
-    def training_step(self, batch: Dict, batch_idx: int) -> Union[Tensor, BatchResultsType]:  # type: ignore
+    def training_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
         train_result = self._shared_step(batch, batch_idx, ModelKey.TRAIN)
         self.log('train/loss', train_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
                  sync_dist=True)
         if self.verbose:
             print(f"After loading images batch {batch_idx} -", _format_cuda_memory_stats())
+        results = {ResultsKey.LOSS: train_result[ResultsKey.LOSS]}
         if self.analyse_loss:
-            return {ResultsKey.LOSS: train_result[ResultsKey.LOSS],
-                    ResultsKey.LOSS_PER_SAMPLE: train_result[ResultsKey.LOSS_PER_SAMPLE],
-                    ResultsKey.CLASS_PROBS: train_result[ResultsKey.CLASS_PROBS]}
-        return train_result[ResultsKey.LOSS]
+            results.update({ResultsKey.LOSS_PER_SAMPLE: train_result[ResultsKey.LOSS_PER_SAMPLE],
+                            ResultsKey.CLASS_PROBS: train_result[ResultsKey.CLASS_PROBS]})
+        return results
 
     def validation_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
         val_result = self._shared_step(batch, batch_idx, ModelKey.VAL)

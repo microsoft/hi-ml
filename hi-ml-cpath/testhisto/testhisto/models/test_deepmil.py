@@ -269,8 +269,7 @@ def assert_train_step(module: BaseDeepMILModule, data_module: HistoDataModule, u
     train_data_loader = data_module.train_dataloader()
     for batch_idx, batch in enumerate(train_data_loader):
         batch = move_batch_to_expected_device(batch, use_gpu)
-        loss = module.training_step(batch, batch_idx)
-        assert isinstance(loss, Tensor)
+        loss = module.training_step(batch, batch_idx)[ResultsKey.LOSS]
         loss.retain_grad()
         loss.backward()
         assert loss.grad is not None
