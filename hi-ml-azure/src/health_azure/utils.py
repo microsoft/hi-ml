@@ -2133,7 +2133,8 @@ def get_ml_client(ml_client: Optional[MLClient] = None,
                   workspace_config_path: Optional[PathOrString] = None,
                   subscription_id: Optional[str] = None,
                   resource_group: Optional[str] = None,
-                  workspace_name: str = "") -> MLClient:
+                  workspace_name: str = "",
+                  ) -> MLClient:
     """
     Instantiate an MLClient for interacting with Azure resources via v2 of the Azure ML SDK.
     If a ml_client is provided, return that. Otherwise, create one using workspace details
