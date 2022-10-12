@@ -87,7 +87,7 @@ def mock_panda_tiles_root_dir(
         src_data_path=tmp_path_to_pathmnist_dataset,
         mock_type=MockHistoDataType.PATHMNIST,
         n_tiles=4,
-        n_slides=10,
+        n_slides=15,
         n_channels=3,
         tile_size=28,
         img_size=224,
