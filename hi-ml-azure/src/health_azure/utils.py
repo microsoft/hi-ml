@@ -2062,7 +2062,7 @@ def _get_legitimate_service_principal_credential(tenant_id: str, service_princip
         _validate_credential(cred)
         logging.info("Using interactive login to Azure. To use Service Principal authentication, set the environment "
                      f"variables {ENV_SERVICE_PRINCIPAL_ID}, {ENV_SERVICE_PRINCIPAL_PASSWORD}, and {ENV_TENANT_ID}"
-        )
+                     )
         return cred
     except ClientAuthenticationError as e:
         raise ValueError(f"Found environment variables for {ENV_SERVICE_PRINCIPAL_ID}, "
