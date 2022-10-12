@@ -39,8 +39,8 @@ from azureml.train.hyperdrive import HyperDriveRun
 
 from azure.ai.ml import MLClient
 from azure.ai.ml.entities import Job
-from azure.identity import (ClientSecretCredential, DeviceCodeCredential, DefaultAzureCredential,
-                            ManagedIdentityCredential)
+from azure.core.credentials import TokenCredential
+from azure.identity import (ClientSecretCredential, DeviceCodeCredential, DefaultAzureCredential)
 from mlflow.entities import Run as MLFlowRun
 from mlflow.tracking import MlflowClient
 
@@ -105,8 +105,6 @@ DEFAULT_ENVIRONMENT_VARIABLES = {
 }
 
 PathOrString = Union[Path, str]
-CredentialType = Union[ClientSecretCredential, DeviceCodeCredential, DefaultAzureCredential,
-                       ManagedIdentityCredential]
 
 
 class IntTuple(param.NumericTuple):
@@ -2035,7 +2033,7 @@ def check_is_any_of(message: str, actual: Optional[str], valid: Iterable[Optiona
         raise ValueError("{} must be one of [{}], but got: {}".format(message, all_valid, actual))
 
 
-def get_credential() -> Optional[CredentialType]:
+def get_credential() -> Optional[TokenCredential]:
     """
     Get a credential for authenticating with Azure.There are multiple ways to retrieve a credential.
     If environment variables pertaining to details of a Service Principal are available, those will be used
@@ -2103,15 +2101,17 @@ def get_workspace_client(workspace_client: Optional[MLClient] = None,
             subscription_id=aml_workspace.subscription_id,
             resource_group_name=aml_workspace.resource_group,
             workspace_name=aml_workspace.name,
-            credential=credential)
+            credential=credential)  # type: ignore
     if workspace_config_path:
-        workspace_client = MLClient.from_config(credential=credential, path=str(workspace_config_path))
+        workspace_client = MLClient.from_config(
+            credential=credential,  # type: ignore
+            path=str(workspace_config_path))
     elif subscription_id and resource_group and workspace_name:
         workspace_client = MLClient(
             subscription_id=subscription_id,
             resource_group_name=resource_group,
             workspace_name=workspace_name,
-            credential=credential)
+            credential=credential)  # type: ignore
     else:
         try:
             workspace = get_workspace()
@@ -2119,7 +2119,7 @@ def get_workspace_client(workspace_client: Optional[MLClient] = None,
                 subscription_id=workspace.subscription_id,
                 resource_group_name=workspace.resource_group,
                 workspace_name=workspace.name,
-                credential=credential)
+                credential=credential)  # type: ignore
         except ValueError as e:
             raise ValueError(f"Couldn't connect to MLClient: {e}")
     logging.info(f"Logged into AzureML workspace {workspace_client.workspace_name}")

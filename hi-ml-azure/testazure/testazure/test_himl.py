@@ -564,7 +564,6 @@ def test_get_workspace_no_config(
 
 
 @pytest.mark.fast
-@patch("health_azure.himl.Run")
 @patch("health_azure.himl.Workspace")
 @patch("health_azure.himl._generate_azure_datasets")
 @patch("health_azure.himl.RUN_CONTEXT")
@@ -572,7 +571,7 @@ def test_submit_to_azure_if_needed_azure_return(
         mock_run_context: mock.MagicMock,
         mock_generate_azure_datasets: mock.MagicMock,
         mock_workspace: mock.MagicMock,
-        mock_run: mock.MagicMock) -> None:
+        ) -> None:
     """
     When running in AzureML, the call to submit_to_azure_if_needed should return immediately, without trying to
     submit a new job.
@@ -581,13 +580,13 @@ def test_submit_to_azure_if_needed_azure_return(
     mock_run_context.experiment = mock.MagicMock(workspace=mock_workspace)
     assert is_running_in_azure_ml(himl.RUN_CONTEXT)
     expected_run_info = himl.AzureRunInfo(
-        run=mock_run,
+        run=mock_run_context,
         input_datasets=[],
         output_datasets=[],
         mount_contexts=[],
         is_running_in_azure_ml=True,
-        output_folder=Path.cwd(),
-        logs_folder=Path.cwd())
+        output_folder=Path.cwd() / himl.OUTPUT_FOLDER,
+        logs_folder=Path.cwd() / himl.LOGS_FOLDER)
     mock_generate_azure_datasets.return_value = expected_run_info
     with mock.patch("sys.argv", ["", "--azureml"]):
         run_info = himl.submit_to_azure_if_needed(

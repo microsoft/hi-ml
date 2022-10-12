@@ -27,7 +27,6 @@ from azureml.core import ComputeTarget, Environment, Experiment, Run, RunConfigu
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
 from azureml.data import OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
-from azureml.exceptions import UserErrorException
 from azureml.train.hyperdrive import HyperDriveConfig, GridParameterSampling, PrimaryMetricGoal, choice
 from azureml.dataprep.fuse.daemon import MountContext
 
@@ -605,8 +604,10 @@ def submit_to_azure_if_needed(  # type: ignore
     # can infer if the present code is running in AzureML.
     in_azure = is_running_in_azure_ml(RUN_CONTEXT)
     if in_azure:
-        return _generate_azure_datasets(cleaned_input_datasets, cleaned_output_datasets)
-
+        if strictly_aml_v1:
+            return _generate_azure_datasets(cleaned_input_datasets, cleaned_output_datasets)
+        else:
+            return _generate_v2_azure_datasets(cleaned_input_datasets, cleaned_output_datasets)
     # This codepath is reached when executing outside AzureML. Here we first check if a script submission to AzureML
     # is necessary. If not, return to the caller for local execution.
     if submit_to_azureml is None:
@@ -799,28 +800,40 @@ def _generate_azure_datasets(
                                     cleaned_output_datasets]
         logging.info(f"Stitched returned input datasets: {returned_input_datasets}")
         logging.info(f"Stitched returned output datasets: {returned_output_datasets}")
-    try:
-        # This is a v1 Job, so we can get the input datasets from the run context
-        if hasattr(RUN_CONTEXT, "input_datasets") and len(RUN_CONTEXT.input_datasets) > 0:
-            returned_input_datasets = [Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)])
-                                       for index in range(len(cleaned_input_datasets))]
-            returned_output_datasets = [Path(RUN_CONTEXT.output_datasets[_output_dataset_key(index)])
-                                        for index in range(len(cleaned_output_datasets))]
-        else:
-            raise ValueError("Run context has no input datasets associated")
-    # Resolving RUN_CONTEXT's input_datasets sometimes causes an Exception in AML SDK v2 that complains that
-    # "The given saved dataset id is malformed" but sometimes returns an empty list, so a KeyError is raised
-    except (UserErrorException, KeyError):
-        # This is a v2 Job, so we need to get the input datasets from the command line args
-        returned_input_datasets = []
-        returned_output_datasets = []
-        for sys_arg in sys.argv:
-            if INPUT_DATASETS_ARG_NAME in sys_arg:
-                input_dataset_strings = sys_arg.split("--" + INPUT_DATASETS_ARG_NAME + "=")[-1].split(",")
-                returned_input_datasets += [Path(p) for p in input_dataset_strings]
-            if OUTPUT_DATASETS_ARG_NAME in sys_arg:
-                output_dataset_strings = sys_arg.split("--" + OUTPUT_DATASETS_ARG_NAME + "=")[-1].split(",")
-                returned_output_datasets += [Path(p) for p in output_dataset_strings]
+    else:
+        returned_input_datasets = [Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)])
+                                   for index in range(len(cleaned_input_datasets))]
+        returned_output_datasets = [Path(RUN_CONTEXT.output_datasets[_output_dataset_key(index)])
+                                    for index in range(len(cleaned_output_datasets))]
+    return AzureRunInfo(
+        input_datasets=returned_input_datasets,  # type: ignore
+        output_datasets=returned_output_datasets,  # type: ignore
+        mount_contexts=[],
+        run=RUN_CONTEXT,
+        is_running_in_azure_ml=True,
+        output_folder=Path.cwd() / OUTPUT_FOLDER,
+        logs_folder=Path.cwd() / LOGS_FOLDER)
+
+
+def _generate_v2_azure_datasets(cleaned_input_datasets: List[DatasetConfig],
+                                cleaned_output_datasets: List[DatasetConfig]) -> AzureRunInfo:
+    """
+    Generate returned datasets when running in AzureML. Assumes this is v2 Job, so we need to get
+    the input datasets from the command line args
+
+    :param cleaned_input_datasets: The list of input dataset configs
+    :param cleaned_output_datasets: The list of output dataset configs
+    :return: The AzureRunInfo containing the AzureML input and output dataset lists etc.
+    """
+    returned_input_datasets = []
+    returned_output_datasets = []
+    for sys_arg in sys.argv:
+        if INPUT_DATASETS_ARG_NAME in sys_arg:
+            input_dataset_strings = sys_arg.split("--" + INPUT_DATASETS_ARG_NAME + "=")[-1].split(",")
+            returned_input_datasets += [Path(p) for p in input_dataset_strings]
+        if OUTPUT_DATASETS_ARG_NAME in sys_arg:
+            output_dataset_strings = sys_arg.split("--" + OUTPUT_DATASETS_ARG_NAME + "=")[-1].split(",")
+            returned_output_datasets += [Path(p) for p in output_dataset_strings]
 
     return AzureRunInfo(
         input_datasets=returned_input_datasets,  # type: ignore
