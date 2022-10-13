@@ -196,6 +196,10 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
         if absolute_checkpoint_path_parent.is_file():
             return absolute_checkpoint_path_parent
 
+        checkpoint_path = Path(self.checkpoint_folder, self.best_checkpoint_filename_with_suffix)
+        if checkpoint_path.is_file():
+            return checkpoint_path
+
         checkpoint_path = get_best_checkpoint_path(self.checkpoint_folder)
         if checkpoint_path.is_file():
             return checkpoint_path
