@@ -7,14 +7,12 @@ import logging
 import math
 import numbers
 import operator
-import os
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, Optional, Union
 
-import mlflow
 import torch
 from azureml.core import Run, Workspace
 from pytorch_lightning import LightningModule, Trainer
@@ -315,88 +313,6 @@ class AzureMLProgressBar(ProgressBarBase):
         else:
             print(message)
             sys.stdout.flush()
-
-
-class MLFlowLogger(LightningLoggerBase):
-    HYPERPARAMS_NAME = "hyperparams"
-
-    def _start_run(self, mlflow_run_id: Optional[str] = None) -> None:
-        """
-        Start an MLFlow run. If an existing run id is given,
-
-        :param mlflow_run_id: _description_, defaults to None
-        :return: _description_
-        """
-        mlflow.set_tracking_uri(self.mlflow_uri)
-        mlflow.set_experiment(self.experiment_name)
-        run = mlflow.start_run(run_id=mlflow_run_id)
-        return run
-
-    def __init__(self, experiment_name: Optional[str] = None, mlflow_uri: Optional[str] = None,
-                 run: Optional[str] = None):
-        experiment_name = experiment_name or os.environ.get("MLFLOW_EXPERIMENT_NAME")
-        self.experiment_name = experiment_name
-        mlflow_uri = mlflow_uri or os.environ.get("MLFLOW_TRACKING_URI", "")
-        self.mlflow_uri = mlflow_uri
-        run_id = run or os.environ.get("MLFLOW_RUN_ID")
-        self.run_id = run_id
-        if run_id is not None:
-            print("Found existing run id}")
-            self._start_run(mlflow_run_id=run_id)
-        logging.info(f"MLFlow logger info: experiment name: {experiment_name}, run id: {run_id} URI: {mlflow_uri}")
-        if not is_running_in_azure_ml:
-            self._start_run()
-
-    @rank_zero_only
-    def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
-        is_epoch_metric = "epoch" in metrics
-        for key, value in metrics.items():
-            # Log all epoch-level metrics without the step information
-            # All step-level metrics with step
-            mlflow.log_metric(key, value, step=None if is_epoch_metric else step)
-
-    @rank_zero_only
-    def log_hyperparams(self, params: Union[argparse.Namespace, Dict[str, Any]]) -> None:
-        """
-        Logs the given model hyperparameters to MLFlow. Namespaces are converted to dictionaries.
-        Nested dictionaries are flattened out. The hyperparameters are then written as a table with two columns
-        "name" and "value".
-        """
-        if params is None:
-            return
-        params_final = _preprocess_hyperparams(params)
-        print(f"Attempting to log hyperparameters: {params_final}")
-        if self.run_id is not None:
-            retrieved_run = mlflow.get_run(run_id=self.run_id)
-            run_data = retrieved_run.data
-            existing_params = run_data.params
-            existing_keys = existing_params.keys()
-            new_params = {}
-
-            for key, val in params_final.items():
-                if key in existing_params:
-                    num_related_keys = len([k for k in existing_keys if key in k])
-                    new_key = key + f"_{num_related_keys}"
-                    new_params[new_key] = val
-                else:
-                    new_params[key] = val
-            params_final = new_params
-
-        if len(params_final) > 0:
-            mlflow.log_params(params_final)
-
-    def experiment(self) -> Optional[str]:
-        return self.experiment_name
-
-    def name(self) -> Any:
-        return ""
-
-    def version(self) -> int:
-        return 0
-
-    @rank_zero_only
-    def finalize(self, status: str) -> None:
-        mlflow.end_run()
 
 
 def _preprocess_hyperparams(params: Any) -> Dict[str, str]:

@@ -85,7 +85,7 @@ def test_dataset_input() -> None:
     aml_dataset = dataset_config.to_input_dataset(
         dataset_index=1, workspace=workspace, strictly_aml_v1=True)
     assert isinstance(aml_dataset, DatasetConsumptionConfig)
-    assert aml_dataset.mode == "mount"
+    assert aml_dataset.mode == "mount"  # type: ignore
 
 
 @pytest.mark.parametrize("target_folder", [

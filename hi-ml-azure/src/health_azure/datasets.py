@@ -34,7 +34,7 @@ def get_datastore(workspace: Workspace, datastore_name: str) -> Union[Datastore,
     :param datastore_name: The name of the datastore to retrieve.
     :return: An AzureML datastore.
     """
-    def _retrieve_v1_datastore(dastores: Dict[str, Datastore], datastore_name: str) -> Datastore:
+    def _retrieve_v1_datastore(datastores: Dict[str, Datastore], datastore_name: str) -> Datastore:
         # First check if there is only one datastore, which is then obviously unique.
         # Only then try to use the default datastore, because there may not be a default set.
         existing_stores = list(datastores.keys())
@@ -50,8 +50,8 @@ def get_datastore(workspace: Workspace, datastore_name: str) -> Union[Datastore,
         raise ValueError(f"Datastore \"{datastore_name}\" was not found in the \"{workspace.name}\" workspace. "
                          f"Existing datastores: {existing_stores}")
 
-    def _retrieve_v2_datastore(datatores: DatastoreOperations, datastore_name: str) -> V2Datastore:
-        existing_stores = datastores.list()
+    def _retrieve_v2_datastore(datastores: DatastoreOperations, datastore_name: str) -> V2Datastore:
+        existing_stores = list(datastores.list())
         if not datastore_name:
             if len(existing_stores) == 1:
                 return existing_stores[0]
@@ -89,10 +89,13 @@ def _retrieve_v1_dataset(dataset_name: str, workspace: Workspace) -> Optional[Fi
 
 def _create_v1_dataset(datastore_name: str, dataset_name: str, workspace: Union[Workspace, MLClient]
                        ) -> FileDataset:
-    logging.info(f"Retrieving datastore '{datastore_name}' from AzureML workspace")
+    if (not datastore_name) or (not dataset_name):
+        raise ValueError(f"Cannot create dataset without a valid datastore name (received {datastore_name}) "
+                         f"and a valid dataset name (received {dataset_name})")
     # Ensure that a v1 workspace is used
     workspace = get_workspace(aml_workspace=workspace)
     datastore = get_datastore(workspace, datastore_name)
+    assert isinstance(datastore, Datastore)
     logging.info(f"Creating a new dataset from data in folder '{dataset_name}' in the datastore")
     # Ensure that there is a / at the end of the file path, otherwise folder that share a prefix could create
     # trouble (for example, folders foo and foo_bar exist, and I'm trying to create a dataset from "foo")
@@ -104,7 +107,7 @@ def _create_v1_dataset(datastore_name: str, dataset_name: str, workspace: Union[
 
 def _get_or_create_v1_dataset(datastore_name: str, dataset_name: str, workspace: Workspace) -> Dataset:
     """
-    Attempt to retrieve a v1 Dataset object and return that, otherwise atempts to create and register
+    Attempt to retrieve a v1 Dataset object and return that, otherwise attempt to create and register
     a v1 Dataset and return that.
 
     :param datastore_name: The name of the Datastore to either retrieve or create and register the Dataset in.
@@ -114,7 +117,7 @@ def _get_or_create_v1_dataset(datastore_name: str, dataset_name: str, workspace:
     """
     try:
         azureml_dataset = _retrieve_v1_dataset(dataset_name, workspace)
-        assert azureml_dataset is not None
+        assert azureml_dataset is not None  # for mypy
     except Exception:
         azureml_dataset = _create_v1_dataset(datastore_name, dataset_name, workspace)
     return azureml_dataset
@@ -143,9 +146,10 @@ def _create_v2_dataset(datastore_name: str, dataset_name: str, ml_client: MLClie
     :raises ValueError: If no datastore name is provided to define where to create the data
     :return: The created or updated Data asset.
     """
-    if not datastore_name:
-        raise ValueError("Cannot create data asset without datastore name")
-    logging.info(f"Creating a new Data asset from data in folder '{dataset_name}' in the datastore")
+    if (not datastore_name) or (not dataset_name):
+        raise ValueError(f"Cannot create data asset without a valid datastore name (received {datastore_name}) "
+                         f"and a valid dataset name (received {dataset_name})")
+    logging.info(f"Creating a new Data asset from data in folder '{dataset_name}' in the datastore '{datastore_name}'")
     azureml_data_asset = Data(
         path=f"azureml://datastores/{datastore_name}/paths/{dataset_name}/",
         type=AssetTypes.URI_FOLDER,
@@ -159,7 +163,7 @@ def _create_v2_dataset(datastore_name: str, dataset_name: str, ml_client: MLClie
 
 def _get_or_create_v2_dataset(datastore_name: str, dataset_name: str, ml_client: MLClient) -> Dataset:
     """
-    Attempt to retrieve a v2 Dataset object and return that, otherwise atempts to create and register
+    Attempt to retrieve a v2 Dataset object and return that, otherwise attempt to create and register
     a v2 Dataset and return that.
 
     :param datastore_name: The name of the Datastore to either retrieve or create and register the Data asset in.
@@ -191,12 +195,12 @@ def get_or_create_dataset(datastore_name: str,
     will attempt to create it, but if the data container provided is v1 version, will fall back to using the
     v1 SDK to create and register this dataset.
 
-    :param datastore_name: The name of hte datastore in which to look for, or create and register, the dataset.
+    :param datastore_name: The name of the datastore in which to look for, or create and register, the dataset.
     :param dataset_name: The name of the dataset to find or create.
     :param workspace: An AML Workspace object for interacting with AML v1 datastores.
     :param strictly_aml_v1: If True, use Azure ML SDK v1 to attempt to find or create and reigster the dataset.
         Otherwise, attempt to use Azure ML SDK v2.
-    :param ml_client: An MLClient object for interacting with AML v2 datastores.
+    :param ml_client: An optional MLClient object for interacting with AML v2 datastores.
     """
     if not dataset_name:
         raise ValueError("No dataset name provided.")
@@ -499,15 +503,17 @@ def setup_local_datasets(dataset_configs: List[DatasetConfig],
         to pass it in as a parameter.
     :param workspace_config_path: The 2nd option is to specify the path to the config.json file downloaded from the
         Azure portal from which we can retrieve the existing Workspace.
-    :param dataset_configs: List of DatasetConfig describing the input datasets.
+    :param dataset_configs: List of DatasetConfig describing the input data assets.
+    :param strictly_aml_v1: If True, use Azure ML SDK v1. Otherwise, attempt to use Azure ML SDK v2.
+    :param ml_client: An MLClient object for interacting with AML v2 datastores.
     :return: Pair of: list of optional paths to the input datasets, list of mountcontexts, one for each mounted dataset.
     """
     workspace = find_workspace_for_local_datasets(aml_workspace, workspace_config_path, dataset_configs)
     mounted_input_datasets: List[Optional[Path]] = []
     mount_contexts: List[MountContext] = []
 
-    for d in dataset_configs:
-        target_path, mount_context = d.to_input_dataset_local(strictly_aml_v1, workspace, ml_client)
+    for data_config in dataset_configs:
+        target_path, mount_context = data_config.to_input_dataset_local(strictly_aml_v1, workspace, ml_client)
 
         mounted_input_datasets.append(target_path)
 

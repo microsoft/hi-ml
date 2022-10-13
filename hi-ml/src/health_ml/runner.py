@@ -230,8 +230,8 @@ class Runner:
                 raise ValueError("Unable to submit the script to AzureML because no workspace configuration file "
                                  "(config.json) was found.")
 
-        if self.lightning_container.datastore_name:
-            datastore = self.lightning_container.datastore_name
+        if self.lightning_container.datastore:
+            datastore = self.lightning_container.datastore
         elif workspace:
             datastore = workspace.get_default_datastore().name
         else:
@@ -257,7 +257,6 @@ class Runner:
             check_conda_environment(env_file)
 
             azure_run_info = submit_to_azure_if_needed(
-                strictly_aml_v1=self.experiment_config.strictly_aml_v1,
                 entry_script=entry_script,
                 snapshot_root_directory=root_folder,
                 script_params=script_params,
@@ -279,12 +278,14 @@ class Runner:
                 create_output_folders=False,
                 after_submission=after_submission_hook,
                 tags=self.additional_run_tags(script_params),
+                strictly_aml_v1=self.experiment_config.strictly_aml_v1,
             )
         else:
             azure_run_info = submit_to_azure_if_needed(
-                strictly_aml_v1=self.experiment_config.strictly_aml_v1,
                 input_datasets=input_datasets,  # type: ignore
-                submit_to_azureml=False)
+                submit_to_azureml=False,
+                strictly_aml_v1=self.experiment_config.strictly_aml_v1,
+            )
         if azure_run_info.run:
             # This code is only reached inside Azure. Set display name again - this will now affect
             # Hypdrive child runs (for other jobs, this has already been done after submission)

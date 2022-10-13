@@ -118,7 +118,7 @@ class MLRunner:
             # the provided local datasets for VM runs, or the AzureML mount points when running in AML.
             # This must happen before container setup because that could already read datasets.
             input_datasets = azure_run_info.input_datasets
-            print(f"Setting the following datasets as local datasets: {input_datasets}")
+            logging.info(f"Setting the following datasets as local datasets: {input_datasets}")
             if len(input_datasets) > 0:
                 local_datasets: List[Path] = []
                 for i, dataset in enumerate(input_datasets):

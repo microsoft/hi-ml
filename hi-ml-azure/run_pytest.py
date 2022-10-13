@@ -172,7 +172,6 @@ if __name__ == "__main__":
         root_config_json = himl_root / WORKSPACE_CONFIG_JSON
         with check_config_json(script_folder=Path.cwd(), shared_config_json=root_config_json):
             submit_to_azure_if_needed(
-                strictly_aml_v1=config.strictly_aml_v1,
                 compute_cluster_name=config.cluster,
                 submit_to_azureml=submit_to_azureml,
                 wait_for_completion=True,
@@ -181,5 +180,6 @@ if __name__ == "__main__":
                 experiment_name=config.experiment,
                 max_run_duration=config.max_run_duration,
                 after_submission=pytest_after_submission_hook,
+                strictly_aml_v1=config.strictly_aml_v1,
             )
     run_pytest(folder_to_test=config.folder, pytest_mark=config.mark, coverage_module=config.coverage_module)

@@ -476,8 +476,9 @@ def test_create_run_configuration_correct_env(mock_create_environment: MagicMock
             with pytest.raises(Exception) as e:
                 himl.create_run_configuration(mock_workspace,
                                               "dummy_compute_cluster",
-                                              True,
-                                              conda_environment_file=conda_env_path)
+                                              conda_environment_file=conda_env_path,
+                                              strictly_aml_v1=True,
+                                              )
                 assert "you must specify the python version" in str(e)
 
     # check that when create_run_configuration is called, whatever is returned  from register_environment
@@ -490,8 +491,8 @@ def test_create_run_configuration_correct_env(mock_create_environment: MagicMock
                 mock_environment_get.side_effect = Exception()
                 run_config = himl.create_run_configuration(mock_workspace,
                                                            "dummy_compute_cluster",
-                                                           True,
-                                                           conda_environment_file=conda_env_path)
+                                                           conda_environment_file=conda_env_path,
+                                                           strictly_aml_v1=True)
             assert run_config.environment == dummy_env
 
     subprocess.run

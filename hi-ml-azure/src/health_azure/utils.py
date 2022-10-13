@@ -2197,7 +2197,7 @@ def retrieve_workspace_from_client(ml_client: MLClient, workspace_name: Optional
     if workspace_name is not None:
         workspace_name = workspace_name
     elif ml_client.workspace_name is not None:
-        workspace_name = workspace_name
+        workspace_name = ml_client.workspace_name
     else:
         workspace_name = ""
     workspace = ml_client.workspaces.get(workspace_name)

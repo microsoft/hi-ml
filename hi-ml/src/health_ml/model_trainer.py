@@ -18,8 +18,7 @@ from health_azure.utils import RUN_CONTEXT, is_running_in_azure_ml
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils import AzureMLProgressBar
 from health_ml.utils.common_utils import AUTOSAVE_CHECKPOINT_FILE_NAME, EXPERIMENT_SUMMARY_FILE
-from health_ml.utils.lightning_loggers import StoringLogger
-from health_ml.utils.logging import MLFlowLogger
+from health_ml.utils.lightning_loggers import StoringLogger, MLFlowLogger
 
 
 T = TypeVar('T')

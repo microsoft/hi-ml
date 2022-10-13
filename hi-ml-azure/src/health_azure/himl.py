@@ -136,7 +136,6 @@ def validate_compute_cluster(workspace: Workspace, compute_cluster_name: str, nu
 
 def create_run_configuration(workspace: Workspace,
                              compute_cluster_name: str,
-                             strictly_aml_v1: bool = False,
                              conda_environment_file: Optional[Path] = None,
                              aml_environment_name: str = "",
                              environment_variables: Optional[Dict[str, str]] = None,
@@ -149,6 +148,7 @@ def create_run_configuration(workspace: Workspace,
                              ml_client: Optional[MLClient] = None,
                              input_datasets: Optional[List[DatasetConfig]] = None,
                              output_datasets: Optional[List[DatasetConfig]] = None,
+                             strictly_aml_v1: bool = False,
                              ) -> RunConfiguration:
     """
     Creates an AzureML run configuration, that contains information about environment, multi node execution, and
@@ -225,9 +225,9 @@ def create_run_configuration(workspace: Workspace,
     if input_datasets or output_datasets:
         inputs, outputs = convert_himl_to_azureml_datasets(cleaned_input_datasets=input_datasets or [],
                                                            cleaned_output_datasets=output_datasets or [],
-                                                           strictly_aml_v1=strictly_aml_v1,
                                                            workspace=workspace,
                                                            ml_client=ml_client,
+                                                           strictly_aml_v1=strictly_aml_v1,
                                                            )
         run_config.data = inputs
         run_config.output_data = outputs
@@ -344,8 +344,8 @@ def submit_run_v2(workspace: Optional[Workspace],
         if workspace is not None:
             ml_client = get_ml_client(
                 subscription_id=workspace.subscription_id,
-                resource_group=workspace.
-                resource_group, workspace_name=workspace.name
+                resource_group=workspace.resource_group,
+                workspace_name=workspace.name
             )
         elif workspace_config_path is not None:
             ml_client = get_ml_client(workspace_config_path=workspace_config_path)
@@ -391,7 +391,7 @@ def submit_run_v2(workspace: Optional[Workspace],
         base_path=str(source_directory)
     )
     returned_job = ml_client.jobs.create_or_update(command_job)
-    print(f"URL to job: {returned_job.services['Studio'].endpoint}")  # type: ignore
+    logging.info(f"URL to job: {returned_job.services['Studio'].endpoint}")  # type: ignore
     return returned_job
 
 
@@ -422,7 +422,7 @@ def submit_run(workspace: Workspace,
                tags: Optional[Dict[str, str]] = None,
                wait_for_completion: bool = False,
                wait_for_completion_show_output: bool = False,
-               ml_client: Optional[MLClient] = None) -> Run:
+               ) -> Run:
     """
     Starts an AzureML run on a given workspace, via the script_run_config.
 
@@ -499,7 +499,7 @@ def create_v2_inputs(ml_client: MLClient, input_datasets: List[DatasetConfig]) -
         # v2_dataset_path = f"azureml:{input_dataset.name}:1"
 
         inputs[INPUT_DATASETS_ARG_NAME] = Input(  # type: ignore
-            type=AssetTypes.URI_FOLDER,  # type: ignore
+            type=AssetTypes.URI_FOLDER,
             path=data_path,
             mode=InputOutputModes.MOUNT,
         )
@@ -527,12 +527,11 @@ def create_v2_outputs(output_datasets: List[DatasetConfig]) -> Dict[str, Output]
 
 
 def submit_to_azure_if_needed(  # type: ignore
-        strictly_aml_v1: bool = False,
         compute_cluster_name: str = "",
         entry_script: Optional[PathOrString] = None,
         aml_workspace: Optional[Workspace] = None,
-        ml_client: Optional[MLClient] = None,
         workspace_config_file: Optional[PathOrString] = None,
+        ml_client: Optional[MLClient] = None,
         snapshot_root_directory: Optional[PathOrString] = None,
         script_params: Optional[List[str]] = None,
         conda_environment_file: Optional[PathOrString] = None,
@@ -556,6 +555,7 @@ def submit_to_azure_if_needed(  # type: ignore
         after_submission: Optional[Callable[[Run], None]] = None,
         hyperdrive_config: Optional[HyperDriveConfig] = None,
         create_output_folders: bool = True,
+        strictly_aml_v1: bool = False,
 ) -> AzureRunInfo:  # pragma: no cover
     """
     Submit a folder to Azure, if needed and run it.
@@ -581,6 +581,7 @@ def submit_to_azure_if_needed(  # type: ignore
         to pass it in as a parameter.
     :param workspace_config_file: The 2nd option is to specify the path to the config.json file downloaded from the
         Azure portal from which we can retrieve the existing Workspace.
+    :param ml_client: An Azure MLClient object for interacting with Azure resources.
     :param snapshot_root_directory: The directory that contains all code that should be packaged and sent to AzureML.
         All Python code that the script uses must be copied over.
     :param ignored_folders: A list of folders to exclude from the snapshot when copying it to AzureML.
@@ -609,6 +610,7 @@ def submit_to_azure_if_needed(  # type: ignore
         will be triggered if the commandline flag '--azureml' is present in sys.argv
     :param hyperdrive_config: A configuration object for Hyperdrive (hyperparameter search).
     :param create_output_folders: If True (default), create folders "outputs" and "logs" in the current working folder.
+    :param strictly_aml_v1: If True, use Azure ML SDK v1. Otherwise, attempt to use Azure ML SDK v2.
     :return: If the script is submitted to AzureML then we terminate python as the script should be executed in AzureML,
         otherwise we return a AzureRunInfo object.
     """
@@ -733,7 +735,7 @@ def submit_to_azure_if_needed(  # type: ignore
                                 wait_for_completion=wait_for_completion,
                                 wait_for_completion_show_output=wait_for_completion_show_output)
 
-    if after_submission is not None and isinstance(run, Run):
+    if after_submission is not None and strictly_aml_v1:
         after_submission(run)
     exit(0)
 
