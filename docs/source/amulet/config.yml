@@ -1,0 +1,39 @@
+---
+environment:
+  image: azureml/openmpi3.1.2-cuda10.2-cudnn7-ubuntu18.04:latest
+  conda_yaml_file: $CONFIG_DIR/environment.yml
+
+code:
+  # local directory of the code. this will be uploaded to the server.
+  # $CONFIG_DIR is expanded to the directory of this config file
+  local_dir: $CONFIG_DIR/../../..
+
+storage:
+  data:
+    storage_account_name: <storage_account_name>
+    container_name: datasets
+    # The datasets container will be mounted at this folder when run in Amulet.
+    # The user code has to append a subfolder to this path to access the data.
+    mount_dir: /mnt/data
+
+
+# list of jobs to run
+jobs:
+# The names of jobs must be unique. If you want to run the same job multiple times,
+# either use a different name or respond with "replace existing job" if Amulet
+# complains that a job of that name already exists.
+- name: Amulet Example on CPU
+  sku: C1
+  command:
+  - python docs/source/amulet/amulet_script.py
+- name: Amulet Example with 2 GPUs on same node, don't delete RANK
+  sku: G2
+  command:
+  - python docs/source/amulet/amulet_script.py
+- name: Amulet Example with 2 nodes, 2 GPUs each
+  sku: 2xG2
+  # We only need to start the training script once per node. Pytorch Lightning
+  # will take care of starting the other processes (one per GPU)
+  process_count_per_node: 0
+  command:
+  - python docs/source/amulet/amulet_script.py

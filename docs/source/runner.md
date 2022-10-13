@@ -34,9 +34,10 @@ for example, `--model health_cpath.PandaImageNetMIL` is effectively telling the 
 To train in AzureML, use the flag `--cluster` to specify the name of the cluster
 in your Workspace that you want to submit the job to. So the whole command would look like:
 
-```
+```bash
 himl-runner --model=HelloWorld --cluster=my_cluster_name
 ```
+
 You can also specify `--num_nodes` if you wish to distribute the model training.
 
 When starting the runner, you need to do that from a directory that contains all the code that your experiment needs:
@@ -47,7 +48,7 @@ AzureML needs to know which Python/Conda environment it should use. For that, th
 that contains a Conda environment definition. This file needs to be present either in the current working directory or
 one of its parents. To specify a Conda environment that is located elsewhere, you can use
 
-```shell
+```bash
 himl-runner --model=HelloWorld --cluster=my_cluster_name --conda_env=/my/folder/to/special_environment.yml
 ```
 
@@ -216,9 +217,9 @@ and returns a tuple containing the Optimizer and LRScheduler objects
 You can use the hi-ml-runner in inference mode only by switching the `--run_inference_only` flag on and specifying
 the model weights by setting `--src_checkpoint` argument that supports three types of checkpoints:
 
-* A local path where the checkpoint is stored `--src_checkpoint=local/path/to/my_checkpoint/model.ckpt`
-* A remote URL from where to download the weights `--src_checkpoint=https://my_checkpoint_url.com/model.ckpt`
-* An AzureML run id where checkpoints are saved in `outputs/checkpoints`. For this specific use case, you can experiment
+- A local path where the checkpoint is stored `--src_checkpoint=local/path/to/my_checkpoint/model.ckpt`
+- A remote URL from where to download the weights `--src_checkpoint=https://my_checkpoint_url.com/model.ckpt`
+- An AzureML run id where checkpoints are saved in `outputs/checkpoints`. For this specific use case, you can experiment
   with different checkpoints by setting `--src_checkpoint` according to the format
   `<azureml_run_id>:<optional/custom/path/to/checkpoints/><filename.ckpt>`. If no custom path is provided
   (e.g., `--src_checkpoint=AzureML_run_id:best.ckpt`), we assume the checkpoints to be saved in the default
@@ -228,7 +229,7 @@ the model weights by setting `--src_checkpoint` argument that supports three typ
 Running the following command line will run inference using `MyContainer` model with weights from the checkpoint saved
 in the AzureMl run `MyContainer_XXXX_yyyy` at the best validation loss epoch `/outputs/checkpoints/best_val_loss.ckpt`.
 
-```
+```bash
 himl-runner --model=Mycontainer --run_inference_only --src_checkpoint=MyContainer_XXXX_yyyy:best_val_loss.ckpt
 ```
 
@@ -238,13 +239,53 @@ Analogously, one can resume training by setting `--src_checkpoint` to either con
 The pytorch lightning trainer will initialize the lightning module from the given checkpoint corresponding to the best
 validation loss epoch as set in the following comandline.
 
-```
+```bash
 himl-runner --model=Mycontainer --cluster=my_cluster_name --src_checkpoint=MyContainer_XXXX_yyyy:best_val_loss.ckpt
 ```
 
 Warning: When resuming training, one should make sure to set `container.max_epochs` greater than the last epoch of the
 specified checkpoint. A misconfiguration exception will be raised otherwise:
 
-```
+```text
 pytorch_lightning.utilities.exceptions.MisconfigurationException: You restored a checkpoint with current_epoch=19, but you have set Trainer(max_epochs=4).
 ```
+
+## Logging to AzureML when running outside AzureML
+
+The runner offers the ability to log metrics to AzureML, even if the present training is not running
+inside of AzureML. This adds an additional level of traceability for runs on GPU VMs, where there is otherwise
+no record of any past training.
+
+You can trigger this behaviour by specifying the `--log_from_vm` flag. For the `HelloWorld` model, this
+will look like:
+
+```bash
+himl-runner --model=HelloWorld --log_from_vm
+```
+
+For logging to work, you need have a `config.json` file in the current working directory (or one of its
+parent folders) that specifies the AzureML workspace itself. When starting the runner, you will be asked
+to authenticate to AzureML.
+
+There are two additional flags that can be used to control the logging behaviour:
+
+- The `--experiment` flag sets which AzureML experiment to log to. By default, the experiment name will be
+    the name of the model class (`HelloWorld` in the above example).
+- The `--tag` flag sets the display name for the AzureML run. You can use that to give your run a memorable name,
+    and later easily find it in the AzureML UI.
+
+The following command will log to the experiment `my_experiment`, in a run that is labelled `my_first_run` in the UI:
+
+```bash
+himl-runner --model=HelloWorld --log_from_vm --experiment=my_experiment --tag=my_first_run
+```
+
+## Starting experiments with different seeds
+
+To assess the variability of metrics, it is often useful to run the same experiment multiple times with different seeds.
+There is a built-in functionality of the runner to do this. When adding the commandline flag `--different_seeds=3`, your
+experiment will get run 3 times with seeds 0, 1 and 2. This is equivalent to starting the runner with arguments
+`--random_seed=0`, `--random_seed=1` and `--random_seed=2`.
+
+These runs will be started in parallel in AzureML via the HyperDrive framework. It is not possible to run with different
+seeds on a local machine, other than by manually starting runs with `--random_seed=0` etc.

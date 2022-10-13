@@ -12,7 +12,7 @@ def test_git_repo_root_folder() -> None:
     with patch("health_azure.paths.is_himl_used_from_git_repo", return_value=False):
         with pytest.raises(ValueError) as e:
             git_repo_root_folder()
-            assert"This function should not be used if hi-ml is used as an installed package." in str(e)
+            assert "This function should not be used if hi-ml is used as an installed package." in str(e)
 
 
 @pytest.mark.fast

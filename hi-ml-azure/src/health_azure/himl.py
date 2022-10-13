@@ -27,6 +27,7 @@ from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig, GridParameterSampling, PrimaryMetricGoal, choice
 from azureml.dataprep.fuse.daemon import MountContext
 
+from health_azure.amulet import (ENV_AMLT_DATAREFERENCE_DATA, ENV_AMLT_DATAREFERENCE_OUTPUT, is_amulet_job)
 from health_azure.utils import (create_python_environment, create_run_recovery_id, find_file_in_parent_to_pythonpath,
                                 is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
                                 run_duration_string_to_seconds, to_azure_friendly_string, RUN_CONTEXT, get_workspace,
@@ -221,6 +222,40 @@ def create_run_configuration(workspace: Workspace,
     return run_config
 
 
+def create_grid_hyperdrive_config(values: List[str],
+                                  argument_name: str,
+                                  metric_name: str) -> HyperDriveConfig:
+    """
+    Creates an Azure ML HyperDriveConfig object that runs a simple grid search. The Hyperdrive job will run one child
+    job for each of the values provided in `values`, and each child job will have a suffix added to the commandline
+    like `--argument_name value`.
+
+    Note: this config expects that a metric is logged in your training script([see here](
+    https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters#log-metrics-for-hyperparameter-tuning))
+    that will be monitored by Hyperdrive. The name of this metric is given by `metric_name`.
+
+    :param values: The list of values to try for the commandline argument given by `argument_name`.
+    :param argument_name: The name of the commandline argument that each of the child runs gets, to
+        indicate which value they should work on.
+    :param metric_name: The name of the metric that the HyperDriveConfig will compare runs by. Please note that it is
+        your responsibility to make sure a metric with this name is logged to the Run in your training script
+    :return: an Azure ML HyperDriveConfig object
+    """
+    logging.info(f"Creating a HyperDriveConfig. Please note that this expects to find the specified "
+                 f"metric '{metric_name}' logged to AzureML from your training script (for example, using the "
+                 f"AzureMLLogger with Pytorch Lightning)")
+    parameter_dict = {
+        argument_name: choice(values),
+    }
+    return HyperDriveConfig(
+        run_config=ScriptRunConfig(""),
+        hyperparameter_sampling=GridParameterSampling(parameter_dict),
+        primary_metric_name=metric_name,
+        primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
+        max_total_runs=len(values)
+    )
+
+
 def create_crossval_hyperdrive_config(num_splits: int,
                                       cross_val_index_arg_name: str = "crossval_index",
                                       metric_name: str = "val/loss") -> HyperDriveConfig:
@@ -236,19 +271,9 @@ def create_crossval_hyperdrive_config(num_splits: int,
         your responsibility to make sure a metric with this name is logged to the Run in your training script
     :return: an Azure ML HyperDriveConfig object
     """
-    logging.info(f"Creating a HyperDriveConfig. Please note that this expects to find the specified "
-                 f"metric '{metric_name}' logged to AzureML from your training script (for example, using the "
-                 f"AzureMLLogger with Pytorch Lightning)")
-    parameter_dict = {
-        cross_val_index_arg_name: choice(list(range(num_splits))),
-    }
-    return HyperDriveConfig(
-        run_config=ScriptRunConfig(""),
-        hyperparameter_sampling=GridParameterSampling(parameter_dict),
-        primary_metric_name=metric_name,
-        primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
-        max_total_runs=num_splits
-    )
+    return create_grid_hyperdrive_config(values=list(map(str, range(num_splits))),
+                                         argument_name=cross_val_index_arg_name,
+                                         metric_name=metric_name)
 
 
 def create_script_run(snapshot_root_directory: Optional[Path] = None,
@@ -607,10 +632,23 @@ def _generate_azure_datasets(
     :param cleaned_output_datasets: The list of output dataset configs
     :return: The AzureRunInfo containing the AzureML input and output dataset lists etc.
     """
-    returned_input_datasets = [Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)])
-                               for index in range(len(cleaned_input_datasets))]
-    returned_output_datasets = [Path(RUN_CONTEXT.output_datasets[_output_dataset_key(index)])
-                                for index in range(len(cleaned_output_datasets))]
+    if is_amulet_job():
+        input_data_mount_folder = Path(os.environ[ENV_AMLT_DATAREFERENCE_DATA])
+        logging.info(f"Path to mounted data: {ENV_AMLT_DATAREFERENCE_DATA}: {str(input_data_mount_folder)}")
+        returned_input_datasets = [input_data_mount_folder / input_dataset.name for input_dataset in
+                                   cleaned_input_datasets]
+
+        output_data_mount_folder = Path(os.environ[ENV_AMLT_DATAREFERENCE_OUTPUT])
+        logging.info(f"Path to output datasets: {output_data_mount_folder}")
+        returned_output_datasets = [output_data_mount_folder / output_dataset.name for output_dataset in
+                                    cleaned_output_datasets]
+        logging.info(f"Stitched returned input datasets: {returned_input_datasets}")
+        logging.info(f"Stitched returned output datasets: {returned_output_datasets}")
+    else:
+        returned_input_datasets = [Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)])
+                                   for index in range(len(cleaned_input_datasets))]
+        returned_output_datasets = [Path(RUN_CONTEXT.output_datasets[_output_dataset_key(index)])
+                                    for index in range(len(cleaned_output_datasets))]
     return AzureRunInfo(
         input_datasets=returned_input_datasets,  # type: ignore
         output_datasets=returned_output_datasets,  # type: ignore

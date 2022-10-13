@@ -30,6 +30,13 @@ The `hi-ml` toolbox provides
 
 .. toctree::
    :maxdepth: 1
+   :caption: Working with Amulet
+
+   amulet_overview.md
+   amulet_example.rst
+
+.. toctree::
+   :maxdepth: 1
    :caption: Machine Learning
 
    logging.md

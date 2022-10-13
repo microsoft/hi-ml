@@ -55,6 +55,7 @@ ENV_WORKSPACE_NAME = "HIML_WORKSPACE_NAME"
 
 # Environment variables used for multi-node training
 ENV_AZ_BATCHAI_MPI_MASTER_NODE = "AZ_BATCHAI_MPI_MASTER_NODE"
+ENV_AZ_BATCH_MASTER_NODE = "AZ_BATCH_MASTER_NODE"
 ENV_MASTER_ADDR = "MASTER_ADDR"
 ENV_MASTER_IP = "MASTER_IP"
 ENV_MASTER_PORT = "MASTER_PORT"
@@ -62,7 +63,10 @@ ENV_OMPI_COMM_WORLD_RANK = "OMPI_COMM_WORLD_RANK"
 ENV_NODE_RANK = "NODE_RANK"
 ENV_GLOBAL_RANK = "GLOBAL_RANK"
 ENV_LOCAL_RANK = "LOCAL_RANK"
+ENV_RANK = "RANK"
+MASTER_PORT_DEFAULT = 6105
 
+# Other Azure ML related variables
 ENVIRONMENT_VERSION = "1"
 FINAL_MODEL_FOLDER = "final_model"
 MODEL_ID_KEY_NAME = "model_id"
@@ -1158,23 +1162,46 @@ def set_environment_variables_for_multi_node() -> None:
     """
     Sets the environment variables that PyTorch Lightning needs for multi-node training.
     """
-    if ENV_AZ_BATCHAI_MPI_MASTER_NODE in os.environ:
+    if ENV_AZ_BATCH_MASTER_NODE in os.environ:
+        master_node = os.environ[ENV_AZ_BATCH_MASTER_NODE]
+        logging.debug(
+            f"Found AZ_BATCH_MASTER_NODE: {master_node} in environment variables")
         # For AML BATCHAI
-        os.environ[ENV_MASTER_ADDR] = os.environ[ENV_AZ_BATCHAI_MPI_MASTER_NODE]
+        split_master_node_addr = master_node.split(":")
+        if len(split_master_node_addr) == 2:
+            master_addr, port = split_master_node_addr
+            os.environ[ENV_MASTER_PORT] = port
+        elif len(split_master_node_addr) == 1:
+            master_addr = split_master_node_addr[0]
+        else:
+            raise ValueError(f"Format not recognized: {master_node}")
+        os.environ[ENV_MASTER_ADDR] = master_addr
+    elif ENV_AZ_BATCHAI_MPI_MASTER_NODE in os.environ and os.environ.get(ENV_AZ_BATCHAI_MPI_MASTER_NODE) != "localhost":
+        mpi_master_node = os.environ[ENV_AZ_BATCHAI_MPI_MASTER_NODE]
+        logging.debug(
+            f"Found AZ_BATCHAI_MPI_MASTER_NODE: {mpi_master_node} in environment variables")
+        # For AML BATCHAI
+        os.environ[ENV_MASTER_ADDR] = mpi_master_node
     elif ENV_MASTER_IP in os.environ:
+        master_ip = os.environ[ENV_MASTER_IP]
+        logging.debug(
+            f"Found MASTER_IP: {master_ip} in environment variables")
         # AKS
-        os.environ[ENV_MASTER_ADDR] = os.environ[ENV_MASTER_IP]
+        os.environ[ENV_MASTER_ADDR] = master_ip
     else:
         logging.info("No settings for the MPI central node found. Assuming that this is a single node training job.")
         return
 
     if ENV_MASTER_PORT not in os.environ:
-        os.environ[ENV_MASTER_PORT] = "6105"
+        os.environ[ENV_MASTER_PORT] = str(MASTER_PORT_DEFAULT)
 
     if ENV_OMPI_COMM_WORLD_RANK in os.environ:
-        os.environ[ENV_NODE_RANK] = os.environ[ENV_OMPI_COMM_WORLD_RANK]  # node rank is the world_rank from mpi run
+        world_rank = os.environ[ENV_OMPI_COMM_WORLD_RANK]
+        logging.debug(f"Found OMPI_COMM_WORLD_RANK: {world_rank} in environment variables")
+        os.environ[ENV_NODE_RANK] = world_rank  # node rank is the world_rank from mpi run
+
     env_vars = ", ".join(f"{var} = {os.environ[var]}" for var in [ENV_MASTER_ADDR, ENV_MASTER_PORT, ENV_NODE_RANK])
-    print(f"Distributed training: {env_vars}")
+    logging.info(f"Distributed training: {env_vars}")
 
 
 def is_run_and_child_runs_completed(run: Run) -> bool:
@@ -1282,7 +1309,7 @@ def get_run_file_names(run: Run, prefix: str = "") -> List[str]:
     :return: A list of paths within the Run's container
     """
     all_files = run.get_file_names()
-    print(f"Selecting files with prefix {prefix}")
+    logging.info(f"Selecting files with prefix {prefix}")
     return [f for f in all_files if f.startswith(prefix)] if prefix else all_files
 
 
@@ -1402,12 +1429,12 @@ def download_file_if_necessary(run: Run, filename: str, output_file: Path, overw
     :return: Local path to the downloaded file.
     """
     if not overwrite and output_file.exists():
-        print("File already exists at", output_file)
+        logging.info(f"File already exists at {output_file}")
     else:
         output_file.parent.mkdir(exist_ok=True, parents=True)
         _download_file_from_run(run, filename, output_file, validate_checksum=True)
         assert output_file.exists()
-        print("File is downloaded at", output_file)
+        logging.info(f"File is downloaded at {output_file}")
     return output_file
 
 
@@ -1898,7 +1925,7 @@ def create_aml_run_object(
     exp = Experiment(workspace=actual_workspace, name=experiment_name)
     if snapshot_directory is None or snapshot_directory == "":
         snapshot_directory = tempfile.mkdtemp()
-    return exp.start_logging(name=run_name, snapshot_directory=str(snapshot_directory))  # type: ignore
+    return exp.start_logging(display_name=run_name, snapshot_directory=str(snapshot_directory))  # type: ignore
 
 
 def aml_workspace_for_unittests() -> Workspace:

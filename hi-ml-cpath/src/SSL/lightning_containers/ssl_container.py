@@ -42,7 +42,7 @@ class EncoderName(Enum):
     densenet121 = "densenet121"
 
 
-class SSLDatasetName(Enum):
+class SSLDatasetName:
     CIFAR10 = "CIFAR10"
     CIFAR100 = "CIFAR100"
     RSNAKaggleCXR = "RSNAKaggleCXR"
@@ -64,17 +64,17 @@ class SSLContainer(LightningContainer):
     Note that this container is also used as the base class for SSLImageClassifier (finetuning container) as they share
     setup and datamodule methods.
     """
-    _SSLDataClassMappings = {SSLDatasetName.CIFAR10.value: HimlCifar10,
-                             SSLDatasetName.CIFAR100.value: HimlCifar100,
-                             SSLDatasetName.RSNAKaggleCXR.value: RSNAKaggleCXR,
-                             SSLDatasetName.NIHCXR.value: NIHCXR,
-                             SSLDatasetName.CheXpert.value: CheXpert,
-                             SSLDatasetName.Covid.value: CovidDataset}
+    DatasetToClassMapping = {SSLDatasetName.CIFAR10: HimlCifar10,
+                             SSLDatasetName.CIFAR100: HimlCifar100,
+                             SSLDatasetName.RSNAKaggleCXR: RSNAKaggleCXR,
+                             SSLDatasetName.NIHCXR: NIHCXR,
+                             SSLDatasetName.CheXpert: CheXpert,
+                             SSLDatasetName.Covid: CovidDataset}
 
     ssl_augmentation_config = param.ClassSelector(class_=Path, allow_None=True,
                                                   doc="The path to the yaml config defining the parameters of the "
                                                       "augmentations. Ignored for CIFAR10 example")
-    ssl_training_dataset_name = param.ClassSelector(class_=SSLDatasetName, doc="The name of the dataset")
+    ssl_training_dataset_name: str = param.String(default="", doc="The name of the dataset")
     ssl_training_batch_size = param.Integer(
         doc="Training batch size per GPU. The effective batch size will be the number of GPUs times this number. "
             "For example, if you specify ssl_training_batch_size=100 and use 4 nodes with 4 gpus each, "
@@ -91,8 +91,8 @@ class SSLContainer(LightningContainer):
     linear_head_augmentation_config = param.ClassSelector(class_=Path,
                                                           doc="The path to the yaml config for the linear head "
                                                               "augmentations")
-    linear_head_dataset_name = param.ClassSelector(class_=SSLDatasetName,
-                                                   doc="Name of the dataset to use for the linear head training")
+    linear_head_dataset_name: str = param.String(default="",
+                                                 doc="Name of the dataset to use for the linear head training")
     linear_head_batch_size = param.Integer(default=16, doc="Batch size for linear head tuning")
     learning_rate_linear_head_during_ssl_training = param.Number(default=1e-4,
                                                                  doc="Learning rate for linear head training during "
@@ -114,7 +114,7 @@ class SSLContainer(LightningContainer):
         # may contain only one dataset entry
         elif (
             (self.linear_head_dataset_name == self.ssl_training_dataset_name)  # noqa: W504
-            or (self.ssl_training_dataset_name is None and self.linear_head_dataset_name is not None)
+            or (not (self.ssl_training_dataset_name) and self.linear_head_dataset_name)
         ) and len(self.local_datasets) == 1:
             # self.extra_local_dataset_paths = [self.local_dataset]
             linear_head_dataset_path = self.local_datasets[0]
@@ -131,7 +131,7 @@ class SSLContainer(LightningContainer):
 
         self.datamodule_args = {SSLDataModuleType.LINEAR_HEAD:
                                 DataModuleArgs(augmentation_params=self.classifier_augmentation_params,
-                                               dataset_name=self.linear_head_dataset_name.value,
+                                               dataset_name=self.linear_head_dataset_name,
                                                dataset_path=linear_head_dataset_path,
                                                batch_size=self.linear_head_batch_size)}
         if self.ssl_training_dataset_name is not None:
@@ -142,7 +142,7 @@ class SSLContainer(LightningContainer):
                 training_dataset_path = None
             self.datamodule_args.update(
                 {SSLDataModuleType.ENCODER: DataModuleArgs(augmentation_params=self.ssl_augmentation_params,
-                                                           dataset_name=self.ssl_training_dataset_name.value,
+                                                           dataset_name=self.ssl_training_dataset_name,
                                                            dataset_path=training_dataset_path,
                                                            batch_size=self.ssl_training_batch_size)})
         self.data_module: DataModuleTypes = self.get_data_module()
@@ -166,7 +166,7 @@ class SSLContainer(LightningContainer):
         """
         # For small images like CIFAR, if using a resnet encoder, switch the first conv layer to a 3x3 kernel instead
         # of a 7x7 conv layer.
-        use_7x7_first_conv_in_resnet = False if self.ssl_training_dataset_name.value.startswith("CIFAR") else True
+        use_7x7_first_conv_in_resnet = False if self.ssl_training_dataset_name.startswith("CIFAR") else True
 
         # Rescale the learning rate linearly according to the number of available GPUs, as seen in:
         # https://arxiv.org/abs/1706.02677, to avoid a drop in performance.
@@ -180,7 +180,7 @@ class SSLContainer(LightningContainer):
 
         if self.ssl_training_type == SSLTrainingType.SimCLR:
             model: LightningModule = SimClrHiml(encoder_name=self.ssl_encoder.value,
-                                                dataset_name=self.ssl_training_dataset_name.value,
+                                                dataset_name=self.ssl_training_dataset_name,
                                                 use_7x7_first_conv_in_resnet=use_7x7_first_conv_in_resnet,
                                                 num_samples=self.data_module.num_train_samples,
                                                 batch_size=self.data_module.batch_size,
@@ -239,7 +239,7 @@ class SSLContainer(LightningContainer):
         effective_batch_size = datamodule_args.batch_size * batch_multiplier
         logging.info(f"Batch size per GPU: {datamodule_args.batch_size}")
         logging.info(f"Effective batch size on {batch_multiplier} GPUs: {effective_batch_size}")
-        dm = HimlVisionDataModule(dataset_cls=self._SSLDataClassMappings[datamodule_args.dataset_name],
+        dm = HimlVisionDataModule(dataset_cls=self.DatasetToClassMapping[datamodule_args.dataset_name],
                                   return_index=not is_ssl_encoder_module,  # index is only needed for linear head
                                   train_transforms=train_transforms,
                                   val_split=0.1,
@@ -268,17 +268,17 @@ class SSLContainer(LightningContainer):
         will return only one transformation.
         :return: training transformation pipeline and validation transformation pipeline.
         """
-        if dataset_name in [SSLDatasetName.RSNAKaggleCXR.value,
-                            SSLDatasetName.NIHCXR.value,
-                            SSLDatasetName.CheXpert.value,
-                            SSLDatasetName.Covid.value]:
+        if dataset_name in [SSLDatasetName.RSNAKaggleCXR,
+                            SSLDatasetName.NIHCXR,
+                            SSLDatasetName.CheXpert,
+                            SSLDatasetName.Covid]:
             assert augmentation_config is not None
             train_transforms, val_transforms = get_ssl_transforms_from_config(
                 augmentation_config,
                 return_two_views_per_sample=is_ssl_encoder_module,
                 use_training_augmentations_for_validation=is_ssl_encoder_module
             )
-        elif dataset_name in [SSLDatasetName.CIFAR10.value, SSLDatasetName.CIFAR100.value]:
+        elif dataset_name in [SSLDatasetName.CIFAR10, SSLDatasetName.CIFAR100]:
             train_transforms = \
                 CIFARTrainTransform(32) if is_ssl_encoder_module else CIFARLinearHeadTransform(32)
             val_transforms = \
@@ -302,7 +302,7 @@ class SSLContainer(LightningContainer):
         self.online_eval = SslOnlineEvaluatorHiml(class_weights=self.data_module.class_weights,  # type: ignore
                                                   z_dim=self.encoder_output_dim,
                                                   num_classes=self.data_module.num_classes,  # type: ignore
-                                                  dataset=self.linear_head_dataset_name.value,  # type: ignore
+                                                  dataset=self.linear_head_dataset_name,  # type: ignore
                                                   drop_p=0.2,
                                                   learning_rate=self.learning_rate_linear_head_during_ssl_training)
         return [self.online_eval]

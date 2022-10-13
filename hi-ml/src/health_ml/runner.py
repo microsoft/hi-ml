@@ -26,6 +26,7 @@ from health_azure import AzureRunInfo, submit_to_azure_if_needed  # noqa: E402
 from health_azure.datasets import create_dataset_configs  # noqa: E402
 from health_azure.logging import logging_to_stdout   # noqa: E402
 from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
+from health_azure.amulet import prepare_amulet_job  # noqa: E402
 from health_azure.utils import (get_workspace, is_local_rank_zero, is_running_in_azure_ml,  # noqa: E402
                                 set_environment_variables_for_multi_node,
                                 create_argparser, parse_arguments, ParserResult, apply_overrides)
@@ -170,7 +171,7 @@ class Runner:
         """
         return {
             "commandline_args": " ".join(script_params),
-            "tag": self.experiment_config.tag
+            "tag": self.lightning_container.tag
         }
 
     def run(self) -> Tuple[LightningContainer, AzureRunInfo]:
@@ -207,8 +208,8 @@ class Runner:
             """
             # Set the default display name to what was provided as the "tag". This will affect single runs
             # and Hyperdrive parent runs
-            if self.experiment_config.tag:
-                azure_run.display_name = self.experiment_config.tag
+            if self.lightning_container.tag:
+                azure_run.display_name = self.lightning_container.tag
 
         root_folder = self.project_root
         entry_script = Path(sys.argv[0]).resolve()
@@ -245,9 +246,6 @@ class Runner:
             logging.info(f"Using this Conda environment definition: {env_file}")
             check_conda_environment(env_file)
 
-            if not self.experiment_config.cluster:
-                raise ValueError("You need to specify a cluster name via '--cluster NAME' to submit "
-                                 "the script to run in AzureML")
             azure_run_info = submit_to_azure_if_needed(
                 entry_script=entry_script,
                 snapshot_root_directory=root_folder,
@@ -257,7 +255,7 @@ class Runner:
                 compute_cluster_name=self.experiment_config.cluster,
                 environment_variables=environment_variables,
                 default_datastore=default_datastore,
-                experiment_name=self.lightning_container.model_name,  # create_experiment_name(),
+                experiment_name=self.lightning_container.effective_experiment_name,
                 input_datasets=input_datasets,  # type: ignore
                 num_nodes=self.experiment_config.num_nodes,
                 wait_for_completion=self.experiment_config.wait_for_completion,
@@ -270,18 +268,22 @@ class Runner:
                 after_submission=after_submission_hook,
                 tags=self.additional_run_tags(script_params)
             )
-            if self.experiment_config.tag and azure_run_info.run:
-                if self.lightning_container.is_crossvalidation_enabled:
-                    # This code is only reached inside Azure. Set display name again - this will now affect
-                    # Hypdrive child runs (for other jobs, this has already been done after submission)
-                    cv_index = self.lightning_container.crossval_index
-                    full_display_name = f"{self.experiment_config.tag} {cv_index}"
-                    azure_run_info.run.display_name = full_display_name
-
         else:
             azure_run_info = submit_to_azure_if_needed(
                 input_datasets=input_datasets,  # type: ignore
                 submit_to_azureml=False)
+        if azure_run_info.run:
+            # This code is only reached inside Azure. Set display name again - this will now affect
+            # Hypdrive child runs (for other jobs, this has already been done after submission)
+            suffix = None
+            if self.lightning_container.is_crossvalidation_enabled:
+                suffix = f"crossval {self.lightning_container.crossval_index}"
+            elif self.lightning_container.different_seeds > 0:
+                suffix = f"seed {self.lightning_container.random_seed}"
+            if suffix:
+                current_name = self.lightning_container.tag or azure_run_info.run.display_name
+                azure_run_info.run.display_name = f"{current_name} {suffix}"
+
         # submit_to_azure_if_needed calls sys.exit after submitting to AzureML. We only reach this when running
         # the script locally or in AzureML.
         return azure_run_info
@@ -298,10 +300,12 @@ class Runner:
         # Suppress the logging from all processes but the one for GPU 0 on each node, to make log files more readable
         logging_to_stdout("INFO" if is_local_rank_zero() else "ERROR")
         package_setup_and_hacks()
+        prepare_amulet_job()
 
         # Set environment variables for multi-node training if needed. This function will terminate early
         # if it detects that it is not in a multi-node environment.
-        set_environment_variables_for_multi_node()
+        if self.experiment_config.num_nodes > 1:
+            set_environment_variables_for_multi_node()
         self.ml_runner = MLRunner(
             experiment_config=self.experiment_config,
             container=self.lightning_container,

@@ -40,6 +40,7 @@ class AzureMLLogger(LightningLoggerBase):
     def __init__(self,
                  enable_logging_outside_azure_ml: Optional[bool] = False,
                  experiment_name: str = "azureml_logger",
+                 run: Optional[Run] = None,
                  run_name: Optional[str] = None,
                  workspace: Optional[Workspace] = None,
                  workspace_config_path: Optional[Path] = None,
@@ -47,38 +48,48 @@ class AzureMLLogger(LightningLoggerBase):
                  ) -> None:
         """
         :param enable_logging_outside_azure_ml: If True, the AzureML logger will write metrics to AzureML even if
-        executed outside of an AzureML run (for example, when working on a separate virtual machine). If False,
-        the logger will only write metrics to AzureML if the code is actually running inside of AzureML. Default False,
-        do not log outside of AzureML.
+            executed outside of an AzureML run (for example, when working on a separate virtual machine). If False,
+            the logger will only write metrics to AzureML if the code is actually running inside of AzureML. Default
+            False, do not log outside of AzureML.
         :param experiment_name: The AzureML experiment that should hold the run when executed outside of AzureML.
+        :param run: The AzureML run to log to when the ``enable_logging_outside_azure_ml`` flag is True. If None,
+            a new run will be created. When finished, the run should be completed by calling ``run.complete()``. The
+            logger itself only calls ``run.flush()`` in its ``finalize()`` method.
         :param run_name: An optional name for the run (this will be used as the display name in the AzureML UI). This
-        argument only matters when running outside of AzureML.
+            argument only matters when running outside of AzureML.
         :param workspace: If provided, use this workspace to create the run in.
         :param workspace_config_path: Use this path to read workspace configuration json file. If not provided,
-        use the workspace specified by the `config.json` file in the current working directory or its parents.
+            use the workspace specified by the `config.json` file in the current working directory or its parents.
         :param snapshot_directory: The folder that should be included as the code snapshot. By default, no snapshot
-        is created. Set this to the folder that contains all the code your experiment uses. You can use a file
-        .amlignore to skip specific files or folders, akin to .gitignore..
+            is created. Set this to the folder that contains all the code your experiment uses. You can use a file
+            .amlignore to skip specific files or folders, akin to .gitignore..
         """
         super().__init__()
         self.is_running_in_azure_ml = is_running_in_azure_ml()
         self.run: Optional[Run] = None
-        self.has_custom_run = False
+        self.has_user_provided_run = False
+        self.enable_logging_outside_azure_ml = enable_logging_outside_azure_ml
         if self.is_running_in_azure_ml:
             self.run = RUN_CONTEXT
         elif enable_logging_outside_azure_ml:
-            try:
-                self.run = create_aml_run_object(experiment_name=experiment_name,
-                                                 run_name=run_name,
-                                                 workspace=workspace,
-                                                 workspace_config_path=workspace_config_path,
-                                                 snapshot_directory=snapshot_directory)
-                print(f"Writing metrics to run {self.run.id} in experiment {self.run.experiment.name}.")
-                print(f"To check progress, visit this URL: {self.run.get_portal_url()}")
-                self.has_custom_run = True
-            except Exception:
-                logging.error("Unable to create an AzureML run to store the results.")
-                raise
+            if run is not None:
+                self.run = run
+                self.has_user_provided_run = True
+            else:
+                try:
+                    self.run = create_aml_run_object(experiment_name=experiment_name,
+                                                     run_name=run_name,
+                                                     workspace=workspace,
+                                                     workspace_config_path=workspace_config_path,
+                                                     snapshot_directory=snapshot_directory)
+                    # Display name should already be set when creating the run object, but this does not happen.
+                    # In unit tests, the run has the expected display name, but not here. Hence, set it again.
+                    self.run.display_name = run_name
+                except Exception as ex:
+                    logging.error(f"Unable to create an AzureML run to store the results because of {ex}.")
+                    raise
+            print(f"Writing metrics to run {self.run.id} in experiment {self.run.experiment.name}.")
+            print(f"To check progress, visit this URL: {self.run.get_portal_url()}")
         else:
             print("AzureMLLogger will not write any logs because it is running outside AzureML, and the "
                   "'enable_logging_outside_azure_ml' flag is set to False")
@@ -129,9 +140,15 @@ class AzureMLLogger(LightningLoggerBase):
         return 0
 
     def finalize(self, status: str) -> None:
-        if self.run is not None and self.has_custom_run:
-            # Run.complete should only be called if we created an AzureML run here in the constructor.
-            self.run.complete()
+        if self.enable_logging_outside_azure_ml and not self.is_running_in_azure_ml and self.run is not None:
+            if self.has_user_provided_run:
+                # The logger uses a run that was provided by the user: Flush it, but do not complete it.
+                # The user should complete the run after finishing the experiment. This is important when running
+                # training outside of AzureML, so that training and inference metrics can be written to the same run.
+                self.run.flush()
+            else:
+                # Run.complete should only be called if we created an AzureML run here in the constructor.
+                self.run.complete()
 
     def _preprocess_hyperparams(self, params: Any) -> Dict[str, str]:
         """
