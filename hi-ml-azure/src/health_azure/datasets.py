@@ -17,12 +17,14 @@ from azureml.core import Dataset, Workspace, Datastore
 from azureml.data import FileDataset, OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.dataprep.fuse.daemon import MountContext
+from azureml.exceptions._azureml_exception import UserErrorException
 
 from health_azure.utils import PathOrString, get_workspace, get_ml_client
 
 
 V2_INPUT_DATASET_ARG = " --input_datasets=${{inputs.input_datasets}}"
 V2_OUTPUT_DATASET_ARG = " --output_datasets=${{outputs.output_datasets}}"
+V1_OR_V2_DATA_TYPE = Union[FileDataset, Data]
 
 
 def get_datastore(workspace: Workspace, datastore_name: str) -> Union[Datastore, V2Datastore]:
@@ -117,8 +119,7 @@ def _get_or_create_v1_dataset(datastore_name: str, dataset_name: str, workspace:
     """
     try:
         azureml_dataset = _retrieve_v1_dataset(dataset_name, workspace)
-        assert azureml_dataset is not None  # for mypy
-    except Exception:
+    except UserErrorException:
         azureml_dataset = _create_v1_dataset(datastore_name, dataset_name, workspace)
     return azureml_dataset
 
@@ -183,7 +184,7 @@ def get_or_create_dataset(datastore_name: str,
                           workspace: Workspace,
                           strictly_aml_v1: bool,
                           ml_client: Optional[MLClient] = None,
-                          ) -> Union[FileDataset, Data]:
+                          ) -> V1_OR_V2_DATA_TYPE:
     """
     Looks in the AzureML datastore for a dataset of the given name. If there is no such dataset, a dataset is
     created and registered, assuming that the files are in a folder that has the same name as the dataset.
@@ -331,6 +332,8 @@ class DatasetConfig:
 
         :param workspace: The AzureML workspace to read from.
         :param dataset_index: Suffix for using datasets as named inputs, the dataset will be marked INPUT_{index}
+        :param strictly_aml_v1: If True, use Azure ML SDK v1. Otherwise, attempt to use Azure ML SDK v2.
+        :param ml_client: An Azure MLClient object for interacting with Azure resources.
         """
         status = f"In AzureML, dataset {self.name} (index {dataset_index}) will be "
         azureml_dataset = get_or_create_dataset(workspace=workspace,

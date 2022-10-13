@@ -723,7 +723,6 @@ def submit_to_azure_if_needed(  # type: ignore
                              wait_for_completion=wait_for_completion,
                              wait_for_completion_show_output=wait_for_completion_show_output)
         else:
-
             input_datasets_v2 = create_v2_inputs(ml_client, cleaned_input_datasets)
             output_datasets_v2 = create_v2_outputs(cleaned_output_datasets)
             run = submit_run_v2(workspace=workspace,
@@ -766,24 +765,25 @@ def convert_himl_to_azureml_datasets(
     :param cleaned_input_datasets: The list of input DatasetConfigs
     :param cleaned_output_datasets: The list of output DatasetConfigs
     :param workspace: The AzureML workspace
+    :param ml_client: An optional Azure MLClient object for interacting with Azure resources.
     :return: The input and output dictionaries of DatasetConsumptionConfigs.
     """
     inputs = {}
-    for index, d in enumerate(cleaned_input_datasets):
-        consumption = d.to_input_dataset(index, workspace, strictly_aml_v1,
-                                         ml_client=ml_client)
+    for index, input_dataset in enumerate(cleaned_input_datasets):
+        consumption = input_dataset.to_input_dataset(index, workspace, strictly_aml_v1,
+                                                     ml_client=ml_client)
         if isinstance(consumption, DatasetConsumptionConfig):
             data_name = consumption.name  # type: ignore
             if data_name in inputs:
                 raise ValueError(f"There is already an input dataset with name '{data_name}' set up?")
             inputs[data_name] = consumption
         elif isinstance(consumption, Input):
-            inputs[d.name] = consumption
+            inputs[input_dataset.name] = consumption
         else:
-            raise ValueError("Unrecognised input data type")
+            raise ValueError(f"Unrecognised input data type: {type(consumption)}")
     outputs = {}
-    for index, d in enumerate(cleaned_output_datasets):
-        out = d.to_output_dataset(workspace=workspace, dataset_index=index)
+    for index, output_dataset in enumerate(cleaned_output_datasets):
+        out = output_dataset.to_output_dataset(workspace=workspace, dataset_index=index)
         if out.name in outputs:
             raise ValueError(f"There is already an output dataset with name '{out.name}' set up?")
         outputs[out.name] = out
@@ -849,15 +849,19 @@ def _generate_v2_azure_datasets(cleaned_input_datasets: List[DatasetConfig],
     :param cleaned_output_datasets: The list of output dataset configs
     :return: The AzureRunInfo containing the AzureML input and output dataset lists etc.
     """
+    def _get_dataset_names_from_string(sys_arg: str, dataset_arg_name: str) -> List[Path]:
+        dataset_strings = sys_arg.split("--" + dataset_arg_name + "=")[-1].split(",")
+        dataset_paths = [Path(p) for p in dataset_strings]
+        return dataset_paths
+
     returned_input_datasets = []
     returned_output_datasets = []
     for sys_arg in sys.argv:
         if INPUT_DATASETS_ARG_NAME in sys_arg:
-            input_dataset_strings = sys_arg.split("--" + INPUT_DATASETS_ARG_NAME + "=")[-1].split(",")
-            returned_input_datasets += [Path(p) for p in input_dataset_strings]
+            returned_input_datasets += _get_dataset_names_from_string(sys_arg, INPUT_DATASETS_ARG_NAME)
+
         if OUTPUT_DATASETS_ARG_NAME in sys_arg:
-            output_dataset_strings = sys_arg.split("--" + OUTPUT_DATASETS_ARG_NAME + "=")[-1].split(",")
-            returned_output_datasets += [Path(p) for p in output_dataset_strings]
+            returned_output_datasets += _get_dataset_names_from_string(sys_arg, OUTPUT_DATASETS_ARG_NAME)
 
     return AzureRunInfo(
         input_datasets=returned_input_datasets,  # type: ignore

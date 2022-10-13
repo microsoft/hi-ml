@@ -1418,6 +1418,7 @@ def test_submit_to_azure_if_needed_v2() -> None:
                     workspace_config_file="mockconfig.json",
                     snapshot_root_directory="dummy",
                     submit_to_azureml=True,
+                    strictly_aml_v1=False
                 )
                 mock_submit_run_v2.assert_called_once()
                 assert return_value is None
