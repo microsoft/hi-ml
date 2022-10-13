@@ -36,8 +36,9 @@ from health_azure.utils import (create_python_environment, create_run_recovery_i
                                 run_duration_string_to_seconds, to_azure_friendly_string, RUN_CONTEXT, get_workspace,
                                 PathOrString, DEFAULT_ENVIRONMENT_VARIABLES, get_ml_client,
                                 ENV_SERVICE_PRINCIPAL_ID, ENV_SERVICE_PRINCIPAL_PASSWORD, ENV_TENANT_ID)
-from health_azure.datasets import (V2_INPUT_DATASET_ARG, V2_OUTPUT_DATASET_ARG, DatasetConfig, StrOrDatasetConfig, _input_dataset_key, _output_dataset_key,
-                                   _replace_string_datasets, setup_local_datasets)
+from health_azure.datasets import (V2_INPUT_DATASET_ARG, V2_OUTPUT_DATASET_ARG, DatasetConfig, StrOrDatasetConfig,
+                                   _input_dataset_key, _output_dataset_key, _replace_string_datasets,
+                                   setup_local_datasets)
 
 logger = logging.getLogger('health_azure')
 logger.setLevel(logging.DEBUG)
@@ -770,9 +771,10 @@ def convert_himl_to_azureml_datasets(
         consumption = d.to_input_dataset(index, workspace, strictly_aml_v1,
                                          ml_client=ml_client)
         if isinstance(consumption, DatasetConsumptionConfig):
-            if consumption.name in inputs:
-                raise ValueError(f"There is already an input dataset with name '{consumption.name}' set up?")
-            inputs[consumption.name] = consumption
+            data_name = consumption.name  # type: ignore
+            if data_name in inputs:
+                raise ValueError(f"There is already an input dataset with name '{data_name}' set up?")
+            inputs[data_name] = consumption
         elif isinstance(consumption, Input):
             inputs[d.name] = consumption
         else:

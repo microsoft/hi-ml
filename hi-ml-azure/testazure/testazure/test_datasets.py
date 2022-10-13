@@ -72,7 +72,7 @@ def test_dataset_input() -> None:
     aml_dataset = dataset_config.to_input_dataset(dataset_index=1, workspace=workspace, strictly_aml_v1=True)
     assert isinstance(aml_dataset, DatasetConsumptionConfig)
     assert aml_dataset.path_on_compute is None  # type: ignore
-    assert aml_dataset.mode == "download"
+    assert aml_dataset.mode == "download"  # type: ignore
     # Downloading or mounting to a given path
     target_folder = "/tmp/foo"
     dataset_config = DatasetConfig(name="hello_world", datastore=DEFAULT_DATASTORE, target_folder=target_folder)

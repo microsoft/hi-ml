@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
-from azure.ai.ml import MLClient, Input
+from azure.ai.ml import MLClient
 from azure.ai.ml.entities import Data
 from azure.ai.ml.entities import Datastore as V2Datastore
 from azure.ai.ml.constants import AssetTypes
@@ -304,12 +304,12 @@ class DatasetConfig:
             if use_mounting:
                 status += f"mounted at {target_path}"
                 print(status)
-                mount_context = azureml_dataset.mount(mount_point=str(target_path))
+                mount_context = azureml_dataset.mount(mount_point=str(target_path))  # type: ignore
                 result = target_path, mount_context
             else:
                 status += f"downloaded to {target_path}"
                 print(status)
-                azureml_dataset.download(target_path=str(target_path), overwrite=False)
+                azureml_dataset.download(target_path=str(target_path), overwrite=False)  # type: ignore
                 result = target_path, None
             return result
         else:
@@ -338,7 +338,7 @@ class DatasetConfig:
         # in posix format for Azure.
         use_mounting = False if self.use_mounting is None else self.use_mounting
         if isinstance(azureml_dataset, FileDataset):
-            named_input = azureml_dataset.as_named_input(_input_dataset_key(index=dataset_index))
+            named_input = azureml_dataset.as_named_input(_input_dataset_key(index=dataset_index))  # type: ignore
             path_on_compute = self.target_folder.as_posix() if self.target_folder is not None else None
             if use_mounting:
                 status += "mounted at "

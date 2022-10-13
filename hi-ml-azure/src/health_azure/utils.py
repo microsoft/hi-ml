@@ -2067,7 +2067,7 @@ def _get_legitimate_service_principal_credential(tenant_id: str, service_princip
     except ClientAuthenticationError as e:
         raise ValueError(f"Found environment variables for {ENV_SERVICE_PRINCIPAL_ID}, "
                          f"{ENV_SERVICE_PRINCIPAL_PASSWORD}, and {ENV_TENANT_ID} but was "
-                         "not able to authenticate: {e}")
+                         f"not able to authenticate: {e}")
 
 
 def _get_legitimate_device_code_credential() -> Optional[TokenCredential]:
@@ -2194,7 +2194,12 @@ def retrieve_workspace_from_client(ml_client: MLClient, workspace_name: Optional
     :param workspace_name: An optional name of the workspace to retrieve.
     :return: A v2 Workspace object.
     """
-    workspace_name = workspace_name or ml_client.workspace_name
+    if workspace_name is not None:
+        workspace_name = workspace_name
+    elif ml_client.workspace_name is not None:
+        workspace_name = workspace_name
+    else:
+        workspace_name = ""
     workspace = ml_client.workspaces.get(workspace_name)
     return workspace
 
