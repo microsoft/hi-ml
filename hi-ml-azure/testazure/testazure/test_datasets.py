@@ -6,7 +6,6 @@
 Test the data input and output functionality
 """
 from pathlib import Path
-from re import S
 from unittest import mock
 from health_azure.utils import PathOrString
 from typing import List, Union, Optional
