@@ -15,6 +15,7 @@ from azure.ai.ml.operations import DatastoreOperations
 from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
 from azureml.core import Dataset, Workspace, Datastore
 from azureml.data import FileDataset, OutputFileDatasetConfig
+from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.dataprep.fuse.daemon import MountContext
 from azureml.exceptions._azureml_exception import UserErrorException
@@ -27,7 +28,7 @@ V2_OUTPUT_DATASET_ARG = " --output_datasets=${{outputs.output_datasets}}"
 V1_OR_V2_DATA_TYPE = Union[FileDataset, Data]
 
 
-def get_datastore(workspace: Workspace, datastore_name: str) -> Union[Datastore, V2Datastore]:
+def get_datastore(workspace: Workspace, datastore_name: str) -> Union[AzureBlobDatastore, V2Datastore]:
     """
     Retrieves a datastore of a given name from an AzureML workspace. The datastore_name argument can be omitted if
     the workspace only contains a single datastore. Raises a ValueError if there is no datastore of the given name.
@@ -97,7 +98,7 @@ def _create_v1_dataset(datastore_name: str, dataset_name: str, workspace: Union[
     # Ensure that a v1 workspace is used
     workspace = get_workspace(aml_workspace=workspace)
     datastore = get_datastore(workspace, datastore_name)
-    assert isinstance(datastore, Datastore)
+    assert isinstance(datastore, AzureBlobDatastore)
     logging.info(f"Creating a new dataset from data in folder '{dataset_name}' in the datastore")
     # Ensure that there is a / at the end of the file path, otherwise folder that share a prefix could create
     # trouble (for example, folders foo and foo_bar exist, and I'm trying to create a dataset from "foo")

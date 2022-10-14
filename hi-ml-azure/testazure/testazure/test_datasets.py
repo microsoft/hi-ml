@@ -6,6 +6,7 @@
 Test the data input and output functionality
 """
 from pathlib import Path
+from re import S
 from unittest import mock
 from health_azure.utils import PathOrString
 from typing import List, Union, Optional
@@ -162,7 +163,7 @@ def test_datasets_from_string() -> None:
     assert replaced[1] == original[1]
 
 
-def test_get_dataset() -> None:
+def test_get_or_create_dataset_v1() -> None:
     """
     Test if a dataset that does not yet exist can be created from a folder in blob storage
     """
@@ -204,7 +205,8 @@ def test_get_dataset() -> None:
 
 def test_dataset_keys() -> None:
     """
-    Check that dataset keys are non-empty strings, and that inputs and outputs have different keys.
+    Check that dataset keys are non-e
+    mpty strings, and that inputs and outputs have different keys.
     """
     in1 = _input_dataset_key(1)
     out1 = _output_dataset_key(1)
