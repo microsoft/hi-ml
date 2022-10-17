@@ -87,9 +87,10 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
                                              "a heuristic num_cpus/num_gpus to set the number of workers, which can be"
                                              "very high for small num_gpus. This parameters sets an upper bound.")
 
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(self, wsi_has_mask: bool = True, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.run_extra_val_epoch = True  # Enable running an additional validation step to save tiles/slides thumbnails
+        self.wsi_has_mask = wsi_has_mask
         metric_optim = "max" if self.maximise_primary_metric else "min"
         self.best_checkpoint_filename = f"checkpoint_{metric_optim}_val_{self.primary_val_metric.value}"
         self.best_checkpoint_filename_with_suffix = self.best_checkpoint_filename + ".ckpt"
@@ -152,6 +153,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
             maximise=self.maximise_primary_metric,
             val_plot_options=self.get_val_plot_options(),
             test_plot_options=self.get_test_plot_options(),
+            wsi_has_mask=self.wsi_has_mask,
         )
         if self.num_top_slides > 0:
             outputs_handler.tiles_selector = TilesSelector(

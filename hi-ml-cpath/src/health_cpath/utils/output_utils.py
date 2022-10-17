@@ -249,7 +249,7 @@ class DeepMILOutputsHandler:
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
                  maximise: bool, val_plot_options: Collection[PlotOption],
-                 test_plot_options: Collection[PlotOption]) -> None:
+                 test_plot_options: Collection[PlotOption], wsi_has_mask: bool = True) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
@@ -261,6 +261,7 @@ class DeepMILOutputsHandler:
         :param maximise: Whether higher is better for `primary_val_metric`.
         :param val_plot_options: The desired plot options for validation time.
         :param test_plot_options: The desired plot options for test time.
+        :param wsi_has_mask: Whether the whole slides have a mask to crop specific ROIs.
         """
         self.outputs_root = outputs_root
         self.n_classes = n_classes
@@ -279,14 +280,16 @@ class DeepMILOutputsHandler:
             level=self.level,
             tile_size=self.tile_size,
             class_names=self.class_names,
-            stage=ModelKey.VAL
+            stage=ModelKey.VAL,
+            wsi_has_mask=wsi_has_mask
         )
         self.test_plots_handler = DeepMILPlotsHandler(
             plot_options=test_plot_options,
             level=self.level,
             tile_size=self.tile_size,
             class_names=self.class_names,
-            stage=ModelKey.TEST
+            stage=ModelKey.TEST,
+            wsi_has_mask=wsi_has_mask
         )
 
     @property
