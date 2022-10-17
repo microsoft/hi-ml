@@ -86,11 +86,13 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
                                          doc="The maximum number of worker processes for dataloaders. Dataloaders use"
                                              "a heuristic num_cpus/num_gpus to set the number of workers, which can be"
                                              "very high for small num_gpus. This parameters sets an upper bound.")
+    wsi_has_mask: bool = param.Boolean(default=True,
+                                       doc="Whether the WSI has a mask. If True, will use the mask to load a specific"
+                                           "region of the WSI. If False, will load the whole WSI.")
 
-    def __init__(self, wsi_has_mask: bool = True, **kwargs: Any) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.run_extra_val_epoch = True  # Enable running an additional validation step to save tiles/slides thumbnails
-        self.wsi_has_mask = wsi_has_mask
         metric_optim = "max" if self.maximise_primary_metric else "min"
         self.best_checkpoint_filename = f"checkpoint_{metric_optim}_val_{self.primary_val_metric.value}"
         self.best_checkpoint_filename_with_suffix = self.best_checkpoint_filename + ".ckpt"
