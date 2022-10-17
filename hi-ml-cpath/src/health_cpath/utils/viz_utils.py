@@ -48,6 +48,8 @@ def load_image_dict(sample: dict, level: int, margin: int, wsi_has_mask: bool = 
         loader = LoadImaged(keys=[SlideKey.IMAGE], reader=WSIReader("cuCIM"), dtype=np.uint8, level=level,
                             image_only=True)
     img = loader(sample)
+    if not wsi_has_mask:
+        img[SlideKey.LOCATION] = (0, 0)
     return img
 
 
