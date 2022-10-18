@@ -428,3 +428,10 @@ def test_experiment_name() -> None:
     experiment_name = "unittest"
     container.experiment = experiment_name
     assert container.effective_experiment_name == experiment_name
+
+
+def test_pl_warnings_ignore() -> None:
+    container = HelloWorld()
+    with patch.object(container, "ignore_pl_warnings") as mock_pl_warnings_ignore:
+        container.setup()
+        mock_pl_warnings_ignore.assert_called_once()
