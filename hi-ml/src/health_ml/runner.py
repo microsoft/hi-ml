@@ -159,7 +159,7 @@ class Runner:
             if self.lightning_container.hyperdrive:
                 raise ValueError("HyperDrive for hyperparameters tuning is only supported when submitting the job to "
                                  "AzureML. You need to specify a compute cluster with the argument --cluster.")
-            if self.lightning_container.is_crossvalidation_enabled:
+            if self.lightning_container.is_crossvalidation_enabled and not is_amulet_job():
                 raise ValueError("Cross-validation is only supported when submitting the job to AzureML."
                                  "You need to specify a compute cluster with the argument --cluster.")
 
@@ -242,8 +242,8 @@ class Runner:
                                    all_local_datasets=all_local_datasets,  # type: ignore
                                    datastore=default_datastore,
                                    use_mounting=use_mounting)
-        hyperdrive_config = self.lightning_container.get_hyperdrive_config()
         if self.experiment_config.cluster and not is_running_in_azure_ml():
+            hyperdrive_config = self.lightning_container.get_hyperdrive_config()
             env_file = choose_conda_env_file(env_file=self.experiment_config.conda_env)
             logging.info(f"Using this Conda environment definition: {env_file}")
             check_conda_environment(env_file)
