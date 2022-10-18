@@ -5,6 +5,7 @@
 
 import os
 import logging
+import warnings
 import param
 from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Union
 
@@ -234,6 +235,14 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
 
     def get_slides_dataset(self) -> Optional[SlidesDataset]:
         return None
+
+    def ignore_pl_warnings(self) -> None:
+        """Pytorch Lightning prints a warning if the batch size is not consistent across all batches. The way PL infers
+        the batch size is not compatible with our data loaders. It searches for the first item in the batch that is a
+        tensor and uses its size[0] as the batch size. However, in our case, the batch is a list of tensors, so it
+        thinks that the batch size is the bag_size which can be different for each WSI in the batch. This is why we
+        ignore this warning."""
+        warnings.filterwarnings("ignore", ".*Trying to infer the `batch_size` from an ambiguous collection.*")
 
 
 class BaseMILTiles(BaseMIL):

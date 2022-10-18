@@ -50,7 +50,7 @@ class LightningContainer(WorkflowParams,
         operations on the present object. At the point when called, the datasets are already available in
         the locations given by self.local_datasets. Use this method to prepare datasets or data loaders, for example.
         """
-        pass
+        self.ignore_pl_warnings()
 
     def create_model(self) -> LightningModule:  # type: ignore
         """
@@ -236,6 +236,11 @@ class LightningContainer(WorkflowParams,
         else:
             logging.warning("Hook `on_run_extra_validation_epoch` is not implemented by lightning module."
                             "The extra validation epoch won't produce any extra outputs.")
+
+    def ignore_pl_warnings(self) -> None:
+        """Ignore warnings from pytorch lightning. By default, no warnings are ignored. Ovverride this method
+        if you want to ignore some warnings."""
+        pass
 
 
 class LightningModuleWithOptimizer(LightningModule):
