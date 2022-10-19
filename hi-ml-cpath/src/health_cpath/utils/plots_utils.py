@@ -147,7 +147,7 @@ def save_slide_thumbnail_and_heatmap(
     slide_dict = slides_dataset[slide_index]
     slide_dict = load_image_dict(slide_dict, level=level, margin=0, wsi_has_mask=wsi_has_mask)
     slide_image = slide_dict[SlideKey.IMAGE]
-    location_bbox = slide_dict[SlideKey.LOCATION]
+    location_bbox = slide_dict[SlideKey.ORIGIN]
 
     fig = plot_slide(case=case, slide_node=slide_node, slide_image=slide_image, scale=1.0)
     save_figure(fig=fig, figpath=figures_dir / f"{slide_node.slide_id}_thumbnail.png")

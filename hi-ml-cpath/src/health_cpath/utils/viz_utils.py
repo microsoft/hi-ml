@@ -17,8 +17,8 @@ from typing import Sequence, List, Any, Dict, Optional, Union, Tuple
 
 from monai.data.dataset import Dataset
 from monai.data.image_reader import WSIReader
-from monai.transforms.io.dictionary import LoadImaged
 from torch.utils.data import DataLoader
+from health_cpath.preprocessing.loading import LoadROId
 
 from health_cpath.utils.naming import SlideKey
 from health_cpath.utils.naming import ResultsKey
@@ -41,15 +41,10 @@ def load_image_dict(sample: dict, level: int, margin: int, wsi_has_mask: bool = 
     :param margin: margin to be included
     :return: a dict containing the image data and metadata
     """
-    loader: Union[LoadImaged, LoadPandaROId]
-    if wsi_has_mask:
-        loader = LoadPandaROId(WSIReader("cuCIM"), level=level, margin=margin)
-    else:
-        loader = LoadImaged(keys=[SlideKey.IMAGE], reader=WSIReader("cuCIM"), dtype=np.uint8, level=level,
-                            image_only=True)
+    loader: Union[LoadROId, LoadPandaROId]
+    transform = LoadPandaROId if wsi_has_mask else LoadROId
+    loader = transform(WSIReader("cuCIM"), level=level, margin=margin)
     img = loader(sample)
-    if not wsi_has_mask:
-        img[SlideKey.LOCATION] = (0, 0)
     return img
 
 
