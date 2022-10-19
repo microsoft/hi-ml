@@ -41,7 +41,6 @@ def load_image_dict(sample: dict, level: int, margin: int, wsi_has_mask: bool = 
     :param margin: margin to be included
     :return: a dict containing the image data and metadata
     """
-    loader: Union[LoadROId, LoadPandaROId]
     transform = LoadPandaROId if wsi_has_mask else LoadROId
     loader = transform(WSIReader("cuCIM"), level=level, margin=margin)
     img = loader(sample)
