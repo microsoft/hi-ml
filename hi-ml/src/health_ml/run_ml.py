@@ -282,6 +282,16 @@ class MLRunner:
             assert self.trainer, "Trainer should be initialized before validation. Call self.init_training() first."
             self.trainer.validate(self.container.model, datamodule=self.data_module)
 
+    def validate_model_weights(self) -> None:
+        logging.info("Validating model weights.")
+        weights = torch.load(self.checkpoint_handler.get_checkpoint_to_test())["state_dict"]
+        number_mismatch = 0
+        for name, param in self.container.model.named_parameters():
+            if not torch.allclose(weights[name].cpu(), param):
+                logging.warning(f"Parameter {name} does not match between model and checkpoint.")
+                number_mismatch += 1
+        logging.info(f"Number of mismatched parameters: {number_mismatch}")
+
     def run_inference(self) -> None:
         """
         Run inference on the test set for all models.
@@ -296,8 +306,14 @@ class MLRunner:
             self.container.max_num_gpus = 1
 
             checkpoint_path = (
-                self.checkpoint_handler.get_checkpoint_to_test() if self.container.src_checkpoint else None
+                self.checkpoint_handler.get_checkpoint_to_test() if self.container.run_inference_only else None
             )
+
+            if self.container.run_inference_only:
+                assert checkpoint_path is not None
+            else:
+                self.validate_model_weights()
+
             trainer, _ = create_lightning_trainer(
                 container=self.container,
                 resume_from_checkpoint=checkpoint_path,
