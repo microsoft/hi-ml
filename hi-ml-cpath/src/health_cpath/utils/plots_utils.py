@@ -128,6 +128,7 @@ def save_slide_thumbnail_and_heatmap(
     slides_dataset: SlidesDataset,
     tile_size: int = 224,
     level: int = 1,
+    wsi_has_mask: bool = True,
 ) -> None:
     """Plots and saves a slide thumbnail and attention heatmap
 
@@ -139,13 +140,14 @@ def save_slide_thumbnail_and_heatmap(
     :param tile_size: Size of each tile. Default 224.
     :param level: Magnification at which tiles are available (e.g. PANDA levels are 0 for original,
         1 for 4x downsampled, 2 for 16x downsampled). Default 1.
+    :param wsi_has_mask: Whether the slide has a mask or not. Default True.
     """
     slide_index = slides_dataset.dataset_df.index.get_loc(slide_node.slide_id)
     assert isinstance(slide_index, int), f"Got non-unique slide ID: {slide_node.slide_id}"
     slide_dict = slides_dataset[slide_index]
-    slide_dict = load_image_dict(slide_dict, level=level, margin=0)
+    slide_dict = load_image_dict(slide_dict, level=level, margin=0, wsi_has_mask=wsi_has_mask)
     slide_image = slide_dict[SlideKey.IMAGE]
-    location_bbox = slide_dict[SlideKey.LOCATION]
+    location_bbox = slide_dict[SlideKey.ORIGIN]
 
     fig = plot_slide(case=case, slide_node=slide_node, slide_image=slide_image, scale=1.0)
     save_figure(fig=fig, figpath=figures_dir / f"{slide_node.slide_id}_thumbnail.png")
@@ -179,6 +181,7 @@ class DeepMILPlotsHandler:
         figsize: Tuple[int, int] = (10, 10),
         stage: str = '',
         class_names: Optional[Sequence[str]] = None,
+        wsi_has_mask: bool = True,
     ) -> None:
         """_summary_
 
@@ -199,6 +202,7 @@ class DeepMILPlotsHandler:
         self.num_columns = num_columns
         self.figsize = figsize
         self.stage = stage
+        self.wsi_has_mask = wsi_has_mask
         self.slides_dataset: Optional[SlidesDataset] = None
 
     def save_slide_node_figures(
@@ -226,6 +230,7 @@ class DeepMILPlotsHandler:
                 slides_dataset=self.slides_dataset,
                 tile_size=self.tile_size,
                 level=self.level,
+                wsi_has_mask=self.wsi_has_mask,
             )
 
     def save_plots(self, outputs_dir: Path, tiles_selector: Optional[TilesSelector], results: ResultsType) -> None:

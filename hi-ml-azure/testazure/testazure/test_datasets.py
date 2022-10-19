@@ -164,7 +164,7 @@ def test_get_dataset() -> None:
     Test if a dataset that does not yet exist can be created from a folder in blob storage
     """
     # A folder with a single tiny file
-    tiny_dataset = "himl-tiny_dataset"
+    tiny_dataset = "himl_tiny_dataset"
     workspace = DEFAULT_WORKSPACE.workspace
     # When creating a dataset, we need a non-empty name
     with pytest.raises(ValueError) as ex:
