@@ -42,7 +42,8 @@ from azure.ai.ml.entities import Job
 from azure.ai.ml.entities import Workspace as WorkspaceV2
 from azure.core.credentials import TokenCredential
 from azure.core.exceptions import ClientAuthenticationError
-from azure.identity import (ClientSecretCredential, DeviceCodeCredential, DefaultAzureCredential)
+from azure.identity import (ClientSecretCredential, DeviceCodeCredential,
+                            DefaultAzureCredential, InteractiveBrowserCredential)
 
 
 T = TypeVar("T")
@@ -2074,7 +2075,7 @@ def _get_legitimate_device_code_credential() -> Optional[TokenCredential]:
 
     :return: A valid Azure credential.
     """
-    cred = DeviceCodeCredential()
+    cred = DeviceCodeCredential(timeout=30)
     try:
         _validate_credential(cred)
         return cred
@@ -2089,7 +2090,22 @@ def _get_legitimate_default_credential() -> Optional[TokenCredential]:
 
     :return: A valid Azure credential.
     """
-    cred = DefaultAzureCredential()
+    cred = DefaultAzureCredential(timeout=60)
+    try:
+        _validate_credential(cred)
+        return cred
+    except ClientAuthenticationError:
+        return None
+
+
+def _get_legitimate_interactive_browser_credential() -> Optional[TokenCredential]:
+    """
+    Create an InteractiveBrowser credential for interacting with Azure resources. If the credential can't be
+    validated, return None.
+
+    :return: A valid Azure credential.
+    """
+    cred = InteractiveBrowserCredential(timeout=60)
     try:
         _validate_credential(cred)
         return cred
@@ -2114,15 +2130,24 @@ def get_credential() -> Optional[TokenCredential]:
     tenant_id = get_secret_from_environment(ENV_TENANT_ID, allow_missing=True)
     service_principal_password = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
     if service_principal_id and tenant_id and service_principal_password:
+        print("Calling get sp credential")
         return _get_legitimate_service_principal_credential(tenant_id, service_principal_id, service_principal_password)
 
-    if not is_running_in_azure_ml() or is_running_on_azure_agent():
+    try:
+        cred = _get_legitimate_default_credential()
+        if cred is not None:
+            return cred
+    except ClientAuthenticationError:
         cred = _get_legitimate_device_code_credential()
         if cred is not None:
             return cred
 
-    cred = _get_legitimate_default_credential()
-    return cred
+        cred = _get_legitimate_interactive_browser_credential()
+        if cred is not None:
+            return cred
+
+    raise ValueError("Unable to generate and validate a credential. Please see Azure ML documentation"
+                     "for instructions on diffrent options to get a credential")
 
 
 def get_ml_client(ml_client: Optional[MLClient] = None,

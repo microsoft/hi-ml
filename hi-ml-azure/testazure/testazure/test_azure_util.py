@@ -15,7 +15,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import DEFAULT, MagicMock, patch
 from uuid import uuid4
 from xmlrpc.client import Boolean
 
@@ -26,6 +26,8 @@ import param
 import pytest
 from _pytest.capture import CaptureFixture
 from _pytest.logging import LogCaptureFixture
+from azure.core.exceptions import ClientAuthenticationError
+from azure.identity import (ClientSecretCredential, DeviceCodeCredential, DefaultAzureCredential)
 from azure.storage.blob import ContainerClient
 from azureml.core import Experiment, Run, ScriptRunConfig, Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
@@ -35,7 +37,7 @@ from azureml.data.azure_storage_datastore import AzureBlobDatastore
 import health_azure.utils as util
 from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore
 from health_azure.utils import (ENV_MASTER_ADDR, ENV_MASTER_PORT, MASTER_PORT_DEFAULT,
-                                PackageDependency, create_argparser)
+                                PackageDependency, create_argparser, get_credential)
 from testazure.test_himl import RunTarget, render_and_run_test_script
 from testazure.utils_testazure import (DEFAULT_IGNORE_FOLDERS, DEFAULT_WORKSPACE, MockRun, change_working_directory,
                                        himl_azure_root, repository_root)
@@ -2280,3 +2282,127 @@ def test_create_run() -> None:
     finally:
         if run is not None:
             run.complete()
+
+
+def test_get_credential() -> None:
+    def _mock_validation_error() -> None:
+        raise ClientAuthenticationError("")
+    # test the case where service principal credentials are set as environment variables
+    mock_env_vars = {
+        util.ENV_SERVICE_PRINCIPAL_ID: "foo",
+        util.ENV_TENANT_ID: "bar",
+        util.ENV_SERVICE_PRINCIPAL_PASSWORD: "baz"
+    }
+
+    with patch.object(os.environ, "get", return_value=mock_env_vars):
+        with patch.multiple(
+            "health_azure.utils",
+            is_running_in_azure_ml=DEFAULT,
+            is_running_on_azure_agent=DEFAULT,
+            _get_legitimate_service_principal_credential=DEFAULT,
+            _get_legitimate_device_code_credential=DEFAULT,
+            _get_legitimate_default_credential=DEFAULT,
+            _get_legitimate_interactive_browser_credential=DEFAULT
+        ) as mocks:
+            mocks["is_running_in_azure_ml"].return_value = False
+            mocks["is_running_on_azure_agent"].return_value = False
+            _ = get_credential()
+            mocks["_get_legitimate_service_principal_credential"].assert_called_once()
+            mocks["_get_legitimate_device_code_credential"].assert_not_called()
+            mocks["_get_legitimate_default_credential"].assert_not_called()
+            mocks["_get_legitimate_interactive_browser_credential"].assert_not_called()
+
+    # if the environment variables are not set and we are running on a local machine, a
+    # DefaultAzureCredential should be attempted first
+    with patch.object(os.environ, "get", return_value={}):
+        with patch.multiple(
+            "health_azure.utils",
+            is_running_in_azure_ml=DEFAULT,
+            is_running_on_azure_agent=DEFAULT,
+            _get_legitimate_service_principal_credential=DEFAULT,
+            _get_legitimate_device_code_credential=DEFAULT,
+            _get_legitimate_default_credential=DEFAULT,
+            _get_legitimate_interactive_browser_credential=DEFAULT
+        ) as mocks:
+            mock_get_sp_cred = mocks["_get_legitimate_service_principal_credential"]
+            mock_get_device_cred = mocks["_get_legitimate_device_code_credential"]
+            mock_get_default_cred = mocks["_get_legitimate_default_credential"]
+            mock_get_browser_cred = mocks["_get_legitimate_interactive_browser_credential"]
+
+            mocks["is_running_in_azure_ml"].return_value = False
+            mocks["is_running_on_azure_agent"].return_value = False
+            _ = get_credential()
+            mock_get_sp_cred.assert_not_called()
+            mock_get_device_cred.assert_not_called()
+            mock_get_default_cred.assert_called_once()
+            mock_get_browser_cred.assert_not_called()
+
+            # if that fails, a DeviceCode credential should be attempted
+            mock_get_default_cred.side_effect = _mock_validation_error
+            _ = get_credential()
+            mock_get_sp_cred.assert_not_called()
+            mock_get_device_cred.assert_called_once()
+            assert mock_get_default_cred.call_count == 2
+            mock_get_browser_cred.assert_not_called()
+
+            # if None of the previous credentials work, an InteractiveBrowser credential should be tried
+            mock_get_device_cred.return_value = None
+            _ = get_credential()
+            mock_get_sp_cred.assert_not_called()
+            assert mock_get_device_cred.call_count == 2
+            assert mock_get_default_cred.call_count == 3
+            mock_get_browser_cred.assert_called_once()
+
+            # finally, if none of the methods work, an Exception should be raised
+            mock_get_browser_cred.return_value = None
+            with pytest.raises(Exception) as e:
+                get_credential()
+                assert "Unable to generate and validate a credential. Please see Azure ML documentation"\
+                       "for instructions on diffrent options to get a credential" in str(e)
+
+
+def test_get_legitimate_service_principal_credential() -> None:
+    # first attempt to create and valiadate a credential with non-existant service principal credentials
+    # and check it fails
+    mock_service_principal_id = "foo"
+    mock_service_principal_password = "bar"
+    mock_tenant_id = "baz"
+    expected_error_msg = f"Found environment variables for {util.ENV_SERVICE_PRINCIPAL_ID}, "
+    f"{util.ENV_SERVICE_PRINCIPAL_PASSWORD}, and {util.ENV_TENANT_ID} but was not able to authenticate"
+    with pytest.raises(Exception) as e:
+        util._get_legitimate_service_principal_credential(mock_tenant_id, mock_service_principal_id,
+                                                          mock_service_principal_password)
+        assert expected_error_msg in str(e)
+
+    # now mock the case where validating the credential succeeds and check the value of that
+    with patch("health_azure.utils._validate_credential"):
+        cred = util._get_legitimate_service_principal_credential(mock_tenant_id, mock_service_principal_id,
+                                                                 mock_service_principal_password)
+        assert isinstance(cred, ClientSecretCredential)
+
+
+def test_get_legitimate_device_code_credential() -> None:
+    def _mock_credential_fast_timeout(timeout: int) -> DeviceCodeCredential:
+        return DeviceCodeCredential(timeout=1)
+
+    with patch("health_azure.utils.DeviceCodeCredential", new=_mock_credential_fast_timeout):
+        cred = util._get_legitimate_device_code_credential()
+        assert cred is None
+
+    # now mock the case where validating the credential succeeds
+    with patch("health_azure.utils._validate_credential"):
+        cred = util._get_legitimate_device_code_credential()
+        assert isinstance(cred, DeviceCodeCredential)
+
+
+def test_get_legitimate_default_credential() -> None:
+    def _mock_credential_fast_timeout(timeout: int) -> DefaultAzureCredential:
+        return DefaultAzureCredential(timeout=1)
+
+    with patch("health_azure.utils.DefaultAzureCredential", new=_mock_credential_fast_timeout):
+        cred = util._get_legitimate_default_credential()
+        assert cred is None
+
+    with patch("health_azure.utils._validate_credential"):
+        cred = util._get_legitimate_default_credential()
+        assert isinstance(cred, DefaultAzureCredential)

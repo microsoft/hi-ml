@@ -90,11 +90,19 @@ def _retrieve_v1_dataset(dataset_name: str, workspace: Workspace) -> Optional[Fi
     return azureml_dataset
 
 
-def _create_v1_dataset(datastore_name: str, dataset_name: str, workspace: Union[Workspace, MLClient]
+def _create_v1_dataset(datastore_name: str, dataset_name: str, workspace: Workspace
                        ) -> FileDataset:
+    """
+    Create a v1 Dataset in the specified Datastore
+
+    :param datastore_name: The AML Datastore to create the Dataset in.
+    :param dataset_name: The name of the Dataset to create.
+    :param workspace: An AML Workspace object.
+    :return: An Azure ML (v1) FileDataset object.
+    """
     if (not datastore_name) or (not dataset_name):
-        raise ValueError(f"Cannot create dataset without a valid datastore name (received {datastore_name}) "
-                         f"and a valid dataset name (received {dataset_name})")
+        raise ValueError(f"Cannot create dataset without a valid datastore name (received '{datastore_name}') "
+                         f"and a valid dataset name (received '{dataset_name}')")
     # Ensure that a v1 workspace is used
     workspace = get_workspace(aml_workspace=workspace)
     datastore = get_datastore(workspace, datastore_name)
@@ -163,7 +171,7 @@ def _create_v2_dataset(datastore_name: str, dataset_name: str, ml_client: MLClie
     return azureml_data_asset
 
 
-def _get_or_create_v2_dataset(datastore_name: str, dataset_name: str, ml_client: MLClient) -> Dataset:
+def _get_or_create_v2_dataset(datastore_name: str, dataset_name: str, ml_client: MLClient) -> Data:
     """
     Attempt to retrieve a v2 Dataset object and return that, otherwise attempt to create and register
     a v2 Dataset and return that.
