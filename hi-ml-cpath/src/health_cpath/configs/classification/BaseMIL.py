@@ -86,6 +86,9 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
                                          doc="The maximum number of worker processes for dataloaders. Dataloaders use"
                                              "a heuristic num_cpus/num_gpus to set the number of workers, which can be"
                                              "very high for small num_gpus. This parameters sets an upper bound.")
+    wsi_has_mask: bool = param.Boolean(default=True,
+                                       doc="Whether the WSI has a mask. If True, will use the mask to load a specific"
+                                           "region of the WSI. If False, will load the whole WSI.")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -152,6 +155,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
             maximise=self.maximise_primary_metric,
             val_plot_options=self.get_val_plot_options(),
             test_plot_options=self.get_test_plot_options(),
+            wsi_has_mask=self.wsi_has_mask,
         )
         if self.num_top_slides > 0:
             outputs_handler.tiles_selector = TilesSelector(

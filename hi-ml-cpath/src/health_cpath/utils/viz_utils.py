@@ -18,6 +18,7 @@ from typing import Sequence, List, Any, Dict, Optional, Union, Tuple
 from monai.data.dataset import Dataset
 from monai.data.image_reader import WSIReader
 from torch.utils.data import DataLoader
+from health_cpath.preprocessing.loading import LoadROId
 
 from health_cpath.utils.naming import SlideKey
 from health_cpath.utils.naming import ResultsKey
@@ -26,7 +27,7 @@ from health_cpath.utils.tiles_selection_utils import SlideNode
 from health_cpath.datasets.panda_dataset import PandaDataset, LoadPandaROId
 
 
-def load_image_dict(sample: dict, level: int, margin: int) -> Dict[SlideKey, Any]:
+def load_image_dict(sample: dict, level: int, margin: int, wsi_has_mask: bool = True) -> Dict[SlideKey, Any]:
     """
     Load image from metadata dictionary
     :param sample: dict describing image metadata. Example:
@@ -40,7 +41,8 @@ def load_image_dict(sample: dict, level: int, margin: int) -> Dict[SlideKey, Any
     :param margin: margin to be included
     :return: a dict containing the image data and metadata
     """
-    loader = LoadPandaROId(WSIReader("cuCIM"), level=level, margin=margin)
+    transform = LoadPandaROId if wsi_has_mask else LoadROId
+    loader = transform(WSIReader("cuCIM"), level=level, margin=margin)
     img = loader(sample)
     return img
 
