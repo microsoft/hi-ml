@@ -63,7 +63,6 @@ def ml_runner_with_run_id() -> Generator:
     container = HelloWorld()
     container.save_checkpoint = True
     container.src_checkpoint = mock_run_id(id=0)
-    container.max_num_gpus = 0
     with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace:
         mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
         runner = MLRunner(experiment_config=experiment_config, container=container)
