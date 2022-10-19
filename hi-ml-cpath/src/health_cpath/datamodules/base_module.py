@@ -206,7 +206,7 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
             tiles_dataset,  # type: ignore
             bag_ids=tiles_dataset.slide_ids,
             max_bag_size=eff_max_bag_size,
-            shuffle_samples=shuffle,
+            shuffle_samples=True,
             generator=generator,
         )
         if self.transforms_dict and self.transforms_dict[stage]:
