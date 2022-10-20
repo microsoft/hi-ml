@@ -392,7 +392,8 @@ def submit_run_v2(workspace: Optional[Workspace],
         environment=environment,
         environment_variables=env_vars_copy,
         compute=compute_target,
-        base_path=str(source_directory)
+        base_path=str(source_directory),
+        experiment_name=experiment_name,
     )
     returned_job = ml_client.jobs.create_or_update(command_job)
     logging.info(f"URL to job: {returned_job.services['Studio'].endpoint}")  # type: ignore
