@@ -82,7 +82,7 @@ SSL_CKPT_RUN_ID_CRCK := CRCK_SimCLR_1655731022_85790606
 # Run regression tests and compare performance
 define BASE_CPATH_RUNNER_COMMAND
 cd ../ ; \
-python hi-ml/src/health_ml/runner.py --mount_in_azureml --conda_env=hi-ml-cpath/environment.yml
+python hi-ml/src/health_ml/runner.py --mount_in_azureml --conda_env=hi-ml-cpath/environment.yml --datastore=himldatasets
 endef
 
 define DEEPSMILEPANDASLIDES_ARGS

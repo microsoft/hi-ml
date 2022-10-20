@@ -352,6 +352,10 @@ def submit_run_v2(workspace: Optional[Workspace],
         else:
             raise ValueError("Either workspace or workspace_config_path must be specified to connect to the Workspace")
 
+    if isinstance(script_run_config, HyperDriveConfig):
+        script_run_config = script_run_config.run_config
+        assert script_run_config is not None, "HyperdriveConfig object doesnt have run_config attribute"
+
     script = script_run_config.script
     args = script_run_config.arguments
     arg_str = " ".join(args)

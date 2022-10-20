@@ -2130,7 +2130,6 @@ def get_credential() -> Optional[TokenCredential]:
     tenant_id = get_secret_from_environment(ENV_TENANT_ID, allow_missing=True)
     service_principal_password = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
     if service_principal_id and tenant_id and service_principal_password:
-        print("Calling get sp credential")
         return _get_legitimate_service_principal_credential(tenant_id, service_principal_id, service_principal_password)
 
     try:
@@ -2182,7 +2181,7 @@ def get_ml_client(ml_client: Optional[MLClient] = None,
             resource_group_name=aml_workspace.resource_group,
             workspace_name=aml_workspace.name,
             credential=credential)  # type: ignore
-    if workspace_config_path:
+    elif workspace_config_path:
         ml_client = MLClient.from_config(
             credential=credential,  # type: ignore
             path=str(workspace_config_path))
