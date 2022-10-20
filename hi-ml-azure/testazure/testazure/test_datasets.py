@@ -11,6 +11,7 @@ from health_azure.utils import PathOrString, get_ml_client
 from typing import List, Union, Optional
 
 import pytest
+from azure.ai.ml import MLClient
 from azure.ai.ml.entities import Data
 from azure.core.exceptions import HttpResponseError
 from azureml._restclient.exceptions import ServiceException
@@ -166,12 +167,12 @@ def test_datasets_from_string() -> None:
 
 
 def test_get_or_create_dataset() -> None:
-    def _mock_retrieve_or_create_v2_dataset_fails() -> None:
+    def _mock_retrieve_or_create_v2_dataset_fails(datastore_name: str, dataset_name: str, ml_client: MLClient) -> None:
         raise HttpResponseError("Cannot create v2 Data Version in v1 Data Container")
 
     data_asset_name = "himl_tiny_data_asset"
     workspace = DEFAULT_WORKSPACE.workspace
-    ml_client = get_ml_client()
+    ml_client = get_ml_client(aml_workspace=workspace)
     # When creating a dataset, we need a non-empty name
     with pytest.raises(ValueError) as ex:
         get_or_create_dataset(workspace=workspace,
@@ -217,7 +218,7 @@ def test_get_or_create_dataset() -> None:
                                         strictly_aml_v1=False)
         assert mocks["_get_or_create_v1_dataset"].call_count == 2
         assert mocks["_get_or_create_v2_dataset"].call_count == 2
-        assert dataset == mock_v2_dataset
+        assert dataset == mock_v1_dataset
 
 
 def test_get_or_create_v1_dataset() -> None:
