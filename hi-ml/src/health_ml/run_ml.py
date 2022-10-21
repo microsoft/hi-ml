@@ -259,7 +259,7 @@ class MLRunner:
 
     def get_trainer_for_inference(self, checkpoint_path: Optional[Path] = None) -> Trainer:
         # We run inference on a single device because distributed strategies such as DDP use DistributedSampler
-        # internally, which replicates some samples to make sure all devices have some batch size in case of
+        # internally, which replicates some samples to make sure all devices have the same batch size in case of
         # uneven inputs.
         self.container.max_num_gpus = 1
 
