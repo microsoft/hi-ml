@@ -225,6 +225,7 @@ class MLRunner:
         Run processes cleanup after ddp context to prepare for single device inference.
         Kill all processes in DDP besides rank 0.
         """
+
         # DDP will start multiple instances of the runner, one for each GPU. Those should terminate here after training.
         # We can now use the global_rank of the Lightning model, rather than environment variables, because DDP has set
         # all necessary properties.
@@ -256,11 +257,7 @@ class MLRunner:
             return self.container.crossval_index == 0
         return True
 
-    def get_trainer_for_inference(self) -> Trainer:
-        checkpoint_path = (
-            self.checkpoint_handler.get_checkpoint_to_test() if self.container.run_inference_only else None
-        )
-
+    def get_trainer_for_inference(self, checkpoint_path: Optional[Path] = None) -> Trainer:
         # We run inference on a single device because distributed strategies such as DDP use DistributedSampler
         # internally, which replicates some samples to make sure all devices have some batch size in case of
         # uneven inputs.
@@ -300,7 +297,7 @@ class MLRunner:
         Run validation on the validation set for all models to save time/memory consuming outputs.
         """
         self.container.on_run_extra_validation_epoch()
-        trainer = self.get_trainer_for_inference()
+        trainer = self.get_trainer_for_inference(checkpoint_path=None)
         with change_working_directory(self.container.outputs_folder):
             trainer.validate(self.container.model, datamodule=self.data_module)
 
@@ -322,7 +319,10 @@ class MLRunner:
         if self.container.has_custom_test_step():
             # Run Lightning's built-in test procedure if the `test_step` method has been overridden
             logging.info("Running inference via the LightningModule.test_step method")
-            trainer = self.get_trainer_for_inference()
+            checkpoint_path = (
+                self.checkpoint_handler.get_checkpoint_to_test() if self.container.run_inference_only else None
+            )
+            trainer = self.get_trainer_for_inference(checkpoint_path)
             # Change to the outputs folder so that the model can write to current working directory, and still
             # everything is put into the right place in AzureML (there, only the contents of the "outputs" folder
             # retained)

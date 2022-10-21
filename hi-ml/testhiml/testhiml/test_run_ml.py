@@ -181,7 +181,9 @@ def test_run_validation(run_extra_val_epoch: bool) -> None:
                 mock_trainer.validate = Mock()
 
                 if run_extra_val_epoch:
-                    runner.run_validation()
+                    with patch.object(runner, "validate_model_weights") as mock_validate_model_weights:
+                        runner.run_validation()
+                        mock_validate_model_weights.assert_called_once()
 
                 assert mock_on_run_extra_validation_epoch.called == run_extra_val_epoch
                 assert hasattr(container.model, "on_run_extra_validation_epoch")
@@ -207,8 +209,9 @@ def test_model_extra_val_epoch(run_extra_val_epoch: bool) -> None:
                 mock_trainer.validate = Mock()
 
                 if run_extra_val_epoch:
-                    runner.run_validation()
-
+                    with patch.object(runner, "validate_model_weights") as mock_validate_model_weights:
+                        runner.run_validation()
+                        mock_validate_model_weights.assert_called_once()
                 assert mock_on_run_extra_validation_epoch.called == run_extra_val_epoch
                 assert mock_trainer.validate.called == run_extra_val_epoch
 
@@ -229,7 +232,9 @@ def test_model_extra_val_epoch_missing_hook(caplog: LogCaptureFixture) -> None:
                 runner.setup()
                 mock_create_trainer.return_value = MagicMock(), MagicMock()
                 runner.init_training()
-                runner.run_validation()
+                with patch.object(runner, "validate_model_weights") as mock_validate_model_weights:
+                    runner.run_validation()
+                    mock_validate_model_weights.assert_called_once()
                 latest_message = caplog.records[-1].getMessage()
                 assert "Hook `on_run_extra_validation_epoch` is not implemented by lightning module." in latest_message
 
