@@ -93,7 +93,8 @@ class AMLMetricsJsonKey(str, Enum):
 
 class PlotOption(Enum):
     TOP_BOTTOM_TILES = "top_bottom_tiles"
-    SLIDE_THUMBNAIL_HEATMAP = "slide_thumbnail_heatmap"
+    ATTENTION_HEATMAP = "attention_heatmap"
+    SLIDE_THUMBNAIL = "slide_thumbnail"
     CONFUSION_MATRIX = "confusion_matrix"
     HISTOGRAM = "histogram"
     PR_CURVE = "pr_curve"
