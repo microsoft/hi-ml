@@ -146,7 +146,7 @@ def save_attention_heatmap(
 
     :param case: The report case (e.g., TP, FN, ...)
     :param slide_node: The slide node that encapsulates the slide metadata.
-    :param slide_node: The slide node that encapsulates the slide metadata.
+    :param slide_dict: The slide dictionary that contains the slide image and other metadata.
     :param figures_dir: The path to the directory where to save the plots.
     :param results: Dict containing ResultsKey keys (e.g. slide id) and values as lists of output slides.
     :param tile_size: Size of each tile. Default 224.
