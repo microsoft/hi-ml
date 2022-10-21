@@ -11,6 +11,7 @@ See examples/elevate_this.py for a very simple 'hello world' example of use.
 
 import logging
 import os
+import re
 import sys
 import warnings
 from argparse import ArgumentParser
@@ -36,9 +37,8 @@ from health_azure.utils import (create_python_environment, create_run_recovery_i
                                 run_duration_string_to_seconds, to_azure_friendly_string, RUN_CONTEXT, get_workspace,
                                 PathOrString, DEFAULT_ENVIRONMENT_VARIABLES, get_ml_client,
                                 ENV_SERVICE_PRINCIPAL_ID, ENV_SERVICE_PRINCIPAL_PASSWORD, ENV_TENANT_ID)
-from health_azure.datasets import (V2_INPUT_DATASET_ARG, V2_OUTPUT_DATASET_ARG, DatasetConfig, StrOrDatasetConfig,
-                                   _input_dataset_key, _output_dataset_key, _replace_string_datasets,
-                                   setup_local_datasets)
+from health_azure.datasets import (DatasetConfig, StrOrDatasetConfig, setup_local_datasets,
+                                   _input_dataset_key, _output_dataset_key, _replace_string_datasets)
 
 logger = logging.getLogger('health_azure')
 logger.setLevel(logging.DEBUG)
@@ -51,9 +51,6 @@ OUTPUT_FOLDER = "outputs"
 RUN_RECOVERY_FILE = "most_recent_run.txt"
 SDK_NAME = "innereye"
 SDK_VERSION = "2.0"
-
-INPUT_DATASETS_ARG_NAME = "input_datasets"
-OUTPUT_DATASETS_ARG_NAME = "output_datasets"
 
 
 @dataclass
@@ -360,15 +357,20 @@ def submit_run_v2(workspace: Optional[Workspace],
     args = script_run_config.arguments
     arg_str = " ".join(args)
     cmd = script + " " + arg_str
+
     if input_datasets_v2:
-        if len(input_datasets_v2) > 0:
-            cmd += V2_INPUT_DATASET_ARG
+        for i, input_dataset_v2 in enumerate(input_datasets_v2):
+            input_name = f"INPUT_{i}"
+            input_str = "${{inputs." + f"{input_name}" + "}}"
+            cmd += f" --{input_name}={input_str}"
     else:
         input_datasets_v2 = {}
 
     if output_datasets_v2:
-        if len(output_datasets_v2) > 0:
-            cmd += V2_OUTPUT_DATASET_ARG
+        for i, output_dataset_v2 in enumerate(output_datasets_v2):
+            output_name = f"OUTPUT_{i}"
+            output_str = "${{outputs." + f"{output_name}" + "}}"
+            cmd += f" --{output_name}={output_str}"
     else:
         output_datasets_v2 = {}
 
@@ -495,7 +497,8 @@ def create_v2_inputs(ml_client: MLClient, input_datasets: List[DatasetConfig]) -
     :return: A dictionary in the format "input_name": Input.
     """
     inputs: Dict[str, Input] = {}
-    for input_dataset in input_datasets:
+    for i, input_dataset in enumerate(input_datasets):
+        input_name = f"INPUT_{i}"
         version = input_dataset.version or 1
         data_asset: Data = ml_client.data.get(input_dataset.name, version=str(version))
         data_path = data_asset.id or ""
@@ -503,7 +506,7 @@ def create_v2_inputs(ml_client: MLClient, input_datasets: List[DatasetConfig]) -
         # v1_datastore_path = f"azureml://datastores/{input_dataset.datastore}/paths/<path_to_dataset>"
         # v2_dataset_path = f"azureml:{input_dataset.name}:1"
 
-        inputs[INPUT_DATASETS_ARG_NAME] = Input(  # type: ignore
+        inputs[input_name] = Input(  # type: ignore
             type=AssetTypes.URI_FOLDER,
             path=data_path,
             mode=InputOutputModes.MOUNT,
@@ -519,11 +522,12 @@ def create_v2_outputs(output_datasets: List[DatasetConfig]) -> Dict[str, Output]
     :return: A dictionary in the format "output_name": Output.
     """
     outputs = {}
-    for output_dataset in output_datasets:
+    for i, output_dataset in enumerate(output_datasets):
+        output_name = f"OUTPUT_{i}"
         v1_datastore_path = f"azureml://datastores/{output_dataset.datastore}/paths/{output_dataset.name}"
         # Note that there are alternative formats that the output path can take, such as:
         # v2_data_asset_path = f"azureml:{output_dataset.name}@latest"
-        outputs[OUTPUT_DATASETS_ARG_NAME] = Output(  # type: ignore
+        outputs[output_name] = Output(  # type: ignore
             type=AssetTypes.URI_FOLDER,
             path=v1_datastore_path,
             mode=InputOutputModes.DIRECT,
@@ -854,19 +858,21 @@ def _generate_v2_azure_datasets(cleaned_input_datasets: List[DatasetConfig],
     :param cleaned_output_datasets: The list of output dataset configs
     :return: The AzureRunInfo containing the AzureML input and output dataset lists etc.
     """
-    def _get_dataset_names_from_string(sys_arg: str, dataset_arg_name: str) -> List[Path]:
-        dataset_strings = sys_arg.split("--" + dataset_arg_name + "=")[-1].split(",")
-        dataset_paths = [Path(p) for p in dataset_strings]
-        return dataset_paths
+    def _get_dataset_names_from_string(sys_arg: str, pattern: str) -> Path:
+        dataset_string = re.split(pattern, sys_arg)[-1]
+        dataset_path = Path(dataset_string)
+        return dataset_path
 
-    returned_input_datasets = []
-    returned_output_datasets = []
+    returned_input_datasets: List[Path] = []
+    returned_output_datasets: List[Path] = []
+    input_dataset_pattern = r"INPUT_\d[=| ]"
+    output_dataset_pattern = r"OUTPUT_\d[=| ]"
     for sys_arg in sys.argv:
-        if INPUT_DATASETS_ARG_NAME in sys_arg:
-            returned_input_datasets += _get_dataset_names_from_string(sys_arg, INPUT_DATASETS_ARG_NAME)
+        if len(re.findall(input_dataset_pattern, sys_arg)) > 0:
+            returned_input_datasets += [_get_dataset_names_from_string(sys_arg, input_dataset_pattern)]
 
-        if OUTPUT_DATASETS_ARG_NAME in sys_arg:
-            returned_output_datasets += _get_dataset_names_from_string(sys_arg, OUTPUT_DATASETS_ARG_NAME)
+        if len(re.findall(output_dataset_pattern, sys_arg)) > 0:
+            returned_output_datasets += [_get_dataset_names_from_string(sys_arg, output_dataset_pattern)]
 
     return AzureRunInfo(
         input_datasets=returned_input_datasets,  # type: ignore

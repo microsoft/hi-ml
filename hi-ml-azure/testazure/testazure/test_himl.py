@@ -1352,6 +1352,7 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock,
                         mock_hyperdrive_config.assert_called_once()
 
 
+@pytest.mark.fast
 def test_create_v2_inputs() -> None:
     mock_ml_client = MagicMock()
     mock_data_name = "mock_data"
@@ -1367,13 +1368,14 @@ def test_create_v2_inputs() -> None:
     inputs = himl.create_v2_inputs(mock_ml_client, mock_input_dataconfigs)
     assert isinstance(inputs, Dict)
     assert len(inputs) == len(mock_input_dataconfigs)
-    input_entry = inputs[himl.INPUT_DATASETS_ARG_NAME]
+    input_entry = inputs["INPUT_0"]
     assert isinstance(input_entry, Input)
     assert input_entry.type == AssetTypes.URI_FOLDER
     actual_path: str = input_entry.path  # type: ignore
     assert actual_path == mock_data_path
 
 
+@pytest.mark.fast
 def test_create_v2_outputs() -> None:
     mock_datastore_name = "dummy_datastore"
     mock_data_name = "dummy_dataset"
@@ -1382,7 +1384,7 @@ def test_create_v2_outputs() -> None:
     outputs = himl.create_v2_outputs(mock_output_dataconfigs)
     assert isinstance(outputs, Dict)
     assert len(outputs) == len(mock_output_dataconfigs)
-    output_entry = outputs[himl.OUTPUT_DATASETS_ARG_NAME]
+    output_entry = outputs["OUTPUT_0"]
     assert isinstance(output_entry, Output)
     assert output_entry.type == AssetTypes.URI_FOLDER
     expected_path = f"azureml://datastores/{mock_datastore_name}/paths/{mock_data_name}"

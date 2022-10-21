@@ -23,8 +23,6 @@ from azureml.exceptions._azureml_exception import UserErrorException
 from health_azure.utils import PathOrString, get_workspace, get_ml_client
 
 
-V2_INPUT_DATASET_ARG = " --input_datasets=${{inputs.input_datasets}}"
-V2_OUTPUT_DATASET_ARG = " --output_datasets=${{outputs.output_datasets}}"
 V1_OR_V2_DATA_TYPE = Union[FileDataset, Data]
 
 
