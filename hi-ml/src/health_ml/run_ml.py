@@ -225,7 +225,6 @@ class MLRunner:
         Run processes cleanup after ddp context to prepare for single device inference.
         Kill all processes in DDP besides rank 0.
         """
-
         # DDP will start multiple instances of the runner, one for each GPU. Those should terminate here after training.
         # We can now use the global_rank of the Lightning model, rather than environment variables, because DDP has set
         # all necessary properties.
