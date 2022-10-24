@@ -25,6 +25,7 @@ from health_cpath.utils.viz_utils import load_image_dict, save_figure
 
 
 ResultsType = Dict[ResultsKey, List[Any]]
+SlideDictType = Dict[SlideKey, Any]
 
 
 def validate_class_names_for_plot_options(
@@ -120,44 +121,44 @@ def save_top_and_bottom_tiles(
     save_figure(fig=bottom_tiles_fig, figpath=figures_dir / f"{slide_node.slide_id}_bottom.png")
 
 
-def save_slide_thumbnail_and_heatmap(
+def save_slide_thumbnail(case: str, slide_node: SlideNode, slide_dict: SlideDictType, figures_dir: Path) -> None:
+    """Plots and saves a slide thumbnail
+
+    :param case: The report case (e.g., TP, FN, ...)
+    :param slide_node: The slide node that encapsulates the slide metadata.
+    :param slide_dict: The slide dictionary that contains the slide image and other metadata.
+    :param figures_dir: The path to the directory where to save the plots.
+    """
+    fig = plot_slide(case=case, slide_node=slide_node, slide_image=slide_dict[SlideKey.IMAGE], scale=1.0)
+    save_figure(fig=fig, figpath=figures_dir / f"{slide_node.slide_id}_thumbnail.png")
+
+
+def save_attention_heatmap(
     case: str,
     slide_node: SlideNode,
+    slide_dict: SlideDictType,
     figures_dir: Path,
     results: ResultsType,
-    slides_dataset: SlidesDataset,
     tile_size: int = 224,
     level: int = 1,
-    wsi_has_mask: bool = True,
 ) -> None:
     """Plots and saves a slide thumbnail and attention heatmap
 
     :param case: The report case (e.g., TP, FN, ...)
     :param slide_node: The slide node that encapsulates the slide metadata.
+    :param slide_dict: The slide dictionary that contains the slide image and other metadata.
     :param figures_dir: The path to the directory where to save the plots.
     :param results: Dict containing ResultsKey keys (e.g. slide id) and values as lists of output slides.
-    :param slides_dataset: The slides dataset from where to pick the slide.
     :param tile_size: Size of each tile. Default 224.
     :param level: Magnification at which tiles are available (e.g. PANDA levels are 0 for original,
         1 for 4x downsampled, 2 for 16x downsampled). Default 1.
-    :param wsi_has_mask: Whether the slide has a mask or not. Default True.
     """
-    slide_index = slides_dataset.dataset_df.index.get_loc(slide_node.slide_id)
-    assert isinstance(slide_index, int), f"Got non-unique slide ID: {slide_node.slide_id}"
-    slide_dict = slides_dataset[slide_index]
-    slide_dict = load_image_dict(slide_dict, level=level, margin=0, wsi_has_mask=wsi_has_mask)
-    slide_image = slide_dict[SlideKey.IMAGE]
-    location_bbox = slide_dict[SlideKey.ORIGIN]
-
-    fig = plot_slide(case=case, slide_node=slide_node, slide_image=slide_image, scale=1.0)
-    save_figure(fig=fig, figpath=figures_dir / f"{slide_node.slide_id}_thumbnail.png")
-
     fig = plot_heatmap_overlay(
         case=case,
         slide_node=slide_node,
-        slide_image=slide_image,
+        slide_image=slide_dict[SlideKey.IMAGE],
         results=results,
-        location_bbox=location_bbox,
+        location_bbox=slide_dict[SlideKey.ORIGIN],
         tile_size=tile_size,
         level=level,
     )
@@ -205,33 +206,34 @@ class DeepMILPlotsHandler:
         self.wsi_has_mask = wsi_has_mask
         self.slides_dataset: Optional[SlidesDataset] = None
 
+    def get_slide_dict(self, slide_node: SlideNode) -> SlideDictType:
+        """Returns the slide dictionary for a given slide node"""
+        assert self.slides_dataset is not None, "Cannot plot attention heatmap or wsi without slides dataset"
+        slide_index = self.slides_dataset.dataset_df.index.get_loc(slide_node.slide_id)
+        assert isinstance(slide_index, int), f"Got non-unique slide ID: {slide_node.slide_id}"
+        slide_dict = self.slides_dataset[slide_index]
+        slide_dict = load_image_dict(slide_dict, level=self.level, margin=0, wsi_has_mask=self.wsi_has_mask)
+        return slide_dict
+
     def save_slide_node_figures(
         self, case: str, slide_node: SlideNode, outputs_dir: Path, results: ResultsType
     ) -> None:
-        """Plots and saves all slide related figures, e.g., `TOP_BOTTOM_TILES` and `SLIDE_THUMBNAIL_HEATMAP`"""
-
+        """Plots and saves all slide related figures: `TOP_BOTTOM_TILES`, `SLIDE_THUMBNAIL` and `ATTENTION_HEATMAP`."""
         case_dir = make_figure_dirs(subfolder=case, parent_dir=outputs_dir)
 
         if PlotOption.TOP_BOTTOM_TILES in self.plot_options:
-            save_top_and_bottom_tiles(
-                case=case,
-                slide_node=slide_node,
-                figures_dir=case_dir,
-                num_columns=self.num_columns,
-                figsize=self.figsize,
-            )
-        if PlotOption.SLIDE_THUMBNAIL_HEATMAP in self.plot_options:
-            assert self.slides_dataset
-            save_slide_thumbnail_and_heatmap(
-                case=case,
-                slide_node=slide_node,
-                figures_dir=case_dir,
-                results=results,
-                slides_dataset=self.slides_dataset,
-                tile_size=self.tile_size,
-                level=self.level,
-                wsi_has_mask=self.wsi_has_mask,
-            )
+            save_top_and_bottom_tiles(case, slide_node, case_dir, self.num_columns, self.figsize)
+
+        if PlotOption.ATTENTION_HEATMAP in self.plot_options or PlotOption.SLIDE_THUMBNAIL in self.plot_options:
+            slide_dict = self.get_slide_dict(slide_node=slide_node)
+
+            if PlotOption.SLIDE_THUMBNAIL in self.plot_options:
+                save_slide_thumbnail(case=case, slide_node=slide_node, slide_dict=slide_dict, figures_dir=case_dir)
+
+            if PlotOption.ATTENTION_HEATMAP in self.plot_options:
+                save_attention_heatmap(
+                    case, slide_node, slide_dict, case_dir, results, self.tile_size, level=self.level
+                )
 
     def save_plots(self, outputs_dir: Path, tiles_selector: Optional[TilesSelector], results: ResultsType) -> None:
         """Plots and saves all selected plot options during inference (validation or test) time.
