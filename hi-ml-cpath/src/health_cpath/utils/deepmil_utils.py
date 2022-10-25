@@ -7,8 +7,7 @@ import param
 from torch import nn
 from pathlib import Path
 from typing import Optional, Tuple
-from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CheckpointDownloader
-from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
+from health_ml.utils.checkpoint_utils import CheckpointDownloader
 from health_cpath.models.encoders import (
     HistoSSLEncoder,
     ImageNetSimCLREncoder,
@@ -27,8 +26,12 @@ from health_ml.networks.layers.attention_layers import (
     TransformerPooling,
     TransformerPoolingBenchmark,
 )
-from health_ml.utils.common_utils import checkpoint_is_aml_run_id, checkpoint_is_local_file, checkpoint_is_url
 from health_ml.deep_learning_config import SRC_CHECKPOINT_FORMAT_DOC
+from health_ml.utils.checkpoint_handler import (
+    CheckpointHandler, checkpoint_is_aml_run_id, checkpoint_is_local_file, checkpoint_is_url
+)
+
+SSL_CHECKPOINT_DIRNAME = "ssl_checkpoints"
 
 
 def set_module_gradients_enabled(model: nn.Module, tuning_flag: bool) -> None:
@@ -89,6 +92,30 @@ class EncoderParams(param.Parameterized):
             raise ValueError(f"Invalid ssl_checkpoint: {self.ssl_checkpoint}. Please provide a valid URL, local file "
                              f"or azureml run id in the following format: {SRC_CHECKPOINT_FORMAT_DOC}")
 
+    def get_ssl_checkpoint_path(self, outputs_folder: Path) -> Path:
+        """
+        Get the path to the local weights if the ssl checkpoint is a local path, otherwise download the checkpoint
+        from the cloud and return the path to the downloaded checkpoint.
+        """
+
+        if self.ssl_checkpoint_is_local_file:
+            checkpoint_path = Path(self.ssl_checkpoint)
+        elif self.ssl_checkpoint_is_url:
+            download_folder = outputs_folder / SSL_CHECKPOINT_DIRNAME
+            download_folder.mkdir(exist_ok=True, parents=True)
+            checkpoint_path = CheckpointHandler.download_weights(
+                url=self.ssl_checkpoint, download_folder=outputs_folder
+            )
+        elif self.ssl_checkpoint_is_aml_run_id:
+            downloader = CheckpointDownloader(run_id=self.ssl_checkpoint, download_dir=outputs_folder)
+            checkpoint_path = downloader.local_checkpoint_path
+        else:
+            raise ValueError("Unable to determine how to get the SSL checkpoint path.")
+
+        if checkpoint_path is None or not checkpoint_path.is_file():
+            raise FileNotFoundError(f"Could not find the weights file at {checkpoint_path}")
+        return checkpoint_path
+
     def get_encoder(self, outputs_folder: Optional[Path]) -> TileEncoder:
         """Given the current encoder parameters, returns the encoder object.
 
@@ -119,14 +146,8 @@ class EncoderParams(param.Parameterized):
 
         elif self.encoder_type == SSLEncoder.__name__:
             assert self.ssl_checkpoint and outputs_folder, "SSLEncoder requires ssl_ckpt_run_id and outputs_folder"
-            downloader = CheckpointDownloader(
-                run_id=self.ssl_checkpoint,
-                download_dir=outputs_folder,
-                checkpoint_filename=LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
-                remote_checkpoint_dir=Path(DEFAULT_AML_CHECKPOINT_DIR),
-            )
             encoder = SSLEncoder(
-                pl_checkpoint_path=downloader.local_checkpoint_path,
+                pl_checkpoint_path=self.get_ssl_checkpoint_path(outputs_folder=outputs_folder),
                 tile_size=self.tile_size,
                 n_channels=self.n_channels,
             )

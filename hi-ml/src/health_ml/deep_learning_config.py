@@ -21,10 +21,8 @@ from health_azure.amulet import (ENV_AMLT_PROJECT_NAME, ENV_AMLT_INPUT_OUTPUT,
                                  is_amulet_job, get_amulet_aml_working_dir)
 from health_azure.utils import (RUN_CONTEXT, PathOrString, is_global_rank_zero, is_running_in_azure_ml)
 from health_ml.utils import fixed_paths
+from health_ml.utils.checkpoint_handler import checkpoint_is_aml_run_id, checkpoint_is_local_file, checkpoint_is_url
 from health_ml.utils.common_utils import (CHECKPOINT_FOLDER,
-                                          checkpoint_is_aml_run_id,
-                                          checkpoint_is_local_file,
-                                          checkpoint_is_url,
                                           create_unique_timestamp_id,
                                           DEFAULT_AML_UPLOAD_DIR,
                                           DEFAULT_LOGS_DIR_NAME)
