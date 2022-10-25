@@ -98,6 +98,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
 
     def validate(self) -> None:
         super().validate()
+        EncoderParams.validate(self)
         if not any([self.tune_encoder, self.tune_pooling, self.tune_classifier]) and not self.run_inference_only:
             raise ValueError(
                 "At least one of the encoder, pooling or classifier should be fine tuned. Turn on one of the tune "

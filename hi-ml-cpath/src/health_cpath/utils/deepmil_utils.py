@@ -27,6 +27,8 @@ from health_ml.networks.layers.attention_layers import (
     TransformerPooling,
     TransformerPoolingBenchmark,
 )
+from health_ml.utils.common_utils import checkpoint_is_aml_run_id, checkpoint_is_local_file, checkpoint_is_url
+from health_ml.deep_learning_config import SRC_CHECKPOINT_FORMAT_DOC
 
 
 def set_module_gradients_enabled(model: nn.Module, tuning_flag: bool) -> None:
@@ -63,6 +65,29 @@ class EncoderParams(param.Parameterized):
     ssl_checkpoint: str = param.String(
         default="", doc="Optional run id from which to load checkpoint if using SSLEncoder"
     )
+
+    @property
+    def ssl_checkpoint_is_url(self) -> bool:
+        return checkpoint_is_url(self.ssl_checkpoint)
+
+    @property
+    def ssl_checkpoint_is_local_file(self) -> bool:
+        return checkpoint_is_local_file(self.ssl_checkpoint)
+
+    @property
+    def ssl_checkpoint_is_aml_run_id(self) -> bool:
+        return checkpoint_is_aml_run_id(self.ssl_checkpoint)
+
+    @property
+    def is_valid_src_checkpoint(self) -> bool:
+        if self.ssl_checkpoint:
+            return self.ssl_checkpoint_is_local_file or self.ssl_checkpoint_is_url or self.ssl_checkpoint_is_aml_run_id
+        return True
+
+    def validate(self) -> None:
+        if not self.is_valid_src_checkpoint:
+            raise ValueError(f"Invalid ssl_checkpoint: {self.ssl_checkpoint}. Please provide a valid URL, local file "
+                             f"or azureml run id in the following format: {SRC_CHECKPOINT_FORMAT_DOC}")
 
     def get_encoder(self, outputs_folder: Optional[Path]) -> TileEncoder:
         """Given the current encoder parameters, returns the encoder object.
