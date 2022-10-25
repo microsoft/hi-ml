@@ -46,7 +46,6 @@ class BaseDeepMILModule(LightningModule):
                  pretrained_classifier: bool = False,
                  dropout_rate: Optional[float] = None,
                  verbose: bool = False,
-                 ssl_ckpt_run_id: Optional[str] = None,
                  outputs_folder: Optional[Path] = None,
                  encoder_params: EncoderParams = EncoderParams(),
                  pooling_params: PoolingParams = PoolingParams(),
@@ -98,7 +97,7 @@ class BaseDeepMILModule(LightningModule):
         self.tune_classifier = tune_classifier
 
         # Model components
-        self.encoder = encoder_params.get_encoder(ssl_ckpt_run_id, outputs_folder)
+        self.encoder = encoder_params.get_encoder(outputs_folder)
         self.aggregation_fn, self.num_pooling = pooling_params.get_pooling_layer(self.encoder.num_encoding)
         self.classifier_fn = self.get_classifier()
         self.activation_fn = self.get_activation()

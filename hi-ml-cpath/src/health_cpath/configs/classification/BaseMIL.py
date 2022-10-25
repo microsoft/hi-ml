@@ -80,8 +80,6 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
         default=False,
         doc="If True, will use classifier weights from pretrained model specified in src_checkpoint. If False, will "
             "initiliaze classifier with random weights.")
-    ssl_checkpoint_run_id: str = param.String(default="", doc="Optional run id from which to load checkpoint if "
-                                              "using SSLEncoder")
     max_num_workers: int = param.Integer(10, bounds=(0, None),
                                          doc="The maximum number of worker processes for dataloaders. Dataloaders use"
                                              "a heuristic num_cpus/num_gpus to set the number of workers, which can be"
@@ -273,8 +271,7 @@ class BaseMILTiles(BaseMIL):
 
     def get_transforms_dict(self, image_key: str) -> Dict[ModelKey, Union[Callable, None]]:
         if self.is_caching:
-            encoder = create_from_matching_params(self, EncoderParams).get_encoder(self.ssl_checkpoint_run_id,
-                                                                                   self.outputs_folder)
+            encoder = create_from_matching_params(self, EncoderParams).get_encoder(self.outputs_folder)
             transform = Compose([
                 LoadTilesBatchd(image_key, progress=True),
                 EncodeTilesBatchd(image_key, encoder, chunk_size=self.encoding_chunk_size)  # type: ignore
@@ -295,7 +292,7 @@ class BaseMILTiles(BaseMIL):
                                             pretrained_classifier=self.pretrained_classifier,
                                             dropout_rate=self.dropout_rate,
                                             outputs_folder=self.outputs_folder,
-                                            ssl_ckpt_run_id=self.ssl_checkpoint_run_id,
+
                                             encoder_params=create_from_matching_params(self, EncoderParams),
                                             pooling_params=create_from_matching_params(self, PoolingParams),
                                             optimizer_params=create_from_matching_params(self, OptimizerParams),
@@ -339,7 +336,6 @@ class BaseMILSlides(BaseMIL):
                                              pretrained_classifier=self.pretrained_classifier,
                                              dropout_rate=self.dropout_rate,
                                              outputs_folder=self.outputs_folder,
-                                             ssl_ckpt_run_id=self.ssl_checkpoint_run_id,
                                              encoder_params=create_from_matching_params(self, EncoderParams),
                                              pooling_params=create_from_matching_params(self, PoolingParams),
                                              optimizer_params=create_from_matching_params(self, OptimizerParams),

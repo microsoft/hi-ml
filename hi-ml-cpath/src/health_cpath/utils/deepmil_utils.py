@@ -60,8 +60,11 @@ class EncoderParams(param.Parameterized):
     encoding_chunk_size: int = param.Integer(
         default=0, doc="If > 0 performs encoding in chunks, by enconding_chunk_size tiles " "per chunk"
     )
+    ssl_checkpoint: str = param.String(
+        default="", doc="Optional run id from which to load checkpoint if using SSLEncoder"
+    )
 
-    def get_encoder(self, ssl_ckpt_run_id: Optional[str], outputs_folder: Optional[Path]) -> TileEncoder:
+    def get_encoder(self, outputs_folder: Optional[Path]) -> TileEncoder:
         """Given the current encoder parameters, returns the encoder object.
 
         :param ssl_ckpt_run_id: The AML run id for SSL checkpoint download.
@@ -90,9 +93,9 @@ class EncoderParams(param.Parameterized):
             encoder = HistoSSLEncoder(tile_size=self.tile_size, n_channels=self.n_channels)
 
         elif self.encoder_type == SSLEncoder.__name__:
-            assert ssl_ckpt_run_id and outputs_folder, "SSLEncoder requires ssl_ckpt_run_id and outputs_folder"
+            assert self.ssl_checkpoint and outputs_folder, "SSLEncoder requires ssl_ckpt_run_id and outputs_folder"
             downloader = CheckpointDownloader(
-                run_id=ssl_ckpt_run_id,
+                run_id=self.ssl_checkpoint,
                 download_dir=outputs_folder,
                 checkpoint_filename=LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
                 remote_checkpoint_dir=Path(DEFAULT_AML_CHECKPOINT_DIR),

@@ -7,12 +7,10 @@ from __future__ import annotations
 import logging
 import os
 import param
-import re
 from enum import Enum, unique
 from param import Parameterized
 from pathlib import Path
 from typing import List, Optional
-from urllib.parse import urlparse
 
 from azureml.train.hyperdrive import HyperDriveConfig
 
@@ -23,7 +21,7 @@ from health_azure.amulet import (ENV_AMLT_PROJECT_NAME, ENV_AMLT_INPUT_OUTPUT,
                                  is_amulet_job, get_amulet_aml_working_dir)
 from health_azure.utils import (RUN_CONTEXT, PathOrString, is_global_rank_zero, is_running_in_azure_ml)
 from health_ml.utils import fixed_paths
-from health_ml.utils.common_utils import (CHECKPOINT_FOLDER,
+from health_ml.utils.common_utils import (CHECKPOINT_FOLDER, checkpoint_is_aml_run_id, checkpoint_is_local_file, checkpoint_is_url,
                                           create_unique_timestamp_id,
                                           DEFAULT_AML_UPLOAD_DIR,
                                           DEFAULT_LOGS_DIR_NAME)
@@ -218,20 +216,15 @@ class WorkflowParams(param.Parameterized):
 
     @property
     def src_checkpoint_is_url(self) -> bool:
-        try:
-            result = urlparse(self.src_checkpoint)
-            return all([result.scheme, result.netloc])
-        except ValueError:
-            return False
+        return checkpoint_is_url(self.src_checkpoint)
 
     @property
     def src_checkpoint_is_local_file(self) -> bool:
-        return Path(self.src_checkpoint).is_file()
+        return checkpoint_is_local_file(self.src_checkpoint)
 
     @property
     def src_checkpoint_is_aml_run_id(self) -> bool:
-        match = re.match(r"[_\w-]*$", self.src_checkpoint.split(":")[0])
-        return match is not None and not self.src_checkpoint_is_url and not self.src_checkpoint_is_local_file
+        return checkpoint_is_aml_run_id(self.src_checkpoint)
 
     @property
     def is_valid_src_checkpoint(self) -> bool:

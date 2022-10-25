@@ -8,7 +8,9 @@ from contextlib import contextmanager
 from datetime import datetime
 from enum import Enum, unique
 from pathlib import Path
+import re
 from typing import Any, Generator, List, Optional
+from urllib.parse import urlparse
 
 import torch
 from torch.nn import Module
@@ -223,3 +225,20 @@ def seed_monai_if_available(seed: int) -> None:
         set_determinism(seed=seed)
     except ImportError:
         pass
+
+
+def checkpoint_is_url(checkpoint: str) -> bool:
+    try:
+        result = urlparse(checkpoint)
+        return all([result.scheme, result.netloc])
+    except ValueError:
+        return False
+
+
+def checkpoint_is_local_file(checkpoint: str) -> bool:
+    return Path(checkpoint).is_file()
+
+
+def checkpoint_is_aml_run_id(checkpoint: str) -> bool:
+    match = re.match(r"[_\w-]*$", checkpoint.split(":")[0])
+    return match is not None and not checkpoint_is_url(checkpoint) and not checkpoint_is_local_file(checkpoint)
