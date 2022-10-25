@@ -440,7 +440,7 @@ class LossAnalysisCallback(Callback):
             self.loss_cache[stage][ResultsKey.ENTROPY].extend(self.compute_entropy(outputs[ResultsKey.CLASS_PROBS]))
             if self.save_tile_ids:
                 self.loss_cache[stage][ResultsKey.TILE_ID].extend(
-                    [self.TILES_JOIN_TOKEN.join(tiles) for tiles in batch[ResultsKey.TILE_ID]]
+                    [self.TILES_JOIN_TOKEN.join(tiles) for tiles in outputs[ResultsKey.TILE_ID]]
                 )
 
     def synchronise_processes_and_reset(self, trainer: Trainer, pl_module: BaseDeepMILModule, stage: ModelKey) -> None:
