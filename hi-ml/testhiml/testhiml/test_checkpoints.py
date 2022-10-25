@@ -46,7 +46,7 @@ def get_checkpoint_handler(tmp_path: Path, src_checkpoint: str) -> Tuple[Lightni
     return container, CheckpointHandler(container=container, project_root=tmp_path)
 
 
-def test_load_model_chcekpoints_from_url(tmp_path: Path) -> None:
+def test_load_model_checkpoints_from_url(tmp_path: Path) -> None:
     WEIGHTS_URL = (
         "https://pl-bolts-weights.s3.us-east-2.amazonaws.com/" "simclr/bolts_simclr_imagenet/simclr_imagenet.ckpt"
     )
