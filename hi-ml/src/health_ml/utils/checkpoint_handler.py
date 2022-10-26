@@ -5,7 +5,6 @@
 
 import logging
 import os
-import re
 import uuid
 from pathlib import Path
 from typing import Optional
@@ -137,20 +136,3 @@ class CheckpointHandler:
         if checkpoint_path is None or not checkpoint_path.is_file():
             raise FileNotFoundError(f"Could not find the weights file at {checkpoint_path}")
         return checkpoint_path
-
-
-def checkpoint_is_url(checkpoint: str) -> bool:
-    try:
-        result = urlparse(checkpoint)
-        return all([result.scheme, result.netloc])
-    except ValueError:
-        return False
-
-
-def checkpoint_is_local_file(checkpoint: str) -> bool:
-    return Path(checkpoint).is_file()
-
-
-def checkpoint_is_aml_run_id(checkpoint: str) -> bool:
-    match = re.match(r"[_\w-]*$", checkpoint.split(":")[0])
-    return match is not None and not checkpoint_is_url(checkpoint) and not checkpoint_is_local_file(checkpoint)

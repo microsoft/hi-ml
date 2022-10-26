@@ -27,9 +27,8 @@ from health_ml.networks.layers.attention_layers import (
     TransformerPoolingBenchmark,
 )
 from health_ml.deep_learning_config import SRC_CHECKPOINT_FORMAT_DOC
-from health_ml.utils.checkpoint_handler import (
-    CheckpointHandler, checkpoint_is_aml_run_id, checkpoint_is_local_file, checkpoint_is_url
-)
+from health_ml.utils.checkpoint_handler import CheckpointHandler
+from health_ml.utils.common_utils import checkpoint_is_aml_run_id, checkpoint_is_local_file, checkpoint_is_url
 
 SSL_CHECKPOINT_DIRNAME = "ssl_checkpoints"
 
@@ -103,9 +102,7 @@ class EncoderParams(param.Parameterized):
         elif self.ssl_checkpoint_is_url:
             download_folder = outputs_folder / SSL_CHECKPOINT_DIRNAME
             download_folder.mkdir(exist_ok=True, parents=True)
-            checkpoint_path = CheckpointHandler.download_weights(
-                url=self.ssl_checkpoint, download_folder=outputs_folder
-            )
+            checkpoint_path = CheckpointHandler.download_weights(self.ssl_checkpoint, download_folder)
         elif self.ssl_checkpoint_is_aml_run_id:
             downloader = CheckpointDownloader(run_id=self.ssl_checkpoint, download_dir=outputs_folder)
             checkpoint_path = downloader.local_checkpoint_path
