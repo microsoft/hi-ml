@@ -198,9 +198,7 @@ def add_callback(fn: Callable, callback: Callable) -> Callable:
 def test_metrics(n_classes: int) -> None:
     input_dim = (128,)
 
-    def _mock_get_encoder(  # type: ignore
-        self, ssl_ckpt_run_id: Optional[str], outputs_folder: Optional[Path]
-    ) -> TileEncoder:
+    def _mock_get_encoder(self, outputs_folder: Optional[Path]) -> TileEncoder:  # type: ignore
         return IdentityEncoder(input_dim=input_dim)
 
     with patch("health_cpath.models.deepmil.EncoderParams.get_encoder", new=_mock_get_encoder):
