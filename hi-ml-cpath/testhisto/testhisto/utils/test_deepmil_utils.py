@@ -63,8 +63,10 @@ def test_load_ssl_checkpoint_from_url(tmp_path: Path) -> None:
 
 def test_load_ssl_checkpoint_from_run_id(tmp_path: Path) -> None:
     encoder_params = EncoderParams(encoder_type=SSLEncoder.__name__, ssl_checkpoint=TEST_SSL_RUN_ID)
-    ssl_checkpoint_path = encoder_params.get_ssl_checkpoint_path(tmp_path)
-    assert ssl_checkpoint_path.exists()
-    assert ssl_checkpoint_path == tmp_path / TEST_SSL_RUN_ID / LAST_CHECKPOINT
-    encoder = encoder_params.get_encoder(tmp_path)
-    assert isinstance(encoder, SSLEncoder)
+    with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace:
+        mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
+        ssl_checkpoint_path = encoder_params.get_ssl_checkpoint_path(tmp_path)
+        assert ssl_checkpoint_path.exists()
+        assert ssl_checkpoint_path == tmp_path / TEST_SSL_RUN_ID / LAST_CHECKPOINT
+        encoder = encoder_params.get_encoder(tmp_path)
+        assert isinstance(encoder, SSLEncoder)
