@@ -30,7 +30,7 @@ from health_ml.deep_learning_config import SRC_CHECKPOINT_FORMAT_DOC
 from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.common_utils import checkpoint_is_aml_run_id, checkpoint_is_local_file, checkpoint_is_url
 
-SSL_CHECKPOINT_DIRNAME = "ssl_checkpoints"
+SSL_CHECKPOINT_DIRNAME = "ssl_checkpoint"
 
 
 def set_module_gradients_enabled(model: nn.Module, tuning_flag: bool) -> None:
