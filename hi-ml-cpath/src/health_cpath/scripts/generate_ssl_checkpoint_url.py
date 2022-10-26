@@ -1,5 +1,4 @@
 from typing import Optional
-from azure.storage.blob import generate_blob_sas, BlobSasPermissions
 from datetime import datetime, timedelta
 from health_azure import get_workspace
 from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
@@ -17,6 +16,7 @@ def get_ssl_checkpoint_url(
     :param aml_workspace: The Azure ML workspace to use, defaults to the default workspace.
     :return: The SAS URL for the SSL checkpoint.
     """
+    from azure.storage.blob import generate_blob_sas, BlobSasPermissions
     datastore = get_workspace(aml_workspace=aml_workspace).get_default_datastore()
     account_name = datastore.account_name
     container_name = 'azureml'
