@@ -29,13 +29,9 @@ def generate_ssl_checkpoint_url(run_id: str, checkpoint_filename: str, expiry_ho
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--run_id', type=str, help='The run id of the SSL model checkpoint',
-                        default='1f391509-f0a7-41d9-bef5-06713739fb0b')
-    parser.add_argument(
-        '--checkpoint_filename',
-        type=str,
-        default='last.ckpt',
-        help='The filename of the SSL model checkpoint. Default: last.ckpt')
+    parser.add_argument('--run_id', type=str, help='The run id of the SSL model checkpoint')
+    parser.add_argument('--checkpoint_filename', type=str, default='last.ckpt',
+                        help='The filename of the SSL model checkpoint. Default: last.ckpt')
     parser.add_argument(
         '--expiry_hours', type=int, default=1, help='The number of hours for which the SAS token is valid. Default: 1'
     )
