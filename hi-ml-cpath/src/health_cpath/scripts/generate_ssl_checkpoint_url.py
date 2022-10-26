@@ -1,18 +1,23 @@
+from typing import Optional
 from azure.storage.blob import generate_blob_sas, BlobSasPermissions
 from datetime import datetime, timedelta
 from health_azure import get_workspace
 from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
+from azureml.core import Workspace
 
 
-def generate_ssl_checkpoint_url(run_id: str, checkpoint_filename: str, expiry_hours: int = 1) -> str:
+def get_ssl_checkpoint_url(
+    run_id: str, checkpoint_filename: str, expiry_hours: int = 1, aml_workspace: Optional[Workspace] = None
+) -> str:
     """Generate a SAS URL for the SSL checkpoint file in the given run.
 
     :param run_id: The run ID of the SSL checkpoint.
     :param checkpoint_filename: The filename of the SSL checkpoint.
     :param expiry_hours: The number of hours the SAS URL is valid for, defaults to 1.
+    :param aml_workspace: The Azure ML workspace to use, defaults to the default workspace.
     :return: The SAS URL for the SSL checkpoint.
     """
-    datastore = get_workspace().get_default_datastore()
+    datastore = get_workspace(aml_workspace=aml_workspace).get_default_datastore()
     account_name = datastore.account_name
     container_name = 'azureml'
     blob_name = f'ExperimentRun/dcid.{run_id}/{DEFAULT_AML_CHECKPOINT_DIR}/{checkpoint_filename}'
@@ -38,5 +43,5 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
     args.run_id = '1f391509-f0a7-41d9-bef5-06713739fb0b'
-    ssl_url = generate_ssl_checkpoint_url(args.run_id, args.checkpoint_filename, args.expiry_hours)
+    ssl_url = get_ssl_checkpoint_url(args.run_id, args.checkpoint_filename, args.expiry_hours)
     print(f'SSL checkpoint URL: {ssl_url}')

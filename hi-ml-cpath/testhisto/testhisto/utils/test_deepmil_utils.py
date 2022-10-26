@@ -1,12 +1,9 @@
 import pytest
-
-from azure.storage.blob import generate_blob_sas, BlobSasPermissions
-from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-
 from health_cpath.models.encoders import SSLEncoder
+from health_cpath.scripts.generate_ssl_checkpoint_url import get_ssl_checkpoint_url
 from health_cpath.utils.deepmil_utils import SSL_CHECKPOINT_DIRNAME, EncoderParams
 from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
@@ -16,22 +13,6 @@ from testhiml.utils_testhiml import DEFAULT_WORKSPACE
 
 
 LAST_CHECKPOINT = f"{DEFAULT_AML_CHECKPOINT_DIR}/{LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX}"
-
-
-def get_ssl_checkpoint_url(run_id: str) -> str:
-    datastore = DEFAULT_WORKSPACE.workspace.get_default_datastore()
-    account_name = datastore.account_name
-    container_name = 'azureml'
-    blob_name = f'ExperimentRun/dcid.{run_id}/{LAST_CHECKPOINT}'
-
-    sas_token = generate_blob_sas(account_name=datastore.account_name,
-                                  container_name=container_name,
-                                  blob_name=blob_name,
-                                  account_key=datastore.account_key,
-                                  permission=BlobSasPermissions(read=True),
-                                  expiry=datetime.utcnow() + timedelta(hours=1))
-
-    return f'https://{account_name}.blob.core.windows.net/{container_name}/{blob_name}?{sas_token}'
 
 
 def _test_invalid_ssl_checkpoint_encoder_params(ssl_checkpoint: str) -> None:
@@ -67,7 +48,11 @@ def test_load_ssl_checkpoint_from_local_file(tmp_path: Path) -> None:
 
 
 def test_load_ssl_checkpoint_from_url(tmp_path: Path) -> None:
-    blob_url = get_ssl_checkpoint_url(TEST_SSL_RUN_ID)
+    blob_url = get_ssl_checkpoint_url(
+        run_id=TEST_SSL_RUN_ID,
+        checkpoint_filename=LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
+        expiry_hours=1,
+        aml_workspace=DEFAULT_WORKSPACE.workspace)
     encoder_params = EncoderParams(encoder_type=SSLEncoder.__name__, ssl_checkpoint=blob_url)
     ssl_checkpoint_path = encoder_params.get_ssl_checkpoint_path(tmp_path)
     assert ssl_checkpoint_path.exists()
