@@ -1,6 +1,7 @@
 import logging
 import sys
 from pathlib import Path
+import time
 
 import pytest
 import param
@@ -183,3 +184,4 @@ if __name__ == "__main__":
                 strictly_aml_v1=config.strictly_aml_v1,
             )
     run_pytest(folder_to_test=config.folder, pytest_mark=config.mark, coverage_module=config.coverage_module)
+    time.sleep(10)  # Give the AzureML job time to finish uploading the pytest result file.
