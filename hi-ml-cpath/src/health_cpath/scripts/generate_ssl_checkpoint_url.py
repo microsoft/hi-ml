@@ -6,7 +6,11 @@ from azureml.core import Workspace
 
 
 def get_ssl_checkpoint_url(
-    run_id: str, checkpoint_filename: str, expiry_hours: int = 1, aml_workspace: Optional[Workspace] = None
+    run_id: str,
+    checkpoint_filename: str,
+    expiry_hours: int = 1,
+    aml_workspace: Optional[Workspace] = None,
+    sas_token: Optional[str] = None,
 ) -> str:
     """Generate a SAS URL for the SSL checkpoint file in the given run.
 
@@ -14,6 +18,7 @@ def get_ssl_checkpoint_url(
     :param checkpoint_filename: The filename of the SSL checkpoint.
     :param expiry_hours: The number of hours the SAS URL is valid for, defaults to 1.
     :param aml_workspace: The Azure ML workspace to use, defaults to the default workspace.
+    :param sas_token: The SAS token to use, defaults to None.
     :return: The SAS URL for the SSL checkpoint.
     """
     from azure.storage.blob import generate_blob_sas, BlobSasPermissions
@@ -22,12 +27,13 @@ def get_ssl_checkpoint_url(
     container_name = 'azureml'
     blob_name = f'ExperimentRun/dcid.{run_id}/{DEFAULT_AML_CHECKPOINT_DIR}/{checkpoint_filename}'
 
-    sas_token = generate_blob_sas(account_name=datastore.account_name,
-                                  container_name=container_name,
-                                  blob_name=blob_name,
-                                  account_key=datastore.account_key,
-                                  permission=BlobSasPermissions(read=True),
-                                  expiry=datetime.utcnow() + timedelta(hours=expiry_hours))
+    if not sas_token:
+        sas_token = generate_blob_sas(account_name=datastore.account_name,
+                                      container_name=container_name,
+                                      blob_name=blob_name,
+                                      account_key=datastore.account_key,
+                                      permission=BlobSasPermissions(read=True),
+                                      expiry=datetime.utcnow() + timedelta(hours=expiry_hours))
 
     return f'https://{account_name}.blob.core.windows.net/{container_name}/{blob_name}?{sas_token}'
 
