@@ -46,8 +46,8 @@ class HEDJitter(object):
         :param img: Input image.
         """
 
-        alpha = torch.FloatTensor(img.shape[0], 3).uniform_(1 - self.theta, 1 + self.theta)
-        beta = torch.FloatTensor(img.shape[0], 3).uniform_(-self.theta, self.theta)
+        alpha = torch.FloatTensor(img.shape[0], 1, 1, 3).uniform_(1 - self.theta, 1 + self.theta)
+        beta = torch.FloatTensor(img.shape[0], 1, 1, 3).uniform_(-self.theta, self.theta)
 
         # Separate stains
         img = img.permute([0, 2, 3, 1])
@@ -56,7 +56,7 @@ class HEDJitter(object):
         stains = torch.maximum(stains, torch.zeros(stains.shape))
 
         # perturbations in HED color space
-        stains = alpha[:, None, None, :] * stains + beta[:, None, None, :]
+        stains = alpha * stains + beta
 
         # Combine stains
         img = -(stains * (-self.log_adjust)) @ self.rgb_from_hed
@@ -65,9 +65,10 @@ class HEDJitter(object):
         img = img.permute(0, 3, 1, 2)
 
         # Normalize
-        imin = torch.amin(img, dim=[1, 2, 3])
-        imax = torch.amax(img, dim=[1, 2, 3])
-        img = (img - imin[:, None, None, None]) / (imax[:, None, None, None] - imin[:, None, None, None])
+        imin = torch.amin(img, dim=[1, 2, 3], keepdim=True)
+        imax = torch.amax(img, dim=[1, 2, 3], keepdim=True)
+        img = (img - imin) / (imax - imin)
+
         return img
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
