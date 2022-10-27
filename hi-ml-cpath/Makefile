@@ -29,6 +29,10 @@ pip_from_conda:
 	sed -e '1,/pip:/ d' environment.yml | grep -v "#" | cut -d "-" -f 2- > temp_requirements.txt
 	pip install -r temp_requirements.txt
 
+# Lock the current Conda environment secondary dependencies versions
+lock_env:
+	./create_and_lock_environment.sh
+
 # clean build artifacts
 clean:
 	rm -rf `find . -type d -name __pycache__`
