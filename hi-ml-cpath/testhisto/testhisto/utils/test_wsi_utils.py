@@ -30,7 +30,7 @@ class MockTiledWSIDataset(Dataset):
         return self.n_slides
 
     def __getitem__(self, index: int) -> List[Dict[SlideKey, Any]]:
-        tile_count = np.random.randint(self.n_tiles) if self.random_n_tiles else self.n_tiles
+        tile_count = np.random.randint(low=1, high=self.n_tiles) if self.random_n_tiles else self.n_tiles
         label = np.random.choice(self.n_classes)
         img: Union[np.ndarray, torch.Tensor]
         if self.img_type == "np":
