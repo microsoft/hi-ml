@@ -1,8 +1,9 @@
-from typing import Optional
+from azure.storage.blob import generate_blob_sas, BlobSasPermissions
+from azureml.core import Workspace
 from datetime import datetime, timedelta
 from health_azure import get_workspace
 from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
-from azureml.core import Workspace
+from typing import Optional
 
 
 def get_ssl_checkpoint_url(
@@ -21,7 +22,6 @@ def get_ssl_checkpoint_url(
     :param sas_token: The SAS token to use, defaults to None.
     :return: The SAS URL for the SSL checkpoint.
     """
-    from azure.storage.blob import generate_blob_sas, BlobSasPermissions
     datastore = get_workspace(aml_workspace=aml_workspace).get_default_datastore()
     account_name = datastore.account_name
     container_name = 'azureml'
@@ -44,9 +44,8 @@ if __name__ == '__main__':
     parser.add_argument('--run_id', type=str, help='The run id of the SSL model checkpoint')
     parser.add_argument('--checkpoint_filename', type=str, default='last.ckpt',
                         help='The filename of the SSL model checkpoint. Default: last.ckpt')
-    parser.add_argument(
-        '--expiry_hours', type=int, default=1, help='The number of hours for which the SAS token is valid. Default: 1'
-    )
+    parser.add_argument('--expiry_hours', type=int, default=168,
+                        help='The number of hours for which the SAS token is valid. Default: 168 for 1 week')
     args = parser.parse_args()
     args.run_id = '1f391509-f0a7-41d9-bef5-06713739fb0b'
     ssl_url = get_ssl_checkpoint_url(args.run_id, args.checkpoint_filename, args.expiry_hours)
