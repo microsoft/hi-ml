@@ -21,13 +21,11 @@ from health_azure.amulet import (ENV_AMLT_PROJECT_NAME, ENV_AMLT_INPUT_OUTPUT,
                                  is_amulet_job, get_amulet_aml_working_dir)
 from health_azure.utils import (RUN_CONTEXT, PathOrString, is_global_rank_zero, is_running_in_azure_ml)
 from health_ml.utils import fixed_paths
+from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_ml.utils.common_utils import (CHECKPOINT_FOLDER,
                                           create_unique_timestamp_id,
                                           DEFAULT_AML_UPLOAD_DIR,
-                                          DEFAULT_LOGS_DIR_NAME,
-                                          checkpoint_is_local_file,
-                                          checkpoint_is_aml_run_id,
-                                          checkpoint_is_url,)
+                                          DEFAULT_LOGS_DIR_NAME)
 from health_ml.utils.type_annotations import IntOrFloat, TupleFloat2
 
 
@@ -144,36 +142,13 @@ class ExperimentFolderHandler(Parameterized):
         )
 
 
-SRC_CHECKPOINT_FORMAT_DOC = ("<AzureML_run_id>:<optional/custom/path/to/checkpoints/><filename.ckpt>"
-                             "If no custom path is provided (e.g., <AzureML_run_id>:<filename.ckpt>)"
-                             "the checkpoint will be downloaded from the default checkpoint folder "
-                             "(e.g., 'outputs/checkpoints/'). If no filename is provided, (e.g., "
-                             "`src_checkpoint=<AzureML_run_id>`) the latest checkpoint (last.ckpt) "
-                             "will be used to initialize the model.")
-SRC_CKPT_INFO_MESSAGE = ("Please specify a valid src_checkpoint. You can either use a URL, a local file or an azureml "
-                         "run id. For custom checkpoint paths within an azureml run, (other than last.ckpt), provide "
-                         f"a src_checkpoint in the format {SRC_CHECKPOINT_FORMAT_DOC}.")
-
-CKPT_HELP_DOCS = ("We currently support three types of checkpoints: "
-                  "    a. A local checkpoint folder that contains a checkpoint file."
-                  "    b. A URL to a remote checkpoint to be downloaded."
-                  "    c. A previous azureml run id where the checkpoint is supposed to be "
-                  "       saved ('outputs/checkpoints/' folder by default.)"
-                  f"For the latter case 'c' : src_checkpoint should be in the format of {SRC_CHECKPOINT_FORMAT_DOC}")
-
-
 class WorkflowParams(param.Parameterized):
     """
     This class contains all parameters that affect how the whole training and testing workflow is executed.
     """
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
-    src_checkpoint: str = param.String(default="",
-                                       doc="This flag can be used in 3 different scenarios:"
-                                           "1- Resume training from a checkpoint to train longer using"
-                                           " `resume_training` flag jointly."
-                                           "2- Run inference-only using `run_inference_only` flag jointly."
-                                           "3- Transfer learning from a pretrained model checkpoint."
-                                           f"{CKPT_HELP_DOCS}")
+    src_checkpoint: CheckpointParser = param.ClassSelector(class_=CheckpointParser, default=CheckpointParser(),
+                                                           instantiate=False, doc=CheckpointParser.DOC)
     crossval_count: int = param.Integer(default=1, bounds=(0, None),
                                         doc="The number of splits to use when doing cross-validation. "
                                             "Use 1 to disable cross-validation")
@@ -218,36 +193,15 @@ class WorkflowParams(param.Parameterized):
     CROSSVAL_COUNT_ARG_NAME = "crossval_count"
     RANDOM_SEED_ARG_NAME = "random_seed"
 
-    @property
-    def src_checkpoint_is_url(self) -> bool:
-        return checkpoint_is_url(self.src_checkpoint)
-
-    @property
-    def src_checkpoint_is_local_file(self) -> bool:
-        return checkpoint_is_local_file(self.src_checkpoint)
-
-    @property
-    def src_checkpoint_is_aml_run_id(self) -> bool:
-        return checkpoint_is_aml_run_id(self.src_checkpoint)
-
-    @property
-    def is_valid_src_checkpoint(self) -> bool:
-        if self.src_checkpoint:
-            return self.src_checkpoint_is_local_file or self.src_checkpoint_is_url or self.src_checkpoint_is_aml_run_id
-        return True
-
     def validate(self) -> None:
-        if not self.is_valid_src_checkpoint:
-            raise ValueError(f"Invalid src_checkpoint: {self.src_checkpoint}. Please provide a valid URL, local file "
-                             "or azureml run id.")
         if self.crossval_count > 1:
             if not (0 <= self.crossval_index < self.crossval_count):
                 raise ValueError(f"Attribute crossval_index out of bounds (crossval_count = {self.crossval_count})")
 
         if self.run_inference_only and not self.src_checkpoint:
-            raise ValueError(f"Cannot run inference without a src_checkpoint. {SRC_CKPT_INFO_MESSAGE}")
+            raise ValueError(f"Cannot run inference without a src_checkpoint. {CheckpointParser.INFO_MESSAGE}")
         if self.resume_training and not self.src_checkpoint:
-            raise ValueError(f"Cannot resume training without a src_checkpoint. {SRC_CKPT_INFO_MESSAGE}")
+            raise ValueError(f"Cannot resume training without a src_checkpoint. {CheckpointParser.INFO_MESSAGE}")
 
     @property
     def is_running_in_aml(self) -> bool:

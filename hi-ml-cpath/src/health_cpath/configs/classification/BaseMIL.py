@@ -19,7 +19,6 @@ from health_cpath.utils.callbacks import LossAnalysisCallback, LossCallbackParam
 from health_ml.utils import fixed_paths
 from health_ml.deep_learning_config import OptimizerParams
 from health_ml.lightning_container import LightningContainer
-from health_ml.deep_learning_config import SRC_CKPT_INFO_MESSAGE
 from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
 from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
 
@@ -98,7 +97,6 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
 
     def validate(self) -> None:
         super().validate()
-        EncoderParams.validate(self)
         if not any([self.tune_encoder, self.tune_pooling, self.tune_classifier]) and not self.run_inference_only:
             raise ValueError(
                 "At least one of the encoder, pooling or classifier should be fine tuned. Turn on one of the tune "
@@ -111,7 +109,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
         ):
             raise ValueError(
                 "You need to specify a source checkpoint, to use a pretrained encoder, pooling or classifier."
-                f"{SRC_CKPT_INFO_MESSAGE}"
+                f"{self.src_checkpoint.INFO_MESSAGE}"
             )
         if (
             self.tune_encoder and self.encoding_chunk_size < self.max_bag_size
