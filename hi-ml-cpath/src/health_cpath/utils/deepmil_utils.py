@@ -26,7 +26,7 @@ from health_ml.networks.layers.attention_layers import (
     TransformerPooling,
     TransformerPoolingBenchmark,
 )
-from health_ml.deep_learning_config import SRC_CHECKPOINT_FORMAT_DOC
+from health_ml.deep_learning_config import SRC_CHECKPOINT_FORMAT_DOC, CKPT_HELP_DOCS
 from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.common_utils import checkpoint_is_aml_run_id, checkpoint_is_local_file, checkpoint_is_url
 
@@ -64,9 +64,7 @@ class EncoderParams(param.Parameterized):
     encoding_chunk_size: int = param.Integer(
         default=0, doc="If > 0 performs encoding in chunks, by enconding_chunk_size tiles " "per chunk"
     )
-    ssl_checkpoint: str = param.String(
-        default="", doc="Optional run id from which to load checkpoint if using SSLEncoder"
-    )
+    ssl_checkpoint: str = param.String(default="", doc=f"SSL checkpoint to use for the encoder. {CKPT_HELP_DOCS}")
 
     @property
     def ssl_checkpoint_is_url(self) -> bool:

@@ -154,6 +154,13 @@ SRC_CKPT_INFO_MESSAGE = ("Please specify a valid src_checkpoint. You can either 
                          "run id. For custom checkpoint paths within an azureml run, (other than last.ckpt), provide "
                          f"a src_checkpoint in the format {SRC_CHECKPOINT_FORMAT_DOC}.")
 
+CKPT_HELP_DOCS = ("We currently support three types of checkpoints: "
+                  "    a. A local checkpoint folder that contains a checkpoint file."
+                  "    b. A URL to a remote checkpoint to be downloaded."
+                  "    c. A previous azureml run id where the checkpoint is supposed to be "
+                  "       saved ('outputs/checkpoints/' folder by default.)"
+                  f"For the latter case 'c' : src_checkpoint should be in the format of {SRC_CHECKPOINT_FORMAT_DOC}")
+
 
 class WorkflowParams(param.Parameterized):
     """
@@ -166,13 +173,7 @@ class WorkflowParams(param.Parameterized):
                                            " `resume_training` flag jointly."
                                            "2- Run inference-only using `run_inference_only` flag jointly."
                                            "3- Transfer learning from a pretrained model checkpoint."
-                                           "We currently support three types of checkpoints: "
-                                           "    a. A local checkpoint folder that contains a checkpoint file."
-                                           "    b. A URL to a remote checkpoint to be downloaded."
-                                           "    c. A previous azureml run id where the checkpoint is supposed to be "
-                                           "       saved ('outputs/checkpoints/' folder by default.)"
-                                           "For the latter case 'c' : src_checkpoint should be in the format of "
-                                           f"{SRC_CHECKPOINT_FORMAT_DOC}")
+                                           f"{CKPT_HELP_DOCS}")
     crossval_count: int = param.Integer(default=1, bounds=(0, None),
                                         doc="The number of splits to use when doing cross-validation. "
                                             "Use 1 to disable cross-validation")
