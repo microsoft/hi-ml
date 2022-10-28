@@ -131,6 +131,9 @@ class StainNormalization(object):
         return nimg
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
+        original_shape = img.shape
+        if len(original_shape) == 3:
+            img = img.unsqueeze(0)  # add batch dimension if missing
         # if the input is a bag of images, stain normalization needs to run on each image separately
         if img.shape[0] > 1:
             for i in range(img.shape[0]):
@@ -138,7 +141,10 @@ class StainNormalization(object):
                 img[i] = self.stain_normalize(img_tile.unsqueeze(0), self.reference_mean, self.reference_std)
             return img
         else:
-            return self.stain_normalize(img, self.reference_mean, self.reference_std)
+            img = self.stain_normalize(img, self.reference_mean, self.reference_std)
+            if len(original_shape) == 3:
+                return img.squeeze(0)
+            return img
 
 
 class GaussianBlur(object):

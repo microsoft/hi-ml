@@ -65,6 +65,9 @@ def test_stain_normalization() -> None:
     _test_data_augmentation(data_augmentation, dummy_img, expected_output_img, stochastic=False)
     _test_data_augmentation(data_augmentation, dummy_bag, expected_output_bag, stochastic=False)
 
+    # Test tiling on the fly (i.e. when the input image does not have a batch dimension)
+    _test_data_augmentation(data_augmentation, dummy_img.squeeze(0), expected_output_img.squeeze(0), stochastic=False)
+
 
 def test_hed_jitter() -> None:
     data_augmentation = HEDJitter(0.05)
