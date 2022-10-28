@@ -47,6 +47,5 @@ if __name__ == '__main__':
     parser.add_argument('--expiry_hours', type=int, default=168,
                         help='The number of hours for which the SAS token is valid. Default: 168 for 1 week')
     args = parser.parse_args()
-    args.run_id = '1f391509-f0a7-41d9-bef5-06713739fb0b'
     ssl_url = get_ssl_checkpoint_url(args.run_id, args.checkpoint_filename, args.expiry_hours)
     print(f'SSL checkpoint URL: {ssl_url}')
