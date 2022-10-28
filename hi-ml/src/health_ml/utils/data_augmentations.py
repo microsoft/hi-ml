@@ -12,10 +12,10 @@ class HEDJitter(object):
     """
     Randomly perturbe the HED color space value an RGB image.
 
-    First, it disentangled the hematoxylin and eosin color channels by color deconvolution method using a fixed matrix,
-    taken from Ruifrok and Johnston (2001): "Quantification of histochemical staining by color deconvolution."
+    First, it disentangled the hematoxylin and eosin color channels by color deconvolution method using a fixed matrix.
     Second, it perturbed the hematoxylin, eosin stains independently.
     Third, it transformed the resulting stains into regular RGB color space.
+    PyTorch version of: https://github.com/gatsby2016/Augmentation-PyTorch-Transforms/blob/master/myTransforms.py
 
     Usage example:
         >>> transform = HEDJitter(0.05)
@@ -37,45 +37,45 @@ class HEDJitter(object):
         self.hed_from_rgb = torch.tensor([[1.87798274, -1.00767869, -0.55611582],
                                           [-0.06590806, 1.13473037, -0.1355218],
                                           [-0.60190736, -0.48041419, 1.57358807]])
+        self.log_adjust = torch.log(torch.tensor(1E-6))
 
-    @staticmethod
-    def adjust_hed(img: torch.Tensor,
-                   theta: float,
-                   stain_from_rgb_mat: torch.Tensor,
-                   rgb_from_stain_mat: torch.Tensor
-                   ) -> torch.Tensor:
+    def adjust_hed(self, img: torch.Tensor) -> torch.Tensor:
         """
         Applies HED jitter to image.
 
         :param img: Input image.
-        :param theta: Strength of the jitter. HED_light: theta=0.05; HED_strong: theta=0.2.
-        :param stain_from_rgb_mat: Transformation matrix from HED to RGB.
-        :param rgb_from_stain_mat: Transformation matrix from RGB to HED.
         """
-        alpha = torch.FloatTensor(1, 3).uniform_(1 - theta, 1 + theta)
-        beta = torch.FloatTensor(1, 3).uniform_(-theta, theta)
 
-        # Only perturb the H (=0) and E (=1) channels
-        alpha[0][-1] = 1.
-        beta[0][-1] = 0.
+        alpha = torch.FloatTensor(img.shape[0], 1, 1, 3).uniform_(1 - self.theta, 1 + self.theta)
+        beta = torch.FloatTensor(img.shape[0], 1, 1, 3).uniform_(-self.theta, self.theta)
 
         # Separate stains
         img = img.permute([0, 2, 3, 1])
-        img = img + 2  # for consistency with skimage
-        stains = -torch.log10(img) @ stain_from_rgb_mat
-        stains = alpha * stains + beta  # perturbations in HED color space
+        img = torch.maximum(img, 1E-6 * torch.ones(img.shape))
+        stains = (torch.log(img) / self.log_adjust) @ self.hed_from_rgb
+        stains = torch.maximum(stains, torch.zeros(stains.shape))
+
+        # perturbations in HED color space
+        stains = alpha * stains + beta
 
         # Combine stains
-        img = 10 ** (-stains @ rgb_from_stain_mat) - 2
+        img = -(stains * (-self.log_adjust)) @ self.rgb_from_hed
+        img = torch.exp(img)
         img = torch.clip(img, 0, 1)
         img = img.permute(0, 3, 1, 2)
+
+        # Normalize
+        imin = torch.amin(img, dim=[1, 2, 3], keepdim=True)
+        imax = torch.amax(img, dim=[1, 2, 3], keepdim=True)
+        img = (img - imin) / (imax - imin)
 
         return img
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
         if img.shape[1] != 3:
             raise ValueError("HED jitter can only be applied to images with 3 channels (RGB).")
-        return self.adjust_hed(img, self.theta, self.hed_from_rgb, self.rgb_from_hed)
+
+        return self.adjust_hed(img)
 
 
 class StainNormalization(object):
