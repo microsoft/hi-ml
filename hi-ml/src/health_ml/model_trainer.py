@@ -177,6 +177,7 @@ def create_lightning_trainer(container: LightningContainer,
                       limit_test_batches=container.pl_limit_test_batches or 1.0,
                       fast_dev_run=container.pl_fast_dev_run,  # type: ignore
                       num_sanity_val_steps=container.pl_num_sanity_val_steps,
+                      log_every_n_steps=container.pl_log_every_n_steps,
                       # check_val_every_n_epoch=container.pl_check_val_every_n_epoch,
                       callbacks=callbacks,
                       logger=loggers,
