@@ -13,9 +13,9 @@ from health_ml.utils.checkpoint_utils import (
     LAST_CHECKPOINT_FILE_NAME,
     MODEL_WEIGHTS_DIR_NAME,
     AMLCheckpointDownloader,
-    CheckpointHandler,
     CheckpointParser
 )
+from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
 from testhiml.utils.fixed_paths_for_tests import full_test_data_path, mock_run_id
 from testhiml.utils_testhiml import DEFAULT_WORKSPACE
