@@ -238,9 +238,6 @@ class AMLCheckpointDownloader:
             assert self.local_checkpoint_path.exists(), f"Couln't download checkpoint from run {self.run_id}."
 
 
-
-
-
 class CheckpointParser:
     AML_RUN_ID_FORMAT = (f"<AzureML_run_id>:<optional/custom/path/to/checkpoints/><filename{CHECKPOINT_SUFFIX}>"
                          f"If no custom path is provided (e.g., <AzureML_run_id>:<filename{CHECKPOINT_SUFFIX}>)"
