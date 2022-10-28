@@ -527,6 +527,9 @@ class TrainerParams(param.Parameterized):
     pl_accumulate_grad_batches: int = param.Integer(default=1,
                                                     doc="The number of batches over which gradients are accumulated, "
                                                     "before a parameter update is done.")
+    pl_log_every_n_steps: int = param.Integer(default=50,
+                                              doc="PyTorch Lightning trainer flag 'log_every_n_steps': How often to"
+                                              "log within steps. Default to 50.")
 
     @property
     def use_gpu(self) -> bool:
