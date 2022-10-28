@@ -5,7 +5,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Collection
+from typing import Any, Collection, Dict, List
 from unittest.mock import MagicMock, patch
 import pytest
 
@@ -17,21 +17,28 @@ from testhisto.mocks.container import MockDeepSMILETilesPanda
 
 def test_plots_handler_wrong_class_names() -> None:
     plot_options = {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX}
-    with pytest.raises(ValueError) as ex:
+    with pytest.raises(ValueError, match=r"No class_names were provided while activating confusion matrix plotting."):
         _ = DeepMILPlotsHandler(plot_options, class_names=[])
-    assert "No class_names were provided while activating confusion matrix plotting." in str(ex)
 
 
-def test_plots_handler_slide_thumbnails_without_slide_dataset() -> None:
-    with pytest.raises(ValueError) as ex:
+@pytest.mark.parametrize(
+    "slide_plot_options",
+    [
+        [PlotOption.SLIDE_THUMBNAIL],
+        [PlotOption.ATTENTION_HEATMAP],
+        [PlotOption.SLIDE_THUMBNAIL, PlotOption.ATTENTION_HEATMAP]
+    ],
+)
+def test_plots_handler_slide_plot_options_without_slide_dataset(slide_plot_options: List[PlotOption]) -> None:
+    exception_prompt = f"Plot option {slide_plot_options[0]} requires a slides dataset"
+    with pytest.raises(ValueError, match=rf"{exception_prompt}"):
         container = MockDeepSMILETilesPanda(tmp_path=Path("foo"))
         container.setup()
         container.data_module = MagicMock()
         container.data_module.train_dataset.n_classes = 6
         outputs_handler = container.get_outputs_handler()
-        outputs_handler.test_plots_handler.plot_options = {PlotOption.SLIDE_THUMBNAIL_HEATMAP}
+        outputs_handler.test_plots_handler.plot_options = slide_plot_options
         outputs_handler.set_slides_dataset_for_plots_handlers(container.get_slides_dataset())
-    assert "You can not plot slide thumbnails and heatmaps without setting a slides_dataset." in str(ex)
 
 
 def assert_plot_func_called_if_among_plot_options(
@@ -52,13 +59,14 @@ def assert_plot_func_called_if_among_plot_options(
         {},
         {PlotOption.HISTOGRAM, PlotOption.PR_CURVE},
         {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX},
-        {PlotOption.HISTOGRAM, PlotOption.TOP_BOTTOM_TILES, PlotOption.SLIDE_THUMBNAIL_HEATMAP},
+        {PlotOption.HISTOGRAM, PlotOption.TOP_BOTTOM_TILES, PlotOption.ATTENTION_HEATMAP},
         {
             PlotOption.HISTOGRAM,
             PlotOption.PR_CURVE,
             PlotOption.CONFUSION_MATRIX,
             PlotOption.TOP_BOTTOM_TILES,
-            PlotOption.SLIDE_THUMBNAIL_HEATMAP,
+            PlotOption.SLIDE_THUMBNAIL,
+            PlotOption.ATTENTION_HEATMAP,
         },
     ],
 )
@@ -72,23 +80,23 @@ def test_plots_handler_plots_only_desired_plot_options(plot_options: Collection[
     tiles_selector.top_slides_heaps = {0: [slide_node] * n_tiles, 1: [slide_node] * n_tiles}
     tiles_selector.bottom_slides_heaps = {0: [slide_node] * n_tiles, 1: [slide_node] * n_tiles}
 
-    with patch("health_cpath.utils.plots_utils.save_slide_thumbnail_and_heatmap") as mock_slide:
-        with patch("health_cpath.utils.plots_utils.save_top_and_bottom_tiles") as mock_tile:
-            with patch("health_cpath.utils.plots_utils.save_scores_histogram") as mock_histogram:
-                with patch("health_cpath.utils.plots_utils.save_confusion_matrix") as mock_conf:
-                    with patch("health_cpath.utils.plots_utils.save_pr_curve") as mock_pr:
-                        plots_handler.save_plots(
-                            outputs_dir=MagicMock(), tiles_selector=tiles_selector, results=MagicMock()
-                        )
+    patchers: Dict[PlotOption, Any] = {
+        PlotOption.SLIDE_THUMBNAIL: patch("health_cpath.utils.plots_utils.save_slide_thumbnail"),
+        PlotOption.ATTENTION_HEATMAP: patch("health_cpath.utils.plots_utils.save_attention_heatmap"),
+        PlotOption.TOP_BOTTOM_TILES: patch("health_cpath.utils.plots_utils.save_top_and_bottom_tiles"),
+        PlotOption.CONFUSION_MATRIX: patch("health_cpath.utils.plots_utils.save_confusion_matrix"),
+        PlotOption.HISTOGRAM: patch("health_cpath.utils.plots_utils.save_scores_histogram"),
+        PlotOption.PR_CURVE: patch("health_cpath.utils.plots_utils.save_pr_curve"),
+    }
+
+    mock_funcs = {option: patcher.start() for option, patcher in patchers.items()}  # type: ignore
+    with patch.object(plots_handler, "get_slide_dict"):
+        plots_handler.save_plots(outputs_dir=MagicMock(), tiles_selector=tiles_selector, results=MagicMock())
+    patch.stopall()
 
     calls_count = 0
-    calls_count += assert_plot_func_called_if_among_plot_options(
-        mock_slide, PlotOption.SLIDE_THUMBNAIL_HEATMAP, plot_options
-    )
-    calls_count += assert_plot_func_called_if_among_plot_options(mock_tile, PlotOption.TOP_BOTTOM_TILES, plot_options)
-    calls_count += assert_plot_func_called_if_among_plot_options(mock_histogram, PlotOption.HISTOGRAM, plot_options)
-    calls_count += assert_plot_func_called_if_among_plot_options(mock_conf, PlotOption.CONFUSION_MATRIX, plot_options)
-    calls_count += assert_plot_func_called_if_among_plot_options(mock_pr, PlotOption.PR_CURVE, plot_options)
+    for option, mock_func in mock_funcs.items():
+        calls_count += assert_plot_func_called_if_among_plot_options(mock_func, option, plot_options)
 
     assert calls_count == len(plot_options)
 

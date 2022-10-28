@@ -94,7 +94,7 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
 
     def get_test_plot_options(self) -> Set[PlotOption]:
         plot_options = super().get_test_plot_options()
-        plot_options.add(PlotOption.SLIDE_THUMBNAIL_HEATMAP)
+        plot_options.update([PlotOption.SLIDE_THUMBNAIL, PlotOption.ATTENTION_HEATMAP])
         return plot_options
 
 

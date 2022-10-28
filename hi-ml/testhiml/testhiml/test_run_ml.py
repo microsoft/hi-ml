@@ -181,7 +181,9 @@ def test_run_validation(run_extra_val_epoch: bool) -> None:
                 mock_trainer.validate = Mock()
 
                 if run_extra_val_epoch:
-                    runner.run_validation()
+                    with patch.object(runner, "validate_model_weights") as mock_validate_model_weights:
+                        runner.run_validation()
+                        mock_validate_model_weights.assert_called_once()
 
                 assert mock_on_run_extra_validation_epoch.called == run_extra_val_epoch
                 assert hasattr(container.model, "on_run_extra_validation_epoch")
@@ -207,8 +209,9 @@ def test_model_extra_val_epoch(run_extra_val_epoch: bool) -> None:
                 mock_trainer.validate = Mock()
 
                 if run_extra_val_epoch:
-                    runner.run_validation()
-
+                    with patch.object(runner, "validate_model_weights") as mock_validate_model_weights:
+                        runner.run_validation()
+                        mock_validate_model_weights.assert_called_once()
                 assert mock_on_run_extra_validation_epoch.called == run_extra_val_epoch
                 assert mock_trainer.validate.called == run_extra_val_epoch
 
@@ -229,7 +232,9 @@ def test_model_extra_val_epoch_missing_hook(caplog: LogCaptureFixture) -> None:
                 runner.setup()
                 mock_create_trainer.return_value = MagicMock(), MagicMock()
                 runner.init_training()
-                runner.run_validation()
+                with patch.object(runner, "validate_model_weights") as mock_validate_model_weights:
+                    runner.run_validation()
+                    mock_validate_model_weights.assert_called_once()
                 latest_message = caplog.records[-1].getMessage()
                 assert "Hook `on_run_extra_validation_epoch` is not implemented by lightning module." in latest_message
 
@@ -266,7 +271,9 @@ def test_run_inference(ml_runner_with_container: MLRunner, tmp_path: Path) -> No
 
     actual_train_ckpt_path = ml_runner_with_container.checkpoint_handler.get_recovery_or_checkpoint_path_train()
     assert actual_train_ckpt_path is None
-    ml_runner_with_container.run()
+    with patch.object(ml_runner_with_container, "validate_model_weights") as mock_validate_model_weights:
+        ml_runner_with_container.run()
+        mock_validate_model_weights.assert_called_once()
     actual_train_ckpt_path = ml_runner_with_container.checkpoint_handler.get_recovery_or_checkpoint_path_train()
     assert actual_train_ckpt_path == expected_ckpt_path
 
@@ -315,7 +322,12 @@ def test_run_inference_only(ml_runner_with_run_id: MLRunner) -> None:
     ml_runner_with_run_id.container.run_inference_only = True
     assert ml_runner_with_run_id.checkpoint_handler.trained_weights_path
     with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
-        with patch.multiple(ml_runner_with_run_id, run_training=DEFAULT, run_validation=DEFAULT) as mocks:
+        with patch.multiple(
+            ml_runner_with_run_id,
+            run_training=DEFAULT,
+            run_validation=DEFAULT,
+            validate_model_weights=DEFAULT
+        ) as mocks:
             mock_trainer = MagicMock()
             mock_create_trainer.return_value = mock_trainer, MagicMock()
             ml_runner_with_run_id.run()
@@ -324,6 +336,7 @@ def test_run_inference_only(ml_runner_with_run_id: MLRunner) -> None:
             assert recovery_checkpoint == ml_runner_with_run_id.checkpoint_handler.trained_weights_path
             mocks["run_training"].assert_not_called()
             mocks["run_validation"].assert_not_called()
+            mocks["validate_model_weights"].assert_not_called()
             mock_trainer.test.assert_called_once()
 
 

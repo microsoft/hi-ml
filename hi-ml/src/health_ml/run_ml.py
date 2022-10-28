@@ -257,6 +257,25 @@ class MLRunner:
             return self.container.crossval_index == 0
         return True
 
+    def get_trainer_for_inference(self, checkpoint_path: Optional[Path] = None) -> Trainer:
+        # We run inference on a single device because distributed strategies such as DDP use DistributedSampler
+        # internally, which replicates some samples to make sure all devices have the same batch size in case of
+        # uneven inputs.
+        self.container.max_num_gpus = 1
+
+        if self.container.run_inference_only:
+            assert checkpoint_path is not None
+        else:
+            self.validate_model_weights()
+
+        trainer, _ = create_lightning_trainer(
+            container=self.container,
+            resume_from_checkpoint=checkpoint_path,
+            num_nodes=1,
+            azureml_run_for_logging=self.azureml_run_for_logging
+        )
+        return trainer
+
     def run_training(self) -> None:
         """
         The main training loop. It creates the Pytorch model based on the configuration options passed in,
@@ -278,9 +297,19 @@ class MLRunner:
         Run validation on the validation set for all models to save time/memory consuming outputs.
         """
         self.container.on_run_extra_validation_epoch()
+        trainer = self.get_trainer_for_inference(checkpoint_path=None)
         with change_working_directory(self.container.outputs_folder):
-            assert self.trainer, "Trainer should be initialized before validation. Call self.init_training() first."
-            self.trainer.validate(self.container.model, datamodule=self.data_module)
+            trainer.validate(self.container.model, datamodule=self.data_module)
+
+    def validate_model_weights(self) -> None:
+        logging.info("Validating model weights.")
+        weights = torch.load(self.checkpoint_handler.get_checkpoint_to_test())["state_dict"]
+        number_mismatch = 0
+        for name, param in self.container.model.named_parameters():
+            if not torch.allclose(weights[name].cpu(), param):
+                logging.warning(f"Parameter {name} does not match between model and checkpoint.")
+                number_mismatch += 1
+        logging.info(f"Number of mismatched parameters: {number_mismatch}")
 
     def run_inference(self) -> None:
         """
@@ -290,21 +319,10 @@ class MLRunner:
         if self.container.has_custom_test_step():
             # Run Lightning's built-in test procedure if the `test_step` method has been overridden
             logging.info("Running inference via the LightningModule.test_step method")
-            # We run inference on a single device because distributed strategies such as DDP use DistributedSampler
-            # internally, which replicates some samples to make sure all devices have some batch size in case of
-            # uneven inputs.
-            self.container.max_num_gpus = 1
-
             checkpoint_path = (
-                self.checkpoint_handler.get_checkpoint_to_test() if self.container.src_checkpoint else None
+                self.checkpoint_handler.get_checkpoint_to_test() if self.container.run_inference_only else None
             )
-            trainer, _ = create_lightning_trainer(
-                container=self.container,
-                resume_from_checkpoint=checkpoint_path,
-                num_nodes=1,
-                azureml_run_for_logging=self.azureml_run_for_logging
-            )
-
+            trainer = self.get_trainer_for_inference(checkpoint_path)
             # Change to the outputs folder so that the model can write to current working directory, and still
             # everything is put into the right place in AzureML (there, only the contents of the "outputs" folder
             # retained)
@@ -366,6 +384,9 @@ class MLRunner:
                 with logging_section("Model training"):
                     self.run_training()
 
+                # Kill all processes besides rank 0
+                self.after_ddp_cleanup(old_environ)
+
                 # load model checkpoint for custom inference or additional validation step
                 if self.container.has_custom_test_step() or self.container.run_extra_val_epoch:
                     self.load_model_checkpoint()
@@ -374,9 +395,6 @@ class MLRunner:
                 if self.container.run_extra_val_epoch:
                     with logging_section("Model Validation to save plots on validation set"):
                         self.run_validation()
-
-                # Kill all processes besides rank 0
-                self.after_ddp_cleanup(old_environ)
 
             # Run inference on a single device
             with logging_section("Model inference"):

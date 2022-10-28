@@ -8,6 +8,7 @@ import math
 import random
 from pathlib import Path
 from typing import List, Optional
+from unittest.mock import MagicMock, patch
 
 import matplotlib
 import numpy as np
@@ -24,7 +25,7 @@ from health_cpath.utils.viz_utils import plot_attention_tiles, plot_scores_hist,
 from health_cpath.utils.naming import ResultsKey
 from health_cpath.utils.heatmap_utils import location_selected_tiles
 from health_cpath.utils.tiles_selection_utils import SlideNode, TileNode
-from health_cpath.utils.viz_utils import save_figure
+from health_cpath.utils.viz_utils import save_figure, load_image_dict
 from testhisto.utils.utils_testhisto import assert_binary_files_match, full_ml_test_data_path
 
 
@@ -292,3 +293,12 @@ def test_location_selected_tiles(level: int) -> None:
     assert max(tile_xs) <= slide_image.shape[2] // factor
     assert min(tile_ys) >= 0
     assert max(tile_ys) <= slide_image.shape[1] // factor
+
+
+@pytest.mark.parametrize("wsi_has_mask", [True, False])
+def test_load_image_dict(wsi_has_mask: bool) -> None:
+    with patch("health_cpath.utils.viz_utils.LoadPandaROId") as mock_load_panda_roi:
+        with patch("health_cpath.utils.viz_utils.LoadROId") as mock_load_roi:
+            _ = load_image_dict(sample=MagicMock(), level=0, margin=0, wsi_has_mask=wsi_has_mask)  # type: ignore
+            assert mock_load_panda_roi.called == wsi_has_mask
+            assert mock_load_roi.called == (not wsi_has_mask)

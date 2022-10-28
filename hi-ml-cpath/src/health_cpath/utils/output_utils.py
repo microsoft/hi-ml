@@ -56,10 +56,13 @@ def validate_class_names(class_names: Optional[Sequence[str]], n_classes: int) -
 def validate_slide_datasets_for_plot_options(
     plot_options: Collection[PlotOption], slides_dataset: Optional[SlidesDataset]
 ) -> None:
-    if PlotOption.SLIDE_THUMBNAIL_HEATMAP in plot_options and not slides_dataset:
-        raise ValueError("You can not plot slide thumbnails and heatmaps without setting a slides_dataset. "
-                         "Please remove `PlotOption.SLIDE_THUMBNAIL_HEATMAP` from your plot options or provide "
-                         "a slide dataset.")
+
+    def _validate_slide_plot_option(plot_option: PlotOption) -> None:
+        if plot_option in plot_options and not slides_dataset:
+            raise ValueError(f"Plot option {plot_option} requires a slides dataset")
+
+    _validate_slide_plot_option(PlotOption.SLIDE_THUMBNAIL)
+    _validate_slide_plot_option(PlotOption.ATTENTION_HEATMAP)
 
 
 def normalize_dict_for_df(dict_old: Dict[ResultsKey, Any]) -> Dict[str, Any]:
@@ -249,7 +252,7 @@ class DeepMILOutputsHandler:
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
                  maximise: bool, val_plot_options: Collection[PlotOption],
-                 test_plot_options: Collection[PlotOption]) -> None:
+                 test_plot_options: Collection[PlotOption], wsi_has_mask: bool = True) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
@@ -261,6 +264,7 @@ class DeepMILOutputsHandler:
         :param maximise: Whether higher is better for `primary_val_metric`.
         :param val_plot_options: The desired plot options for validation time.
         :param test_plot_options: The desired plot options for test time.
+        :param wsi_has_mask: Whether the whole slides have a mask to crop specific ROIs.
         """
         self.outputs_root = outputs_root
         self.n_classes = n_classes
@@ -279,14 +283,16 @@ class DeepMILOutputsHandler:
             level=self.level,
             tile_size=self.tile_size,
             class_names=self.class_names,
-            stage=ModelKey.VAL
+            stage=ModelKey.VAL,
+            wsi_has_mask=wsi_has_mask
         )
         self.test_plots_handler = DeepMILPlotsHandler(
             plot_options=test_plot_options,
             level=self.level,
             tile_size=self.tile_size,
             class_names=self.class_names,
-            stage=ModelKey.TEST
+            stage=ModelKey.TEST,
+            wsi_has_mask=wsi_has_mask
         )
 
     @property
