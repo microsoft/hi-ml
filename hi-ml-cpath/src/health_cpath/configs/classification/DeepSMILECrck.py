@@ -29,6 +29,7 @@ from health_cpath.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
 from health_cpath.utils.naming import PlotOption
 from health_ml.utils.checkpoint_utils import CheckpointParser
 
+
 class DeepSMILECrck(BaseMILTiles):
     def __init__(self, **kwargs: Any) -> None:
         # Define dictionary with default params that can be overridden from subclasses or CLI
