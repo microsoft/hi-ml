@@ -28,9 +28,9 @@ def test_validate_ssl_checkpoint_encoder_params() -> None:
 
     # The following should be okay
     local_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
-    EncoderParams(encoder_type=SSLEncoder.__name__, ssl_checkpoint=str(local_path)).validate()
+    EncoderParams(encoder_type=SSLEncoder.__name__, ssl_checkpoint=str(local_path))
     run_id = mock_run_id(id=0)
-    EncoderParams(encoder_type=SSLEncoder.__name__, ssl_checkpoint=run_id).validate()
+    EncoderParams(encoder_type=SSLEncoder.__name__, ssl_checkpoint=run_id)
 
 
 def test_load_ssl_checkpoint_from_local_file(tmp_path: Path) -> None:
