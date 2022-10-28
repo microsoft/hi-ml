@@ -27,7 +27,7 @@ from health_cpath.models.encoders import (
 from health_cpath.configs.classification.BaseMIL import BaseMILTiles
 from health_cpath.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
 from health_cpath.utils.naming import PlotOption
-
+from health_ml.utils.checkpoint_utils import CheckpointParser
 
 class DeepSMILECrck(BaseMILTiles):
     def __init__(self, **kwargs: Any) -> None:
@@ -57,7 +57,7 @@ class DeepSMILECrck(BaseMILTiles):
     def setup(self) -> None:
         super().setup()
         # If no SSL checkpoint is provided, use the default one
-        self.ssl_checkpoint = self.ssl_checkpoint or innereye_ssl_checkpoint_crck_4ws
+        self.ssl_checkpoint = self.ssl_checkpoint.checkpoint or CheckpointParser(innereye_ssl_checkpoint_crck_4ws)
 
     def get_data_module(self) -> TilesDataModule:
         return TcgaCrckTilesDataModule(

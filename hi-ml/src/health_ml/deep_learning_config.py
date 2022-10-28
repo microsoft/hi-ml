@@ -147,7 +147,7 @@ class WorkflowParams(param.Parameterized):
     This class contains all parameters that affect how the whole training and testing workflow is executed.
     """
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
-    src_checkpoint: CheckpointParser = param.ClassSelector(class_=CheckpointParser, default=CheckpointParser(),
+    src_checkpoint: CheckpointParser = param.ClassSelector(class_=CheckpointParser, default=None,
                                                            instantiate=False, doc=CheckpointParser.DOC)
     crossval_count: int = param.Integer(default=1, bounds=(0, None),
                                         doc="The number of splits to use when doing cross-validation. "

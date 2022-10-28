@@ -61,7 +61,7 @@ class EncoderParams(param.Parameterized):
     encoding_chunk_size: int = param.Integer(
         default=0, doc="If > 0 performs encoding in chunks, by enconding_chunk_size tiles " "per chunk"
     )
-    ssl_checkpoint: CheckpointParser = param.ClassSelector(class_=CheckpointParser, default=CheckpointParser(),
+    ssl_checkpoint: CheckpointParser = param.ClassSelector(class_=CheckpointParser, default=None,
                                                            instantiate=False, doc=CheckpointParser.DOC)
 
     def get_encoder(self, outputs_folder: Optional[Path]) -> TileEncoder:
