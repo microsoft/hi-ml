@@ -20,6 +20,23 @@ from testhiml.utils.fixed_paths_for_tests import full_test_data_path, mock_run_i
 from testhiml.utils_testhiml import DEFAULT_WORKSPACE
 
 
+def _test_invalid_checkpoint(checkpoint: str) -> None:
+    with pytest.raises(ValueError, match=r"Invalid checkpoint:"):
+        CheckpointParser(checkpoint=checkpoint)
+
+
+def test_validate_checkpoint_parser() -> None:
+
+    _test_invalid_checkpoint(checkpoint="dummy/local/path/model.ckpt")
+    _test_invalid_checkpoint(checkpoint="INV@lid%RUN*id")
+    _test_invalid_checkpoint(checkpoint="http/dummy_url-com")
+
+    # The following should be okay
+    full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
+    CheckpointParser(checkpoint=str(full_file_path))
+    CheckpointParser(checkpoint=mock_run_id(id=0))
+
+
 def test_checkpoint_downloader_run_id() -> None:
     checkpoint_downloader = AMLCheckpointDownloader(run_id="dummy_run_id")
     assert checkpoint_downloader.run_id == "dummy_run_id"

@@ -236,6 +236,11 @@ class AMLCheckpointDownloader:
 
 
 class CheckpointParser:
+    """Wrapper class for parsing checkpoint arguments. A checkpoint can be specified in one of the following ways:
+        1. A local checkpoint file path
+        2. A remote checkpoint file path
+        3. A run ID from which to download the checkpoint file
+    """
     AML_RUN_ID_FORMAT = (f"<AzureML_run_id>:<optional/custom/path/to/checkpoints/><filename{CHECKPOINT_SUFFIX}>"
                          f"If no custom path is provided (e.g., <AzureML_run_id>:<filename{CHECKPOINT_SUFFIX}>)"
                          "the checkpoint will be downloaded from the default checkpoint folder "
@@ -285,7 +290,7 @@ class CheckpointParser:
     @staticmethod
     def download_weights(url: str, download_folder: Path) -> Path:
         """
-        Download a checkpoint from checkpoint_url to the modelweights directory. The file name is determined from
+        Download a checkpoint from checkpoint_url to the download folder. The file name is determined from
         from the file name in the URL. If that can't be determined, use a random file name.
 
         :param url: The URL from which the weights should be downloaded.
@@ -310,6 +315,16 @@ class CheckpointParser:
         return checkpoint_path
 
     def get_path(self, checkpoints_folder: Path) -> Path:
+        """Returns the path to the checkpoint file. If the checkpoint is a URL, it will be downloaded to the checkpoints
+        folder. If the checkpoint is an AzureML run ID, it will be downloaded from the run to the checkpoints folder.
+        If the checkpoint is a local file, it will be returned as is.
+
+        :param checkpoints_folder: The checkpoints folder to which the checkpoint should be downloaded if it is a URL or
+            AzureML run ID.
+        :raises ValueError: If the checkpoint is not a local file, URL or AzureML run ID.
+        :raises FileNotFoundError: If the checkpoint is a URL or AzureML run ID and the download fails.
+        :return: The path to the checkpoint file.
+        """
         if self.is_local_file:
             checkpoint_path = Path(self.checkpoint)
         elif self.is_url:

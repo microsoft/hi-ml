@@ -1,4 +1,8 @@
-import pytest
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -7,30 +11,12 @@ from health_cpath.scripts.generate_ssl_checkpoint_url import get_ssl_checkpoint_
 from health_cpath.utils.deepmil_utils import SSL_CHECKPOINT_DIRNAME, EncoderParams
 from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME
 from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
-from testhiml.utils.fixed_paths_for_tests import full_test_data_path, mock_run_id
+from testhiml.utils.fixed_paths_for_tests import full_test_data_path
 from testhisto.models.test_encoders import TEST_SSL_RUN_ID
 from testhiml.utils_testhiml import DEFAULT_WORKSPACE
 
 
 LAST_CHECKPOINT = f"{DEFAULT_AML_CHECKPOINT_DIR}/{LAST_CHECKPOINT_FILE_NAME}"
-
-
-def _test_invalid_ssl_checkpoint_encoder_params(ssl_checkpoint: str) -> None:
-    with pytest.raises(ValueError, match=r"Invalid ssl_checkpoint:"):
-        EncoderParams(encoder_type=SSLEncoder.__name__, ssl_checkpoint=ssl_checkpoint)
-
-
-def test_validate_ssl_checkpoint_encoder_params() -> None:
-
-    _test_invalid_ssl_checkpoint_encoder_params(ssl_checkpoint="dummy/local/path/model.ckpt")
-    _test_invalid_ssl_checkpoint_encoder_params(ssl_checkpoint="INV@lid%RUN*id")
-    _test_invalid_ssl_checkpoint_encoder_params(ssl_checkpoint="http/dummy_url-com")
-
-    # The following should be okay
-    local_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
-    EncoderParams(encoder_type=SSLEncoder.__name__, ssl_checkpoint=str(local_path))
-    run_id = mock_run_id(id=0)
-    EncoderParams(encoder_type=SSLEncoder.__name__, ssl_checkpoint=run_id)
 
 
 def test_load_ssl_checkpoint_from_local_file(tmp_path: Path) -> None:

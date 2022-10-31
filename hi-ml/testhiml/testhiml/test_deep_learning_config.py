@@ -16,24 +16,6 @@ from health_ml.deep_learning_config import DatasetParams, WorkflowParams, Output
 from testhiml.utils.fixed_paths_for_tests import full_test_data_path, mock_run_id
 
 
-def _test_invalid_src_checkpoint_workflow_params(src_checkpoint: str) -> None:
-    with pytest.raises(ValueError, match=r"Invalid src_checkpoint:"):
-        WorkflowParams(local_datasets=Path("foo"), src_checkpoint=src_checkpoint)
-
-
-def test_validate_workflow_params_src_checkpoint() -> None:
-
-    _test_invalid_src_checkpoint_workflow_params(src_checkpoint="dummy/local/path/model.ckpt")
-    _test_invalid_src_checkpoint_workflow_params(src_checkpoint="INV@lid%RUN*id")
-    _test_invalid_src_checkpoint_workflow_params(src_checkpoint="http/dummy_url-com")
-
-    # The following should be okay
-    full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
-    WorkflowParams(local_dataset=Path("foo"), src_checkpoint=str(full_file_path))
-    run_id = mock_run_id(id=0)
-    WorkflowParams(local_dataset=Path("foo"), src_checkpoint=run_id)
-
-
 def test_validate_workflow_params_for_inference_only() -> None:
     with pytest.raises(ValueError, match=r"Cannot run inference without a src_checkpoint."):
         WorkflowParams(local_datasets=Path("foo"), run_inference_only=True).validate()
