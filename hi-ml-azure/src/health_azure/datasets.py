@@ -98,12 +98,13 @@ def _create_v1_dataset(datastore_name: str, dataset_name: str, workspace: Worksp
     :param workspace: An AML Workspace object.
     :return: An Azure ML (v1) FileDataset object.
     """
-    if (not datastore_name) or (not dataset_name):
-        raise ValueError(f"Cannot create dataset without a valid datastore name (received '{datastore_name}') "
-                         f"and a valid dataset name (received '{dataset_name}')")
-    # Ensure that a v1 workspace is used
-    workspace = get_workspace(aml_workspace=workspace)
-    datastore = get_datastore(workspace, datastore_name)
+    if not dataset_name:
+        raise ValueError(f"Cannot create dataset without a valid dataset name (received '{dataset_name}')")
+
+    if datastore_name:
+        datastore = get_datastore(workspace, datastore_name)
+    else:
+        datastore = workspace.get_default_datastore()
     assert isinstance(datastore, AzureBlobDatastore)
     logging.info(f"Creating a new dataset from data in folder '{dataset_name}' in the datastore")
     # Ensure that there is a / at the end of the file path, otherwise folder that share a prefix could create
@@ -154,9 +155,13 @@ def _create_v2_dataset(datastore_name: str, dataset_name: str, ml_client: MLClie
     :raises ValueError: If no datastore name is provided to define where to create the data
     :return: The created or updated Data asset.
     """
-    if (not datastore_name) or (not dataset_name):
-        raise ValueError(f"Cannot create data asset without a valid datastore name (received {datastore_name}) "
-                         f"and a valid dataset name (received {dataset_name})")
+    if not dataset_name:
+        raise ValueError(f"Cannot create data asset without a valid dataset name (received {dataset_name})")
+
+    if not datastore_name:
+        default_datastore = ml_client.datastores.get_default()
+        datastore_name = default_datastore.name
+
     logging.info(f"Creating a new Data asset from data in folder '{dataset_name}' in the datastore '{datastore_name}'")
     azureml_data_asset = Data(
         path=f"azureml://datastores/{datastore_name}/paths/{dataset_name}/",
