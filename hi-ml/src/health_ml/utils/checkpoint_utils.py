@@ -18,9 +18,6 @@ from health_azure import download_checkpoints_from_run_id, get_workspace
 from health_azure.utils import (RUN_CONTEXT, download_files_from_run_id, get_run_file_names, is_running_in_azure_ml)
 from health_ml.utils.common_utils import (AUTOSAVE_CHECKPOINT_CANDIDATES, DEFAULT_AML_CHECKPOINT_DIR, CHECKPOINT_SUFFIX)
 from health_ml.utils.type_annotations import PathOrString
-from health_azure.utils import is_global_rank_zero
-from health_ml.lightning_container import LightningContainer
-
 
 # This is a constant that must match a filename defined in pytorch_lightning.ModelCheckpoint, but we don't want
 # to import that here.
