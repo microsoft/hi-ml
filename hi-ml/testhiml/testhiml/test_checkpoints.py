@@ -20,23 +20,6 @@ from testhiml.utils.fixed_paths_for_tests import full_test_data_path, mock_run_i
 from testhiml.utils_testhiml import DEFAULT_WORKSPACE
 
 
-def _test_invalid_checkpoint(checkpoint: str) -> None:
-    with pytest.raises(ValueError, match=r"Invalid checkpoint:"):
-        CheckpointParser(checkpoint=checkpoint)
-
-
-def test_validate_checkpoint_parser() -> None:
-
-    _test_invalid_checkpoint(checkpoint="dummy/local/path/model.ckpt")
-    _test_invalid_checkpoint(checkpoint="INV@lid%RUN*id")
-    _test_invalid_checkpoint(checkpoint="http/dummy_url-com")
-
-    # The following should be okay
-    full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
-    CheckpointParser(checkpoint=str(full_file_path))
-    CheckpointParser(checkpoint=mock_run_id(id=0))
-
-
 def test_checkpoint_downloader_run_id() -> None:
     checkpoint_downloader = AMLCheckpointDownloader(run_id="dummy_run_id")
     assert checkpoint_downloader.run_id == "dummy_run_id"
@@ -52,6 +35,23 @@ def test_checkpoint_downloader_run_id() -> None:
     assert checkpoint_downloader.run_id == "dummy_run_id"
     assert checkpoint_downloader.checkpoint_filename == "best.ckpt"
     assert checkpoint_downloader.remote_checkpoint_dir == Path("custom/path")
+
+
+def _test_invalid_checkpoint(checkpoint: str) -> None:
+    with pytest.raises(ValueError, match=r"Invalid checkpoint:"):
+        CheckpointParser(checkpoint=checkpoint)
+
+
+def test_validate_checkpoint_parser() -> None:
+
+    _test_invalid_checkpoint(checkpoint="dummy/local/path/model.ckpt")
+    _test_invalid_checkpoint(checkpoint="INV@lid%RUN*id")
+    _test_invalid_checkpoint(checkpoint="http/dummy_url-com")
+
+    # The following should be okay
+    full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
+    CheckpointParser(checkpoint=str(full_file_path))
+    CheckpointParser(checkpoint=mock_run_id(id=0))
 
 
 def get_checkpoint_handler(tmp_path: Path, src_checkpoint: str) -> Tuple[LightningContainer, CheckpointHandler]:
@@ -100,7 +100,7 @@ def test_load_model_checkpoints_from_aml_run_id(src_chekpoint_filename: str, tmp
             if src_chekpoint_filename
             else LAST_CHECKPOINT_FILE_NAME
         )
-        expected_weights_path = container.outputs_folder / run_id / checkpoint_path / src_checkpoint_filename
+        expected_weights_path = container.checkpoint_folder / run_id / checkpoint_path / src_checkpoint_filename
         assert container.src_checkpoint.is_aml_run_id
         checkpoint_handler.download_recovery_checkpoints_or_weights()
         assert checkpoint_handler.trained_weights_path

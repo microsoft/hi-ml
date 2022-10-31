@@ -13,6 +13,7 @@ from pathlib import Path
 
 from health_ml.deep_learning_config import DatasetParams, WorkflowParams, OutputParams, OptimizerParams, \
     ExperimentFolderHandler, TrainerParams
+from health_ml.utils.checkpoint_utils import CheckpointParser
 from testhiml.utils.fixed_paths_for_tests import full_test_data_path, mock_run_id
 
 
@@ -22,13 +23,14 @@ def test_validate_workflow_params_for_inference_only() -> None:
 
     full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
     run_id = mock_run_id(id=0)
-    WorkflowParams(local_dataset=Path("foo"), run_inference_only=True, src_checkpoint=run_id).validate()
     WorkflowParams(local_dataset=Path("foo"), run_inference_only=True,
-                   src_checkpoint=f"{run_id}:best_val_loss.ckpt").validate()
+                   src_checkpoint=CheckpointParser(run_id)).validate()
     WorkflowParams(local_dataset=Path("foo"), run_inference_only=True,
-                   src_checkpoint=f"{run_id}:custom/path/model.ckpt").validate()
+                   src_checkpoint=CheckpointParser(f"{run_id}:best_val_loss.ckpt")).validate()
     WorkflowParams(local_dataset=Path("foo"), run_inference_only=True,
-                   src_checkpoint=str(full_file_path)).validate()
+                   src_checkpoint=CheckpointParser(f"{run_id}:custom/path/model.ckpt")).validate()
+    WorkflowParams(local_dataset=Path("foo"), run_inference_only=True,
+                   src_checkpoint=CheckpointParser(str(full_file_path))).validate()
 
 
 def test_validate_workflow_params_for_resume_training() -> None:
@@ -37,13 +39,14 @@ def test_validate_workflow_params_for_resume_training() -> None:
 
     full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
     run_id = mock_run_id(id=0)
-    WorkflowParams(local_dataset=Path("foo"), resume_training=True, src_checkpoint=run_id).validate()
     WorkflowParams(local_dataset=Path("foo"), resume_training=True,
-                   src_checkpoint=f"{run_id}:best_val_loss.ckpt").validate()
+                   src_checkpoint=CheckpointParser(run_id)).validate()
     WorkflowParams(local_dataset=Path("foo"), resume_training=True,
-                   src_checkpoint=f"{run_id}:custom/path/model.ckpt").validate()
+                   src_checkpoint=CheckpointParser(f"{run_id}:best_val_loss.ckpt")).validate()
     WorkflowParams(local_dataset=Path("foo"), resume_training=True,
-                   src_checkpoint=str(full_file_path)).validate()
+                   src_checkpoint=CheckpointParser(f"{run_id}:custom/path/model.ckpt")).validate()
+    WorkflowParams(local_dataset=Path("foo"), resume_training=True,
+                   src_checkpoint=CheckpointParser(str(full_file_path))).validate()
 
 
 @pytest.mark.fast
