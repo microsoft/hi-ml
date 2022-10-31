@@ -472,7 +472,6 @@ def test_create_run_configuration_correct_env(mock_create_environment: MagicMock
                 himl.create_run_configuration(mock_workspace,
                                               "dummy_compute_cluster",
                                               conda_environment_file=conda_env_path,
-                                              strictly_aml_v1=True,
                                               )
                 assert "you must specify the python version" in str(e)
 
