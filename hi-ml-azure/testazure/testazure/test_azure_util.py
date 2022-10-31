@@ -655,6 +655,19 @@ def test_nonexisting_amlignore(random_folder: Path) -> None:
     os.chdir(cwd)
 
 
+def test_generate_unique_environment_name() -> None:
+    dummy_env_description_string_1 = "A pretend environment description\ncontaining information about pip "
+    "packages\etc etc"
+    env_name_1 = util.generate_unique_environment_name(dummy_env_description_string_1)
+    assert env_name_1.startswith("HealthML-")
+
+    dummy_env_description_string_2 = "A slightly differetpretend environment description\ncontaining "
+    "information about pip packages\etc etc"
+    env_name_2 = util.generate_unique_environment_name(dummy_env_description_string_2)
+    assert env_name_2.startswith("HealthML-")
+    assert env_name_1 != env_name_2
+
+
 @patch("health_azure.utils.Workspace")
 def test_create_python_environment(
         mock_workspace: mock.MagicMock,
@@ -701,6 +714,42 @@ dependencies:
     envs_pip_packages = list(env.python.conda_dependencies.pip_packages)
     assert "hi-ml-azure" in envs_pip_packages
     assert private_pip_wheel_url in envs_pip_packages
+
+
+@patch("health_azure.utils.Workspace")
+def test_create_python_environment_v2(
+        mock_workspace: mock.MagicMock,
+        random_folder: Path,
+) -> None:
+    conda_str = """name: simple-env
+dependencies:
+  - pip=20.1.1
+  - python=3.7.3
+  - pip:
+    - azureml-sdk==1.23.0
+    - something-else==0.1.5
+  - pip:
+    - --index-url https://test.pypi.org/simple/
+    - --extra-index-url https://pypi.org/simple
+    - hi-ml-azure
+"""
+    conda_environment_file = random_folder / "environment.yml"
+    conda_environment_file.write_text(conda_str)
+    env = util.create_python_environment_v2(conda_environment_file=conda_environment_file)
+
+    # Check that the environment has a reasonable name. Detailed checks for uniqueness of the name follow below.
+    assert env.name.startswith("HealthML")
+    assert env.name.endswith("-v2")
+    assert env._conda_file_path == conda_environment_file
+
+    pip_extra_index_url = "https://where.great.packages.live/"
+    docker_base_image = "viennaglobal.azurecr.io/azureml/azureml_a187a87cc7c31ac4d9f67496bc9c8239"
+    env = util.create_python_environment_v2(
+        conda_environment_file=conda_environment_file,
+        pip_extra_index_url=pip_extra_index_url,
+        docker_base_image=docker_base_image)
+
+    assert env.image == docker_base_image
 
 
 def test_create_environment_unique_name(random_folder: Path) -> None:
@@ -816,6 +865,31 @@ def test_register_environment(
                 mock_register.return_value = mock_environment
                 env = util.register_environment(mock_workspace, mock_environment)
                 assert env.version == util.ENVIRONMENT_VERSION
+
+
+@patch("azure.ai.ml.entities.Environment")
+@patch("azure.ai.ml.MLClient")
+def test_register_environment_v2(
+        mock_ml_client: MagicMock,
+        mock_environment_v2: MagicMock,
+        caplog: LogCaptureFixture,
+) -> None:
+
+    env_name = "an environment"
+    env_version = "environment version"
+    mock_ml_client.environments.get.return_value = mock_environment_v2
+    mock_environment_v2.name = env_name
+    mock_environment_v2.version = env_version
+    with caplog.at_level(logging.INFO):  # type: ignore
+        _ = util.register_environment_v2(mock_environment_v2, mock_ml_client)
+        caplog_text = caplog.text
+        assert "Found a registered environment with the same name and version, returning that." in caplog_text
+
+        # test that log is correct when exception is triggered
+        mock_ml_client.environments.get.side_effect = oh_no
+        _ = util.register_environment_v2(mock_environment_v2, mock_ml_client)
+        caplog_text = caplog.text
+        assert "Didn't find existing environment. Registering a new one." in caplog_text
 
 
 def test_set_environment_variables_for_multi_node(caplog: LogCaptureFixture) -> None:

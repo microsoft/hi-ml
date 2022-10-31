@@ -40,6 +40,7 @@ from azureml.train.hyperdrive import HyperDriveRun
 from azure.ai.ml import MLClient
 from azure.ai.ml.entities import Job
 from azure.ai.ml.entities import Workspace as WorkspaceV2
+from azure.ai.ml.entities import Environment as EnvironmentV2
 from azure.core.credentials import TokenCredential
 from azure.core.exceptions import ClientAuthenticationError
 from azure.identity import (ClientSecretCredential, DeviceCodeCredential,
@@ -1050,6 +1051,22 @@ def is_conda_file_with_pip_include(conda_file: Path) -> Tuple[bool, Dict]:
     return False, conda_yaml
 
 
+def generate_unique_environment_name(environment_description_string: str) -> str:
+    """
+    Generates a unique environment name beginning with "HealthML" and ending with a hash string generated
+    from the environment description.
+
+    :param environment_description_string: String to be hashed that should include everything that can
+        reasonably change between environments.
+    :return: A string representing the unique environment name.
+    """
+
+    sha1 = hashlib.sha1(environment_description_string.encode("utf8"))
+    overall_hash = sha1.hexdigest()[:32]
+    unique_env_name = f"HealthML-{overall_hash}"
+    return unique_env_name
+
+
 def create_python_environment(
     conda_environment_file: Path,
     pip_extra_index_url: str = "",
@@ -1090,8 +1107,7 @@ def create_python_environment(
         logging.info(f"Added add_private_pip_wheel {private_pip_wheel_path} to AzureML environment.")
     # Create a name for the environment that will likely uniquely identify it. AzureML does hashing on top of that,
     # and will re-use existing environments even if they don't have the same name.
-    # Hashing should include everything that can reasonably change. Rely on hashlib here, because the built-in
-    hash_string = "\n".join(
+    env_description_string = "\n".join(
         [
             yaml_contents,
             docker_base_image,
@@ -1106,9 +1122,7 @@ def create_python_environment(
     )
     # Python's hash function gives different results for the same string in different python instances,
     # hence need to use hashlib
-    sha1 = hashlib.sha1(hash_string.encode("utf8"))
-    overall_hash = sha1.hexdigest()[:32]
-    unique_env_name = f"HealthML-{overall_hash}"
+    unique_env_name = generate_unique_environment_name(env_description_string)
     env = Environment(name=unique_env_name)
     env.python.conda_dependencies = conda_dependencies
     if docker_base_image:
@@ -1140,6 +1154,66 @@ def register_environment(workspace: Workspace, environment: Environment) -> Envi
             f" with version '{environment.version}'"
         )
         return environment.register(workspace)
+
+
+def create_python_environment_v2(
+    conda_environment_file: Optional[Path] = None,
+    pip_extra_index_url: str = "",
+    private_pip_wheel_path: Optional[Path] = None,
+    docker_base_image: str = ""
+) -> EnvironmentV2:
+    """
+    Creates a description for the V2 Python execution environment in AzureML, based on the arguments.
+    The environment will have a name that uniquely identifies it (it is based on hashing the contents of the
+    Conda file, the docker base image, environment variables and private wheels.
+
+    :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
+    :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
+        the Docker image.
+    :param private_pip_wheel_path: If provided, add this wheel as a private package to the AzureML environment.
+    :param conda_environment_file: The file that contains the Conda environment definition.
+    :return: A v2 Azure ML Environment object
+    """
+    yaml_contents = conda_environment_file.read_text()
+    environment_description_string = "\n".join(
+        [
+            yaml_contents,
+            docker_base_image,
+            # Changing the index URL can lead to differences in package version resolution
+            pip_extra_index_url,
+            # Use the path of the private wheel as a proxy. This could lead to problems if
+            # a new environment uses the same private wheel file name, but the wheel has different
+            # contents. In hi-ml PR builds, the wheel file name is unique to the build, so it
+            # should not occur there.
+            str(private_pip_wheel_path),
+        ]
+    )
+    unique_env_name = generate_unique_environment_name(environment_description_string)
+    environment = EnvironmentV2(
+        image=docker_base_image,
+        name=unique_env_name + "-v2",
+        conda_file=conda_environment_file,
+    )
+    return environment
+
+
+def register_environment_v2(environment: EnvironmentV2, ml_client: MLClient) -> EnvironmentV2:
+    """
+    Try to get the v2 AzureML environment by name and version from the AzureML workspace. If it succeeds, return that
+    environment object. If that fails, register the environment with the MLClient.
+
+    :param ml_client: An AzureML MLClient object.
+    :param environment: An AzureML execution environment.
+    :return: A v2 AzureML Environment object. If the environment did already exist on the workspace, returns that,
+        otherwise returns the newly registered environment.
+    """
+    try:
+        env = ml_client.environments.get(environment.name, environment.version)
+        logging.info("Found a registered environment with the same name and version, returning that.")
+    except:
+        logging.info("Didn't find existing environment. Registering a new one.")
+        env = ml_client.environments.create_or_update(environment)
+    return env
 
 
 def run_duration_string_to_seconds(s: str) -> Optional[int]:
