@@ -38,7 +38,7 @@ def test_checkpoint_downloader_run_id() -> None:
 
 
 def _test_invalid_checkpoint(checkpoint: str) -> None:
-    with pytest.raises(ValueError, match=r"Invalid checkpoint:"):
+    with pytest.raises(ValueError, match=r"Invalid checkpoint "):
         CheckpointParser(checkpoint=checkpoint)
 
 
