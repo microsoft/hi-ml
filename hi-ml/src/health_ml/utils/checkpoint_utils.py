@@ -257,11 +257,8 @@ class CheckpointParser:
            f"For the latter case 'c' : src_checkpoint should be in the format of {AML_RUN_ID_FORMAT}")
 
     def __init__(self, checkpoint: str = "") -> None:
-        if not checkpoint:
-            self = None
-        else:
-            self.checkpoint = checkpoint
-            self.validate()
+        self.checkpoint = checkpoint
+        self.validate()
 
     @property
     def is_url(self) -> bool:
