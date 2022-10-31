@@ -352,6 +352,7 @@ def submit_run_v2(workspace: Optional[Workspace],
         else:
             raise ValueError("Either workspace or workspace_config_path must be specified to connect to the Workspace")
 
+    assert compute_target is not None, "No compute_target has been provided"
     assert entry_script is not None, "No entry_script has been provided"
     snapshot_root_directory = snapshot_root_directory or Path()
     root_dir = Path(snapshot_root_directory)
