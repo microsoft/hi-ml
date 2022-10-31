@@ -307,7 +307,6 @@ class MLRunner:
                 azureml_run_for_logging=self.azureml_run_for_logging,
                 mlflow_run_for_logging=self.mlflow_run_for_logging
             )
-            trainer.loggers
 
             # Change to the outputs folder so that the model can write to current working directory, and still
             # everything is put into the right place in AzureML (there, only the contents of the "outputs" folder

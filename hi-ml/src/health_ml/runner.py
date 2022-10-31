@@ -37,7 +37,7 @@ from health_ml.experiment_config import ExperimentConfig  # noqa: E402
 from health_ml.lightning_container import LightningContainer  # noqa: E402
 from health_ml.run_ml import MLRunner  # noqa: E402
 from health_ml.utils import fixed_paths  # noqa: E402
-from health_ml.utils.common_utils import (check_conda_environment, choose_conda_env_file,  # noqa: E402
+from health_ml.utils.common_utils import (DEFAULT_DOCKER_BASE_IMAGE, check_conda_environment, choose_conda_env_file,  # noqa: E402
                                           is_linux)
 from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
 
@@ -47,8 +47,6 @@ from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
 # path.
 runner_path = Path(sys.argv[0])
 sys.argv[0] = str(runner_path.resolve())
-
-DEFAULT_DOCKER_BASE_IMAGE = "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04"
 
 
 def initialize_rpdb() -> None:

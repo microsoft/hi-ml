@@ -322,14 +322,12 @@ def test_create_run_configuration_fails(
     with pytest.raises(ValueError) as e:
         himl.create_run_configuration(
             compute_cluster_name="b",
-            strictly_aml_v1=True,
             workspace=mock_workspace)
     assert "One of the two arguments 'aml_environment_name' or 'conda_environment_file' must be given." == str(e.value)
     with pytest.raises(ValueError) as e:
         himl.create_run_configuration(
             conda_environment_file=Path(__file__),
             compute_cluster_name="b",
-            strictly_aml_v1=True,
             workspace=mock_workspace)
     assert "Could not find the compute target b in the AzureML workspace" in str(e.value)
     assert existing_compute_target in str(e.value)
@@ -370,7 +368,6 @@ def test_create_run_configuration(
         output_datasets=[DatasetConfig(name="output1")],
         docker_shm_size="2g",
         environment_variables={"foo": "bar"},
-        strictly_aml_v1=True
     )
     assert isinstance(run_config, RunConfiguration)
     assert run_config.target == existing_compute_target
@@ -432,7 +429,6 @@ def test_create_run_configuration_correct_env(mock_create_environment: MagicMock
             mock_environment_get.side_effect = Exception()
             run_config = himl.create_run_configuration(workspace=mock_workspace,
                                                        compute_cluster_name="dummy_compute_cluster",
-                                                       strictly_aml_v1=True,
                                                        conda_environment_file=conda_env_path)
 
             # check that mock_register has been called once with the expected args
@@ -450,7 +446,6 @@ def test_create_run_configuration_correct_env(mock_create_environment: MagicMock
 
             _ = himl.create_run_configuration(mock_workspace,
                                               "dummy_compute_cluster",
-                                              strictly_aml_v1=True,
                                               conda_environment_file=conda_env_path)
 
             # check mock_register has still only been called once
@@ -491,8 +486,7 @@ def test_create_run_configuration_correct_env(mock_create_environment: MagicMock
                 mock_environment_get.side_effect = Exception()
                 run_config = himl.create_run_configuration(mock_workspace,
                                                            "dummy_compute_cluster",
-                                                           conda_environment_file=conda_env_path,
-                                                           strictly_aml_v1=True)
+                                                           conda_environment_file=conda_env_path)
             assert run_config.environment == dummy_env
 
     subprocess.run

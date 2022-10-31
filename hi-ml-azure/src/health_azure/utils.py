@@ -36,13 +36,12 @@ from azureml.core.run import _OfflineRun
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.train.hyperdrive import HyperDriveRun
 
-
 from azure.ai.ml import MLClient
 from azure.ai.ml.entities import Job
 from azure.ai.ml.entities import Workspace as WorkspaceV2
 from azure.ai.ml.entities import Environment as EnvironmentV2
 from azure.core.credentials import TokenCredential
-from azure.core.exceptions import ClientAuthenticationError
+from azure.core.exceptions import ClientAuthenticationError, ResourceNotFoundError
 from azure.identity import (ClientSecretCredential, DeviceCodeCredential,
                             DefaultAzureCredential, InteractiveBrowserCredential)
 
@@ -1157,7 +1156,7 @@ def register_environment(workspace: Workspace, environment: Environment) -> Envi
 
 
 def create_python_environment_v2(
-    conda_environment_file: Optional[Path] = None,
+    conda_environment_file: Path,
     pip_extra_index_url: str = "",
     private_pip_wheel_path: Optional[Path] = None,
     docker_base_image: str = ""
@@ -1208,9 +1207,12 @@ def register_environment_v2(environment: EnvironmentV2, ml_client: MLClient) -> 
         otherwise returns the newly registered environment.
     """
     try:
-        env = ml_client.environments.get(environment.name, environment.version)
-        logging.info("Found a registered environment with the same name and version, returning that.")
-    except:
+        if environment.version:
+            env = ml_client.environments.get(environment.name, environment.version)
+        else:
+            env = ml_client.environments.get(environment.name, label="latest")
+        logging.info("Found a registered environment with name {environment.name}, returning that.")
+    except ResourceNotFoundError:
         logging.info("Didn't find existing environment. Registering a new one.")
         env = ml_client.environments.create_or_update(environment)
     return env

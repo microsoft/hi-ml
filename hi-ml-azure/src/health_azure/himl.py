@@ -23,6 +23,7 @@ from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
 from azure.ai.ml import MLClient, Input, Output, command
 from azure.ai.ml.constants import AssetTypes, InputOutputModes
 from azure.ai.ml.entities import Data, Job
+from azure.ai.ml.entities import Environment as EnvironmentV2
 from azureml._base_sdk_common import user_agent
 from azureml.core import ComputeTarget, Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
@@ -36,9 +37,10 @@ from health_azure.utils import (create_python_environment, create_run_recovery_i
                                 is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
                                 run_duration_string_to_seconds, to_azure_friendly_string, RUN_CONTEXT, get_workspace,
                                 PathOrString, DEFAULT_ENVIRONMENT_VARIABLES, get_ml_client,
-                                ENV_SERVICE_PRINCIPAL_ID, ENV_SERVICE_PRINCIPAL_PASSWORD, ENV_TENANT_ID)
+                                create_python_environment_v2, register_environment_v2)
 from health_azure.datasets import (DatasetConfig, StrOrDatasetConfig, setup_local_datasets,
                                    _input_dataset_key, _output_dataset_key, _replace_string_datasets)
+
 
 logger = logging.getLogger('health_azure')
 logger.setLevel(logging.DEBUG)
@@ -142,10 +144,8 @@ def create_run_configuration(workspace: Workspace,
                              docker_shm_size: str = "",
                              num_nodes: int = 1,
                              max_run_duration: str = "",
-                             ml_client: Optional[MLClient] = None,
                              input_datasets: Optional[List[DatasetConfig]] = None,
                              output_datasets: Optional[List[DatasetConfig]] = None,
-                             strictly_aml_v1: bool = False,
                              ) -> RunConfiguration:
     """
     Creates an AzureML run configuration, that contains information about environment, multi node execution, and
@@ -223,8 +223,7 @@ def create_run_configuration(workspace: Workspace,
         inputs, outputs = convert_himl_to_azureml_datasets(cleaned_input_datasets=input_datasets or [],
                                                            cleaned_output_datasets=output_datasets or [],
                                                            workspace=workspace,
-                                                           ml_client=ml_client,
-                                                           strictly_aml_v1=strictly_aml_v1,
+                                                           strictly_aml_v1=True
                                                            )
         run_config.data = inputs
         run_config.output_data = outputs
@@ -329,9 +328,13 @@ def create_script_run(snapshot_root_directory: Optional[Path] = None,
 
 def submit_run_v2(workspace: Optional[Workspace],
                   experiment_name: str,
-                  script_run_config: Union[ScriptRunConfig, HyperDriveConfig],
+                  environment: EnvironmentV2,
                   input_datasets_v2: Optional[Dict[str, Input]] = None,
                   output_datasets_v2: Optional[Dict[str, Output]] = None,
+                  snapshot_root_directory: Optional[Path] = None,
+                  entry_script: Optional[PathOrString] = None,
+                  script_params: Optional[List[str]] = None,
+                  compute_target: Optional[str] = None,
                   tags: Optional[Dict[str, str]] = None,
                   wait_for_completion: bool = False,
                   wait_for_completion_show_output: bool = False,
@@ -349,14 +352,15 @@ def submit_run_v2(workspace: Optional[Workspace],
         else:
             raise ValueError("Either workspace or workspace_config_path must be specified to connect to the Workspace")
 
-    if isinstance(script_run_config, HyperDriveConfig):
-        script_run_config = script_run_config.run_config
-        assert script_run_config is not None, "HyperdriveConfig object doesnt have run_config attribute"
+    assert entry_script is not None, "No entry_script has been provided"
+    snapshot_root_directory = snapshot_root_directory or Path()
+    root_dir = Path(snapshot_root_directory)
+    entry_script = Path(entry_script).relative_to(root_dir).as_posix()
 
-    script = script_run_config.script
-    args = script_run_config.arguments
+    script_params = script_params or []
+    args = [p for p in script_params if "conda_env" not in p]
     arg_str = " ".join(args)
-    cmd = script + " " + arg_str
+    cmd = "python " + str(entry_script) + " " + arg_str
 
     if input_datasets_v2:
         for i, input_dataset_v2 in enumerate(input_datasets_v2):
@@ -374,28 +378,18 @@ def submit_run_v2(workspace: Optional[Workspace],
     else:
         output_datasets_v2 = {}
 
-    source_directory = Path(script_run_config.source_directory)
-
-    compute_target = script_run_config.run_config.target
-    environment = script_run_config.run_config.environment.name + "@latest"
-
-    # If environment variables are set on the local machine for connecting to an MLClient,
-    # these variables should also be set within the AML job itself
-    env_vars_copy = {
-        "AZURE_TENANT_ID": os.environ.get(ENV_TENANT_ID),
-        "AZURE_CLIENT_ID": os.environ.get(ENV_SERVICE_PRINCIPAL_ID),
-        "AZURE_CLIENT_SECRET": os.environ.get(ENV_SERVICE_PRINCIPAL_PASSWORD),
-    }
     command_job = command(
-        code=str(source_directory),
+        code=str(snapshot_root_directory),
         command=cmd,
         inputs=input_datasets_v2,
         outputs=output_datasets_v2,
-        environment=environment,
-        environment_variables=env_vars_copy,
+        environment=environment.name + "@latest",
         compute=compute_target,
-        base_path=str(source_directory),
         experiment_name=experiment_name,
+        environment_variables={
+            "JOB_EXECUTION_MODE": "Basic",
+            "AZUREML_COMPUTE_USE_COMMON_RUNTIME": "true"
+        }
     )
     returned_job = ml_client.jobs.create_or_update(command_job)
     logging.info(f"URL to job: {returned_job.services['Studio'].endpoint}")  # type: ignore
@@ -689,42 +683,41 @@ def submit_to_azure_if_needed(  # type: ignore
         print(f"Using the Conda environment from this file: {conda_environment_file}")
     conda_environment_file = _str_to_path(conda_environment_file)
 
-    run_config = create_run_configuration(
-        workspace=workspace,
-        ml_client=ml_client,
-        compute_cluster_name=compute_cluster_name,
-        aml_environment_name=aml_environment_name,
-        conda_environment_file=conda_environment_file,
-        environment_variables=environment_variables,
-        pip_extra_index_url=pip_extra_index_url,
-        private_pip_wheel_path=_str_to_path(private_pip_wheel_path),
-        docker_base_image=docker_base_image,
-        docker_shm_size=docker_shm_size,
-        num_nodes=num_nodes,
-        max_run_duration=max_run_duration,
-        input_datasets=cleaned_input_datasets,
-        output_datasets=cleaned_output_datasets,
-        strictly_aml_v1=strictly_aml_v1
-    )
-    script_run_config = create_script_run(snapshot_root_directory=snapshot_root_directory,
-                                          entry_script=entry_script,
-                                          script_params=script_params)
-    script_run_config.run_config = run_config
-
-    if hyperdrive_config:
-        config_to_submit: Union[ScriptRunConfig, HyperDriveConfig] = hyperdrive_config
-        config_to_submit._run_config = script_run_config
-    else:
-        config_to_submit = script_run_config
-
-    effective_experiment_name = experiment_name or Path(script_run_config.script).stem
+    if entry_script is None:
+        entry_script = Path(sys.argv[0])
+    script_params = script_params or sys.argv[1:]
+    effective_experiment_name = experiment_name or Path(entry_script).stem
 
     amlignore_path = snapshot_root_directory / AML_IGNORE_FILE
     lines_to_append = [str(path) for path in (ignored_folders or [])]
-    with append_to_amlignore(
-            amlignore=amlignore_path,
-            lines_to_append=lines_to_append):
+    with append_to_amlignore(amlignore=amlignore_path, lines_to_append=lines_to_append):
         if strictly_aml_v1:
+            run_config = create_run_configuration(
+                workspace=workspace,
+                compute_cluster_name=compute_cluster_name,
+                aml_environment_name=aml_environment_name,
+                conda_environment_file=conda_environment_file,
+                environment_variables=environment_variables,
+                pip_extra_index_url=pip_extra_index_url,
+                private_pip_wheel_path=_str_to_path(private_pip_wheel_path),
+                docker_base_image=docker_base_image,
+                docker_shm_size=docker_shm_size,
+                num_nodes=num_nodes,
+                max_run_duration=max_run_duration,
+                input_datasets=cleaned_input_datasets,
+                output_datasets=cleaned_output_datasets,
+            )
+            script_run_config = create_script_run(snapshot_root_directory=snapshot_root_directory,
+                                                  entry_script=entry_script,
+                                                  script_params=script_params)
+            script_run_config.run_config = run_config
+
+            if hyperdrive_config:
+                config_to_submit: Union[ScriptRunConfig, HyperDriveConfig] = hyperdrive_config
+                config_to_submit._run_config = script_run_config
+            else:
+                config_to_submit = script_run_config
+
             run = submit_run(workspace=workspace,
                              experiment_name=effective_experiment_name,
                              script_run_config=config_to_submit,
@@ -732,13 +725,23 @@ def submit_to_azure_if_needed(  # type: ignore
                              wait_for_completion=wait_for_completion,
                              wait_for_completion_show_output=wait_for_completion_show_output)
         else:
+            assert conda_environment_file is not None
+            environment = create_python_environment_v2(
+                conda_environment_file=conda_environment_file,
+                docker_base_image=docker_base_image
+            )
+            registered_env = register_environment_v2(environment, ml_client)
             input_datasets_v2 = create_v2_inputs(ml_client, cleaned_input_datasets)
             output_datasets_v2 = create_v2_outputs(cleaned_output_datasets)
             run = submit_run_v2(workspace=workspace,
                                 input_datasets_v2=input_datasets_v2,
                                 output_datasets_v2=output_datasets_v2,
                                 experiment_name=effective_experiment_name,
-                                script_run_config=config_to_submit,
+                                environment=registered_env,
+                                snapshot_root_directory=snapshot_root_directory,
+                                entry_script=entry_script,
+                                script_params=script_params,
+                                compute_target=compute_cluster_name,
                                 tags=tags,
                                 wait_for_completion=wait_for_completion,
                                 wait_for_completion_show_output=wait_for_completion_show_output)
@@ -764,9 +767,8 @@ def _write_run_recovery_file(run: Run) -> None:
 def convert_himl_to_azureml_datasets(
     cleaned_input_datasets: List[DatasetConfig],
     cleaned_output_datasets: List[DatasetConfig],
-    strictly_aml_v1: bool,
     workspace: Workspace,
-    ml_client: Optional[MLClient] = None,
+    strictly_aml_v1: bool
 ) -> Tuple[Dict[str, DatasetConsumptionConfig], Dict[str, OutputFileDatasetConfig]]:
     """
     Convert the cleaned input and output datasets into dictionaries of DatasetConsumptionConfigs for use in AzureML.
@@ -779,8 +781,7 @@ def convert_himl_to_azureml_datasets(
     """
     inputs = {}
     for index, input_dataset in enumerate(cleaned_input_datasets):
-        consumption = input_dataset.to_input_dataset(index, workspace, strictly_aml_v1,
-                                                     ml_client=ml_client)
+        consumption = input_dataset.to_input_dataset(index, workspace, strictly_aml_v1=strictly_aml_v1)
         if isinstance(consumption, DatasetConsumptionConfig):
             data_name = consumption.name  # type: ignore
             if data_name in inputs:
