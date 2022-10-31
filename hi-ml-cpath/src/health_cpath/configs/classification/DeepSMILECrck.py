@@ -58,7 +58,7 @@ class DeepSMILECrck(BaseMILTiles):
     def setup(self) -> None:
         super().setup()
         # If no SSL checkpoint is provided, use the default one
-        self.ssl_checkpoint = self.ssl_checkpoint.checkpoint or CheckpointParser(innereye_ssl_checkpoint_crck_4ws)
+        self.ssl_checkpoint = self.ssl_checkpoint or CheckpointParser(innereye_ssl_checkpoint_crck_4ws)
 
     def get_data_module(self) -> TilesDataModule:
         return TcgaCrckTilesDataModule(
