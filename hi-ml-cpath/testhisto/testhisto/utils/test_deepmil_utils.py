@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from health_cpath.models.encoders import SSLEncoder
-from health_cpath.scripts.generate_checkpoint_url import get_checkpoint_url_from_aml_run#
+from health_cpath.scripts.generate_checkpoint_url import get_checkpoint_url_from_aml_run
 from health_cpath.utils.deepmil_utils import EncoderParams
 from health_ml.utils.checkpoint_utils import CheckpointParser, LAST_CHECKPOINT_FILE_NAME, MODEL_WEIGHTS_DIR_NAME
 from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
