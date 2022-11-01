@@ -855,6 +855,8 @@ def render_and_run_test_script(path: Path,
                        workspace_config_file_arg=workspace_config_file_arg)
 
     score_args = [str(entry_script_path)]
+    if run_target == RunTarget.AZUREML:
+        score_args.append("--azureml")
     score_args.extend(extra_args)
 
     env = dict(os.environ.items())
@@ -881,6 +883,7 @@ def render_and_run_test_script(path: Path,
         assert EXPECTED_QUEUED not in captured
         return captured
     else:
+        assert EXPECTED_QUEUED not in captured
         with check_config_json(path, shared_config_json=get_shared_config_json()):
             workspace = get_workspace(aml_workspace=None, workspace_config_path=path / WORKSPACE_CONFIG_JSON)
 
@@ -954,8 +957,10 @@ def test_invoking_hello_world_config(run_target: RunTarget, use_package: bool, t
         return
 
     message_guid = uuid4().hex
+    parser_args = "parser.add_argument('-m', '--message', type=str, required=True, help='The message to print out')\n"\
+        "    parser.add_argument('--azureml', type=bool, required=False)"
     extra_options = {
-        'args': 'parser.add_argument("-m", "--message", type=str, required=True, help="The message to print out")',
+        'args': parser_args,
         'body': 'print(f"The message was: {args.message}")'
     }
     extra_args = [f"--message={message_guid}"]
