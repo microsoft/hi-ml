@@ -2150,7 +2150,7 @@ def _get_legitimate_device_code_credential() -> Optional[TokenCredential]:
 
     :return: A valid Azure credential.
     """
-    cred = DeviceCodeCredential(timeout=30)
+    cred = DeviceCodeCredential(timeout=60)
     try:
         _validate_credential(cred)
         return cred

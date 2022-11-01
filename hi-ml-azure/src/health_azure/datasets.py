@@ -23,7 +23,7 @@ from azureml.exceptions._azureml_exception import UserErrorException
 from health_azure.utils import PathOrString, get_workspace, get_ml_client
 
 
-V1_OR_V2_DATA_TYPE = Union[FileDataset, Data]
+V1OrV2DataType = Union[FileDataset, Data]
 
 
 def get_datastore(workspace: Workspace, datastore_name: str) -> Union[AzureBlobDatastore, V2Datastore]:
@@ -196,7 +196,7 @@ def get_or_create_dataset(datastore_name: str,
                           workspace: Workspace,
                           strictly_aml_v1: bool,
                           ml_client: Optional[MLClient] = None,
-                          ) -> V1_OR_V2_DATA_TYPE:
+                          ) -> V1OrV2DataType:
     """
     Looks in the AzureML datastore for a dataset of the given name. If there is no such dataset, a dataset is
     created and registered, assuming that the files are in a folder that has the same name as the dataset.

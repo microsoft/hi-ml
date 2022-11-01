@@ -2435,7 +2435,7 @@ def test_get_credential() -> None:
             with pytest.raises(Exception) as e:
                 get_credential()
                 assert "Unable to generate and validate a credential. Please see Azure ML documentation"\
-                       "for instructions on diffrent options to get a credential" in str(e)
+                       "for instructions on different options to get a credential" in str(e)
 
 
 def test_get_legitimate_service_principal_credential() -> None:
