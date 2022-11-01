@@ -8,6 +8,7 @@ from unittest import mock
 import pytest
 
 from health_ml.configs.hello_world import HelloWorld
+from health_ml.deep_learning_config import WorkflowParams
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils.checkpoint_utils import (
     LAST_CHECKPOINT_FILE_NAME,
@@ -40,6 +41,7 @@ def test_checkpoint_downloader_run_id() -> None:
 def _test_invalid_checkpoint(checkpoint: str) -> None:
     with pytest.raises(ValueError, match=r"Invalid checkpoint "):
         CheckpointParser(checkpoint=checkpoint)
+        WorkflowParams(local_datasets=Path("foo"), src_checkpoint=checkpoint).validate()
 
 
 def test_validate_checkpoint_parser() -> None:
@@ -49,9 +51,12 @@ def test_validate_checkpoint_parser() -> None:
     _test_invalid_checkpoint(checkpoint="http/dummy_url-com")
 
     # The following should be okay
-    full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
-    CheckpointParser(checkpoint=str(full_file_path))
-    CheckpointParser(checkpoint=mock_run_id(id=0))
+    checkpoint = str(full_test_data_path(suffix="hello_world_checkpoint.ckpt"))
+    CheckpointParser(checkpoint=checkpoint)
+    WorkflowParams(local_datasets=Path("foo"), src_checkpoint=CheckpointParser(checkpoint)).validate()
+    checkpoint = mock_run_id(id=0)
+    CheckpointParser(checkpoint=checkpoint)
+    WorkflowParams(local_datasets=Path("foo"), src_checkpoint=CheckpointParser(checkpoint)).validate()
 
 
 def get_checkpoint_handler(tmp_path: Path, src_checkpoint: str) -> Tuple[LightningContainer, CheckpointHandler]:
