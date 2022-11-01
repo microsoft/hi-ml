@@ -53,6 +53,7 @@ class DeepSMILECrck(BaseMILTiles):
             adam_betas=(0.9, 0.99),
         )
         default_kwargs.update(kwargs)
+        super().__init__(**default_kwargs)
 
     def setup(self) -> None:
         super().setup()
