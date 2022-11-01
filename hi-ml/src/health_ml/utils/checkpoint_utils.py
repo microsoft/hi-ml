@@ -246,7 +246,7 @@ class CheckpointParser:
                          "the checkpoint will be downloaded from the default checkpoint folder "
                          f"(e.g., '{DEFAULT_AML_CHECKPOINT_DIR}') If no filename is provided, "
                          "(e.g., `src_checkpoint=<AzureML_run_id>`) the latest checkpoint "
-                         f"({LAST_CHECKPOINT_FILE_NAME}) will be used to initialize the model.")
+                         f"({LAST_CHECKPOINT_FILE_NAME}) will be downloaded.")
     INFO_MESSAGE = ("Please provide a valid checkpoint path, URL or AzureML run ID. For custom checkpoint paths "
                     f"within an azureml run, provide a checkpoint in the format {AML_RUN_ID_FORMAT}.")
     DOC = ("We currently support three types of checkpoints: "
