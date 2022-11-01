@@ -16,6 +16,7 @@ from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.run_ml import MLRunner
+from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_ml.utils.common_utils import is_gpu_available
 from health_azure.utils import is_global_rank_zero
 from health_ml.utils.logging import AzureMLLogger
@@ -62,7 +63,7 @@ def ml_runner_with_run_id() -> Generator:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     container.save_checkpoint = True
-    container.src_checkpoint = mock_run_id(id=0)
+    container.src_checkpoint = CheckpointParser(mock_run_id(id=0))
     with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace:
         mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
         runner = MLRunner(experiment_config=experiment_config, container=container)
@@ -356,7 +357,7 @@ def test_model_weights_when_resume_training() -> None:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     container.max_num_gpus = 0
-    container.src_checkpoint = mock_run_id(id=0)
+    container.src_checkpoint = CheckpointParser(mock_run_id(id=0))
     container.resume_training = True
     with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace:
         mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
@@ -375,7 +376,7 @@ def test_runner_end_to_end() -> None:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     container.max_num_gpus = 0
-    container.src_checkpoint = mock_run_id(id=0)
+    container.src_checkpoint = CheckpointParser(mock_run_id(id=0))
     with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace:
         mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
         runner = MLRunner(experiment_config=experiment_config, container=container)

@@ -36,7 +36,7 @@ from SSL.configs.CXR_SSL_configs import CXRImageClassifier, NIH_RSNA_SimCLR
 
 from health_ml.runner import Runner
 from health_ml.utils import AzureMLProgressBar
-from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME
 from health_ml.utils.fixed_paths import repository_root_directory, OutputFolderForTests
 from health_ml.utils.lightning_loggers import StoringLogger
 
@@ -247,7 +247,7 @@ def test_ssl_container_rsna() -> None:
     _compare_stored_metrics(runner, expected_metrics)
 
     # Check that we are able to load the checkpoint and create classifier model
-    checkpoint_path = loaded_config.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    checkpoint_path = loaded_config.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME
     model_namespace_cxr = "SSL.configs.CXRImageClassifier"
     args = common_test_args + [f"--model={model_namespace_cxr}",
                                f"--local_datasets={str(path_to_cxr_test_dataset)}",

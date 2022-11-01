@@ -25,8 +25,8 @@ from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.model_trainer import create_lightning_trainer, write_experiment_summary_file
 from health_ml.utils import fixed_paths
-from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.checkpoint_utils import cleanup_checkpoints
+from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.common_utils import (
     EFFECTIVE_RANDOM_SEED_KEY_NAME,
     change_working_directory,

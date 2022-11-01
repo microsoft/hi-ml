@@ -46,7 +46,6 @@ class BaseDeepMILModule(LightningModule):
                  pretrained_classifier: bool = False,
                  dropout_rate: Optional[float] = None,
                  verbose: bool = False,
-                 ssl_ckpt_run_id: Optional[str] = None,
                  outputs_folder: Optional[Path] = None,
                  encoder_params: EncoderParams = EncoderParams(),
                  pooling_params: PoolingParams = PoolingParams(),
@@ -63,8 +62,6 @@ class BaseDeepMILModule(LightningModule):
         :param pretrained_classifier: Whether to use pretrained classifier (default=False for random init).
         :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
         :param verbose: if True statements about memory usage are output at each step.
-        :param ssl_ckpt_run_id: Optional parameter to provide the AML run id from where to download the checkpoint
-            if using `SSLEncoder`.
         :param outputs_folder: Path to output folder where encoder checkpoint is downloaded.
         :param encoder_params: Encoder parameters that specify all encoder specific attributes.
         :param pooling_params: Pooling layer parameters that specify all encoder specific attributes.
@@ -98,7 +95,7 @@ class BaseDeepMILModule(LightningModule):
         self.tune_classifier = tune_classifier
 
         # Model components
-        self.encoder = encoder_params.get_encoder(ssl_ckpt_run_id, outputs_folder)
+        self.encoder = encoder_params.get_encoder(outputs_folder)
         self.aggregation_fn, self.num_pooling = pooling_params.get_pooling_layer(self.encoder.num_encoding)
         self.classifier_fn = self.get_classifier()
         self.activation_fn = self.get_activation()

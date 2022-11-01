@@ -7,8 +7,7 @@ import param
 from torch import nn
 from pathlib import Path
 from typing import Optional, Tuple
-from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CheckpointDownloader
-from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
+from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_cpath.models.encoders import (
     HistoSSLEncoder,
     ImageNetSimCLREncoder,
@@ -60,11 +59,18 @@ class EncoderParams(param.Parameterized):
     encoding_chunk_size: int = param.Integer(
         default=0, doc="If > 0 performs encoding in chunks, by enconding_chunk_size tiles " "per chunk"
     )
+    ssl_checkpoint: CheckpointParser = param.ClassSelector(class_=CheckpointParser, default=None,
+                                                           instantiate=False, doc=CheckpointParser.DOC)
 
-    def get_encoder(self, ssl_ckpt_run_id: Optional[str], outputs_folder: Optional[Path]) -> TileEncoder:
+    def validate(self) -> None:
+        """Validate the encoder parameters."""
+        if self.encoder_type == SSLEncoder.__name__ and not self.ssl_checkpoint:
+            raise ValueError("SSLEncoder requires an ssl_checkpoint. Please specify a valid checkpoint. "
+                             f"{CheckpointParser.INFO_MESSAGE}")
+
+    def get_encoder(self, outputs_folder: Optional[Path]) -> TileEncoder:
         """Given the current encoder parameters, returns the encoder object.
 
-        :param ssl_ckpt_run_id: The AML run id for SSL checkpoint download.
         :param outputs_folder: The output folder where SSL checkpoint should be saved.
         :param encoder_params: The encoder arguments that define the encoder class object depending on the encoder type.
         :raises ValueError: If the encoder type is not supported.
@@ -90,15 +96,9 @@ class EncoderParams(param.Parameterized):
             encoder = HistoSSLEncoder(tile_size=self.tile_size, n_channels=self.n_channels)
 
         elif self.encoder_type == SSLEncoder.__name__:
-            assert ssl_ckpt_run_id and outputs_folder, "SSLEncoder requires ssl_ckpt_run_id and outputs_folder"
-            downloader = CheckpointDownloader(
-                run_id=ssl_ckpt_run_id,
-                download_dir=outputs_folder,
-                checkpoint_filename=LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
-                remote_checkpoint_dir=Path(DEFAULT_AML_CHECKPOINT_DIR),
-            )
+            assert outputs_folder is not None, "outputs_folder cannot be None for SSLEncoder"
             encoder = SSLEncoder(
-                pl_checkpoint_path=downloader.local_checkpoint_path,
+                pl_checkpoint_path=self.ssl_checkpoint.get_path(outputs_folder),
                 tile_size=self.tile_size,
                 n_channels=self.n_channels,
             )

@@ -22,6 +22,7 @@ from health_cpath.datasets.default_paths import (
     PANDA_DATASET_ID,
     PANDA_5X_TILES_DATASET_ID)
 from health_cpath.utils.naming import PlotOption
+from health_ml.utils.checkpoint_utils import CheckpointParser
 
 
 class BaseDeepSMILEPanda(BaseMIL):
@@ -70,8 +71,6 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
 
     def setup(self) -> None:
         BaseMILTiles.setup(self)
-        # If no SSL checkpoint is provided, use the default one
-        self.ssl_checkpoint_run_id = self.ssl_checkpoint_run_id or innereye_ssl_checkpoint_binary
 
     def get_data_module(self) -> PandaTilesDataModule:
         return PandaTilesDataModule(
@@ -110,6 +109,8 @@ class TilesPandaImageNetSimCLRMIL(DeepSMILETilesPanda):
 
 class TilesPandaSSLMIL(DeepSMILETilesPanda):
     def __init__(self, **kwargs: Any) -> None:
+        # If no SSL checkpoint is provided, use the default one
+        self.ssl_checkpoint = self.ssl_checkpoint or CheckpointParser(innereye_ssl_checkpoint_binary)
         super().__init__(encoder_type=SSLEncoder.__name__, **kwargs)
 
 
@@ -136,8 +137,6 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
 
     def setup(self) -> None:
         BaseMILSlides.setup(self)
-        # If no SSL checkpoint is provided, use the default one
-        self.ssl_checkpoint_run_id = self.ssl_checkpoint_run_id or innereye_ssl_checkpoint_binary
 
     def get_dataloader_kwargs(self) -> dict:
         return dict(
@@ -181,6 +180,8 @@ class SlidesPandaImageNetSimCLRMIL(DeepSMILESlidesPanda):
 
 class SlidesPandaSSLMIL(DeepSMILESlidesPanda):
     def __init__(self, **kwargs: Any) -> None:
+        # If no SSL checkpoint is provided, use the default one
+        self.ssl_checkpoint = self.ssl_checkpoint or CheckpointParser(innereye_ssl_checkpoint_binary)
         super().__init__(encoder_type=SSLEncoder.__name__, **kwargs)
 
 

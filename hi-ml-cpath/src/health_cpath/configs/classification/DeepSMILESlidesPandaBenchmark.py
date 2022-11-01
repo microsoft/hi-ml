@@ -7,12 +7,13 @@
 from typing import Any, Dict, Callable, Union
 from torch import optim
 from monai.transforms import Compose, ScaleIntensityRanged, RandRotate90d, RandFlipd
-
+from health_cpath.configs.run_ids import innereye_ssl_checkpoint_binary
 from health_azure.utils import create_from_matching_params
 from health_ml.networks.layers.attention_layers import (
     TransformerPooling,
     TransformerPoolingBenchmark
 )
+from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_ml.deep_learning_config import OptimizerParams
 from health_cpath.datasets.panda_dataset import PandaDataset
 from health_cpath.datamodules.panda_module_benchmark import PandaSlidesDataModuleBenchmark
@@ -127,7 +128,6 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             class_weights=self.data_module.class_weights,
             dropout_rate=self.dropout_rate,
             outputs_folder=self.outputs_folder,
-            ssl_ckpt_run_id=self.ssl_checkpoint_run_id,
             encoder_params=create_from_matching_params(self, EncoderParams),
             pooling_params=create_from_matching_params(self, PoolingParams),
             optimizer_params=create_from_matching_params(self, OptimizerParams),
@@ -150,6 +150,8 @@ class SlidesPandaImageNetSimCLRMILBenchmark(DeepSMILESlidesPandaBenchmark):
 
 class SlidesPandaSSLMILBenchmark(DeepSMILESlidesPandaBenchmark):
     def __init__(self, **kwargs: Any) -> None:
+        # If no SSL checkpoint is provided, use the default one
+        self.ssl_checkpoint = self.ssl_checkpoint or CheckpointParser(innereye_ssl_checkpoint_binary)
         super().__init__(encoder_type=SSLEncoder.__name__, **kwargs)
 
 

@@ -4,22 +4,13 @@
 #  -------------------------------------------------------------------------------------------
 
 import logging
-import os
-import uuid
+from azureml.core import Run
 from pathlib import Path
 from typing import Optional
-from urllib.parse import urlparse
-
-import requests
-from azureml.core import Run
 
 from health_azure.utils import is_global_rank_zero
 from health_ml.lightning_container import LightningContainer
-from health_ml.utils.checkpoint_utils import (
-    MODEL_WEIGHTS_DIR_NAME,
-    CheckpointDownloader,
-    find_recovery_checkpoint_on_disk_or_cloud,
-)
+from health_ml.utils.checkpoint_utils import find_recovery_checkpoint_on_disk_or_cloud
 
 
 class CheckpointHandler:
@@ -40,9 +31,8 @@ class CheckpointHandler:
         the checkpoint_url, local_checkpoint or checkpoint from an azureml run id.
         This is called at the start of training.
         """
-
         if self.container.src_checkpoint:
-            self.trained_weights_path = self.get_local_checkpoints_path_or_download()
+            self.trained_weights_path = self.container.src_checkpoint.get_path(self.container.checkpoint_folder)
             self.container.trained_weights_path = self.trained_weights_path
 
     def additional_training_done(self) -> None:
@@ -86,53 +76,3 @@ class CheckpointHandler:
             logging.info(f"Using pre-trained weights from {self.trained_weights_path}")
             return self.trained_weights_path
         raise ValueError("Unable to determine which checkpoint should be used for testing.")
-
-    @staticmethod
-    def download_weights(url: str, download_folder: Path) -> Path:
-        """
-        Download a checkpoint from checkpoint_url to the modelweights directory. The file name is determined from
-        from the file name in the URL. If that can't be determined, use a random file name.
-
-        :param url: The URL from which the weights should be downloaded.
-        :param download_folder: The target folder for the download.
-        :return: A path to the downloaded file.
-        """
-        # assign the same filename as in the download url if possible, so that we can check for duplicates
-        # If that fails, map to a random uuid
-        file_name = os.path.basename(urlparse(url).path) or str(uuid.uuid4().hex)
-        checkpoint_path = download_folder / file_name
-        # only download if hasn't already been downloaded
-        if checkpoint_path.is_file():
-            logging.info(f"File already exists, skipping download: {checkpoint_path}")
-        else:
-            logging.info(f"Downloading weights from URL {url}")
-
-            response = requests.get(url, stream=True)
-            response.raise_for_status()
-            with open(checkpoint_path, "wb") as file:
-                for chunk in response.iter_content(chunk_size=1024):
-                    file.write(chunk)
-        return checkpoint_path
-
-    def get_local_checkpoints_path_or_download(self) -> Path:
-        """
-        Get the path to the local weights to use or download them.
-        """
-
-        if self.container.src_checkpoint_is_local_file:
-            checkpoint_path = Path(self.container.src_checkpoint)
-        elif self.container.src_checkpoint_is_url:
-            download_folder = self.container.checkpoint_folder / MODEL_WEIGHTS_DIR_NAME
-            download_folder.mkdir(exist_ok=True, parents=True)
-            checkpoint_path = self.download_weights(url=self.container.src_checkpoint, download_folder=download_folder)
-        elif self.container.src_checkpoint_is_aml_run_id:
-            downloader = CheckpointDownloader(
-                run_id=self.container.src_checkpoint, download_dir=self.container.outputs_folder
-            )
-            checkpoint_path = downloader.local_checkpoint_path
-        else:
-            raise ValueError("Unable to determine how to get the checkpoint path.")
-
-        if checkpoint_path is None or not checkpoint_path.is_file():
-            raise FileNotFoundError(f"Could not find the weights file at {checkpoint_path}")
-        return checkpoint_path
