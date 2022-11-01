@@ -137,8 +137,6 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
 
     def setup(self) -> None:
         BaseMILSlides.setup(self)
-        # If no SSL checkpoint is provided, use the default one
-        self.ssl_checkpoint = self.ssl_checkpoint or CheckpointParser(innereye_ssl_checkpoint_binary)
 
     def get_dataloader_kwargs(self) -> dict:
         return dict(

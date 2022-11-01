@@ -31,9 +31,8 @@ class CheckpointHandler:
         the checkpoint_url, local_checkpoint or checkpoint from an azureml run id.
         This is called at the start of training.
         """
-
         if self.container.src_checkpoint:
-            self.trained_weights_path = self.get_local_checkpoints_path_or_download()
+            self.trained_weights_path = self.container.src_checkpoint.get_path(self.container.checkpoint_folder)
             self.container.trained_weights_path = self.trained_weights_path
 
     def additional_training_done(self) -> None:
@@ -77,9 +76,3 @@ class CheckpointHandler:
             logging.info(f"Using pre-trained weights from {self.trained_weights_path}")
             return self.trained_weights_path
         raise ValueError("Unable to determine which checkpoint should be used for testing.")
-
-    def get_local_checkpoints_path_or_download(self) -> Path:
-        """
-        Get the path to the local weights to use or download them.
-        """
-        return self.container.src_checkpoint.get_path(self.container.checkpoint_folder)
