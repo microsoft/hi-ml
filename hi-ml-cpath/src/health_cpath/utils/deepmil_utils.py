@@ -27,8 +27,6 @@ from health_ml.networks.layers.attention_layers import (
     TransformerPoolingBenchmark,
 )
 
-SSL_CHECKPOINT_DIRNAME = "ssl_checkpoint"
-
 
 def set_module_gradients_enabled(model: nn.Module, tuning_flag: bool) -> None:
     """Given a model, enable or disable gradients for all parameters.
@@ -64,6 +62,12 @@ class EncoderParams(param.Parameterized):
     ssl_checkpoint: CheckpointParser = param.ClassSelector(class_=CheckpointParser, default=None,
                                                            instantiate=False, doc=CheckpointParser.DOC)
 
+    def validate(self) -> None:
+        """Validate the encoder parameters."""
+        if self.encoder_type == SSLEncoder.__name__ and not self.ssl_checkpoint:
+            raise ValueError("SSLEncoder requires an ssl_checkpoint. Please specify a valid checkpoint. "
+                             f"{CheckpointParser.INFO_MESSAGE}")
+
     def get_encoder(self, outputs_folder: Optional[Path]) -> TileEncoder:
         """Given the current encoder parameters, returns the encoder object.
 
@@ -92,7 +96,7 @@ class EncoderParams(param.Parameterized):
             encoder = HistoSSLEncoder(tile_size=self.tile_size, n_channels=self.n_channels)
 
         elif self.encoder_type == SSLEncoder.__name__:
-            assert self.ssl_checkpoint and outputs_folder, "SSLEncoder requires ssl_checkpoint and outputs_folder"
+            assert outputs_folder is not None, "outputs_folder cannot be None for SSLEncoder"
             encoder = SSLEncoder(
                 pl_checkpoint_path=self.ssl_checkpoint.get_path(outputs_folder),
                 tile_size=self.tile_size,
