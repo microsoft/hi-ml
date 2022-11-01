@@ -76,7 +76,7 @@ class RunPytestConfig(param.Parameterized):
         doc="A folder name that should be added to sys.path. The folder name should be relative to repository root."
     )
     strictly_aml_v1: bool = param.Boolean(default=True, doc="If True, use AzureML v1 SDK. If False (default), use "
-                                                             "the v2 of the SDK")
+                                          "the v2 of the SDK")
 
 
 def run_pytest(folder_to_test: str, pytest_mark: str, coverage_module: str) -> None:
