@@ -238,7 +238,7 @@ def test_get_or_create_v1_dataset() -> None:
 
         mocks["_retrieve_v1_dataset"].side_effect = _mock_error_from_retrieve_v1_dataset
         _get_or_create_v1_dataset(datastore, dataset_name, workspace)
-        mocks["_retrieve_v1_dataset"].call_count == 2
+        assert mocks["_retrieve_v1_dataset"].call_count == 2
         mocks["_create_v1_dataset"].assert_called_once()
 
 
@@ -259,7 +259,7 @@ def test_get_or_create_v2_dataset() -> None:
 
         mocks["_retrieve_v2_dataset"].side_effect = _mock_error_from_retrieve_v2_dataset
         _get_or_create_v2_dataset(datastore, dataset_name, ml_client)
-        mocks["_retrieve_v2_dataset"].call_count == 2
+        assert mocks["_retrieve_v2_dataset"].call_count == 2
         mocks["_create_v2_dataset"].assert_called_once()
 
 
@@ -289,12 +289,14 @@ def test_create_v1_dataset() -> None:
 
     with pytest.raises(Exception) as e:
         _create_v1_dataset(empty_datastore_name, nonempty_dataset_name, workspace)
-        assert "Cannot create dataset without a valid datastore name (received '') and a valid dataset name"
-        f" (received '{nonempty_dataset_name}')" in str(e)
+        expected_str = "Cannot create dataset without a valid datastore name (received '') and a valid dataset name"
+        f" (received '{nonempty_dataset_name}')"
+        assert expected_str in str(e)
 
         _create_v1_dataset(nonempty_datastore_name, empty_dataset_name, workspace)
-        assert f"Cannot create dataset without a valid datastore name (received '{empty_dataset_name}') and "
-        "a valid dataset name (received '')" in str(e)
+        expected_str = f"Cannot create dataset without a valid datastore name (received '{empty_dataset_name}') and "
+        "a valid dataset name (received '')"
+        assert expected_str in str(e)
 
     try:
         existing_dataset = Dataset.get_by_name(workspace, name=tiny_dataset)

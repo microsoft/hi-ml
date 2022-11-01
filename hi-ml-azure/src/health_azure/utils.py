@@ -1211,7 +1211,7 @@ def register_environment_v2(environment: EnvironmentV2, ml_client: MLClient) -> 
             env = ml_client.environments.get(environment.name, environment.version)
         else:
             env = ml_client.environments.get(environment.name, label="latest")
-        logging.info("Found a registered environment with name {environment.name}, returning that.")
+        logging.info(f"Found a registered environment with name {environment.name}, returning that.")
     except ResourceNotFoundError:
         logging.info("Didn't find existing environment. Registering a new one.")
         env = ml_client.environments.create_or_update(environment)

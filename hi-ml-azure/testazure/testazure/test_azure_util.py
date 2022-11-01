@@ -32,6 +32,7 @@ from azure.storage.blob import ContainerClient
 from azureml.core import Experiment, Run, ScriptRunConfig, Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.environment import CondaDependencies
+from azure.core.exceptions import ClientAuthenticationError, ResourceNotFoundError
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
 import health_azure.utils as util
@@ -874,6 +875,8 @@ def test_register_environment_v2(
         mock_environment_v2: MagicMock,
         caplog: LogCaptureFixture,
 ) -> None:
+    def _mock_cant_find_env(env_name: str, label_or_version: str) -> None:
+        raise ResourceNotFoundError("Does not exist")
 
     env_name = "an environment"
     env_version = "environment version"
@@ -883,10 +886,10 @@ def test_register_environment_v2(
     with caplog.at_level(logging.INFO):  # type: ignore
         _ = util.register_environment_v2(mock_environment_v2, mock_ml_client)
         caplog_text = caplog.text
-        assert "Found a registered environment with the same name and version, returning that." in caplog_text
+        assert f"Found a registered environment with name {env_name}, returning that." in caplog_text
 
         # test that log is correct when exception is triggered
-        mock_ml_client.environments.get.side_effect = oh_no
+        mock_ml_client.environments.get.side_effect = _mock_cant_find_env
         _ = util.register_environment_v2(mock_environment_v2, mock_ml_client)
         caplog_text = caplog.text
         assert "Didn't find existing environment. Registering a new one." in caplog_text

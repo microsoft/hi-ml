@@ -855,8 +855,6 @@ def render_and_run_test_script(path: Path,
                        workspace_config_file_arg=workspace_config_file_arg)
 
     score_args = [str(entry_script_path)]
-    if run_target == RunTarget.AZUREML:
-        score_args.append("--azureml")
     score_args.extend(extra_args)
 
     env = dict(os.environ.items())
@@ -883,7 +881,6 @@ def render_and_run_test_script(path: Path,
         assert EXPECTED_QUEUED not in captured
         return captured
     else:
-        assert EXPECTED_QUEUED in captured
         with check_config_json(path, shared_config_json=get_shared_config_json()):
             workspace = get_workspace(aml_workspace=None, workspace_config_path=path / WORKSPACE_CONFIG_JSON)
 
