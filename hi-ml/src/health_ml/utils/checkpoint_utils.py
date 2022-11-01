@@ -288,12 +288,12 @@ class CheckpointParser:
             raise ValueError(f"Invalid checkpoint '{self.checkpoint}'. {self.INFO_MESSAGE}")
 
     @staticmethod
-    def download_weights(url: str, download_folder: Path) -> Path:
+    def download_from_url(url: str, download_folder: Path) -> Path:
         """
         Download a checkpoint from checkpoint_url to the download folder. The file name is determined from
         from the file name in the URL. If that can't be determined, use a random file name.
 
-        :param url: The URL from which the weights should be downloaded.
+        :param url: The URL from which to download.
         :param download_folder: The target folder for the download.
         :return: A path to the downloaded file.
         """
@@ -305,7 +305,7 @@ class CheckpointParser:
         if checkpoint_path.is_file():
             logging.info(f"File already exists, skipping download: {checkpoint_path}")
         else:
-            logging.info(f"Downloading weights from URL {url}")
+            logging.info(f"Downloading from URL {url}")
 
             response = requests.get(url, stream=True)
             response.raise_for_status()
@@ -314,12 +314,12 @@ class CheckpointParser:
                     file.write(chunk)
         return checkpoint_path
 
-    def get_path(self, checkpoints_folder: Path) -> Path:
+    def get_path(self, download_dir: Path) -> Path:
         """Returns the path to the checkpoint file. If the checkpoint is a URL, it will be downloaded to the checkpoints
         folder. If the checkpoint is an AzureML run ID, it will be downloaded from the run to the checkpoints folder.
         If the checkpoint is a local file, it will be returned as is.
 
-        :param checkpoints_folder: The checkpoints folder to which the checkpoint should be downloaded if it is a URL or
+        :param download_dir: The checkpoints folder to which the checkpoint should be downloaded if it is a URL or
             AzureML run ID.
         :raises ValueError: If the checkpoint is not a local file, URL or AzureML run ID.
         :raises FileNotFoundError: If the checkpoint is a URL or AzureML run ID and the download fails.
@@ -328,11 +328,11 @@ class CheckpointParser:
         if self.is_local_file:
             checkpoint_path = Path(self.checkpoint)
         elif self.is_url:
-            download_folder = checkpoints_folder / MODEL_WEIGHTS_DIR_NAME
+            download_folder = download_dir / MODEL_WEIGHTS_DIR_NAME
             download_folder.mkdir(exist_ok=True, parents=True)
-            checkpoint_path = self.download_weights(url=self.checkpoint, download_folder=download_folder)
+            checkpoint_path = self.download_from_url(url=self.checkpoint, download_folder=download_folder)
         elif self.is_aml_run_id:
-            downloader = CheckpointDownloader(run_id=self.checkpoint, download_dir=checkpoints_folder)
+            downloader = CheckpointDownloader(run_id=self.checkpoint, download_dir=download_dir)
             downloader.download_checkpoint_if_necessary()
             checkpoint_path = downloader.local_checkpoint_path
         else:
