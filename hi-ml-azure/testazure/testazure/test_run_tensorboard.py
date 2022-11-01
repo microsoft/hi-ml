@@ -65,6 +65,8 @@ def test_wrapped_tensorboard_remote_logs(tmp_path: Path) -> None:
     AML environment
     """
     ws = DEFAULT_WORKSPACE.workspace
+    parser_args = "parser.add_argument('-m', '--message', type=str, required=True, help='The message to print out')\n"\
+        "    parser.add_argument('--azureml', action='store_false', required=False)"
 
     # call the script here
     extra_options = {
@@ -96,7 +98,8 @@ import sys
         loss.backward()
         optimizer.step()
     writer.flush()
-            """
+            """,
+            "args": parser_args
     }
 
     extra_args: List[str] = []

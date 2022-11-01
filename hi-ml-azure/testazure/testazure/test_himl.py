@@ -883,7 +883,7 @@ def render_and_run_test_script(path: Path,
         assert EXPECTED_QUEUED not in captured
         return captured
     else:
-        assert EXPECTED_QUEUED not in captured
+        assert EXPECTED_QUEUED in captured
         with check_config_json(path, shared_config_json=get_shared_config_json()):
             workspace = get_workspace(aml_workspace=None, workspace_config_path=path / WORKSPACE_CONFIG_JSON)
 
@@ -918,10 +918,12 @@ def test_invoking_hello_world_no_config(run_target: RunTarget, tmp_path: Path) -
     :param run_target: Where to run the script.
     :param tmp_path: PyTest test fixture for temporary path.
     """
+    parser_args = "parser.add_argument('-m', '--message', type=str, required=True, help='The message to print out')\n"\
+        "    parser.add_argument('--azureml', action='store_false', required=False)"
     message_guid = uuid4().hex
     extra_options = {
         'workspace_config_file': 'None',
-        'args': 'parser.add_argument("-m", "--message", type=str, required=True, help="The message to print out")',
+        'args': parser_args,
         'body': 'print(f"The message was: {args.message}")'
     }
     extra_args = [f"--message={message_guid}"]
@@ -958,7 +960,7 @@ def test_invoking_hello_world_config(run_target: RunTarget, use_package: bool, t
 
     message_guid = uuid4().hex
     parser_args = "parser.add_argument('-m', '--message', type=str, required=True, help='The message to print out')\n"\
-        "    parser.add_argument('--azureml', type=bool, required=False)"
+        "    parser.add_argument('--azureml', action='store_false', required=False)"
     extra_options = {
         'args': parser_args,
         'body': 'print(f"The message was: {args.message}")'
@@ -1014,13 +1016,17 @@ def test_invoking_hello_world_env_var(run_target: RunTarget, tmp_path: Path) -> 
     :param tmp_path: PyTest test fixture for temporary path.
     """
     message_guid = uuid4().hex
+    parser_args = "parser.add_argument('-m', '--message', type=str, required=True, help='The message to print out')\n"\
+        "    parser.add_argument('--azureml', action='store_false', required=False)"
     extra_options: Dict[str, str] = {
         "imports": """
 import os
 import sys""",
         'environment_variables': f"{{'message_guid': '{message_guid}'}}",
-        'body': 'print(f"The message_guid env var was: {os.getenv(\'message_guid\')}")'
+        'body': 'print(f"The message_guid env var was: {os.getenv(\'message_guid\')}")',
+        'args': parser_args
     }
+
     extra_args: List[str] = []
     output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
     expected_output = f"The message_guid env var was: {message_guid}"
@@ -1205,6 +1211,8 @@ def test_invoking_hello_world_datasets(run_target: RunTarget,
         f'("{output_dataset.blob_name}", Path("{str(output_dataset.folder_name)}"))'
         for output_dataset in output_datasets]
     script_output_datasets = ',\n        '.join(output_file_names)
+    parser_args = "parser.add_argument('-m', '--message', type=str, required=True, help='The message to print out')\n"\
+        "    parser.add_argument('--azureml', action='store_false', required=False)"
 
     extra_options: Dict[str, str] = {
         'imports': """
@@ -1252,7 +1260,8 @@ import sys
             file = input_folder / filename
             shutil.copy(file, output_folder)
             print(f"Copied file: {{file.name}} from {{input_blob_name}} to {{output_blob_name}}")
-        """
+        """,
+        'args': parser_args,
     }
     extra_args: List[str] = []
     output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
