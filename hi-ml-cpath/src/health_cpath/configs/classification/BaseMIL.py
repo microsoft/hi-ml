@@ -110,7 +110,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
         ):
             raise ValueError(
                 "You need to specify a source checkpoint, to use a pretrained encoder, pooling or classifier."
-                f"{CheckpointParser.INFO_MESSAGE}"
+                f" {CheckpointParser.INFO_MESSAGE}"
             )
         if (
             self.tune_encoder and self.encoding_chunk_size < self.max_bag_size

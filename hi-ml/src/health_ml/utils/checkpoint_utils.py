@@ -339,5 +339,5 @@ class CheckpointParser:
             raise ValueError("Unable to determine how to get the checkpoint path.")
 
         if checkpoint_path is None or not checkpoint_path.is_file():
-            raise FileNotFoundError(f"Could not find the weights file at {checkpoint_path}")
+            raise FileNotFoundError(f"Could not find the file at {checkpoint_path}")
         return checkpoint_path
