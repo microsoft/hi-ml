@@ -21,7 +21,8 @@ LAST_CHECKPOINT = f"{DEFAULT_AML_CHECKPOINT_DIR}/{LAST_CHECKPOINT_FILE_NAME}"
 
 def test_validate_encoder_params() -> None:
     with pytest.raises(ValueError, match=r"SSLEncoder requires an ssl_checkpoint"):
-        _ = EncoderParams(encoder_type=SSLEncoder.__name__)
+        encoder = EncoderParams(encoder_type=SSLEncoder.__name__)
+        encoder.validate()
 
 
 def test_load_ssl_checkpoint_from_local_file(tmp_path: Path) -> None:
