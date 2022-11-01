@@ -42,7 +42,7 @@ def test_load_ssl_checkpoint_from_local_file(tmp_path: Path) -> None:
 
 
 def test_load_ssl_checkpoint_from_url(tmp_path: Path) -> None:
-    blob_url = get_checkpoint_url_from_aml_run#(
+    blob_url = get_checkpoint_url_from_aml_run(
         run_id=TEST_SSL_RUN_ID,
         checkpoint_filename=LAST_CHECKPOINT_FILE_NAME,
         expiry_days=1,
