@@ -1386,7 +1386,7 @@ from health_azure.utils import replace_directory
     assert not output_dir.exists()
     assert (new_output_dir / file_name).exists()
 """,
-    "args": parser_args,
+        "args": parser_args,
     }
 
     render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options,
