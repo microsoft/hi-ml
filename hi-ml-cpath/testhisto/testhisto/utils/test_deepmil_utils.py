@@ -45,7 +45,7 @@ def test_load_ssl_checkpoint_from_url(tmp_path: Path) -> None:
     blob_url = get_ssl_checkpoint_url(
         run_id=TEST_SSL_RUN_ID,
         checkpoint_filename=LAST_CHECKPOINT_FILE_NAME,
-        expiry_hours=1,
+        expiry_days=1,
         aml_workspace=DEFAULT_WORKSPACE.workspace)
     encoder_params = EncoderParams(encoder_type=SSLEncoder.__name__, ssl_checkpoint=CheckpointParser(blob_url))
     assert encoder_params.ssl_checkpoint.is_url

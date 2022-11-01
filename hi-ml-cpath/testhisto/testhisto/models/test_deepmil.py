@@ -15,13 +15,16 @@ from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, Typ
 
 from torch import Tensor, argmax, nn, rand, randint, randn, round, stack, allclose
 from torch.utils.data._utils.collate import default_collate
+from health_cpath.configs.classification.DeepSMILESlidesPandaBenchmark import SlidesPandaSSLMILBenchmark
 from health_cpath.datamodules.panda_module import PandaTilesDataModule
 
 from health_ml.networks.layers.attention_layers import AttentionLayer, TransformerPoolingBenchmark
 from health_cpath.configs.classification.BaseMIL import BaseMIL, BaseMILTiles
 
-from health_cpath.configs.classification.DeepSMILECrck import DeepSMILECrck
-from health_cpath.configs.classification.DeepSMILEPanda import BaseDeepSMILEPanda, DeepSMILETilesPanda
+from health_cpath.configs.classification.DeepSMILECrck import DeepSMILECrck, TcgaCrckSSLMIL
+from health_cpath.configs.classification.DeepSMILEPanda import (
+    BaseDeepSMILEPanda, DeepSMILETilesPanda, SlidesPandaSSLMIL, TilesPandaSSLMIL
+)
 from health_cpath.datamodules.base_module import HistoDataModule, TilesDataModule
 from health_cpath.datasets.base_dataset import DEFAULT_LABEL_COLUMN, TilesDataset
 from health_cpath.datasets.default_paths import PANDA_5X_TILES_DATASET_ID, TCGA_CRCK_DATASET_DIR
@@ -34,6 +37,9 @@ from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPosi
 from testhisto.mocks.tiles_generator import MockPandaTilesGenerator
 from testhisto.mocks.container import MockDeepSMILETilesPanda, MockDeepSMILESlidesPanda
 from health_ml.utils.common_utils import is_gpu_available
+from health_ml.utils.checkpoint_utils import CheckpointParser
+from health_cpath.configs.run_ids import innereye_ssl_checkpoint_crck_4ws, innereye_ssl_checkpoint_binary
+from testhisto.models.test_encoders import TEST_SSL_RUN_ID
 
 no_gpu = not is_gpu_available()
 
@@ -716,3 +722,17 @@ def test_on_run_extra_val_epoch(mock_panda_tiles_root_dir: Path) -> None:
         container.model.outputs_handler.test_plots_handler.plot_options  # type: ignore
         == container.model.outputs_handler.val_plots_handler.plot_options  # type: ignore
     )
+
+
+@pytest.mark.parametrize(
+    "container_type", [TcgaCrckSSLMIL, TilesPandaSSLMIL, SlidesPandaSSLMIL, SlidesPandaSSLMILBenchmark]
+)
+def test_ssl_containers_default_checkpoint(container_type: BaseMIL) -> None:
+    if container_type == TcgaCrckSSLMIL:
+        default_checkpoint = innereye_ssl_checkpoint_crck_4ws
+    else:
+        default_checkpoint = innereye_ssl_checkpoint_binary
+    assert container_type().ssl_checkpoint.checkpoint == default_checkpoint
+
+    container = container_type(ssl_checkpoint=CheckpointParser(TEST_SSL_RUN_ID))
+    assert container.ssl_checkpoint.checkpoint != default_checkpoint
