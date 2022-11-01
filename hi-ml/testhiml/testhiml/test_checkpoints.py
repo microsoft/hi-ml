@@ -12,7 +12,7 @@ from health_ml.lightning_container import LightningContainer
 from health_ml.utils.checkpoint_utils import (
     LAST_CHECKPOINT_FILE_NAME,
     MODEL_WEIGHTS_DIR_NAME,
-    AMLCheckpointDownloader,
+    CheckpointDownloader,
     CheckpointParser,)
 from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
@@ -21,17 +21,17 @@ from testhiml.utils_testhiml import DEFAULT_WORKSPACE
 
 
 def test_checkpoint_downloader_run_id() -> None:
-    checkpoint_downloader = AMLCheckpointDownloader(run_id="dummy_run_id")
+    checkpoint_downloader = CheckpointDownloader(run_id="dummy_run_id")
     assert checkpoint_downloader.run_id == "dummy_run_id"
     assert checkpoint_downloader.checkpoint_filename == LAST_CHECKPOINT_FILE_NAME
     assert checkpoint_downloader.remote_checkpoint_dir == Path(DEFAULT_AML_CHECKPOINT_DIR)
 
-    checkpoint_downloader = AMLCheckpointDownloader(run_id="dummy_run_id:best.ckpt")
+    checkpoint_downloader = CheckpointDownloader(run_id="dummy_run_id:best.ckpt")
     assert checkpoint_downloader.run_id == "dummy_run_id"
     assert checkpoint_downloader.checkpoint_filename == "best.ckpt"
     assert checkpoint_downloader.remote_checkpoint_dir == Path(DEFAULT_AML_CHECKPOINT_DIR)
 
-    checkpoint_downloader = AMLCheckpointDownloader(run_id="dummy_run_id:custom/path/best.ckpt")
+    checkpoint_downloader = CheckpointDownloader(run_id="dummy_run_id:custom/path/best.ckpt")
     assert checkpoint_downloader.run_id == "dummy_run_id"
     assert checkpoint_downloader.checkpoint_filename == "best.ckpt"
     assert checkpoint_downloader.remote_checkpoint_dir == Path("custom/path")

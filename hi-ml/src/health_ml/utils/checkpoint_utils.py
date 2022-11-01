@@ -162,7 +162,7 @@ def cleanup_checkpoints(ckpt_folder: Path) -> None:
             autosave.unlink()
 
 
-class AMLCheckpointDownloader:
+class CheckpointDownloader:
     def __init__(
         self,
         run_id: str,
@@ -332,7 +332,7 @@ class CheckpointParser:
             download_folder.mkdir(exist_ok=True, parents=True)
             checkpoint_path = self.download_weights(url=self.checkpoint, download_folder=download_folder)
         elif self.is_aml_run_id:
-            downloader = AMLCheckpointDownloader(run_id=self.checkpoint, download_dir=checkpoints_folder)
+            downloader = CheckpointDownloader(run_id=self.checkpoint, download_dir=checkpoints_folder)
             downloader.download_checkpoint_if_necessary()
             checkpoint_path = downloader.local_checkpoint_path
         else:

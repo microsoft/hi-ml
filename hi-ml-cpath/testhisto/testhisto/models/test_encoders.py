@@ -12,7 +12,7 @@ from torch import Tensor, float32, nn, rand
 from torchvision.models import resnet18
 
 from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
-from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME, AMLCheckpointDownloader
+from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME, CheckpointDownloader
 from health_cpath.models.encoders import (Resnet18, TileEncoder, HistoSSLEncoder,
                                           ImageNetSimCLREncoder, SSLEncoder)
 from health_cpath.utils.layer_utils import setup_feature_extractor
@@ -33,10 +33,10 @@ def get_simclr_imagenet_encoder() -> TileEncoder:
 
 
 def get_ssl_encoder(download_dir: Path) -> TileEncoder:
-    downloader = AMLCheckpointDownloader(run_id=TEST_SSL_RUN_ID,
-                                         download_dir=download_dir,
-                                         checkpoint_filename=LAST_CHECKPOINT_FILE_NAME,
-                                         remote_checkpoint_dir=Path(DEFAULT_AML_CHECKPOINT_DIR))
+    downloader = CheckpointDownloader(run_id=TEST_SSL_RUN_ID,
+                                      download_dir=download_dir,
+                                      checkpoint_filename=LAST_CHECKPOINT_FILE_NAME,
+                                      remote_checkpoint_dir=Path(DEFAULT_AML_CHECKPOINT_DIR))
     downloader.download_checkpoint_if_necessary()
     return SSLEncoder(pl_checkpoint_path=downloader.local_checkpoint_path, tile_size=TILE_SIZE)
 
