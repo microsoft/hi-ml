@@ -26,7 +26,6 @@ import param
 import pytest
 from _pytest.capture import CaptureFixture
 from _pytest.logging import LogCaptureFixture
-from azure.core.exceptions import ClientAuthenticationError
 from azure.identity import (ClientSecretCredential, DeviceCodeCredential, DefaultAzureCredential)
 from azure.storage.blob import ContainerClient
 from azureml.core import Experiment, Run, ScriptRunConfig, Workspace
