@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from health_cpath.models.encoders import SSLEncoder
-from health_cpath.scripts.generate_checkpoint_url import get_checkpoint_url_from_aml_run#
+from health_cpath.scripts.generate_checkpoint_url import get_checkpoint_url_from_aml_run
 from health_cpath.utils.deepmil_utils import EncoderParams
 from health_ml.utils.checkpoint_utils import CheckpointParser, LAST_CHECKPOINT_FILE_NAME, MODEL_WEIGHTS_DIR_NAME
 from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
@@ -42,27 +42,27 @@ def test_load_ssl_checkpoint_from_local_file(tmp_path: Path) -> None:
 
 
 def test_load_ssl_checkpoint_from_url(tmp_path: Path) -> None:
-    blob_url = get_checkpoint_url_from_aml_run#(
-        run_id=TEST_SSL_RUN_ID,
-        checkpoint_filename=LAST_CHECKPOINT_FILE_NAME,
-        expiry_days=1,
-        aml_workspace=DEFAULT_WORKSPACE.workspace)
-    encoder_params = EncoderParams(encoder_type=SSLEncoder.__name__, ssl_checkpoint=CheckpointParser(blob_url))
+    blob_url = get_checkpoint_url_from_aml_run  # (
+        run_id = TEST_SSL_RUN_ID,
+        checkpoint_filename = LAST_CHECKPOINT_FILE_NAME,
+        expiry_days = 1,
+        aml_workspace = DEFAULT_WORKSPACE.workspace)
+    encoder_params=EncoderParams(encoder_type = SSLEncoder.__name__, ssl_checkpoint = CheckpointParser(blob_url))
     assert encoder_params.ssl_checkpoint.is_url
-    ssl_checkpoint_path = encoder_params.ssl_checkpoint.get_path(tmp_path)
+    ssl_checkpoint_path=encoder_params.ssl_checkpoint.get_path(tmp_path)
     assert ssl_checkpoint_path.exists()
     assert ssl_checkpoint_path == tmp_path / MODEL_WEIGHTS_DIR_NAME / LAST_CHECKPOINT_FILE_NAME
-    encoder = encoder_params.get_encoder(tmp_path)
+    encoder=encoder_params.get_encoder(tmp_path)
     assert isinstance(encoder, SSLEncoder)
 
 
 def test_load_ssl_checkpoint_from_run_id(tmp_path: Path) -> None:
-    encoder_params = EncoderParams(encoder_type=SSLEncoder.__name__, ssl_checkpoint=CheckpointParser(TEST_SSL_RUN_ID))
+    encoder_params=EncoderParams(encoder_type = SSLEncoder.__name__, ssl_checkpoint = CheckpointParser(TEST_SSL_RUN_ID))
     assert encoder_params.ssl_checkpoint.is_aml_run_id
     with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace:
-        mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
-        ssl_checkpoint_path = encoder_params.ssl_checkpoint.get_path(tmp_path)
+        mock_get_workspace.return_value=DEFAULT_WORKSPACE.workspace
+        ssl_checkpoint_path=encoder_params.ssl_checkpoint.get_path(tmp_path)
         assert ssl_checkpoint_path.exists()
         assert ssl_checkpoint_path == tmp_path / TEST_SSL_RUN_ID / LAST_CHECKPOINT
-        encoder = encoder_params.get_encoder(tmp_path)
+        encoder=encoder_params.get_encoder(tmp_path)
         assert isinstance(encoder, SSLEncoder)
