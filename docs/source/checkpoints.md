@@ -24,16 +24,15 @@ from health_ml.utils.checpoint_utils import CheckpointParser, MODEL_WEIGHTS_DIR_
 download_dir = 'outputs/checkpoints'
 checkpoint_parser = CheckpointParser('https://my_checkpoint_url.com/model.ckpt')
 print('Checkpoint', checkpoint_parser.checkpoint, 'is a URL', checkpoint_parser.is_url)
-
 # will dowload the checkpoint to download_dir/MODEL_WEIGHTS_DIR_NAME
 path_to_ckpt = checkpoint_parser.get_path(download_dir)
 ```
 
 - Finally checkpoints from an Azure ML runs can be reused by providing an id in this format
-  `<AzureML_run_id>:<optional/custom/path/to/checkpoints/><filename.ckpt>` If no custom path is provided (e.g.,
-  `<AzureML_run_id>:<filename{CHECKPOINT_SUFFIX}>`) the checkpoint will be downloaded from the default checkpoint folder
-  (e.g., `{DEFAULT_AML_CHECKPOINT_DIR}`) If no filename is provided, (e.g., `src_checkpoint=<AzureML_run_id>`) the latest
-  checkpoint will be downloaded.
+  `<AzureML_run_id>:<optional/custom/path/to/checkpoints/><filename.ckpt>`. If no custom path is provided (e.g.,
+  `<AzureML_run_id>:<filename.ckpt>`) the checkpoint will be downloaded from the default checkpoint folder
+  (e.g., `outputs/checkpoints`) If no filename is provided, (e.g., `src_checkpoint=<AzureML_run_id>`) the latest
+  checkpoint will be downloaded (e.g., `last.ckpt`).
 
 ```python
 from health_ml.utils.checpoint_utils import CheckpointParser
@@ -43,7 +42,7 @@ print('Checkpoint', checkpoint_parser.checkpoint, 'is a AML run', checkpoint_par
 path_azure_ml_ckpt = checkpoint_parser.get_path(download_dir)
 ```
 
-If the Azure ML run lives in a different workspace, a temporary SAS URL to download the checkpoint can be generated as follow:
+If the Azure ML run is in a different workspace, a temporary SAS URL to download the checkpoint can be generated as follow:
 
 ```bash
 cd hi-ml-cpath
@@ -54,5 +53,9 @@ N.B: config.json should correspond to the original workspace where the AML run l
 
 ## Use cases
 
-CheckpointParser is used to specify a `src_checkpoint` to be used for end to end model initialization as well as
-`ssl_checkpoint` for computation pathology encoders.
+CheckpointParser is used to specify a `src_checkpoint` to [resume training from a given
+checkpoint](https://github.com/microsoft/hi-ml/blob/main/docs/source/runner.md#L238),
+or [run inference with a pretrained model](https://github.com/microsoft/hi-ml/blob/main/docs/source/runner.md#L215),
+as well as
+[ssl_checkpoint](https://github.com/microsoft/hi-ml/blob/main/hi-ml-cpath/src/health_cpath/utils/deepmil_utils.py#L62)
+for computation pathology self supervised pretrained encoders.
