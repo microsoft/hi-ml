@@ -52,6 +52,7 @@ def main() -> None:
         wait_for_completion={{ wait_for_completion }},
         wait_for_completion_show_output={{ wait_for_completion_show_output }},
         tags={{ tags }},
+        submit_to_azureml={{ submit_to_azureml}},
         strictly_aml_v1={{ strictly_aml_v1 }})
 
     parser = ArgumentParser()

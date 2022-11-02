@@ -1324,9 +1324,6 @@ def test_download_run_file_during_run(tmp_path: Path) -> None:
     run_2 = util.get_aml_run_from_run_id(run_id, aml_workspace=DEFAULT_WORKSPACE.workspace)
     assert run_2.id == run_id
 
-    parser_args = "parser.add_argument('-m', '--message', type=str, required=True, help='The message to print out')\n"\
-        "    parser.add_argument('--azureml', action='store_false', required=False)"
-
     # Now create an AzureML run with a simple script that uses that file. The script will download the file,
     # where the download is should pick up the workspace from the current AML run.
     script_body = ""
@@ -1350,7 +1347,6 @@ from pathlib import Path
 from azureml.core import Run
 from health_azure.utils import download_files_from_run_id""",
         "body": script_body,
-        "args": parser_args,
     }
     # Run the script locally first, then in the cloud. In local runs, the workspace should be picked up from the
     # config.json file, in AzureML runs it should be read off the run context.
@@ -1362,8 +1358,6 @@ from health_azure.utils import download_files_from_run_id""",
 
 
 def test_replace_directory(tmp_path: Path) -> None:
-    parser_args = "parser.add_argument('-m', '--message', type=str, required=True, help='The message to print out')\n"\
-        "    parser.add_argument('--azureml', action='store_false', required=False)"
 
     extra_options = {
         "imports": """
@@ -1386,7 +1380,6 @@ from health_azure.utils import replace_directory
     assert not output_dir.exists()
     assert (new_output_dir / file_name).exists()
 """,
-    "args": parser_args,
     }
 
     render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options,

@@ -637,8 +637,6 @@ def submit_to_azure_if_needed(  # type: ignore
             return _generate_v2_azure_datasets(cleaned_input_datasets, cleaned_output_datasets)
     # This codepath is reached when executing outside AzureML. Here we first check if a script submission to AzureML
     # is necessary. If not, return to the caller for local execution.
-    if submit_to_azureml is None:
-        submit_to_azureml = AZUREML_COMMANDLINE_FLAG in sys.argv[1:]
     if not submit_to_azureml:
         # Set the environment variables for local execution.
         environment_variables = {
