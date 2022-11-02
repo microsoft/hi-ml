@@ -732,8 +732,6 @@ def submit_to_azure_if_needed(  # type: ignore
         print(f"Using the Conda environment from this file: {conda_environment_file}")
     conda_environment_file = _str_to_path(conda_environment_file)
 
-
-
     amlignore_path = snapshot_root_directory / AML_IGNORE_FILE
     lines_to_append = [str(path) for path in (ignored_folders or [])]
     with append_to_amlignore(amlignore=amlignore_path, lines_to_append=lines_to_append):
