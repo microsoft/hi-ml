@@ -732,10 +732,7 @@ def submit_to_azure_if_needed(  # type: ignore
         print(f"Using the Conda environment from this file: {conda_environment_file}")
     conda_environment_file = _str_to_path(conda_environment_file)
 
-    if entry_script is None:
-        entry_script = Path(sys.argv[0])
-    script_params = script_params or sys.argv[1:]
-    effective_experiment_name = experiment_name or Path(entry_script).stem
+
 
     amlignore_path = snapshot_root_directory / AML_IGNORE_FILE
     lines_to_append = [str(path) for path in (ignored_folders or [])]
@@ -767,6 +764,8 @@ def submit_to_azure_if_needed(  # type: ignore
             else:
                 config_to_submit = script_run_config
 
+            effective_experiment_name = experiment_name or Path(script_run_config.script).stem
+
             run = submit_run(workspace=workspace,
                              experiment_name=effective_experiment_name,
                              script_run_config=config_to_submit,
@@ -774,11 +773,17 @@ def submit_to_azure_if_needed(  # type: ignore
                              wait_for_completion=wait_for_completion,
                              wait_for_completion_show_output=wait_for_completion_show_output)
         else:
+
             assert conda_environment_file is not None
             environment = create_python_environment_v2(
                 conda_environment_file=conda_environment_file,
                 docker_base_image=docker_base_image
             )
+            if entry_script is None:
+                entry_script = Path(sys.argv[0])
+            script_params = script_params or sys.argv[1:]
+            effective_experiment_name = experiment_name or Path(entry_script).stem
+
             registered_env = register_environment_v2(environment, ml_client)
             input_datasets_v2 = create_v2_inputs(ml_client, cleaned_input_datasets)
             output_datasets_v2 = create_v2_outputs(cleaned_output_datasets)
