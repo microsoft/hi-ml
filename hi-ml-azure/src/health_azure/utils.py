@@ -105,6 +105,10 @@ DEFAULT_ENVIRONMENT_VARIABLES = {
     "DATASET_MOUNT_CACHE_SIZE": "1",
 }
 
+
+V2_INPUT_DATASET_PATTERN = r"INPUT_\d[=| ]"
+V2_OUTPUT_DATASET_PATTERN = r"OUTPUT_\d[=| ]"
+
 PathOrString = Union[Path, str]
 
 
@@ -2310,3 +2314,17 @@ def fetch_job(ml_client: MLClient, run_id: str) -> Job:
     """
     job = ml_client.jobs.get(run_id)
     return job
+
+
+def filter_v2_input_output_args(args: List[str]) -> List[str]:
+    """
+    Filter out AML v2 Input and Output entries from a list of args. Under AML SDK v2 it is necessary to
+    pass input and output arguments to a script via the command line, of which there can be an unknown number.
+    Therefore we need to remove these from the list of args passed to the argument parsers.
+
+    :param args: A list of arguments from which to remove input and output args
+    :return: A filtered list of arguments, without entries in the format of INPUT_i or OUTPUT_i where i is
+        any integer.
+    """
+    return [a for a in args if
+            not re.match(V2_INPUT_DATASET_PATTERN, a) and not re.match(V2_OUTPUT_DATASET_PATTERN, a)]

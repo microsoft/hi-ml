@@ -1444,3 +1444,24 @@ def test_generate_output_dataset_command() -> None:
     output_datasets = {"OUTPUT_0": Output(), "OUTPUT_1": Output()}
     output_data_cmd = himl._generate_output_dataset_command(output_datasets)
     assert output_data_cmd == " --OUTPUT_0=${{outputs.OUTPUT_0}} --OUTPUT_1=${{outputs.OUTPUT_1}}"
+
+
+def test_extract_v2_inputs_outputs_from_args() -> None:
+    path_to_input_0 = "path_to_input_0"
+    path_to_output_0 = "path_to_output_0"
+    mock_args = [f"INPUT_0={path_to_input_0}", "INPUT_1=path_to_input_1", f"OUTPUT_0={path_to_output_0}", "a=foo",
+                 "b=bar"]
+    with patch.object(sys, "argv", new=mock_args):
+        input_datasets, output_datasets = himl._extract_v2_inputs_outputs_from_args()
+        assert len(input_datasets) == 2
+        assert input_datasets[0] == Path(path_to_input_0)
+        assert len(output_datasets) == 1
+        assert output_datasets[0] == Path(path_to_output_0)
+
+    # similar args should be ignored
+    mock_args_similar = [f"input_0={path_to_input_0}", "input_1=path_to_input_1", f"output_0={path_to_output_0}",
+                         "a=foo", "b=bar"]
+    with patch.object(sys, "argv", new=mock_args_similar):
+        input_datasets, output_datasets = himl._extract_v2_inputs_outputs_from_args()
+        assert len(input_datasets) == 0
+        assert len(output_datasets) == 0

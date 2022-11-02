@@ -31,7 +31,8 @@ from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
 from health_azure.amulet import prepare_amulet_job  # noqa: E402
 from health_azure.utils import (get_workspace, get_ml_client, is_local_rank_zero,  # noqa: E402
                                 is_running_in_azure_ml, set_environment_variables_for_multi_node,
-                                create_argparser, parse_arguments, ParserResult, apply_overrides)
+                                create_argparser, parse_arguments, ParserResult, apply_overrides,
+                                filter_v2_input_output_args)
 
 from health_ml.experiment_config import ExperimentConfig  # noqa: E402
 from health_ml.lightning_container import LightningContainer  # noqa: E402
@@ -126,8 +127,12 @@ class Runner:
 
         :return: ParserResult object containing args, overrides and settings
         """
+        # Filter out any args for passing inputs and outputs to scripts with AML SDK v2
+        args = sys.argv[1:]
+        filtered_args = filter_v2_input_output_args(args)
+
         parser1 = create_runner_parser()
-        parser1_result = parse_arguments(parser1, args=sys.argv[1:])
+        parser1_result = parse_arguments(parser1, args=filtered_args)
         experiment_config = ExperimentConfig(**parser1_result.args)
 
         self.experiment_config = experiment_config

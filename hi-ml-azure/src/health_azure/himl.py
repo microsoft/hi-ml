@@ -37,7 +37,8 @@ from health_azure.utils import (create_python_environment, create_run_recovery_i
                                 is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
                                 run_duration_string_to_seconds, to_azure_friendly_string, RUN_CONTEXT, get_workspace,
                                 PathOrString, DEFAULT_ENVIRONMENT_VARIABLES, get_ml_client,
-                                create_python_environment_v2, register_environment_v2)
+                                create_python_environment_v2, register_environment_v2, V2_INPUT_DATASET_PATTERN,
+                                V2_OUTPUT_DATASET_PATTERN)
 from health_azure.datasets import (DatasetConfig, StrOrDatasetConfig, setup_local_datasets,
                                    _input_dataset_key, _output_dataset_key, _replace_string_datasets)
 
@@ -898,6 +899,30 @@ def _generate_azure_datasets(
         logs_folder=Path.cwd() / LOGS_FOLDER)
 
 
+def _get_dataset_names_from_string(sys_arg: str, pattern: str) -> Path:
+    dataset_string = re.split(pattern, sys_arg)[-1]
+    dataset_path = Path(dataset_string)
+    return dataset_path
+
+
+def _extract_v2_inputs_outputs_from_args() -> Tuple[List[Path], List[Path]]:
+    """
+    Extract all command line arguments of the format INPUT_i=path_to_input or OUTPUT_i=path_to_output (where i is any
+    integer) and return a list of the Paths for each.
+
+    :return: A list of Input paths and a list of Output paths
+    """
+    returned_input_datasets: List[Path] = []
+    returned_output_datasets: List[Path] = []
+
+    for sys_arg in sys.argv:
+        if re.match(V2_INPUT_DATASET_PATTERN, sys_arg):
+            returned_input_datasets += [_get_dataset_names_from_string(sys_arg, V2_INPUT_DATASET_PATTERN)]
+        if re.match(V2_OUTPUT_DATASET_PATTERN, sys_arg):
+            returned_output_datasets += [_get_dataset_names_from_string(sys_arg, V2_OUTPUT_DATASET_PATTERN)]
+    return returned_input_datasets, returned_output_datasets
+
+
 def _generate_v2_azure_datasets(cleaned_input_datasets: List[DatasetConfig],
                                 cleaned_output_datasets: List[DatasetConfig]) -> AzureRunInfo:
     """
@@ -908,21 +933,7 @@ def _generate_v2_azure_datasets(cleaned_input_datasets: List[DatasetConfig],
     :param cleaned_output_datasets: The list of output dataset configs
     :return: The AzureRunInfo containing the AzureML input and output dataset lists etc.
     """
-    def _get_dataset_names_from_string(sys_arg: str, pattern: str) -> Path:
-        dataset_string = re.split(pattern, sys_arg)[-1]
-        dataset_path = Path(dataset_string)
-        return dataset_path
-
-    returned_input_datasets: List[Path] = []
-    returned_output_datasets: List[Path] = []
-    input_dataset_pattern = r"INPUT_\d[=| ]"
-    output_dataset_pattern = r"OUTPUT_\d[=| ]"
-    for sys_arg in sys.argv:
-        if len(re.findall(input_dataset_pattern, sys_arg)) > 0:
-            returned_input_datasets += [_get_dataset_names_from_string(sys_arg, input_dataset_pattern)]
-
-        if len(re.findall(output_dataset_pattern, sys_arg)) > 0:
-            returned_output_datasets += [_get_dataset_names_from_string(sys_arg, output_dataset_pattern)]
+    returned_input_datasets, returned_output_datasets = _extract_v2_inputs_outputs_from_args()
 
     return AzureRunInfo(
         input_datasets=returned_input_datasets,  # type: ignore

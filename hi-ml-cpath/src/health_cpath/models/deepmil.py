@@ -268,7 +268,7 @@ class BaseDeepMILModule(LightningModule):
 
     def validation_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
         val_result = self._shared_step(batch, batch_idx, ModelKey.VAL)
-        self.log('val/loss', val_result[ResultsKey.LOSS], on_epoch=False, on_step=True, logger=True,
+        self.log('val/loss', val_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
                  sync_dist=True)
         return val_result
 

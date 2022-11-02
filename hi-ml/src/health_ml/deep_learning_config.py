@@ -297,9 +297,6 @@ class WorkflowParams(param.Parameterized):
 
 
 class DatasetParams(param.Parameterized):
-    INPUT_0: List[str] = param.List(default=[], class_=str, doc="Do not use. For AML SDK v2 only")
-    INPUT_1: List[str] = param.List(default=[], class_=str, doc="Do not use. For AML SDK v2 only")
-    OUTPUT_0: List[str] = param.List(default=[], class_=str, doc="Do not use. For AML SDK v2 only")
     datastore: str = param.String(default="", doc="Datastore to look for data in")
     azure_datasets: List[str] = param.List(default=[], class_=str,
                                            doc="If provided, the ID of one or more datasets to use when running in"
