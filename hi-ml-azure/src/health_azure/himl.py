@@ -410,7 +410,7 @@ def submit_run_v2(workspace: Optional[Workspace],
 
     assert compute_target is not None, "No compute_target has been provided"
     assert entry_script is not None, "No entry_script has been provided"
-    snapshot_root_directory = snapshot_root_directory or Path()
+    snapshot_root_directory = snapshot_root_directory or Path.cwd()
     root_dir = Path(snapshot_root_directory)
     entry_script = Path(entry_script).relative_to(root_dir).as_posix()
 

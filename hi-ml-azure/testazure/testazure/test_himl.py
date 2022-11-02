@@ -79,18 +79,19 @@ def test_submit_to_azure_if_needed_returns_immediately(tmp_path: Path) -> None:
     """
     shared_config_json = get_shared_config_json()
     with check_config_json(tmp_path, shared_config_json=shared_config_json):
-        with mock.patch("sys.argv", ["", "--azureml"]):
-            with pytest.raises(Exception) as ex:
-                himl.submit_to_azure_if_needed(
-                    aml_workspace=None,
-                    workspace_config_file=None,
-                    entry_script=Path(__file__),
-                    compute_cluster_name="foo",
-                    snapshot_root_directory=Path(__file__).parent)
-            # N.B. This assert may fail when run locally since we may find a workspace_config_file through the call to
-            # _find_file(CONDA_ENVIRONMENT_FILE) in submit_to_azure_if_needed
-            if _is_running_in_github_pipeline():
-                assert "No workspace config file given, nor can we find one" in str(ex)
+
+        with pytest.raises(Exception) as ex:
+            himl.submit_to_azure_if_needed(
+                aml_workspace=None,
+                workspace_config_file=None,
+                entry_script=Path(__file__),
+                compute_cluster_name="foo",
+                snapshot_root_directory=Path(__file__).parent,
+                submit_to_azureml=True)
+        # N.B. This assert may fail when run locally since we may find a workspace_config_file through the call to
+        # _find_file(CONDA_ENVIRONMENT_FILE) in submit_to_azure_if_needed
+        if _is_running_in_github_pipeline():
+            assert "No workspace config file given, nor can we find one" in str(ex)
 
         with mock.patch("sys.argv", [""]):
             result = himl.submit_to_azure_if_needed(
@@ -550,8 +551,7 @@ def test_get_workspace_no_config(
     mock_is_running_in_azure.return_value = False
     with change_working_directory(tmp_path):
         with pytest.raises(ValueError) as ex:
-            with mock.patch("sys.argv", ["", "--azureml"]):
-                himl.submit_to_azure_if_needed(compute_cluster_name="foo")
+            himl.submit_to_azure_if_needed(compute_cluster_name="foo", submit_to_azureml=True)
         assert "No workspace config file given" in str(ex)
 
 
@@ -1339,6 +1339,7 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock,
                             aml_workspace=mock_workspace,
                             ml_client=mock_ml_client,
                             entry_script=Path(__file__),
+                            snapshot_root_directory=Path(__file__).parent,
                             compute_cluster_name="foo",
                             aml_environment_name="dummy_env",
                             submit_to_azureml=True,
