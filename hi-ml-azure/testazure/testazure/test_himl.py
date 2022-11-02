@@ -1315,7 +1315,6 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock,
                                                    mock_exit: MagicMock,
                                                    mock_compute_cluster: MagicMock,
                                                    cross_validation_metric_name: Optional[str],
-                                                   tmp_path: Path,
                                                    ) -> None:
     """
     Test that himl.submit_to_azure_if_needed can be called, and returns immediately.
@@ -1434,23 +1433,26 @@ def test_submit_to_azure_if_needed_v2() -> None:
                 assert return_value is None
 
 
+@pytest.mark.fast
 def test_generate_input_dataset_command() -> None:
     input_datasets = {"INPUT_0": Input(), "INPUT_1": Input()}
     input_data_cmd = himl._generate_input_dataset_command(input_datasets)
     assert input_data_cmd == " --INPUT_0=${{inputs.INPUT_0}} --INPUT_1=${{inputs.INPUT_1}}"
 
 
+@pytest.mark.fast
 def test_generate_output_dataset_command() -> None:
     output_datasets = {"OUTPUT_0": Output(), "OUTPUT_1": Output()}
     output_data_cmd = himl._generate_output_dataset_command(output_datasets)
     assert output_data_cmd == " --OUTPUT_0=${{outputs.OUTPUT_0}} --OUTPUT_1=${{outputs.OUTPUT_1}}"
 
 
+@pytest.mark.fast
 def test_extract_v2_inputs_outputs_from_args() -> None:
     path_to_input_0 = "path_to_input_0"
     path_to_output_0 = "path_to_output_0"
-    mock_args = [f"INPUT_0={path_to_input_0}", "INPUT_1=path_to_input_1", f"OUTPUT_0={path_to_output_0}", "a=foo",
-                 "b=bar"]
+    mock_args = [f"--INPUT_0={path_to_input_0}", "--INPUT_1=path_to_input_1", f"--OUTPUT_0={path_to_output_0}",
+                 "--a=foo", "--b=bar"]
     with patch.object(sys, "argv", new=mock_args):
         input_datasets, output_datasets = himl._extract_v2_inputs_outputs_from_args()
         assert len(input_datasets) == 2
@@ -1459,8 +1461,8 @@ def test_extract_v2_inputs_outputs_from_args() -> None:
         assert output_datasets[0] == Path(path_to_output_0)
 
     # similar args should be ignored
-    mock_args_similar = [f"input_0={path_to_input_0}", "input_1=path_to_input_1", f"output_0={path_to_output_0}",
-                         "a=foo", "b=bar"]
+    mock_args_similar = [f"--input_0={path_to_input_0}", "--input_1=path_to_input_1", f"--output_0={path_to_output_0}",
+                         "--a=foo", "--b=bar"]
     with patch.object(sys, "argv", new=mock_args_similar):
         input_datasets, output_datasets = himl._extract_v2_inputs_outputs_from_args()
         assert len(input_datasets) == 0

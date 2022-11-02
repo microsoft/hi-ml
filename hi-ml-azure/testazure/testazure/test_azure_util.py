@@ -2491,8 +2491,8 @@ def test_filter_v2_input_output_args() -> None:
         for actual_entry in actual:
             assert actual_entry in expected
 
-    args_to_filter = ["a=foo", "INPUT_0=input0", "b=bar", "INPUT_1=input1"]
-    expected_filtered = ["a=foo", "b=bar"]
+    args_to_filter = ["--a=foo", "--INPUT_0=input0", "--b=bar", "--INPUT_1=input1"]
+    expected_filtered = ["--a=foo", "--b=bar"]
     actual_filtered = util.filter_v2_input_output_args(args_to_filter)
     _compare_args(expected_filtered, actual_filtered)
 
@@ -2502,7 +2502,7 @@ def test_filter_v2_input_output_args() -> None:
     assert actual_filtered == empty_list
 
     # pass args with similar but different input and output args
-    args_to_filter = ["input_0=input0", "a=foo"]
-    expected_filtered = ["input_0=input0", "a=foo"]
+    args_to_filter = ["--input_0=input0", "--a=foo"]
+    expected_filtered = ["--input_0=input0", "--a=foo"]
     actual_filtered = util.filter_v2_input_output_args(args_to_filter)
     _compare_args(expected_filtered, actual_filtered)
