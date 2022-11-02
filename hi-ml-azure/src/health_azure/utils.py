@@ -2302,7 +2302,7 @@ def retrieve_workspace_from_client(ml_client: MLClient, workspace_name: Optional
 
 def fetch_job(ml_client: MLClient, run_id: str) -> Job:
     """
-    Retrive a job with a given run_id from an MLClient
+    Retrieve a job with a given run_id from an MLClient
 
     :param ml_client: An MLClient object.
     :param run_id: The id of the run to retrieve.

@@ -6,13 +6,14 @@
 Test the data input and output functionality
 """
 from pathlib import Path
-from unittest.mock import DEFAULT, MagicMock, patch
+from unittest.mock import create_autospec, DEFAULT, MagicMock, patch
 from health_azure.utils import PathOrString, get_ml_client
 from typing import List, Union, Optional
 
 import pytest
 from azure.ai.ml import MLClient
 from azure.ai.ml.entities import Data
+from azure.ai.ml.operations import DatastoreOperations
 from azure.core.exceptions import HttpResponseError
 from azureml._restclient.exceptions import ServiceException
 from azureml.core import Dataset, Workspace
@@ -64,6 +65,34 @@ def test_get_datastore() -> None:
         single_store = get_datastore(workspace=workspace, datastore_name="")
     assert isinstance(single_store, AzureBlobDatastore)
     assert single_store.name == name
+
+    # Now test retrieving a v2 datastore by name
+    mock_v2_dataset_name = "dummy_v2_datastore"
+    mock_returned_datastore = MagicMock()
+    mock_returned_datastore.name = mock_v2_dataset_name
+    mock_workspace = MagicMock()
+    mock_workspace.datastores = create_autospec(DatastoreOperations)
+    mock_workspace.datastores.get.return_value = mock_returned_datastore
+    v2_datastore = get_datastore(mock_workspace, datastore_name=mock_v2_dataset_name)
+    assert v2_datastore.name == mock_v2_dataset_name
+
+    # Test retrieving a default v2 datastore
+    mock_workspace.datastores.list.return_value = [mock_returned_datastore]
+    v2_default_datastore = get_datastore(mock_workspace, datastore_name="")
+    assert v2_default_datastore.name == mock_v2_dataset_name
+
+    # Mock case where list is empty but get_default returns a value
+    mock_workspace.datastores.list.return_value = []
+    mock_workspace.datastores.get_default.return_value = mock_returned_datastore
+    v2_default_datastore = get_datastore(mock_workspace, datastore_name="")
+    assert v2_default_datastore.name == mock_v2_dataset_name
+
+    # If datastores has an unknown format, an exception should be raised
+    mock_workspace = MagicMock()
+    mock_workspace.datastores.return_value = ["dummy_datastore_name"]
+    with pytest.raises(Exception) as e:
+        get_datastore(workspace=mock_workspace, datastore_name="")
+        assert "Unrecognised type for datastores" in str(e)
 
 
 def test_dataset_input() -> None:

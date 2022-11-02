@@ -326,6 +326,36 @@ def create_script_run(snapshot_root_directory: Optional[Path] = None,
         arguments=script_params)
 
 
+def _generate_input_dataset_command(input_datasets_v2: Dict[str, Input]) -> str:
+    """
+    Generate command line arguments to pass AML v2 data assets into a script
+
+    :param input_datasets_v2: A dictionary of Input objects that have been passed into the AML command
+    :return: A string representing the input datasets that the script should expect
+    """
+    input_cmd = ""
+    for i, (input_data_name, input_dataset_v2) in enumerate(input_datasets_v2.items()):
+        input_name = f"INPUT_{i}"
+        input_str = "${{inputs." + f"{input_name}" + "}}"
+        input_cmd += f" --{input_name}={input_str}"
+    return input_cmd
+
+
+def _generate_output_dataset_command(output_datasets_v2: Dict[str, Output]) -> str:
+    """
+    Generate command line arguments to pass AML v2 outputs into a script
+
+    :param output_datasets_v2: A dictionary of Output objects that have been passed into the AML command
+    :return: A string representing the output values that the script should expect
+    """
+    output_cmd = ""
+    for i, (output_data_name, output_dataset_v2) in enumerate(output_datasets_v2.items()):
+        output_name = f"OUTPUT_{i}"
+        output_str = "${{outputs." + f"{output_name}" + "}}"
+        output_cmd += f" --{output_name}={output_str}"
+    return output_cmd
+
+
 def submit_run_v2(workspace: Optional[Workspace],
                   experiment_name: str,
                   environment: EnvironmentV2,
@@ -340,6 +370,31 @@ def submit_run_v2(workspace: Optional[Workspace],
                   wait_for_completion_show_output: bool = False,
                   workspace_config_path: Optional[PathOrString] = None,
                   ml_client: Optional[MLClient] = None) -> Job:
+    """
+    Starts a v2 AML Job on a given workspace by submitting a command
+
+    :param workspace: The AzureML workspace to use.
+    :param experiment_name: The name of the experiment that will be used or created. If the experiment name contains
+        characters that are not valid in Azure, those will be removed.
+    :param environment: An AML v2 Environment object.
+    :param input_datasets_v2: An optional dictionary of Inputs to pass in to the command.
+    :param output_datasets_v2: An optional dictionary of Outputs to pass in to the command.
+    :param snapshot_root_directory: The directory that contains all code that should be packaged and sent to AzureML.
+        All Python code that the script uses must be copied over.
+    :param entry_script: The script that should be run in AzureML.
+    :param script_params: A list of parameter to pass on to the script as it runs in AzureML.
+    :param compute_target: Optional name of a compute target in Azure ML to submit the job to. If None, will run
+        locally.
+    :param tags: A dictionary of string key/value pairs, that will be added as metadata to the run. If set to None,
+        a default metadata field will be added that only contains the commandline arguments that started the run.
+    :param wait_for_completion: If False (the default) return after the run is submitted to AzureML, otherwise wait for
+        the completion of this run (if True).
+    :param wait_for_completion_show_output: If wait_for_completion is True this parameter indicates whether to show the
+        run output on sys.stdout.
+    :param workspace_config_path:
+    :param ml_client:
+    :return: An AzureML Run object.
+    """
     if ml_client is None:
         if workspace is not None:
             ml_client = get_ml_client(
@@ -364,18 +419,12 @@ def submit_run_v2(workspace: Optional[Workspace],
     cmd = "python " + str(entry_script) + " " + arg_str
 
     if input_datasets_v2:
-        for i, input_dataset_v2 in enumerate(input_datasets_v2):
-            input_name = f"INPUT_{i}"
-            input_str = "${{inputs." + f"{input_name}" + "}}"
-            cmd += f" --{input_name}={input_str}"
+        cmd += _generate_input_dataset_command(input_datasets_v2)
     else:
         input_datasets_v2 = {}
 
     if output_datasets_v2:
-        for i, output_dataset_v2 in enumerate(output_datasets_v2):
-            output_name = f"OUTPUT_{i}"
-            output_str = "${{outputs." + f"{output_name}" + "}}"
-            cmd += f" --{output_name}={output_str}"
+        cmd += _generate_output_dataset_command(output_datasets_v2)
     else:
         output_datasets_v2 = {}
 
@@ -775,7 +824,8 @@ def convert_himl_to_azureml_datasets(
     :param cleaned_input_datasets: The list of input DatasetConfigs
     :param cleaned_output_datasets: The list of output DatasetConfigs
     :param workspace: The AzureML workspace
-    :param ml_client: An optional Azure MLClient object for interacting with Azure resources.
+    :param strictly_aml_v1: If True, use Azure ML SDK v1 to attempt to find or create and reigster the dataset.
+        Otherwise, attempt to use Azure ML SDK v2.
     :return: The input and output dictionaries of DatasetConsumptionConfigs.
     """
     inputs = {}

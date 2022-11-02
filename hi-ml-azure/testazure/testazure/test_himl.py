@@ -1432,3 +1432,15 @@ def test_submit_to_azure_if_needed_v2() -> None:
                 )
                 mock_submit_run.assert_called_once()
                 assert return_value is None
+
+
+def test_generate_input_dataset_command() -> None:
+    input_datasets = {"INPUT_0": Input(), "INPUT_1": Input()}
+    input_data_cmd = himl._generate_input_dataset_command(input_datasets)
+    assert input_data_cmd == " --INPUT_0=${{inputs.INPUT_0}} --INPUT_1=${{inputs.INPUT_1}}"
+
+
+def test_generate_output_dataset_command() -> None:
+    output_datasets = {"OUTPUT_0": Output(), "OUTPUT_1": Output()}
+    output_data_cmd = himl._generate_output_dataset_command(output_datasets)
+    assert output_data_cmd == " --OUTPUT_0=${{outputs.OUTPUT_0}} --OUTPUT_1=${{outputs.OUTPUT_1}}"

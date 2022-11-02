@@ -298,6 +298,9 @@ class DatasetConfig:
         therefore a tuple of Nones will be returned.
 
         :param workspace: The AzureML workspace to read from.
+        :param strictly_aml_v1: If True, use Azure ML SDK v1 to attempt to find or create and reigster the dataset.
+            Otherwise, attempt to use Azure ML SDK v2.
+        :param ml_client: An Azure MLClient object for interacting with Azure resources.
         :return: Tuple of (path to dataset, optional mountcontext)
         """
         status = f"Dataset '{self.name}' will be "
@@ -320,14 +323,15 @@ class DatasetConfig:
             use_mounting = self.use_mounting if self.use_mounting is not None else False
             if use_mounting:
                 status += f"mounted at {target_path}"
-                print(status)
+
                 mount_context = azureml_dataset.mount(mount_point=str(target_path))  # type: ignore
                 result = target_path, mount_context
             else:
                 status += f"downloaded to {target_path}"
-                print(status)
+
                 azureml_dataset.download(target_path=str(target_path), overwrite=False)  # type: ignore
                 result = target_path, None
+            print(status)
             return result
         else:
             return None, None
