@@ -92,7 +92,7 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         self.bag_sizes = {ModelKey.TRAIN: max_bag_size, ModelKey.VAL: max_bag_size_inf, ModelKey.TEST: max_bag_size_inf}
         self.crossval_count = crossval_count
         self.crossval_index = crossval_index
-        self.replace_sampler_ddp = pl_replace_sampler_ddp
+        self.pl_replace_sampler_ddp = pl_replace_sampler_ddp
         self.train_dataset: _SlidesOrTilesDataset
         self.val_dataset: _SlidesOrTilesDataset
         self.test_dataset: _SlidesOrTilesDataset
@@ -114,7 +114,7 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
     def train_dataloader(self) -> DataLoader:
         is_distributed = torch.distributed.is_initialized() and torch.distributed.get_world_size() > 1
         sampler: Optional[DistributedSampler]
-        if not self.replace_sampler_ddp and is_distributed:
+        if not self.pl_replace_sampler_ddp and is_distributed:
             assert self.seed is not None, "seed must be set when using distributed training for reproducibility"
             sampler = DistributedSampler(self.train_dataset, shuffle=True, seed=self.seed)
         else:

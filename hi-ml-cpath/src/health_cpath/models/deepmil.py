@@ -96,7 +96,7 @@ class BaseDeepMILModule(LightningModule):
 
         # This flag can be switched on before invoking trainer.validate() to enable saving additional time/memory
         # consuming validation outputs via calling self.on_run_extra_validation_epoch()
-        self._run_extra_val_epoch = False
+        self._on_extra_val_epoch = False
         self.validate_on_single_device = validate_on_single_device
 
         # Model components
@@ -223,7 +223,7 @@ class BaseDeepMILModule(LightningModule):
                 MetricsKey.SPECIFICITY: Specificity()})
 
     def log_metrics(self, stage: str) -> None:
-        valid_stages = [stage for stage in ModelKey]
+        valid_stages = set([*[stage for stage in ModelKey], EXTRA_VAL])
         if stage not in valid_stages:
             raise Exception(f"Invalid stage. Chose one of {valid_stages}")
         for metric_name, metric_object in self.get_metrics_dict(stage).items():
@@ -346,7 +346,7 @@ class BaseDeepMILModule(LightningModule):
                         })
         self.update_results_with_data_specific_info(batch=batch, results=results)
         if (
-            (stage == ModelKey.TEST or (stage == ModelKey.VAL and self._run_extra_val_epoch))
+            (stage == ModelKey.TEST or (stage == ModelKey.VAL and self._on_extra_val_epoch))
             and self.outputs_handler
             and self.outputs_handler.tiles_selector
         ):
@@ -375,7 +375,7 @@ class BaseDeepMILModule(LightningModule):
         else:
             val_result = self._shared_step(batch, batch_idx, ModelKey.VAL)
         sync_dist = is_distributed and not self.validate_on_single_device
-        val_mode = ModelKey.VAL if not self._run_extra_val_epoch else EXTRA_VAL
+        val_mode = ModelKey.VAL if not self._on_extra_val_epoch else EXTRA_VAL
         self.log(f'{val_mode}/loss', val_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
                  sync_dist=sync_dist)
         return val_result
@@ -390,7 +390,7 @@ class BaseDeepMILModule(LightningModule):
         self.log_metrics(ModelKey.TRAIN)
 
     def validation_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
-        val_mode = ModelKey.VAL if not self._run_extra_val_epoch else EXTRA_VAL
+        val_mode = ModelKey.VAL if not self._on_extra_val_epoch else EXTRA_VAL
         self.log_metrics(val_mode)
         if self.outputs_handler:
             self.outputs_handler.save_validation_outputs(
@@ -398,7 +398,7 @@ class BaseDeepMILModule(LightningModule):
                 metrics_dict=self.get_metrics_dict(ModelKey.VAL),  # type: ignore
                 epoch=self.current_epoch,
                 is_global_rank_zero=self.global_rank == 0,
-                on_extra_val=self._run_extra_val_epoch
+                on_extra_val=self._on_extra_val_epoch
             )
 
     def test_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
@@ -412,7 +412,7 @@ class BaseDeepMILModule(LightningModule):
     def on_run_extra_validation_epoch(self) -> None:
         """Hook to be called at the beginning of an extra validation epoch to set validation plots options to the same
         as the test plots options."""
-        self._run_extra_val_epoch = True
+        self._on_extra_val_epoch = True
         if self.outputs_handler:
             self.outputs_handler.val_plots_handler.plot_options = self.outputs_handler.test_plots_handler.plot_options
 

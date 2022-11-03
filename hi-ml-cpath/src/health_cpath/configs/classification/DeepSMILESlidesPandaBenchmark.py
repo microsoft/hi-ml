@@ -118,7 +118,7 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
             dataloader_kwargs=self.get_dataloader_kwargs(),
-            replace_sampler_ddp=self.pl_replace_sampler_ddp,
+            pl_replace_sampler_ddp=self.pl_replace_sampler_ddp,
         )
 
     def create_model(self) -> SlidesDeepMILModule:

@@ -533,7 +533,7 @@ class LossAnalysisCallback(Callback):
         """Hook called at the end of validation. Plot the loss heatmap and scratter plots after ranking the slides by
         loss values."""
         epoch = trainer.current_epoch
-        if pl_module.global_rank == 0 and not pl_module._run_extra_val_epoch and epoch == (self.max_epochs - 1):
+        if pl_module.global_rank == 0 and not pl_module._on_extra_val_epoch and epoch == (self.max_epochs - 1):
             try:
                 self.save_loss_outliers_analaysis_results(stage=ModelKey.VAL)
             except Exception as e:
