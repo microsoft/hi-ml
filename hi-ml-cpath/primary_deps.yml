@@ -9,6 +9,8 @@ dependencies:
   - python=3.9.13
   - pytorch=1.10.0
   - torchvision=0.11.1
+  - openslide=3.4.1
+  - openslide-python=1.2.0
   - pip:
       # Run requirements for hi-ml
       - dataclasses-json==0.5.2
