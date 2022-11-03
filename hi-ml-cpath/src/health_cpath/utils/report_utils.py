@@ -171,7 +171,7 @@ def get_best_epochs(metrics_df: pd.DataFrame, primary_metric: str, max_epochs_di
     :return: Dictionary mapping each hyperdrive child index to its best epoch.
     """
     best_epochs = {}
-    for i in range(len(metrics_df.columns)):
+    for i in metrics_df.columns:
         primary_metric_list = metrics_df[i][primary_metric]
         # If extra validation epoch was logged (N+1), return only the first N elements
         primary_metric_list = primary_metric_list[:-1] \
@@ -265,7 +265,7 @@ def collect_epoch_info(metrics_df: pd.DataFrame) -> Dict[int, int]:
     :return: Number of classes and list of class names
     """
     max_epochs_dict = {}
-    for i in range(len(metrics_df.columns)):
+    for i in metrics_df.columns:
         hyperparams = metrics_df[i][AMLMetricsJsonKey.HYPERPARAMS]
         hyperparams_name = hyperparams[AMLMetricsJsonKey.NAME]
         hyperparams_value = hyperparams[AMLMetricsJsonKey.VALUE]
