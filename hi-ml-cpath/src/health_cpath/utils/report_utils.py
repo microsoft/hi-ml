@@ -92,10 +92,10 @@ def collect_hyperdrive_outputs(parent_run_id: str, download_dir: Path, aml_works
     return dict(sorted(all_outputs_dfs.items()))  # type: ignore
 
 
-def collect_hyperdrive_metrics(parent_run_id: str, download_dir: Path, aml_workspace: Workspace,
-                               hyperdrive_arg_name: str = "crossval_index",
-                               overwrite: bool = False) -> pd.DataFrame:
-    """Fetch metrics logged to Azure ML from hyperdrive runs as a dataframe.
+def download_hyperdrive_metrics_if_required(parent_run_id: str, download_dir: Path, aml_workspace: Workspace,
+                                            hyperdrive_arg_name: str = "crossval_index",
+                                            overwrite: bool = False) -> Path:
+    """Fetch metrics logged to Azure ML from hyperdrive runs.
 
     Will only download the metrics if they do not already exist locally, as this can take several
     seconds for each child run.
@@ -105,12 +105,11 @@ def collect_hyperdrive_metrics(parent_run_id: str, download_dir: Path, aml_works
     :param aml_workspace: Azure ML workspace in which the runs were executed.
     :param hyperdrive_arg_name: Name of the Hyperdrive argument used for indexing the child runs.
     :param overwrite: Whether to force the download even if metrics are already saved locally.
-    :return: A dataframe in the format returned by :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
+    :return: The path of the downloaded json file.
     """
     metrics_json = download_dir / "aml_metrics.json"
     if not overwrite and metrics_json.is_file():
         print(f"AML metrics file already exists at {metrics_json}")
-        metrics_df = pd.read_json(metrics_json)
     else:
         metrics_df = aggregate_hyperdrive_metrics(run_id=parent_run_id,
                                                   child_run_arg_name=hyperdrive_arg_name,
@@ -118,7 +117,17 @@ def collect_hyperdrive_metrics(parent_run_id: str, download_dir: Path, aml_works
         metrics_json.parent.mkdir(parents=True, exist_ok=True)
         print(f"Writing AML metrics file to {metrics_json}")
         df_to_json(metrics_df, metrics_json)
-    return metrics_df.sort_index(axis='columns')
+    return metrics_json
+
+
+def collect_hyperdrive_metrics(metrics_json: Path) -> pd.DataFrame:
+    """
+    Collect the hyperdrive metrics from the downloaded metrics json file in a dataframe.
+    :param metrics_json: Path of the downloaded metrics file `aml_metrics.json`.
+    :return: A dataframe in the format returned by :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
+    """
+    metrics_df = pd.read_json(metrics_json).sort_index(axis='columns')
+    return metrics_df
 
 
 def get_hyperdrive_metrics_table(metrics_df: pd.DataFrame, metrics_list: Sequence[str]) -> pd.DataFrame:
@@ -141,7 +150,6 @@ def get_hyperdrive_metrics_table(metrics_df: pd.DataFrame, metrics_list: Sequenc
         std = values.std()
         round_values: List[str] = [f"{v:.3f}" if v is not None else f"{v}" for v in values]
         agg_values: List[str] = [f"{mean:.3f} ± {std:.3f}"]
-        print(agg_values)
         row = [metric] + round_values + agg_values
         metrics_rows.append(row)
     table = pd.DataFrame(metrics_rows, columns=header).set_index(header[0])
