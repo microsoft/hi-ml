@@ -14,7 +14,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.profiler import BaseProfiler, SimpleProfiler, AdvancedProfiler, PyTorchProfiler
 
-from health_azure.utils import RUN_CONTEXT, is_running_in_azure_ml
+from health_azure.utils import RUN_CONTEXT, is_running_in_azure_ml, is_running_on_azure_agent
 
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils import AzureMLProgressBar
@@ -101,7 +101,10 @@ def create_lightning_trainer(container: LightningContainer,
         )
     else:
         mlflow_run_dir = container.outputs_folder / "mlruns"
-        mlflow_run_dir.mkdir(exist_ok=True)
+        if is_running_on_azure_agent():
+            mlflow_run_dir.mkdir(exist_ok=True, parents=True)
+        else:
+            mlflow_run_dir.mkdir(exist_ok=True)
         mlflow_tracking_uri = "file:" + str(mlflow_run_dir)
         mlflow_logger = MlflowLogger(run_id=mlflow_run_for_logging, tracking_uri=mlflow_tracking_uri)
         print(f"Local MLFlow logs are stored in {mlflow_tracking_uri}")
