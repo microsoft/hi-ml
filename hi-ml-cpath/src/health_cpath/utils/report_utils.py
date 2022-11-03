@@ -173,10 +173,13 @@ def get_best_epochs(metrics_df: pd.DataFrame, primary_metric: str, max_epochs_di
     best_epochs = {}
     for i in metrics_df.columns:
         primary_metric_list = metrics_df[i][primary_metric]
-        # If extra validation epoch was logged (N+1), return only the first N elements
-        primary_metric_list = primary_metric_list[:-1] \
-            if (len(primary_metric_list) == max_epochs_dict[i] + 1) else primary_metric_list
-        best_epochs[i] = int(np.argmax(primary_metric_list) if maximise else np.argmin(primary_metric_list))
+        if primary_metric_list is not None:
+            # If extra validation epoch was logged (N+1), return only the first N elements
+            primary_metric_list = primary_metric_list[:-1] \
+                if (len(primary_metric_list) == max_epochs_dict[i] + 1) else primary_metric_list
+            best_epochs[i] = int(np.argmax(primary_metric_list) if maximise else np.argmin(primary_metric_list))
+        else:
+            best_epochs[i] = None           # type:ignore
     return best_epochs
 
 
@@ -197,7 +200,7 @@ def get_best_epoch_metrics(metrics_df: pd.DataFrame, metrics_list: Sequence[str]
         containing only scalar values.
     """
     best_metrics = [metrics_df.loc[metrics_list, k].apply(lambda values: values[epoch])
-                    for k, epoch in best_epochs.items()]
+                    if epoch is not None else metrics_df.loc[metrics_list, k] for k, epoch in best_epochs.items()]
     best_metrics_df = pd.DataFrame(best_metrics).T
     return best_metrics_df
 
