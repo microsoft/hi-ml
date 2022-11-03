@@ -8,7 +8,6 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 
 import mlflow
 from pytorch_lightning.loggers import LightningLoggerBase, MLFlowLogger
-from pytorch_lightning.utilities import rank_zero_only
 from pytorch_lightning.utilities.logger import _convert_params, _flatten_dict
 from pytorch_lightning.utilities.rank_zero import rank_zero_only, rank_zero_warn
 
