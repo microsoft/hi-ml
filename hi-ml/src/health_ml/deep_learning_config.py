@@ -485,6 +485,11 @@ class TrainerParams(param.Parameterized):
     pl_log_every_n_steps: int = param.Integer(default=50,
                                               doc="PyTorch Lightning trainer flag 'log_every_n_steps': How often to"
                                               "log within steps. Default to 50.")
+    pl_replace_sampler_ddp: bool = param.Boolean(default=True,
+                                                 doc="PyTorch Lightning trainer flag 'replace_sampler_ddp' that "
+                                                 "sets the sampler for distributed training with shuffle=True during "
+                                                 "training and shuffle=False during validation. Default to True. Set to"
+                                                 "False to set your own sampler.")
 
     @property
     def use_gpu(self) -> bool:

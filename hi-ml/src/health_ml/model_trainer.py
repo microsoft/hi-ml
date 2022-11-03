@@ -190,5 +190,6 @@ def create_lightning_trainer(container: LightningContainer,
                       resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
                       multiple_trainloader_mode=multiple_trainloader_mode,
                       accumulate_grad_batches=container.pl_accumulate_grad_batches,
+                      replace_sampler_ddp=container.pl_replace_sampler_ddp,
                       **additional_args)
     return trainer, storing_logger
