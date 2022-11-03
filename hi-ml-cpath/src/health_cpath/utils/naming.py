@@ -89,6 +89,7 @@ class AMLMetricsJsonKey(str, Enum):
     VALUE = 'value'
     N_CLASSES = 'n_classes'
     CLASS_NAMES = 'class_names'
+    MAX_EPOCHS = 'max_epochs'
 
 
 class PlotOption(Enum):

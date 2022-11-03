@@ -145,7 +145,8 @@ def get_hyperdrive_metrics_table(metrics_df: pd.DataFrame, metrics_list: Sequenc
     return table
 
 
-def get_best_epochs(metrics_df: pd.DataFrame, primary_metric: str, maximise: bool = True) -> Dict[int, int]:
+def get_best_epochs(metrics_df: pd.DataFrame, primary_metric: str, max_epochs_dict: Dict[int, int],
+                    maximise: bool = True) -> Dict[int, int]:
     """Determine the best epoch for each hyperdrive child run based on a given metric.
 
     The returned epoch indices are relative to the logging frequency of the chosen metric, i.e.
@@ -154,12 +155,18 @@ def get_best_epochs(metrics_df: pd.DataFrame, primary_metric: str, maximise: boo
     :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_hyperdrive_metrics()` and
         :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
     :param primary_metric: Name of the reference metric to optimise.
+    :max_epochs_dict: A dictionary of the maximum number of epochs in each cross-validation round.
     :param maximise: Whether the given metric should be maximised (minimised if `False`).
     :return: Dictionary mapping each hyperdrive child index to its best epoch.
     """
-    best_fn = np.argmax if maximise else np.argmin
-    best_epochs = metrics_df.loc[primary_metric].apply(best_fn)
-    return best_epochs.to_dict()
+    best_epochs = {}
+    for i in range(len(metrics_df.columns)):
+        primary_metric_list = metrics_df[i][primary_metric]
+        # If extra validation epoch was logged (N+1), return only the first N elements
+        primary_metric_list = primary_metric_list[:-1] \
+            if (len(primary_metric_list) == max_epochs_dict[i] + 1) else primary_metric_list
+        best_epochs[i] = np.argmax(primary_metric_list) if maximise else np.argmin(primary_metric_list)
+    return best_epochs
 
 
 def get_best_epoch_metrics(metrics_df: pd.DataFrame, metrics_list: Sequence[str],
@@ -237,3 +244,21 @@ def collect_class_info(metrics_df: pd.DataFrame) -> Tuple[int, List[str]]:
         class_names = [name.lstrip() for name in class_names[1:-1].replace("'", "").split(',')]
     class_names = validate_class_names(class_names=class_names, n_classes=num_classes)
     return (num_classes, list(class_names))
+
+
+def collect_epoch_info(metrics_df: pd.DataFrame) -> Dict[int, int]:
+    """
+    Get the maximum number of epochs from metrics dataframe
+    :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_hyperdrive_metrics()` and
+        :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
+    :return: Number of classes and list of class names
+    """
+    max_epochs_dict = {}
+    for i in range(len(metrics_df.columns)):
+        hyperparams = metrics_df[i][AMLMetricsJsonKey.HYPERPARAMS]
+        hyperparams_name = hyperparams[AMLMetricsJsonKey.NAME]
+        hyperparams_value = hyperparams[AMLMetricsJsonKey.VALUE]
+        max_epochs_index = hyperparams_name.index(AMLMetricsJsonKey.MAX_EPOCHS)
+        max_epochs = int(hyperparams_value[max_epochs_index])
+        max_epochs_dict[i] = max_epochs
+    return max_epochs_dict

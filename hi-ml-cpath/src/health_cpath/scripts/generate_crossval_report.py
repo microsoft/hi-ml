@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import pandas as pd
+import matplotlib
+matplotlib.use('agg')
 from matplotlib import pyplot as plt
 
 from health_azure.utils import get_aml_run_from_run_id, get_workspace
@@ -19,7 +21,7 @@ from health_cpath.utils.output_utils import (AML_LEGACY_TEST_OUTPUTS_CSV, AML_TE
 from health_cpath.utils.report_utils import (collect_hyperdrive_metrics, collect_hyperdrive_outputs,
                                              child_runs_have_val_and_test_outputs, get_best_epoch_metrics,
                                              get_best_epochs, get_hyperdrive_metrics_table, get_formatted_run_info,
-                                             collect_class_info)
+                                             collect_class_info, collect_epoch_info)
 from health_cpath.utils.naming import MetricsKey, ModelKey
 
 
@@ -56,7 +58,9 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
     metrics_df = collect_hyperdrive_metrics(
         parent_run_id, report_dir, aml_workspace, overwrite=overwrite, hyperdrive_arg_name=hyperdrive_arg_name
     )
-    best_epochs = get_best_epochs(metrics_df, f'{ModelKey.VAL}/{primary_metric}', maximise=True)
+    max_epochs_dict = collect_epoch_info(metrics_df)
+    best_epochs = get_best_epochs(metrics_df=metrics_df, primary_metric=f'{ModelKey.VAL}/{primary_metric}',
+                                  max_epochs_dict=max_epochs_dict, maximise=True)
 
     # Add training curves for loss and AUROC (train and val.)
     render_training_curves(report, heading="Training curves", level=3,
@@ -169,7 +173,7 @@ def render_training_curves(report: HTMLReport, heading: str, level: int,
                                         ylabel=metric, best_epochs=best_epochs, ax=axs[i])
     add_training_curves_legend(fig, include_best_epoch=True)
     training_curves_fig_path = report_dir / "training_curves.png"
-    fig.savefig(training_curves_fig_path, bbox_inches='tight')
+    fig.savefig(str(training_curves_fig_path), bbox_inches='tight')
     report.add_images([training_curves_fig_path], base64_encode=True)
 
 
@@ -211,7 +215,7 @@ def render_roc_and_pr_curves(report: HTMLReport, heading: str, level: int, repor
     report.add_heading(heading, level=level)
     fig = plot_hyperdrive_roc_and_pr_curves(outputs_dfs, scores_column='prob_class1')
     roc_pr_curves_fig_path = report_dir / f"{prefix}roc_pr_curves.png"
-    fig.savefig(roc_pr_curves_fig_path, bbox_inches='tight')
+    fig.savefig(str(roc_pr_curves_fig_path), bbox_inches='tight')
     report.add_images([roc_pr_curves_fig_path], base64_encode=True)
 
 
@@ -231,7 +235,7 @@ def render_confusion_matrices(report: HTMLReport, heading: str, level: int, clas
     report.add_heading(heading, level=level)
     fig = plot_confusion_matrices(hyperdrive_dfs=outputs_dfs, class_names=class_names)
     confusion_matrices_fig_path = report_dir / f"{prefix}confusion_matrices.png"
-    fig.savefig(confusion_matrices_fig_path, bbox_inches='tight')
+    fig.savefig(str(confusion_matrices_fig_path), bbox_inches='tight')
     report.add_images([confusion_matrices_fig_path], base64_encode=True)
 
 
