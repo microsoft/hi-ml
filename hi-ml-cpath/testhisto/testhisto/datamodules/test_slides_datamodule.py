@@ -5,13 +5,14 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import shutil
-from typing import Generator, Dict, Callable, Union, Tuple
 import pytest
 import logging
 import numpy as np
 import torch
 from pathlib import Path
 from monai.transforms import RandFlipd
+from typing import Generator, Dict, Callable, Union, Tuple
+from torch.utils.data import DataLoader
 
 from health_ml.utils.common_utils import is_gpu_available
 from health_cpath.datamodules.base_module import SlidesDataModule
@@ -38,7 +39,7 @@ def mock_panda_slides_root_dir(
         src_data_path=tmp_path_to_pathmnist_dataset,
         mock_type=MockHistoDataType.PATHMNIST,
         n_tiles=1,
-        n_slides=10,
+        n_slides=16,
         n_repeat_diag=4,
         n_repeat_tile=2,
         n_channels=3,
@@ -198,7 +199,7 @@ def test_train_test_transforms(mock_panda_slides_root_dir: Path) -> None:
         train_transform = RandFlipd(keys=[SlideKey.IMAGE], spatial_axis=0, prob=1.0)
         return {ModelKey.TRAIN: train_transform, ModelKey.VAL: None, ModelKey.TEST: None}   # type: ignore
 
-    def retrieve_tiles(dataloader: torch.utils.data.DataLoader) -> Dict[str, torch.Tensor]:
+    def retrieve_tiles(dataloader: DataLoader) -> Dict[str, torch.Tensor]:
         tiles_dict = {}
         assert_batch_index = 0
         for sample in dataloader:
@@ -278,10 +279,71 @@ def test_whole_slide_inference(batch_size: int, mock_panda_slides_root_with_diff
         tiles = sample[SlideKey.IMAGE]
         assert tiles[assert_batch_index].shape[0] == tile_count
 
-    def assert_whole_slide_inference_with_all_tiles(dataloader: torch.utils.data.DataLoader) -> None:
+    def assert_whole_slide_inference_with_all_tiles(dataloader: DataLoader) -> None:
         for i, sample in enumerate(dataloader):
             tiles = sample[SlideKey.IMAGE]
             assert tiles[assert_batch_index].shape[0] == n_tiles_list[i * batch_size]
 
     assert_whole_slide_inference_with_all_tiles(datamodule.val_dataloader())
     assert_whole_slide_inference_with_all_tiles(datamodule.test_dataloader())
+
+
+@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
+@pytest.mark.gpu
+@pytest.mark.parametrize("max_bag_size, max_bag_size_inf", [(4, 0), (4, 8)])
+def test_different_bag_sizes(max_bag_size: int, max_bag_size_inf: int, mock_panda_slides_root_dir: Path) -> None:
+    batch_size = 2
+    tile_size = 28
+    datamodule = PandaSlidesDataModule(
+        root_path=mock_panda_slides_root_dir,
+        batch_size=batch_size,
+        max_bag_size=max_bag_size,
+        max_bag_size_inf=max_bag_size_inf,
+        tile_size=tile_size,
+        level=0,
+    )
+    max_bag_size_inf = max_bag_size_inf if max_bag_size_inf != 0 else None  # type: ignore
+
+    assert datamodule.bag_sizes[ModelKey.TRAIN] == max_bag_size
+    assert datamodule.bag_sizes[ModelKey.VAL] == max_bag_size_inf
+    assert datamodule.bag_sizes[ModelKey.TEST] == max_bag_size_inf
+
+    def _assert_bag_size_matching(dataloader: DataLoader, expected_bag_size: int) -> None:
+        sample = next(iter(dataloader))
+        for slide in sample[SlideKey.IMAGE]:
+            assert slide.shape[0] == expected_bag_size
+
+    _assert_bag_size_matching(datamodule.train_dataloader(), max_bag_size)
+
+    expected_bag_size_inf = max_bag_size_inf if max_bag_size_inf is not None else 16
+    _assert_bag_size_matching(datamodule.val_dataloader(), expected_bag_size_inf)
+    _assert_bag_size_matching(datamodule.test_dataloader(), expected_bag_size_inf)
+
+
+@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
+@pytest.mark.gpu
+@pytest.mark.parametrize("batch_size, batch_size_inf", [(2, 2), (2, 1), (2, None)])
+def test_different_batch_sizes(batch_size: int, batch_size_inf: int, mock_panda_slides_root_dir: Path) -> None:
+    datamodule = PandaSlidesDataModule(
+        root_path=mock_panda_slides_root_dir,
+        batch_size=batch_size,
+        batch_size_inf=batch_size_inf,
+        max_bag_size=16,
+        max_bag_size_inf=16,
+        tile_size=28,
+        level=0,
+    )
+
+    batch_size_inf = batch_size_inf if batch_size_inf is not None else batch_size
+
+    assert datamodule.batch_sizes[ModelKey.TRAIN] == batch_size
+    assert datamodule.batch_sizes[ModelKey.VAL] == batch_size_inf
+    assert datamodule.batch_sizes[ModelKey.TEST] == batch_size_inf
+
+    def _assert_batch_size_matching(dataloader: DataLoader, expected_batch_size: int) -> None:
+        sample = next(iter(dataloader))
+        assert len(sample[SlideKey.IMAGE]) == expected_batch_size
+
+    _assert_batch_size_matching(datamodule.train_dataloader(), batch_size)
+    _assert_batch_size_matching(datamodule.val_dataloader(), batch_size_inf)
+    _assert_batch_size_matching(datamodule.test_dataloader(), batch_size_inf)

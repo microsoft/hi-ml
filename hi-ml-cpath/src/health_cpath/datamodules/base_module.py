@@ -40,6 +40,9 @@ class CacheLocation(Enum):
     SAME = "same"
 
 
+SAMPLER_KEY = "sampler"
+
+
 class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
     """Base class to load a histopathology dataset as train, val, test sets"""
 
@@ -119,7 +122,7 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
             sampler = DistributedSampler(self.train_dataset, shuffle=True, seed=self.seed)
         else:
             sampler = None
-        self.dataloader_kwargs["sampler"] = sampler
+        self.dataloader_kwargs[SAMPLER_KEY] = sampler
         return self._get_dataloader(self.train_dataset, shuffle=True, stage=ModelKey.TRAIN, **self.dataloader_kwargs)
 
     def val_dataloader(self) -> DataLoader:
@@ -241,11 +244,12 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
         transformed_bag_dataset = self._load_dataset(dataset, stage=stage, shuffle=shuffle)
         bag_dataset: BagDataset = transformed_bag_dataset.data  # type: ignore
         generator = bag_dataset.bag_sampler.generator
+        if dataloader_kwargs.get(SAMPLER_KEY, None) is None:
+            dataloader_kwargs["shuffle"] = shuffle  # sampler option is mutually exclusive with shuffle
         return DataLoader(
             transformed_bag_dataset,
             batch_size=self.batch_sizes[stage],
             collate_fn=multibag_collate,
-            shuffle=shuffle,
             generator=generator,
             **dataloader_kwargs,
         )

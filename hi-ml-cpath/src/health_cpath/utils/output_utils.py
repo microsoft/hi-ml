@@ -26,6 +26,7 @@ OUTPUTS_CSV_FILENAME = "{}_output.csv"
 VAL_OUTPUTS_SUBDIR = "val"
 PREV_VAL_OUTPUTS_SUBDIR = "val_old"
 TEST_OUTPUTS_SUBDIR = "test"
+EXTRA_VAL_OUTPUTS_SUBDIR = "extra_val"
 EXTRA_PREFIX = "extra_"
 
 AML_OUTPUTS_DIR = "outputs"
