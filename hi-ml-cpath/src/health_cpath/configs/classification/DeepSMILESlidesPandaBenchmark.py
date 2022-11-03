@@ -133,6 +133,7 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             optimizer_params=create_from_matching_params(self, OptimizerParams),
             outputs_handler=outputs_handler,
             analyse_loss=self.analyse_loss,
+            replace_sampler_ddp=self.pl_replace_sampler_ddp,
         )
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
         return deepmil_module
