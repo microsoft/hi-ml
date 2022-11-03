@@ -101,13 +101,13 @@ def create_lightning_trainer(container: LightningContainer,
         )
     else:
         mlflow_run_dir = container.outputs_folder / "mlruns"
-        if is_running_on_azure_agent():
-            mlflow_run_dir.mkdir(exist_ok=True, parents=True)
-        else:
+        try:
             mlflow_run_dir.mkdir(exist_ok=True)
-        mlflow_tracking_uri = "file:" + str(mlflow_run_dir)
-        mlflow_logger = MlflowLogger(run_id=mlflow_run_for_logging, tracking_uri=mlflow_tracking_uri)
-        print(f"Local MLFlow logs are stored in {mlflow_tracking_uri}")
+            mlflow_tracking_uri = "file:" + str(mlflow_run_dir)
+            mlflow_logger = MlflowLogger(run_id=mlflow_run_for_logging, tracking_uri=mlflow_tracking_uri)
+            print(f"Local MLFlow logs are stored in {mlflow_tracking_uri}")
+        except FileNotFoundError:
+            mlflow_logger = None
 
     loggers = [tensorboard_logger, mlflow_logger]
     storing_logger = StoringLogger()
