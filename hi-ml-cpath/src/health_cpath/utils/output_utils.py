@@ -22,16 +22,16 @@ from health_cpath.datasets.base_dataset import SlidesDataset
 from health_cpath.utils.plots_utils import DeepMILPlotsHandler, TilesSelector
 from health_cpath.utils.naming import MetricsKey, ModelKey, PlotOption, ResultsKey
 
-OUTPUTS_CSV_FILENAME = "test_output.csv"
+OUTPUTS_CSV_FILENAME = "{}_output.csv"
 VAL_OUTPUTS_SUBDIR = "val"
-EXTRA_VAL_OUTPUTS_SUBDIR = "extra_val"
 PREV_VAL_OUTPUTS_SUBDIR = "val_old"
 TEST_OUTPUTS_SUBDIR = "test"
+EXTRA_PREFIX = "extra_"
 
 AML_OUTPUTS_DIR = "outputs"
-AML_LEGACY_TEST_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, OUTPUTS_CSV_FILENAME])
-AML_VAL_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, VAL_OUTPUTS_SUBDIR, OUTPUTS_CSV_FILENAME])
-AML_TEST_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, TEST_OUTPUTS_SUBDIR, OUTPUTS_CSV_FILENAME])
+AML_LEGACY_TEST_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, OUTPUTS_CSV_FILENAME.format("test")])
+AML_VAL_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, VAL_OUTPUTS_SUBDIR, OUTPUTS_CSV_FILENAME.format("val")])
+AML_TEST_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, TEST_OUTPUTS_SUBDIR, OUTPUTS_CSV_FILENAME.format("test")])
 
 BatchResultsType = Dict[ResultsKey, Any]
 EpochResultsType = List[BatchResultsType]
@@ -123,7 +123,7 @@ def collate_results_on_cpu(epoch_results: EpochResultsType) -> ResultsType:
     return results
 
 
-def save_outputs_csv(results: ResultsType, outputs_dir: Path) -> None:
+def save_outputs_csv(results: ResultsType, outputs_dir: Path, stage: str, prefix: str = "") -> None:
     logging.info("Saving outputs ...")
     # collate at slide level
     list_slide_dicts: List[Dict[ResultsKey, Any]] = []
@@ -135,7 +135,7 @@ def save_outputs_csv(results: ResultsType, outputs_dir: Path) -> None:
 
     assert outputs_dir.is_dir(), f"No such dir: {outputs_dir}"
     logging.info(f"Metrics results will be output to {outputs_dir}")
-    csv_filename = outputs_dir / OUTPUTS_CSV_FILENAME
+    csv_filename = outputs_dir / OUTPUTS_CSV_FILENAME.format(f"{prefix}{stage}")
 
     # Collect the list of dictionaries in a list of pandas dataframe and save
     df_list = []
@@ -322,11 +322,14 @@ class DeepMILOutputsHandler:
     def should_gather_tiles(self, plots_handler: DeepMILPlotsHandler) -> bool:
         return PlotOption.TOP_BOTTOM_TILES in plots_handler.plot_options and self.tiles_selector is not None
 
-    def _save_outputs(self, epoch_results: EpochResultsType, outputs_dir: Path, stage: ModelKey = ModelKey.VAL) -> None:
+    def _save_outputs(self, epoch_results: EpochResultsType, outputs_dir: Path, stage: ModelKey = ModelKey.VAL,
+                      prefix: str = "") -> None:
         """Trigger the rendering and saving of DeepMIL outputs and figures.
 
         :param epoch_results: Aggregated results from all epoch batches.
         :param outputs_dir: Specific directory into which outputs should be saved (different for validation and test).
+        :param stage: The stage of the model (e.g. `ModelKey.VAL` or `ModelKey.TEST`).
+        :param prefix: Prefix to add to the output file names.
         """
         # outputs object consists of a list of dictionaries (of metadata and results, including encoded features)
         # It can be indexed as outputs[batch_idx][batch_key][bag_idx][tile_idx]
@@ -337,7 +340,7 @@ class DeepMILOutputsHandler:
         # TODO: Synchronise this with checkpoint saving (e.g. on_save_checkpoint())
         results = collate_results_on_cpu(epoch_results)
         outputs_dir.mkdir(exist_ok=True, parents=True)
-        save_outputs_csv(results, outputs_dir)
+        save_outputs_csv(results, outputs_dir, stage, prefix)
 
         plots_handler = self.val_plots_handler if stage == ModelKey.VAL else self.test_plots_handler
         plots_handler.save_plots(outputs_dir, self.tiles_selector, results)
@@ -374,8 +377,8 @@ class DeepMILOutputsHandler:
             # Writing completed successfully; delete temporary back-up
             if self.previous_validation_outputs_dir.exists():
                 shutil.rmtree(self.previous_validation_outputs_dir, ignore_errors=True)
-        elif on_extra_val:
-            self._save_outputs(gathered_epoch_results, self.extra_validation_outputs_dir, ModelKey.VAL)
+        elif on_extra_val and is_global_rank_zero:
+            self._save_outputs(gathered_epoch_results, self.extra_validation_outputs_dir, ModelKey.VAL, EXTRA_PREFIX)
 
         # Reset the top and bottom slides heaps
         if self.should_gather_tiles(self.val_plots_handler):

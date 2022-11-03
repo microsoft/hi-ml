@@ -22,11 +22,10 @@ from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams, set_m
 from health_cpath.datasets.base_dataset import TilesDataset
 from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
 from health_cpath.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
-                                             validate_class_names)
+                                             validate_class_names, EXTRA_PREFIX)
 
 RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
                 ResultsKey.CLASS_PROBS, ResultsKey.PRED_LABEL, ResultsKey.TRUE_LABEL, ResultsKey.BAG_ATTN]
-EXTRA_VAL = "extra_val"
 
 
 def _format_cuda_memory_stats() -> str:
@@ -222,8 +221,11 @@ class BaseDeepMILModule(LightningModule):
                 MetricsKey.RECALL: Recall(),
                 MetricsKey.SPECIFICITY: Specificity()})
 
-    def log_metrics(self, stage: str) -> None:
-        valid_stages = set([*[stage for stage in ModelKey], EXTRA_VAL])
+    def get_extra_prefix(self) -> str:
+        return EXTRA_PREFIX if self._on_extra_val_epoch else ""
+
+    def log_metrics(self, stage: str, prefix: str = "") -> None:
+        valid_stages = set([stage for stage in ModelKey])
         if stage not in valid_stages:
             raise Exception(f"Invalid stage. Chose one of {valid_stages}")
         for metric_name, metric_object in self.get_metrics_dict(stage).items():
@@ -231,9 +233,9 @@ class BaseDeepMILModule(LightningModule):
                 metric_value = metric_object.compute()
                 metric_value_n = metric_value / metric_value.sum(axis=1, keepdims=True)
                 for i in range(metric_value_n.shape[0]):
-                    log_on_epoch(self, f'{stage}/{self.class_names[i]}', metric_value_n[i, i])
+                    log_on_epoch(self, f'{prefix}{stage}/{self.class_names[i]}', metric_value_n[i, i])
             else:
-                log_on_epoch(self, f'{stage}/{metric_name}', metric_object)
+                log_on_epoch(self, f'{prefix}{stage}/{metric_name}', metric_object)
 
     def get_instance_features(self, instances: Tensor) -> Tensor:
         if not self.encoder_params.tune_encoder:
@@ -300,6 +302,14 @@ class BaseDeepMILModule(LightningModule):
         """Update training results with data specific info. This can be either tiles or slides related metadata."""
         raise NotImplementedError
 
+    def update_slides_selection(self, stage: ModelKey, batch: Dict, results: Dict) -> None:
+        if (
+            (stage == ModelKey.TEST or (stage == ModelKey.VAL and self._on_extra_val_epoch))
+            and self.outputs_handler
+            and self.outputs_handler.tiles_selector
+        ):
+            self.outputs_handler.tiles_selector.update_slides_selection(batch, results)
+
     def _compute_loss(self, loss_fn: Callable, bag_logits: Tensor, bag_labels: Tensor) -> Tensor:
         if self.n_classes > 1:
             return loss_fn(bag_logits, bag_labels.long())
@@ -345,12 +355,7 @@ class BaseDeepMILModule(LightningModule):
                         ResultsKey.BAG_ATTN: bag_attn_list
                         })
         self.update_results_with_data_specific_info(batch=batch, results=results)
-        if (
-            (stage == ModelKey.TEST or (stage == ModelKey.VAL and self._on_extra_val_epoch))
-            and self.outputs_handler
-            and self.outputs_handler.tiles_selector
-        ):
-            self.outputs_handler.tiles_selector.update_slides_selection(batch, results)
+        self.update_slides_selection(stage=stage, batch=batch, results=results)
         return results
 
     def training_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
@@ -375,9 +380,8 @@ class BaseDeepMILModule(LightningModule):
         else:
             val_result = self._shared_step(batch, batch_idx, ModelKey.VAL)
         sync_dist = is_distributed and not self.validate_on_single_device
-        val_mode = ModelKey.VAL if not self._on_extra_val_epoch else EXTRA_VAL
-        self.log(f'{val_mode}/loss', val_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
-                 sync_dist=sync_dist)
+        self.log(f'{self.get_extra_prefix()}val/loss', val_result[ResultsKey.LOSS], on_epoch=True,
+                 on_step=True, logger=True, sync_dist=sync_dist)
         return val_result
 
     def test_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
@@ -390,8 +394,7 @@ class BaseDeepMILModule(LightningModule):
         self.log_metrics(ModelKey.TRAIN)
 
     def validation_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
-        val_mode = ModelKey.VAL if not self._on_extra_val_epoch else EXTRA_VAL
-        self.log_metrics(val_mode)
+        self.log_metrics(stage=ModelKey.VAL, prefix=self.get_extra_prefix())
         if self.outputs_handler:
             self.outputs_handler.save_validation_outputs(
                 epoch_results=epoch_results,
