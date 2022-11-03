@@ -114,11 +114,12 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
     ) -> DataLoader:
         raise NotImplementedError
 
-    def _get_ddp_sampler(self, stage: ModelKey) -> Optional[DistributedSampler]:
+    def _get_ddp_sampler(self, dataset: Dataset, stage: ModelKey) -> Optional[DistributedSampler]:
         is_distributed = torch.distributed.is_initialized() and torch.distributed.get_world_size() > 1
-        if is_distributed and stage == ModelKey.TRAIN and not self.pl_replace_sampler_ddp:
-            assert self.seed is not None, "seed must be set when using distributed training for reproducibility"
-            return DistributedSampler(self.train_dataset, shuffle=True, seed=self.seed)
+        if is_distributed and not self.pl_replace_sampler_ddp:
+            if stage == ModelKey.TRAIN:
+                assert self.seed is not None, "seed must be set when using distributed training for reproducibility"
+                return DistributedSampler(dataset, shuffle=True, seed=self.seed)
         return None
 
     def train_dataloader(self) -> DataLoader:
@@ -244,7 +245,7 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
         bag_dataset: BagDataset = transformed_bag_dataset.data  # type: ignore
         generator = bag_dataset.bag_sampler.generator
 
-        sampler = self._get_ddp_sampler(stage)
+        sampler = self._get_ddp_sampler(transformed_bag_dataset, stage)
         if sampler is None:
             dataloader_kwargs["shuffle"] = shuffle  # sampler option is mutually exclusive with shuffle
         return DataLoader(
@@ -348,7 +349,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                         **dataloader_kwargs: Any) -> DataLoader:
         transformed_slides_dataset = self._load_dataset(dataset, stage)
         generator = _create_generator(self.seed)
-        sampler = self._get_ddp_sampler(stage)
+        sampler = self._get_ddp_sampler(transformed_slides_dataset, stage)
         if sampler is None:
             dataloader_kwargs["shuffle"] = shuffle  # sampler option is mutually exclusive with shuffle
         return DataLoader(
