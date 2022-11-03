@@ -91,56 +91,58 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
                              metrics_df=metrics_df, best_epochs=None,
                              base_metrics_list=base_metrics_list, metrics_prefix=f'{ModelKey.TEST}/')
 
-    has_val_and_test_outputs = child_runs_have_val_and_test_outputs(parent_run)
+    # Get output data frames if available
 
-    # Get output data frames
-    if has_val_and_test_outputs:
-        output_filename_val = AML_VAL_OUTPUTS_CSV
-        outputs_dfs_val = collect_hyperdrive_outputs(parent_run_id=parent_run_id, download_dir=report_dir,
-                                                     aml_workspace=aml_workspace,
-                                                     output_filename=output_filename_val, overwrite=overwrite,
-                                                     hyperdrive_arg_name=hyperdrive_arg_name)
-        if include_test:
-            output_filename_test = AML_TEST_OUTPUTS_CSV if has_val_and_test_outputs else AML_LEGACY_TEST_OUTPUTS_CSV
-            outputs_dfs_test = collect_hyperdrive_outputs(parent_run_id=parent_run_id, download_dir=report_dir,
-                                                          aml_workspace=aml_workspace,
-                                                          output_filename=output_filename_test, overwrite=overwrite,
-                                                          hyperdrive_arg_name=hyperdrive_arg_name)
-
-    if num_classes == 1:
-        # Currently ROC and PR curves rendered only for binary case
-        # TODO: Enable rendering of multi-class ROC and PR curves
-        report.add_heading("ROC and PR curves", level=2)
+    try:
+        has_val_and_test_outputs = child_runs_have_val_and_test_outputs(parent_run)
         if has_val_and_test_outputs:
-            # Add val. ROC and PR curves
-            render_roc_and_pr_curves(report=report, heading="Validation ROC and PR curves", level=3,
-                                     report_dir=report_dir,
-                                     outputs_dfs=outputs_dfs_val,
-                                     prefix=f'{ModelKey.VAL}_')
+            output_filename_val = AML_VAL_OUTPUTS_CSV
+            outputs_dfs_val = collect_hyperdrive_outputs(parent_run_id=parent_run_id, download_dir=report_dir,
+                                                        aml_workspace=aml_workspace,
+                                                        output_filename=output_filename_val, overwrite=overwrite,
+                                                        hyperdrive_arg_name=hyperdrive_arg_name)
+            if include_test:
+                output_filename_test = AML_TEST_OUTPUTS_CSV if has_val_and_test_outputs else AML_LEGACY_TEST_OUTPUTS_CSV
+                outputs_dfs_test = collect_hyperdrive_outputs(parent_run_id=parent_run_id, download_dir=report_dir,
+                                                            aml_workspace=aml_workspace,
+                                                            output_filename=output_filename_test, overwrite=overwrite,
+                                                            hyperdrive_arg_name=hyperdrive_arg_name)
+
+        if num_classes == 1:
+            # Currently ROC and PR curves rendered only for binary case
+            # TODO: Enable rendering of multi-class ROC and PR curves
+            report.add_heading("ROC and PR curves", level=2)
+            if has_val_and_test_outputs:
+                # Add val. ROC and PR curves
+                render_roc_and_pr_curves(report=report, heading="Validation ROC and PR curves", level=3,
+                                        report_dir=report_dir,
+                                        outputs_dfs=outputs_dfs_val,
+                                        prefix=f'{ModelKey.VAL}_')
+            if include_test:
+                # Add test ROC and PR curves
+                render_roc_and_pr_curves(report=report, heading="Test ROC and PR curves", level=3,
+                                        report_dir=report_dir,
+                                        outputs_dfs=outputs_dfs_test,
+                                        prefix=f'{ModelKey.TEST}_')
+
+        # Add confusion matrices for each fold
+        report.add_heading("Confusion matrices", level=2)
+        if has_val_and_test_outputs:
+            # Add val. confusion matrices
+            render_confusion_matrices(report=report, heading="Validation confusion matrices", level=3,
+                                    class_names=class_names,
+                                    report_dir=report_dir, outputs_dfs=outputs_dfs_val,
+                                    prefix=f'{ModelKey.VAL}_')
+
         if include_test:
-            # Add test ROC and PR curves
-            render_roc_and_pr_curves(report=report, heading="Test ROC and PR curves", level=3,
-                                     report_dir=report_dir,
-                                     outputs_dfs=outputs_dfs_test,
-                                     prefix=f'{ModelKey.TEST}_')
+            # Add test confusion matrices
+            render_confusion_matrices(report=report, heading="Test confusion matrices", level=3,
+                                    class_names=class_names,
+                                    report_dir=report_dir, outputs_dfs=outputs_dfs_test,
+                                    prefix=f'{ModelKey.TEST}_')
 
-    # Add confusion matrices for each fold
-
-    report.add_heading("Confusion matrices", level=2)
-
-    if has_val_and_test_outputs:
-        # Add val. confusion matrices
-        render_confusion_matrices(report=report, heading="Validation confusion matrices", level=3,
-                                  class_names=class_names,
-                                  report_dir=report_dir, outputs_dfs=outputs_dfs_val,
-                                  prefix=f'{ModelKey.VAL}_')
-
-    if include_test:
-        # Add test confusion matrices
-        render_confusion_matrices(report=report, heading="Test confusion matrices", level=3,
-                                  class_names=class_names,
-                                  report_dir=report_dir, outputs_dfs=outputs_dfs_test,
-                                  prefix=f'{ModelKey.TEST}_')
+    except ValueError:
+        pass
 
     # TODO: Add qualitative model outputs
     # report.add_heading("Qualitative model outputs", level=2)

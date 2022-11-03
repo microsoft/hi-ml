@@ -139,7 +139,10 @@ def get_hyperdrive_metrics_table(metrics_df: pd.DataFrame, metrics_list: Sequenc
         values: pd.Series = metrics_df.loc[metric]
         mean = values.mean()
         std = values.std()
-        row = [metric] + [f"{v:.3f}" for v in values] + [f"{mean:.3f} ± {std:.3f}"]
+        round_values: List[str] = [f"{v:.3f}" if v is not None else f"{v}" for v in values]
+        agg_values: List[str] = [f"{mean:.3f} ± {std:.3f}"]
+        print(agg_values)
+        row = [metric] + round_values + agg_values
         metrics_rows.append(row)
     table = pd.DataFrame(metrics_rows, columns=header).set_index(header[0])
     return table
@@ -165,7 +168,7 @@ def get_best_epochs(metrics_df: pd.DataFrame, primary_metric: str, max_epochs_di
         # If extra validation epoch was logged (N+1), return only the first N elements
         primary_metric_list = primary_metric_list[:-1] \
             if (len(primary_metric_list) == max_epochs_dict[i] + 1) else primary_metric_list
-        best_epochs[i] = np.argmax(primary_metric_list) if maximise else np.argmin(primary_metric_list)
+        best_epochs[i] = int(np.argmax(primary_metric_list) if maximise else np.argmin(primary_metric_list))
     return best_epochs
 
 
