@@ -93,6 +93,7 @@ def create_lightning_trainer(container: LightningContainer,
             message += "s per node with DDP"
     logging.info(f"Using {message}")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
+    loggers: List[Any] = [tensorboard_logger]
 
     if is_running_in_azure_ml():
         mlflow_run_id = os.environ.get("MLFLOW_RUN_ID", None)
@@ -105,11 +106,11 @@ def create_lightning_trainer(container: LightningContainer,
             mlflow_run_dir.mkdir(exist_ok=True)
             mlflow_tracking_uri = "file:" + str(mlflow_run_dir)
             mlflow_logger = MlflowLogger(run_id=mlflow_run_for_logging, tracking_uri=mlflow_tracking_uri)
+            loggers.append(mlflow_logger)
             print(f"Local MLFlow logs are stored in {mlflow_tracking_uri}")
-        except FileNotFoundError:
-            mlflow_logger = None
+        except FileNotFoundError as e:
+            logging.warning(f"Unable to initialise MLFlowLogger due to error: {e}")
 
-    loggers = [tensorboard_logger, mlflow_logger]
     storing_logger = StoringLogger()
     loggers.append(storing_logger)
     # Use 32bit precision when running on CPU. Otherwise, make it depend on use_mixed_precision flag.
