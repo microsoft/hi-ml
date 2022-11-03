@@ -40,7 +40,7 @@ class CacheLocation(Enum):
     SAME = "same"
 
 
-SAMPLER_KEY = "sampler"
+SHUFFLE_KEY = "shuffle"
 
 
 class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
@@ -114,15 +114,14 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
     ) -> DataLoader:
         raise NotImplementedError
 
-    def train_dataloader(self) -> DataLoader:
+    def _get_ddp_sampler(self, stage: ModelKey) -> Optional[DistributedSampler]:
         is_distributed = torch.distributed.is_initialized() and torch.distributed.get_world_size() > 1
-        sampler: Optional[DistributedSampler]
-        if not self.pl_replace_sampler_ddp and is_distributed:
+        if is_distributed and stage == ModelKey.TRAIN and not self.pl_replace_sampler_ddp:
             assert self.seed is not None, "seed must be set when using distributed training for reproducibility"
-            sampler = DistributedSampler(self.train_dataset, shuffle=True, seed=self.seed)
-        else:
-            sampler = None
-        self.dataloader_kwargs[SAMPLER_KEY] = sampler
+            return DistributedSampler(self.train_dataset, shuffle=True, seed=self.seed)
+        return None
+
+    def train_dataloader(self) -> DataLoader:
         return self._get_dataloader(self.train_dataset, shuffle=True, stage=ModelKey.TRAIN, **self.dataloader_kwargs)
 
     def val_dataloader(self) -> DataLoader:
@@ -244,12 +243,15 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
         transformed_bag_dataset = self._load_dataset(dataset, stage=stage, shuffle=shuffle)
         bag_dataset: BagDataset = transformed_bag_dataset.data  # type: ignore
         generator = bag_dataset.bag_sampler.generator
-        if dataloader_kwargs.get(SAMPLER_KEY, None) is None:
+
+        sampler = self._get_ddp_sampler(stage)
+        if sampler is None:
             dataloader_kwargs["shuffle"] = shuffle  # sampler option is mutually exclusive with shuffle
         return DataLoader(
             transformed_bag_dataset,
             batch_size=self.batch_sizes[stage],
             collate_fn=multibag_collate,
+            sampler=sampler,
             generator=generator,
             **dataloader_kwargs,
         )
@@ -305,6 +307,9 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         self.background_val = background_val
         self.filter_mode = filter_mode
 
+    def get_collate_fn(self) -> Callable:
+        return image_collate
+
     def _load_dataset(self, slides_dataset: SlidesDataset, stage: ModelKey) -> Dataset:
         base_transform = Compose(
             [
@@ -343,11 +348,14 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                         **dataloader_kwargs: Any) -> DataLoader:
         transformed_slides_dataset = self._load_dataset(dataset, stage)
         generator = _create_generator(self.seed)
+        sampler = self._get_ddp_sampler(stage)
+        if sampler is None:
+            dataloader_kwargs["shuffle"] = shuffle  # sampler option is mutually exclusive with shuffle
         return DataLoader(
             transformed_slides_dataset,
             batch_size=self.batch_sizes[stage],
             collate_fn=image_collate,
-            shuffle=shuffle,
+            sampler=sampler,
             generator=generator,
             **dataloader_kwargs,
         )
