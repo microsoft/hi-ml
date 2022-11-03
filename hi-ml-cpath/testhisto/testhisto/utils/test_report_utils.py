@@ -182,7 +182,8 @@ def metrics_df() -> pd.DataFrame:
 
 @pytest.fixture
 def best_epochs(metrics_df: pd.DataFrame) -> Dict[int, int]:
-    return get_best_epochs(metrics_df, 'val/accuracy', maximise=True)
+    return get_best_epochs(metrics_df=metrics_df, primary_metric='val/accuracy',
+                           max_epochs_dict={0: 3, 1: 3, 3: 3}, maximise=True)
 
 
 @pytest.fixture
@@ -214,7 +215,9 @@ def test_collect_hyperdrive_metrics(metrics_df: pd.DataFrame, tmp_path: Path, ov
 
 @pytest.mark.parametrize('maximise', [True, False])
 def test_get_best_epochs(metrics_df: pd.DataFrame, maximise: bool) -> None:
-    best_epochs = get_best_epochs(metrics_df, 'val/accuracy', maximise=maximise)
+    max_epochs_dict = {0: 3, 1: 3, 3: 3}
+    best_epochs = get_best_epochs(metrics_df=metrics_df, primary_metric='val/accuracy',
+                                  max_epochs_dict=max_epochs_dict, maximise=maximise)
     assert list(best_epochs.keys()) == list(metrics_df.columns)
     assert all(isinstance(epoch, int) for epoch in best_epochs.values())
 

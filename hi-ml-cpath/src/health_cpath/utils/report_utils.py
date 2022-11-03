@@ -259,7 +259,7 @@ def collect_class_info(metrics_df: pd.DataFrame) -> Tuple[int, List[str]]:
 
 def collect_epoch_info(metrics_df: pd.DataFrame) -> Dict[int, int]:
     """
-    Get the maximum number of epochs from metrics dataframe
+    Get the maximum number of epochs for each round from metrics dataframe
     :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_hyperdrive_metrics()` and
         :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
     :return: Number of classes and list of class names
