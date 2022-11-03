@@ -1758,7 +1758,7 @@ def aggregate_hyperdrive_metrics(
         assert run_id is not None, "Either run or run_id must be provided"
         workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
         run = get_aml_run_from_run_id(run_id, aml_workspace=workspace)
-#    assert isinstance(run, HyperDriveRun)
+    assert isinstance(run, HyperDriveRun)
     metrics: DefaultDict = defaultdict()
     for child_run in run.get_children():  # type: ignore
         child_run_metrics = child_run.get_metrics()

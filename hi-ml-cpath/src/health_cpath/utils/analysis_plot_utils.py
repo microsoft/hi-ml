@@ -255,7 +255,7 @@ def add_training_curves_legend(fig: Figure, include_best_epoch: bool = False) ->
     # Add primary legend for main lines (hyperdrive runs)
     handles, labels = plt.gca().get_legend_handles_labels()
     by_label = dict(zip(labels, handles))
-    fig.legend(list(by_label.values()), list(by_label.keys()), **legend_kwargs, loc='lower center',
+    fig.legend(by_label.values(), by_label.keys(), **legend_kwargs, loc='lower center',
                bbox_to_anchor=(0.5, -0.06), ncol=len(by_label))
 
     # Add secondary legend for line styles

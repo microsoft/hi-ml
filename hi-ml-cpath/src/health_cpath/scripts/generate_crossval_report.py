@@ -7,8 +7,6 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import pandas as pd
-import matplotlib
-matplotlib.use('agg')
 from matplotlib import pyplot as plt
 
 from health_azure.utils import get_aml_run_from_run_id, get_workspace
@@ -179,7 +177,7 @@ def render_training_curves(report: HTMLReport, heading: str, level: int,
                                         ylabel=metric, best_epochs=best_epochs, ax=axs[i])
     add_training_curves_legend(fig, include_best_epoch=True)
     training_curves_fig_path = report_dir / "training_curves.png"
-    fig.savefig(str(training_curves_fig_path), bbox_inches='tight')
+    fig.savefig(training_curves_fig_path, bbox_inches='tight')
     report.add_images([training_curves_fig_path], base64_encode=True)
 
 
@@ -221,7 +219,7 @@ def render_roc_and_pr_curves(report: HTMLReport, heading: str, level: int, repor
     report.add_heading(heading, level=level)
     fig = plot_hyperdrive_roc_and_pr_curves(outputs_dfs, scores_column='prob_class1')
     roc_pr_curves_fig_path = report_dir / f"{prefix}roc_pr_curves.png"
-    fig.savefig(str(roc_pr_curves_fig_path), bbox_inches='tight')
+    fig.savefig(roc_pr_curves_fig_path, bbox_inches='tight')
     report.add_images([roc_pr_curves_fig_path], base64_encode=True)
 
 
@@ -241,7 +239,7 @@ def render_confusion_matrices(report: HTMLReport, heading: str, level: int, clas
     report.add_heading(heading, level=level)
     fig = plot_confusion_matrices(hyperdrive_dfs=outputs_dfs, class_names=class_names)
     confusion_matrices_fig_path = report_dir / f"{prefix}confusion_matrices.png"
-    fig.savefig(str(confusion_matrices_fig_path), bbox_inches='tight')
+    fig.savefig(confusion_matrices_fig_path, bbox_inches='tight')
     report.add_images([confusion_matrices_fig_path], base64_encode=True)
 
 
