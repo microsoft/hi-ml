@@ -26,7 +26,7 @@ from health_cpath.utils.output_utils import (BatchResultsType, DeepMILOutputsHan
 
 RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
                 ResultsKey.CLASS_PROBS, ResultsKey.PRED_LABEL, ResultsKey.TRUE_LABEL, ResultsKey.BAG_ATTN]
-
+EXTRA_VAL = "extra_val"
 
 def _format_cuda_memory_stats() -> str:
     return (f"GPU {torch.cuda.current_device()} memory: "
@@ -51,7 +51,9 @@ class BaseDeepMILModule(LightningModule):
                  pooling_params: PoolingParams = PoolingParams(),
                  optimizer_params: OptimizerParams = OptimizerParams(),
                  outputs_handler: Optional[DeepMILOutputsHandler] = None,
-                 analyse_loss: Optional[bool] = False) -> None:
+                 analyse_loss: Optional[bool] = False,
+                 validate_on_single_device: bool = False,
+                 ) -> None:
         """
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be
@@ -70,6 +72,7 @@ class BaseDeepMILModule(LightningModule):
             validation epoch and test stage. If omitted (default), no outputs will be saved to disk (aside from usual
             metrics logging).
         :param analyse_loss: If True, the loss is analysed per sample and analysed with LossAnalysisCallback.
+        :param validate_on_single_device: If True, validation is performed on a single device (default=False).
         """
         super().__init__()
 
@@ -83,16 +86,17 @@ class BaseDeepMILModule(LightningModule):
         self.encoder_params = encoder_params
         self.pooling_params = pooling_params
         self.optimizer_params = optimizer_params
+        self.pretrained_classifier = pretrained_classifier
+        self.tune_classifier = tune_classifier
 
         self.save_hyperparameters()
         self.verbose = verbose
         self.outputs_handler = outputs_handler
-        self.pretrained_classifier = pretrained_classifier
 
         # This flag can be switched on before invoking trainer.validate() to enable saving additional time/memory
         # consuming validation outputs via calling self.on_run_extra_validation_epoch()
         self._run_extra_val_epoch = False
-        self.tune_classifier = tune_classifier
+        self.validate_on_single_device = validate_on_single_device
 
         # Model components
         self.encoder = encoder_params.get_encoder(outputs_folder)
@@ -362,9 +366,17 @@ class BaseDeepMILModule(LightningModule):
         return results
 
     def validation_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
-        val_result = self._shared_step(batch, batch_idx, ModelKey.VAL)
-        self.log('val/loss', val_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
-                 sync_dist=True)
+        is_global_rank_zero = self.global_rank == 0
+        is_distributed = torch.distributed.is_initialized() and torch.distributed.get_world_size() > 1
+
+        if is_distributed and self.validate_on_single_device and not is_global_rank_zero:
+            val_result = {}
+        else:
+            val_result = self._shared_step(batch, batch_idx, ModelKey.VAL)
+        sync_dist = is_distributed and not self.validate_on_single_device
+        val_mode = ModelKey.VAL if not self._run_extra_val_epoch else EXTRA_VAL
+        self.log(f'{val_mode}/loss', val_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
+                 sync_dist=sync_dist)
         return val_result
 
     def test_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
@@ -377,19 +389,16 @@ class BaseDeepMILModule(LightningModule):
         self.log_metrics(ModelKey.TRAIN)
 
     def validation_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
-        self.log_metrics(ModelKey.VAL)
+        val_mode = ModelKey.VAL if not self._run_extra_val_epoch else EXTRA_VAL
+        self.log_metrics(val_mode)
         if self.outputs_handler:
             self.outputs_handler.save_validation_outputs(
                 epoch_results=epoch_results,
                 metrics_dict=self.get_metrics_dict(ModelKey.VAL),  # type: ignore
                 epoch=self.current_epoch,
                 is_global_rank_zero=self.global_rank == 0,
-                run_extra_val_epoch=self._run_extra_val_epoch
+                on_extra_val=self._run_extra_val_epoch
             )
-
-            # Reset the top and bottom slides heaps
-            if self.outputs_handler.tiles_selector is not None:
-                self.outputs_handler.tiles_selector._clear_cached_slides_heaps()
 
     def test_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
         self.log_metrics(ModelKey.TEST)

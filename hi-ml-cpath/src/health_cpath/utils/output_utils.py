@@ -24,6 +24,7 @@ from health_cpath.utils.naming import MetricsKey, ModelKey, PlotOption, ResultsK
 
 OUTPUTS_CSV_FILENAME = "test_output.csv"
 VAL_OUTPUTS_SUBDIR = "val"
+EXTRA_VAL_OUTPUTS_SUBDIR = "extra_val"
 PREV_VAL_OUTPUTS_SUBDIR = "val_old"
 TEST_OUTPUTS_SUBDIR = "test"
 
@@ -198,7 +199,7 @@ class OutputsPolicy:
         YAML().dump(contents, self.best_metric_file_path)
 
     def should_save_validation_outputs(self, metrics_dict: Mapping[MetricsKey, Metric], epoch: int,
-                                       is_global_rank_zero: bool = True) -> bool:
+                                       is_global_rank_zero: bool = True, on_extra_val: bool = False) -> bool:
         """Determine whether validation outputs should be saved given the current epoch's metrics.
 
         :param metrics_dict: Current epoch's metrics dictionary from
@@ -206,6 +207,7 @@ class OutputsPolicy:
         :param epoch: Current epoch number.
         :param is_global_rank_zero: Whether this is the global rank-0 process in distributed scenarios.
             Set to `True` (default) if running a single process.
+        :param on_extra_val_epoch: Whether this is an extra validation epoch (e.g. after training).
         :return: Whether this is the best validation epoch so far.
         """
         metric = metrics_dict[self.primary_val_metric]
@@ -234,7 +236,7 @@ class OutputsPolicy:
             self._best_metric_epoch = epoch
             self._save_best_metric()
 
-        return is_best
+        return is_best and not on_extra_val
 
     def should_save_test_outputs(self, is_global_rank_zero: bool = True) -> bool:
         """Determine whether test outputs should be saved.
@@ -300,6 +302,10 @@ class DeepMILOutputsHandler:
         return self.outputs_root / VAL_OUTPUTS_SUBDIR
 
     @property
+    def extra_validation_outputs_dir(self) -> Path:
+        return self.outputs_root / EXTRA_VAL_OUTPUTS_SUBDIR
+
+    @property
     def previous_validation_outputs_dir(self) -> Path:
         return self.validation_outputs_dir.with_name(PREV_VAL_OUTPUTS_SUBDIR)
 
@@ -312,6 +318,9 @@ class DeepMILOutputsHandler:
         validate_slide_datasets_for_plot_options(self.val_plots_handler.plot_options, slides_dataset)
         self.test_plots_handler.slides_dataset = slides_dataset
         self.val_plots_handler.slides_dataset = slides_dataset
+
+    def should_gather_tiles(self, plots_handler: DeepMILPlotsHandler) -> bool:
+        return PlotOption.TOP_BOTTOM_TILES in plots_handler.plot_options and self.tiles_selector is not None
 
     def _save_outputs(self, epoch_results: EpochResultsType, outputs_dir: Path, stage: ModelKey = ModelKey.VAL) -> None:
         """Trigger the rendering and saving of DeepMIL outputs and figures.
@@ -334,7 +343,7 @@ class DeepMILOutputsHandler:
         plots_handler.save_plots(outputs_dir, self.tiles_selector, results)
 
     def save_validation_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric],
-                                epoch: int, is_global_rank_zero: bool = True, run_extra_val_epoch: bool = False
+                                epoch: int, is_global_rank_zero: bool = True, on_extra_val: bool = False
                                 ) -> None:
         """Render and save validation epoch outputs, according to the configured :py:class:`OutputsPolicy`.
 
@@ -344,18 +353,16 @@ class DeepMILOutputsHandler:
         :param is_global_rank_zero: Whether this is the global rank-0 process in distributed scenarios.
             Set to `True` (default) if running a single process.
         :param epoch: Current epoch number.
+        :param on_extra_val: Whether this is an extra validation epoch (e.g. after training).
         """
         # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
-        if PlotOption.TOP_BOTTOM_TILES in self.val_plots_handler.plot_options and self.tiles_selector:
-            self.tiles_selector.gather_selected_tiles_across_devices()
+        if self.should_gather_tiles(self.val_plots_handler):
+            self.tiles_selector.gather_selected_tiles_across_devices()  # type: ignore
 
         # Only global rank-0 process should actually render and save the outputs
         # We also want to save the plots of the extra validation epoch
-        if (
-            self.outputs_policy.should_save_validation_outputs(metrics_dict, epoch, is_global_rank_zero)
-            or (run_extra_val_epoch and is_global_rank_zero)
-        ):
+        if self.outputs_policy.should_save_validation_outputs(metrics_dict, epoch, is_global_rank_zero, on_extra_val):
             # First move existing outputs to a temporary directory, to avoid mixing
             # outputs of different epochs in case writing fails halfway through
             if self.validation_outputs_dir.exists():
@@ -367,6 +374,12 @@ class DeepMILOutputsHandler:
             # Writing completed successfully; delete temporary back-up
             if self.previous_validation_outputs_dir.exists():
                 shutil.rmtree(self.previous_validation_outputs_dir, ignore_errors=True)
+        elif on_extra_val:
+            self._save_outputs(gathered_epoch_results, self.extra_validation_outputs_dir, ModelKey.VAL)
+
+        # Reset the top and bottom slides heaps
+        if self.should_gather_tiles(self.val_plots_handler):
+            self.tiles_selector._clear_cached_slides_heaps()  # type: ignore
 
     def save_test_outputs(self, epoch_results: EpochResultsType, is_global_rank_zero: bool = True) -> None:
         """Render and save test epoch outputs.
@@ -378,8 +391,8 @@ class DeepMILOutputsHandler:
         """
         # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
-        if PlotOption.TOP_BOTTOM_TILES in self.test_plots_handler.plot_options and self.tiles_selector:
-            self.tiles_selector.gather_selected_tiles_across_devices()
+        if self.should_gather_tiles(self.test_plots_handler):
+            self.tiles_selector.gather_selected_tiles_across_devices()  # type: ignore
 
         # Only global rank-0 process should actually render and save the outputs-
         if self.outputs_policy.should_save_test_outputs(is_global_rank_zero):
