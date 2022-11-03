@@ -42,6 +42,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
                                                                                "defaults to `('0', '1', ...)`.")
     # Data module parameters:
     batch_size: int = param.Integer(16, bounds=(1, None), doc="Number of slides to load per batch.")
+    batch_size_inf: int = param.Integer(16, bounds=(1, None), doc="Number of slides per batch during inference.")
     max_bag_size: int = param.Integer(1000, bounds=(0, None),
                                       doc="Upper bound on number of tiles in each loaded bag during training stage. "
                                           "If 0 (default), will return all samples in each bag. "

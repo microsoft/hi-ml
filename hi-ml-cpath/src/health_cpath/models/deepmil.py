@@ -28,6 +28,7 @@ RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, 
                 ResultsKey.CLASS_PROBS, ResultsKey.PRED_LABEL, ResultsKey.TRUE_LABEL, ResultsKey.BAG_ATTN]
 EXTRA_VAL = "extra_val"
 
+
 def _format_cuda_memory_stats() -> str:
     return (f"GPU {torch.cuda.current_device()} memory: "
             f"{torch.cuda.memory_allocated() / 1024 ** 3:.2f} GB allocated, "

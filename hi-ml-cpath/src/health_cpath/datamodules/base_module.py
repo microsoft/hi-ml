@@ -47,6 +47,7 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         self,
         root_path: Path,
         batch_size: int = 1,
+        batch_size_inf: Optional[int] = None,
         max_bag_size: int = 0,
         max_bag_size_inf: int = 0,
         seed: Optional[int] = None,
@@ -60,6 +61,7 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         """
         :param root_path: Root directory of the source dataset.
         :param batch_size: Number of slides to load per batch.
+        :param batch_size_inf: Number of slides to load per batch during inference.
         :param max_bag_size: Upper bound on number of tiles in each loaded bag during training stage. If 0 (default),
         will return all samples in each bag. If > 0 , bags larger than `max_bag_size` will yield
         random subsets of instances. For SlideDataModule, this parameter is used in TileOnGridd Transform to set the
@@ -81,13 +83,13 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         :param dataframe_kwargs: Keyword arguments to pass to `pd.read_csv()` when loading the dataset CSV.
         """
 
+        batch_size_inf = batch_size_inf or batch_size
         super().__init__()
 
         self.root_path = root_path
         self.transforms_dict = transforms_dict
-        self.batch_size = batch_size
-        self.max_bag_size = max_bag_size
-        self.max_bag_size_inf = max_bag_size_inf
+        self.batch_sizes = {ModelKey.TRAIN: batch_size, ModelKey.VAL: batch_size_inf, ModelKey.TEST: batch_size_inf}
+        self.bag_sizes = {ModelKey.TRAIN: max_bag_size, ModelKey.VAL: max_bag_size_inf, ModelKey.TEST: max_bag_size_inf}
         self.crossval_count = crossval_count
         self.crossval_index = crossval_index
         self.replace_sampler_ddp = pl_replace_sampler_ddp
@@ -209,15 +211,10 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
 
         generator = _create_generator(self.seed)
 
-        if stage in [ModelKey.VAL, ModelKey.TEST]:
-            eff_max_bag_size = self.max_bag_size_inf
-        else:
-            eff_max_bag_size = self.max_bag_size
-
         bag_dataset = BagDataset(
             tiles_dataset,  # type: ignore
             bag_ids=tiles_dataset.slide_ids,
-            max_bag_size=eff_max_bag_size,
+            max_bag_size=self.bag_sizes[stage],
             shuffle_samples=True,
             generator=generator,
         )
@@ -246,7 +243,7 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
         generator = bag_dataset.bag_sampler.generator
         return DataLoader(
             transformed_bag_dataset,
-            batch_size=self.batch_size,
+            batch_size=self.batch_sizes[stage],
             collate_fn=multibag_collate,
             shuffle=shuffle,
             generator=generator,
@@ -263,13 +260,13 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
 
     def __init__(
         self,
-        level: Optional[int] = 1,
-        tile_size: Optional[int] = 224,
+        level: int = 1,
+        tile_size: int = 224,
         step: Optional[int] = None,
-        random_offset: Optional[bool] = True,
-        pad_full: Optional[bool] = False,
-        background_val: Optional[int] = 255,
-        filter_mode: Optional[str] = "min",
+        random_offset: bool = True,
+        pad_full: bool = False,
+        background_val: int = 255,
+        filter_mode: str = "min",
         **kwargs: Any,
     ) -> None:
         """
@@ -291,6 +288,10 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         random) subset, defaults to "min" (which assumes background is high value). This param is passed to TileOnGridd
         monai transform for tiling on the fly.
         """
+        # TileOnGridd transform expects None to select all foreground tile so we hardcode max_bag_size and
+        # max_bag_size_inf to None if set to 0
+        kwargs["max_bag_size"] = None if kwargs["max_bag_size"] == 0 else kwargs["max_bag_size"]
+        kwargs["max_bag_size_inf"] = None if kwargs["max_bag_size_inf"] == 0 else kwargs["max_bag_size_inf"]
         super().__init__(**kwargs)
         self.level = level
         self.tile_size = tile_size
@@ -299,10 +300,6 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         self.pad_full = pad_full
         self.background_val = background_val
         self.filter_mode = filter_mode
-        # TileOnGridd transform expects None to select all foreground tile so we hardcode max_bag_size and
-        # max_bag_size_inf to None if set to 0
-        self.max_bag_size = None if self.max_bag_size == 0 else self.max_bag_size  # type: ignore
-        self.max_bag_size_inf = None if self.max_bag_size_inf == 0 else self.max_bag_size_inf  # type: ignore
 
     def _load_dataset(self, slides_dataset: SlidesDataset, stage: ModelKey) -> Dataset:
         base_transform = Compose(
@@ -317,7 +314,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                 ),
                 TileOnGridd(
                     keys=slides_dataset.IMAGE_COLUMN,
-                    tile_count=self.max_bag_size if stage == ModelKey.TRAIN else self.max_bag_size_inf,
+                    tile_count=self.bag_sizes[stage],
                     tile_size=self.tile_size,
                     step=self.step,
                     random_offset=self.random_offset if stage == ModelKey.TRAIN else False,
@@ -344,7 +341,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         generator = _create_generator(self.seed)
         return DataLoader(
             transformed_slides_dataset,
-            batch_size=self.batch_size,
+            batch_size=self.batch_sizes[stage],
             collate_fn=image_collate,
             shuffle=shuffle,
             generator=generator,

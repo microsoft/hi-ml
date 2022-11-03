@@ -64,6 +64,7 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             encoding_chunk_size=60,
             max_bag_size=56,
             batch_size=8,  # effective batch size = batch_size * num_GPUs
+            batch_size_inf=8,
             max_epochs=50,
             l_rate=3e-4,
             weight_decay=0,
@@ -79,6 +80,7 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
         # Params specific to fine-tuning
         if self.tune_encoder:
             self.batch_size = 2
+            self.batch_size_inf = 2
         super().setup()
 
     def get_transforms_dict(self, image_key: str) -> Dict[ModelKey, Union[Callable, None]]:
@@ -100,8 +102,9 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
         # Hence, inherited `PandaSlidesDataModuleBenchmark` from `SlidesDataModule`
         return PandaSlidesDataModuleBenchmark(
             root_path=self.local_datasets[0],
-            max_bag_size=self.max_bag_size,
             batch_size=self.batch_size,
+            batch_size_inf=self.batch_size_inf,
+            max_bag_size=self.max_bag_size,
             max_bag_size_inf=self.max_bag_size_inf,
             level=self.level,
             tile_size=self.tile_size,

@@ -65,6 +65,7 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
             # declared in BaseMILTiles:
             is_caching=False,
             batch_size=8,
+            batch_size_inf=8,
             azure_datasets=[PANDA_5X_TILES_DATASET_ID, PANDA_DATASET_ID])
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
@@ -75,8 +76,9 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
     def get_data_module(self) -> PandaTilesDataModule:
         return PandaTilesDataModule(
             root_path=self.local_datasets[0],
-            max_bag_size=self.max_bag_size,
             batch_size=self.batch_size,
+            batch_size_inf=self.batch_size_inf,
+            max_bag_size=self.max_bag_size,
             max_bag_size_inf=self.max_bag_size_inf,
             transforms_dict=self.get_transforms_dict(PandaTilesDataset.IMAGE_COLUMN),
             cache_mode=self.cache_mode,
@@ -149,6 +151,7 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
         return PandaSlidesDataModule(
             root_path=self.local_datasets[0],
             batch_size=self.batch_size,
+            batch_size_inf=self.batch_size_inf,
             level=self.level,
             max_bag_size=self.max_bag_size,
             max_bag_size_inf=self.max_bag_size_inf,

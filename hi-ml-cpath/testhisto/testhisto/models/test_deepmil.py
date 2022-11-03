@@ -328,7 +328,7 @@ def test_container(container_type: Type[BaseMILTiles], use_gpu: bool) -> None:
     container.setup()
 
     data_module: TilesDataModule = container.get_data_module()  # type: ignore
-    data_module.max_bag_size = 10
+    data_module.bag_sizes = 10
 
     module = container.create_model()
     module.outputs_handler = MagicMock()
