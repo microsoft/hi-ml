@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
+import os
 from pathlib import Path
 from typing import Any, List, Optional, Tuple, TypeVar
 
@@ -18,7 +19,7 @@ from health_azure.utils import RUN_CONTEXT, is_running_in_azure_ml
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils import AzureMLProgressBar
 from health_ml.utils.common_utils import AUTOSAVE_CHECKPOINT_FILE_NAME, EXPERIMENT_SUMMARY_FILE
-from health_ml.utils.lightning_loggers import StoringLogger, MLFlowLogger
+from health_ml.utils.lightning_loggers import StoringLogger, MlflowLogger
 
 
 T = TypeVar('T')
@@ -92,7 +93,19 @@ def create_lightning_trainer(container: LightningContainer,
             message += "s per node with DDP"
     logging.info(f"Using {message}")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
-    mlflow_logger = MLFlowLogger(run=mlflow_run_for_logging)
+
+    if is_running_in_azure_ml():
+        mlflow_run_id = os.environ.get("MLFLOW_RUN_ID", None)
+        mlflow_logger = MlflowLogger(
+            run_id=mlflow_run_id
+        )
+    else:
+        mlflow_run_dir = container.outputs_folder / "mlruns"
+        mlflow_run_dir.mkdir(exist_ok=True)
+        mlflow_tracking_uri = "file:" + str(mlflow_run_dir)
+        mlflow_logger = MlflowLogger(run_id=mlflow_run_for_logging, tracking_uri=mlflow_tracking_uri)
+        print(f"Local MLFlow logs are stored in {mlflow_tracking_uri}")
+
     loggers = [tensorboard_logger, mlflow_logger]
     storing_logger = StoringLogger()
     loggers.append(storing_logger)

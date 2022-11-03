@@ -305,7 +305,6 @@ class MLRunner:
                 resume_from_checkpoint=checkpoint_path,
                 num_nodes=1,
                 azureml_run_for_logging=self.azureml_run_for_logging,
-                mlflow_run_for_logging=self.mlflow_run_for_logging
             )
 
             # Change to the outputs folder so that the model can write to current working directory, and still

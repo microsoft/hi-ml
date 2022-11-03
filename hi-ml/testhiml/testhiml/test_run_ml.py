@@ -14,8 +14,8 @@ from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.run_ml import MLRunner
 from health_ml.utils.common_utils import is_gpu_available
+from health_ml.utils.lightning_loggers import MlflowLogger
 from health_azure.utils import is_global_rank_zero
-from health_ml.utils.lightning_loggers import MLFlowLogger
 from testazure.utils_testazure import DEFAULT_WORKSPACE
 from testhiml.utils.fixed_paths_for_tests import mock_run_id
 
@@ -348,7 +348,7 @@ def test_log_on_vm(log_from_vm: bool) -> None:
     assert runner.trainer.loggers is not None
     assert len(runner.trainer.loggers) > 1
     logger = runner.trainer.loggers[1]
-    assert isinstance(logger, MLFlowLogger)
+    assert isinstance(logger, MlflowLogger)
 
 
 def test_experiment_name() -> None:

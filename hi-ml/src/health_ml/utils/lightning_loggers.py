@@ -2,17 +2,16 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import argparse
 import logging
-import os
+from argparse import Namespace
 from typing import Any, Dict, Iterable, List, Optional, Union
 
 import mlflow
-from pytorch_lightning.loggers import LightningLoggerBase
+from pytorch_lightning.loggers import LightningLoggerBase, MLFlowLogger
 from pytorch_lightning.utilities import rank_zero_only
+from pytorch_lightning.utilities.logger import _convert_params, _flatten_dict
+from pytorch_lightning.utilities.rank_zero import rank_zero_only, rank_zero_warn
 
-from health_azure import is_running_in_azure_ml
-from health_ml.utils.logging import _preprocess_hyperparams
 from health_ml.utils.type_annotations import DictStrFloat, DictStrFloatOrFloatList
 
 
@@ -116,86 +115,31 @@ class StoringLogger(LightningLoggerBase):
         return {epoch: self.extract_by_prefix(epoch, prefix_filter) for epoch in self.epochs}
 
 
-class MLFlowLogger(LightningLoggerBase):
-    HYPERPARAMS_NAME = "hyperparams"
-
-    def _start_run(self, mlflow_run_id: Optional[str] = None) -> None:
-        """
-        Start an MLFlow run. If an existing run id is given,
-
-        :param mlflow_run_id: _description_, defaults to None
-        :return: _description_
-        """
-        mlflow.set_tracking_uri(self.mlflow_uri)
-        mlflow.set_experiment(self.experiment_name)
-        run = mlflow.start_run(run_id=mlflow_run_id)
-        return run
-
-    def __init__(self, experiment_name: Optional[str] = None, mlflow_uri: Optional[str] = None,
-                 run: Optional[str] = None):
-        experiment_name = experiment_name or os.environ.get("MLFLOW_EXPERIMENT_NAME")
-        self._experiment_name = experiment_name
-        mlflow_uri = mlflow_uri or os.environ.get("MLFLOW_TRACKING_URI", "")
-        self.mlflow_uri = mlflow_uri
-        run_id = run or os.environ.get("MLFLOW_RUN_ID")
-        self.run_id = run_id
-        if run_id is not None:
-            logging.info(f"Found existing run id: {run_id}")
-            self._start_run(mlflow_run_id=run_id)
-        logging.info(f"MLFlow logger info: experiment name: {experiment_name}, run id: {run_id} URI: {mlflow_uri}")
-        if not is_running_in_azure_ml:
-            self._start_run()
+class MlflowLogger(MLFlowLogger):
+    def __init__(self, **kwargs: Any):
+        super().__init__(**kwargs)
 
     @rank_zero_only
-    def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
-        is_epoch_metric = "epoch" in metrics
-        for key, value in metrics.items():
-            # Log all epoch-level metrics without the step information
-            # All step-level metrics with step
-            mlflow.log_metric(key, value, step=None if is_epoch_metric else step)
-
-    @rank_zero_only
-    def log_hyperparams(self, params: Union[argparse.Namespace, Dict[str, Any]]) -> None:
+    def log_hyperparams(self, params: Union[Dict[str, Any], Namespace]) -> None:
         """
-        Logs the given model hyperparameters to MLFlow. Namespaces are converted to dictionaries.
-        Nested dictionaries are flattened out. The hyperparameters are then written as a table with two columns
-        "name" and "value".
+        Override underlying log_hyperparams message to avoid trying to log hyperparameters that have already
+        been logged, thus causing MLFlow to raise an Exception.
+
+        :param params: The original hyperparameters to be logged.
         """
-        if params is None:
-            return
-        params_final = _preprocess_hyperparams(params)
-        logging.info(f"Attempting to log hyperparameters: {params_final}")
-        if self.run_id is not None:
-            retrieved_run = mlflow.get_run(run_id=self.run_id)
-            run_data = retrieved_run.data
-            existing_params = run_data.params
-            existing_keys = existing_params.keys()
-            new_params = {}
+        run = mlflow.get_run(self.run_id)
+        existing_hyperparams = run.data.params
 
-            for key, val in params_final.items():
-                if key in existing_params:
-                    num_related_keys = len([k for k in existing_keys if key in k])
-                    new_key = key + f"_{num_related_keys}"
-                    new_params[new_key] = val
-                else:
-                    new_params[key] = val
-            params_final = new_params
+        params = _convert_params(params)
+        params = _flatten_dict(params)
+        for k, v in params.items():
+            if len(str(v)) > 250:
+                rank_zero_warn(
+                    f"Mlflow only allows parameters with up to 250 characters. Discard {k}={v}",
+                    category=RuntimeWarning
+                )
+                continue
+            if k in existing_hyperparams:
+                continue
 
-        if len(params_final) > 0:
-            mlflow.log_params(params_final)
-
-    @property
-    def experiment_name(self) -> Optional[str]:
-        return self._experiment_name
-
-    @property
-    def name(self) -> Any:
-        return ""
-
-    @property
-    def version(self) -> int:
-        return 0
-
-    @rank_zero_only
-    def finalize(self, status: str) -> None:
-        mlflow.end_run()
+            self.experiment.log_param(self.run_id, k, v)
