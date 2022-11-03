@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, Generic, Optional, Sequence, Tuple, Type
 
 from monai.data.dataset import CacheDataset, Dataset, PersistentDataset
 from pytorch_lightning import LightningDataModule
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, DistributedSampler
 
 from health_ml.utils.bag_utils import BagDataset, multibag_collate
 from health_ml.utils.common_utils import _create_generator
@@ -53,6 +53,7 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         transforms_dict: Optional[Dict[ModelKey, Union[Callable, None]]] = None,
         crossval_count: int = 0,
         crossval_index: int = 0,
+        pl_replace_sampler_ddp: bool = True,
         dataloader_kwargs: Optional[Dict[str, Any]] = None,
         dataframe_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
@@ -74,6 +75,8 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         By default (`None`).
         :param crossval_count: Number of folds to perform.
         :param crossval_index: Index of the cross validation split to be performed.
+        :param pl_replace_sampler_ddp: If True, the default behavior of Pytorch Lightning is to replace the sampler.
+            If False, the sampler is not replaced so we need to handle it ourselves.
         :param dataloader_kwargs: Additional keyword arguments for the training, validation, and test dataloaders.
         :param dataframe_kwargs: Keyword arguments to pass to `pd.read_csv()` when loading the dataset CSV.
         """
@@ -87,6 +90,7 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         self.max_bag_size_inf = max_bag_size_inf
         self.crossval_count = crossval_count
         self.crossval_index = crossval_index
+        self.replace_sampler_ddp = pl_replace_sampler_ddp
         self.train_dataset: _SlidesOrTilesDataset
         self.val_dataset: _SlidesOrTilesDataset
         self.test_dataset: _SlidesOrTilesDataset
@@ -106,6 +110,14 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         raise NotImplementedError
 
     def train_dataloader(self) -> DataLoader:
+        is_distributed = torch.distributed.is_initialized() and torch.distributed.get_world_size() > 1
+        sampler: Optional[DistributedSampler]
+        if not self.replace_sampler_ddp and is_distributed:
+            assert self.seed is not None, "seed must be set when using distributed training for reproducibility"
+            sampler = DistributedSampler(self.train_dataset, shuffle=True, seed=self.seed)
+        else:
+            sampler = None
+        self.dataloader_kwargs["sampler"] = sampler
         return self._get_dataloader(self.train_dataset, shuffle=True, stage=ModelKey.TRAIN, **self.dataloader_kwargs)
 
     def val_dataloader(self) -> DataLoader:
