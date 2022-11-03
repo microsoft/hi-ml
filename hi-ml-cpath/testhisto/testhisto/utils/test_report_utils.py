@@ -14,7 +14,7 @@ from health_cpath.utils.output_utils import (AML_LEGACY_TEST_OUTPUTS_CSV, AML_OU
 from health_cpath.utils.report_utils import (collect_hyperdrive_metrics, collect_hyperdrive_outputs,
                                              child_runs_have_val_and_test_outputs, get_best_epoch_metrics,
                                              get_best_epochs, get_hyperdrive_metrics_table,
-                                             run_has_val_and_test_outputs)
+                                             run_has_val_and_test_outputs, download_hyperdrive_metrics_if_required)
 
 
 def test_run_has_val_and_test_outputs() -> None:
@@ -195,13 +195,15 @@ def best_epoch_metrics(metrics_df: pd.DataFrame, best_epochs: Dict[int, int]) ->
 def test_collect_hyperdrive_metrics(metrics_df: pd.DataFrame, tmp_path: Path, overwrite: bool) -> None:
     with patch('health_cpath.utils.report_utils.aggregate_hyperdrive_metrics',
                return_value=metrics_df) as mock_aggregate:
-        returned_df = collect_hyperdrive_metrics(parent_run_id="", download_dir=tmp_path,
-                                                 aml_workspace=None, overwrite=overwrite)
+        returned_json = download_hyperdrive_metrics_if_required(parent_run_id="", download_dir=tmp_path,
+                                                                aml_workspace=None, overwrite=overwrite)
+        returned_df = collect_hyperdrive_metrics(metrics_json=returned_json)
         mock_aggregate.assert_called_once()
         mock_aggregate.reset_mock()
 
-        new_returned_df = collect_hyperdrive_metrics(parent_run_id="", download_dir=tmp_path,
-                                                     aml_workspace=None, overwrite=overwrite)
+        new_returned_json = download_hyperdrive_metrics_if_required(parent_run_id="", download_dir=tmp_path,
+                                                                    aml_workspace=None, overwrite=overwrite)
+        new_returned_df = collect_hyperdrive_metrics(metrics_json=new_returned_json)
         if overwrite:
             mock_aggregate.assert_called_once()
         else:
