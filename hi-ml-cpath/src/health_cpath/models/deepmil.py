@@ -376,7 +376,7 @@ class BaseDeepMILModule(LightningModule):
         is_distributed = torch.distributed.is_initialized() and torch.distributed.get_world_size() > 1
 
         if is_distributed and self.validate_on_single_device and not is_global_rank_zero:
-            val_result = {}
+            return {}
         else:
             val_result = self._shared_step(batch, batch_idx, ModelKey.VAL)
         sync_dist = is_distributed and not self.validate_on_single_device

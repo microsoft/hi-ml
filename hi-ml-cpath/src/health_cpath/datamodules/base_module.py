@@ -40,9 +40,6 @@ class CacheLocation(Enum):
     SAME = "same"
 
 
-SHUFFLE_KEY = "shuffle"
-
-
 class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
     """Base class to load a histopathology dataset as train, val, test sets"""
 
@@ -244,15 +241,14 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
         transformed_bag_dataset = self._load_dataset(dataset, stage=stage, shuffle=shuffle)
         bag_dataset: BagDataset = transformed_bag_dataset.data  # type: ignore
         generator = bag_dataset.bag_sampler.generator
-
         sampler = self._get_ddp_sampler(transformed_bag_dataset, stage)
-        if sampler is None:
-            dataloader_kwargs["shuffle"] = shuffle  # sampler option is mutually exclusive with shuffle
         return DataLoader(
             transformed_bag_dataset,
             batch_size=self.batch_sizes[stage],
             collate_fn=multibag_collate,
             sampler=sampler,
+            # sampler option is mutually exclusive with shuffle
+            shuffle=shuffle if sampler is None else None,  # type: ignore
             generator=generator,
             **dataloader_kwargs,
         )
@@ -350,13 +346,13 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         transformed_slides_dataset = self._load_dataset(dataset, stage)
         generator = _create_generator(self.seed)
         sampler = self._get_ddp_sampler(transformed_slides_dataset, stage)
-        if sampler is None:
-            dataloader_kwargs["shuffle"] = shuffle  # sampler option is mutually exclusive with shuffle
         return DataLoader(
             transformed_slides_dataset,
             batch_size=self.batch_sizes[stage],
             collate_fn=image_collate,
             sampler=sampler,
+            # sampler option is mutually exclusive with shuffle
+            shuffle=shuffle if not sampler else None,  # type: ignore
             generator=generator,
             **dataloader_kwargs,
         )
