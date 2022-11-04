@@ -25,7 +25,7 @@ from health_cpath.models.encoders import (
 )
 from health_cpath.configs.classification.DeepSMILEPanda import DeepSMILESlidesPanda
 from health_cpath.models.deepmil import SlidesDeepMILModule
-from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams
+from health_cpath.utils.deepmil_utils import ClassifierParams, EncoderParams, PoolingParams
 from health_cpath.utils.naming import MetricsKey, ModelKey, SlideKey
 
 
@@ -130,10 +130,10 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             n_classes=self.data_module.train_dataset.n_classes,
             class_names=self.class_names,
             class_weights=self.data_module.class_weights,
-            dropout_rate=self.dropout_rate,
             outputs_folder=self.outputs_folder,
             encoder_params=create_from_matching_params(self, EncoderParams),
             pooling_params=create_from_matching_params(self, PoolingParams),
+            classifier_params=create_from_matching_params(self, ClassifierParams),
             optimizer_params=create_from_matching_params(self, OptimizerParams),
             outputs_handler=outputs_handler,
             analyse_loss=self.analyse_loss,

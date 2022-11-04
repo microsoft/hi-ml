@@ -30,7 +30,7 @@ from health_cpath.datasets.base_dataset import DEFAULT_LABEL_COLUMN, TilesDatase
 from health_cpath.datasets.default_paths import PANDA_5X_TILES_DATASET_ID, TCGA_CRCK_DATASET_DIR
 from health_cpath.models.deepmil import BaseDeepMILModule, TilesDeepMILModule
 from health_cpath.models.encoders import IdentityEncoder, ImageNetEncoder, Resnet18, TileEncoder
-from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams
+from health_cpath.utils.deepmil_utils import ClassifierParams, EncoderParams, PoolingParams
 from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey
 from testhisto.mocks.base_data_generator import MockHistoDataType
 from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPositioningType
@@ -75,7 +75,7 @@ def _test_lightningmodule(
     module = TilesDeepMILModule(
         label_column=DEFAULT_LABEL_COLUMN,
         n_classes=n_classes,
-        dropout_rate=dropout_rate,
+        classifier_params=ClassifierParams(dropout_rate=dropout_rate),
         encoder_params=get_supervised_imagenet_encoder_params(),
         pooling_params=get_attention_pooling_layer_params(pool_out_dim)
     )
@@ -461,12 +461,12 @@ def test_finetuning_options(
         label_column=DEFAULT_LABEL_COLUMN,
         encoder_params=get_supervised_imagenet_encoder_params(tune_encoder=tune_encoder),
         pooling_params=get_attention_pooling_layer_params(pool_out_dim=1, tune_pooling=tune_pooling),
-        tune_classifier=tune_classifier,
+        classifier_params=ClassifierParams(tune_classifier=tune_classifier),
     )
 
     assert module.encoder_params.tune_encoder == tune_encoder
     assert module.pooling_params.tune_pooling == tune_pooling
-    assert module.tune_classifier == tune_classifier
+    assert module.classifier_params.tune_classifier == tune_classifier
 
     for params in module.encoder.parameters():
         assert params.requires_grad == tune_encoder
@@ -513,7 +513,7 @@ def test_training_with_different_finetuning_options(
             label_column=MockPandaTilesGenerator.ISUP_GRADE,
             encoder_params=get_supervised_imagenet_encoder_params(tune_encoder=tune_encoder),
             pooling_params=get_attention_pooling_layer_params(pool_out_dim=1, tune_pooling=tune_pooling),
-            tune_classifier=tune_classifier,
+            classifier_params=ClassifierParams(tune_classifier=tune_classifier),
         )
 
         def _assert_existing_gradients(module: nn.Module, tuning_flag: bool) -> None:
@@ -550,7 +550,7 @@ def test_init_weights_options(pretrained_encoder: bool, pretrained_pooling: bool
     )
     module.encoder_params.pretrained_encoder = pretrained_encoder
     module.pooling_params.pretrained_pooling = pretrained_pooling
-    module.pretrained_classifier = pretrained_classifier
+    module.classifier_params.pretrained_classifier = pretrained_classifier
 
     with patch.object(module, "load_from_checkpoint") as mock_load_from_checkpoint:
         with patch.object(module, "copy_weights") as mock_copy_weights:
@@ -576,10 +576,11 @@ def _get_tiles_deepmil_module(
         label_column=MockPandaTilesGenerator.ISUP_GRADE,
         encoder_params=get_supervised_imagenet_encoder_params(),
         pooling_params=get_transformer_pooling_layer_params(num_layers, num_heads, hidden_dim, transformer_dropout),
+        classifier_params=ClassifierParams(pretrained_classifier=pretrained_classifier),
     )
     module.encoder_params.pretrained_encoder = pretrained_encoder
     module.pooling_params.pretrained_pooling = pretrained_pooling
-    module.pretrained_classifier = pretrained_classifier
+    module.classifier_params.pretrained_classifier = pretrained_classifier
     return module
 
 

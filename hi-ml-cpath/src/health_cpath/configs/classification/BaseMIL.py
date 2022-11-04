@@ -26,18 +26,17 @@ from health_cpath.datamodules.base_module import CacheLocation, CacheMode, Histo
 from health_cpath.datasets.base_dataset import SlidesDataset
 from health_cpath.models.deepmil import TilesDeepMILModule, SlidesDeepMILModule, BaseDeepMILModule
 from health_cpath.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
-from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams
+from health_cpath.utils.deepmil_utils import ClassifierParams, EncoderParams, PoolingParams
 from health_cpath.utils.output_utils import DeepMILOutputsHandler
 from health_cpath.utils.naming import MetricsKey, PlotOption, SlideKey, ModelKey
 from health_cpath.utils.tiles_selection_utils import TilesSelector
 
 
-class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackParams):
+class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams, LossCallbackParams):
     """BaseMIL is an abstract container defining basic functionality for running MIL experiments in both slides and
     tiles settings. It is responsible for instantiating the encoder and pooling layer. Subclasses should define the
     full DeepMIL model depending on the type of dataset (tiles/slides based).
     """
-    dropout_rate: Optional[float] = param.Number(None, bounds=(0, 1), doc="Pre-classifier dropout rate.")
     class_names: Optional[Sequence[str]] = param.List(None, item_type=str, doc="List of class names. If `None`, "
                                                                                "defaults to `('0', '1', ...)`.")
     # Data module parameters:
@@ -73,13 +72,6 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
                                                              "generating outputs.")
     maximise_primary_metric: bool = param.Boolean(True, doc="Whether the primary validation metric should be "
                                                             "maximised (otherwise minimised).")
-    tune_classifier: bool = param.Boolean(
-        default=True,
-        doc="If True (default), fine-tune the classifier during training. If False, keep the classifier frozen.")
-    pretrained_classifier: bool = param.Boolean(
-        default=False,
-        doc="If True, will use classifier weights from pretrained model specified in src_checkpoint. If False, will "
-            "initiliaze classifier with random weights.")
     max_num_workers: int = param.Integer(10, bounds=(0, None),
                                          doc="The maximum number of worker processes for dataloaders. Dataloaders use"
                                              "a heuristic num_cpus/num_gpus to set the number of workers, which can be"
@@ -289,14 +281,11 @@ class BaseMILTiles(BaseMIL):
                                             n_classes=self.data_module.train_dataset.n_classes,
                                             class_names=self.class_names,
                                             class_weights=self.data_module.class_weights,
-                                            tune_classifier=self.tune_classifier,
-                                            pretrained_classifier=self.pretrained_classifier,
-                                            dropout_rate=self.dropout_rate,
-                                            outputs_folder=self.outputs_folder,
-
                                             encoder_params=create_from_matching_params(self, EncoderParams),
                                             pooling_params=create_from_matching_params(self, PoolingParams),
+                                            classifier_parms=create_from_matching_params(self, ClassifierParams),
                                             optimizer_params=create_from_matching_params(self, OptimizerParams),
+                                            outputs_folder=self.outputs_folder,
                                             outputs_handler=outputs_handler,
                                             analyse_loss=self.analyse_loss,
                                             validate_on_single_device=not self.pl_replace_sampler_ddp)
@@ -334,12 +323,10 @@ class BaseMILSlides(BaseMIL):
                                              n_classes=self.data_module.train_dataset.n_classes,
                                              class_names=self.class_names,
                                              class_weights=self.data_module.class_weights,
-                                             tune_classifier=self.tune_classifier,
-                                             pretrained_classifier=self.pretrained_classifier,
-                                             dropout_rate=self.dropout_rate,
                                              outputs_folder=self.outputs_folder,
                                              encoder_params=create_from_matching_params(self, EncoderParams),
                                              pooling_params=create_from_matching_params(self, PoolingParams),
+                                             classifier_params=create_from_matching_params(self, ClassifierParams),
                                              optimizer_params=create_from_matching_params(self, OptimizerParams),
                                              outputs_handler=outputs_handler,
                                              analyse_loss=self.analyse_loss,

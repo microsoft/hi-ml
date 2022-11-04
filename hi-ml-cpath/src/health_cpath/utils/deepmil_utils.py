@@ -177,3 +177,25 @@ class PoolingParams(param.Parameterized):
         num_features = num_encoding * self.pool_out_dim
         set_module_gradients_enabled(pooling_layer, tuning_flag=self.tune_pooling)
         return pooling_layer, num_features
+
+
+class ClassifierParams(param.Parameterized):
+    dropout_rate: Optional[float] = param.Number(None, bounds=(0, 1), doc="Pre-classifier dropout rate.")
+    tune_classifier: bool = param.Boolean(
+        default=True,
+        doc="If True (default), fine-tune the classifier during training. If False, keep the classifier frozen.")
+    pretrained_classifier: bool = param.Boolean(
+        default=False,
+        doc="If True, will use classifier weights from pretrained model specified in src_checkpoint. If False, will "
+            "initiliaze classifier with random weights.")
+
+    def get_classifier(self, in_features: int, out_features: int) -> nn.Module:
+        classifier_layer = nn.Linear(in_features=in_features,
+                                     out_features=out_features)
+        set_module_gradients_enabled(classifier_layer, tuning_flag=self.tune_classifier)
+        if self.dropout_rate is None:
+            return classifier_layer
+        elif 0 <= self.dropout_rate < 1:
+            return nn.Sequential(nn.Dropout(self.dropout_rate), classifier_layer)
+        else:
+            raise ValueError(f"Dropout rate should be in [0, 1), got {self.dropout_rate}")

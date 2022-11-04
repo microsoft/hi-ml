@@ -6,23 +6,20 @@ import torch
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 from pytorch_lightning.utilities.rank_zero import rank_zero_warn
 from pathlib import Path
-
 from pytorch_lightning import LightningModule
-
 from torch import Tensor, argmax, mode, nn, optim, round
 from torchmetrics import (AUROC, F1, Accuracy, ConfusionMatrix, Precision,
                           Recall, CohenKappa, AveragePrecision, Specificity)
 
-
 from health_ml.utils import log_on_epoch
 from health_ml.deep_learning_config import OptimizerParams
 from health_cpath.models.encoders import IdentityEncoder
-from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams, set_module_gradients_enabled
-
+from health_cpath.utils.deepmil_utils import ClassifierParams, EncoderParams, PoolingParams
 from health_cpath.datasets.base_dataset import TilesDataset
 from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
 from health_cpath.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
                                              validate_class_names, EXTRA_PREFIX)
+
 
 RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
                 ResultsKey.CLASS_PROBS, ResultsKey.PRED_LABEL, ResultsKey.TRUE_LABEL, ResultsKey.BAG_ATTN]
@@ -42,17 +39,15 @@ class BaseDeepMILModule(LightningModule):
                  n_classes: int,
                  class_weights: Optional[Tensor] = None,
                  class_names: Optional[Sequence[str]] = None,
-                 tune_classifier: bool = True,
-                 pretrained_classifier: bool = False,
-                 dropout_rate: Optional[float] = None,
-                 verbose: bool = False,
-                 outputs_folder: Optional[Path] = None,
                  encoder_params: EncoderParams = EncoderParams(),
                  pooling_params: PoolingParams = PoolingParams(),
+                 classifier_params: ClassifierParams = ClassifierParams(),
                  optimizer_params: OptimizerParams = OptimizerParams(),
+                 outputs_folder: Optional[Path] = None,
                  outputs_handler: Optional[DeepMILOutputsHandler] = None,
                  analyse_loss: Optional[bool] = False,
                  validate_on_single_device: bool = False,
+                 verbose: bool = False,
                  ) -> None:
         """
         :param label_column: Label key for input batch dictionary.
@@ -60,13 +55,11 @@ class BaseDeepMILModule(LightningModule):
          set to 1.
         :param class_weights: Tensor containing class weights (default=None).
         :param class_names: The names of the classes if available (default=None).
-        :param tune_classifier: Whether to tune the classifier (default=True).
-        :param pretrained_classifier: Whether to use pretrained classifier (default=False for random init).
-        :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
         :param verbose: if True statements about memory usage are output at each step.
         :param outputs_folder: Path to output folder where encoder checkpoint is downloaded.
         :param encoder_params: Encoder parameters that specify all encoder specific attributes.
         :param pooling_params: Pooling layer parameters that specify all encoder specific attributes.
+        :param classifier_params: Classifier parameters that specify all classifier specific attributes.
         :param optimizer_params: Optimizer parameters that specify all specific attributes to be used for oprimization.
         :param outputs_handler: A configured :py:class:`DeepMILOutputsHandler` object to save outputs for the best
             validation epoch and test stage. If omitted (default), no outputs will be saved to disk (aside from usual
@@ -82,12 +75,10 @@ class BaseDeepMILModule(LightningModule):
         self.class_weights = class_weights
         self.class_names = validate_class_names(class_names, self.n_classes)
 
-        self.dropout_rate = dropout_rate
         self.encoder_params = encoder_params
         self.pooling_params = pooling_params
+        self.classifier_params = classifier_params
         self.optimizer_params = optimizer_params
-        self.pretrained_classifier = pretrained_classifier
-        self.tune_classifier = tune_classifier
 
         self.save_hyperparameters()
         self.verbose = verbose
@@ -101,11 +92,13 @@ class BaseDeepMILModule(LightningModule):
         # Model components
         self.encoder = encoder_params.get_encoder(outputs_folder)
         self.aggregation_fn, self.num_pooling = pooling_params.get_pooling_layer(self.encoder.num_encoding)
-        self.classifier_fn = self.get_classifier()
+        self.classifier_fn = classifier_params.get_classifier(self.num_pooling, self.n_classes)
         self.activation_fn = self.get_activation()
-        self.analyse_loss = analyse_loss
+
+        # Loss function
         self.loss_fn = self.get_loss(reduction="mean")
         self.loss_fn_no_reduction = self.get_loss(reduction="none")
+        self.analyse_loss = analyse_loss
 
         # Metrics Objects
         self.train_metrics = self.get_metrics()
@@ -153,22 +146,11 @@ class BaseDeepMILModule(LightningModule):
             if self.pooling_params.pretrained_pooling:
                 self.copy_weights(self.aggregation_fn, pretrained_model.aggregation_fn, DeepMILSubmodules.POOLING)
 
-            if self.pretrained_classifier:
+            if self.classifier_params.pretrained_classifier:
                 if pretrained_model.n_classes != self.n_classes:
                     raise ValueError(f"Number of classes in pretrained model {pretrained_model.n_classes} "
                                      f"does not match number of classes in current model {self.n_classes}.")
                 self.copy_weights(self.classifier_fn, pretrained_model.classifier_fn, DeepMILSubmodules.CLASSIFIER)
-
-    def get_classifier(self) -> nn.Module:
-        classifier_layer = nn.Linear(in_features=self.num_pooling,
-                                     out_features=self.n_classes)
-        set_module_gradients_enabled(classifier_layer, self.tune_classifier)
-        if self.dropout_rate is None:
-            return classifier_layer
-        elif 0 <= self.dropout_rate < 1:
-            return nn.Sequential(nn.Dropout(self.dropout_rate), classifier_layer)
-        else:
-            raise ValueError(f"Dropout rate should be in [0, 1), got {self.dropout_rate}")
 
     def get_loss(self, reduction: str = "mean") -> Callable:
         if self.n_classes > 1:
@@ -222,6 +204,7 @@ class BaseDeepMILModule(LightningModule):
                 MetricsKey.SPECIFICITY: Specificity()})
 
     def get_extra_prefix(self) -> str:
+        """Get extra prefix for the metrics name to avoir overriding best validation metrics."""
         return EXTRA_PREFIX if self._on_extra_val_epoch else ""
 
     def log_metrics(self, stage: str, prefix: str = "") -> None:
@@ -259,7 +242,7 @@ class BaseDeepMILModule(LightningModule):
         return attentions, bag_features
 
     def get_bag_logit(self, bag_features: Tensor) -> Tensor:
-        if not self.tune_classifier:
+        if not self.classifier_params.tune_classifier:
             self.classifier_fn.eval()
         bag_logit = self.classifier_fn(bag_features)
         return bag_logit
@@ -302,7 +285,7 @@ class BaseDeepMILModule(LightningModule):
         """Update training results with data specific info. This can be either tiles or slides related metadata."""
         raise NotImplementedError
 
-    def update_slides_selection(self, stage: ModelKey, batch: Dict, results: Dict) -> None:
+    def update_slides_selection(self, stage: str, batch: Dict, results: Dict) -> None:
         if (
             (stage == ModelKey.TEST or (stage == ModelKey.VAL and self._on_extra_val_epoch))
             and self.outputs_handler
