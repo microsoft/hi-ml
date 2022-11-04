@@ -215,8 +215,7 @@ class BaseDeepMILModule(LightningModule):
                 MetricsKey.AVERAGE_PRECISION: AveragePrecision(dist_sync_on_step=dist_sync_on_step),
                 MetricsKey.COHENKAPPA: CohenKappa(num_classes=2, weights='quadratic',
                                                   dist_sync_on_step=dist_sync_on_step),
-                MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=2, dist_sync_on_step=dist_sync_on_step,
-                                                        dist_sync_on_step=dist_sync_on_step),
+                MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=2, dist_sync_on_step=dist_sync_on_step),
                 # Metrics below are computed for binary case only
                 MetricsKey.F1: F1(dist_sync_on_step=dist_sync_on_step),
                 MetricsKey.PRECISION: Precision(dist_sync_on_step=dist_sync_on_step),
