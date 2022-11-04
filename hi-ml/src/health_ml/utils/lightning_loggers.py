@@ -7,6 +7,7 @@ from argparse import Namespace
 from typing import Any, Dict, Iterable, List, Optional, Union
 
 import mlflow
+from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import LightningLoggerBase, MLFlowLogger
 from pytorch_lightning.utilities.logger import _convert_params, _flatten_dict
 from pytorch_lightning.utilities.rank_zero import rank_zero_only, rank_zero_warn
@@ -142,3 +143,17 @@ class HimlMLFlowLogger(MLFlowLogger):
                 continue
 
             self.experiment.log_param(self.run_id, k, v)
+
+def get_mlflow_run_id_from_trainer(self, trainer: Trainer) -> Optional[str]:
+    """
+    If self.trainer has already been intialised with loggers,
+
+    :return: The mlflow run id from the existing HimlMLFlowLogger
+    """
+    if self.trainer is None:
+        return None
+    try:
+        mlflow_logger = [logger for logger in trainer.loggers if isinstance(logger, HimlMLFlowLogger)][0]
+        return mlflow_logger.run_id
+    except IndexError:
+        return None

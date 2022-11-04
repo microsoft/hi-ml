@@ -97,9 +97,11 @@ def create_lightning_trainer(container: LightningContainer,
 
     if is_running_in_azure_ml():
         mlflow_run_id = os.environ.get("MLFLOW_RUN_ID", None)
+        logging.info(f"Logging to MLFlow run with id: {mlflow_run_id}")
         mlflow_logger = HimlMLFlowLogger(
             run_id=mlflow_run_id
         )
+        loggers.append(mlflow_logger)
     else:
         mlflow_run_dir = container.outputs_folder / "mlruns"
         try:
@@ -107,7 +109,8 @@ def create_lightning_trainer(container: LightningContainer,
             mlflow_tracking_uri = "file:" + str(mlflow_run_dir)
             mlflow_logger = HimlMLFlowLogger(run_id=mlflow_run_for_logging, tracking_uri=mlflow_tracking_uri)
             loggers.append(mlflow_logger)
-            print(f"Local MLFlow logs are stored in {mlflow_tracking_uri}")
+            logging.info(f"Logging to MLFlow run with id: {mlflow_run_for_logging}. Local MLFlow logs are stored in "
+                         f"{mlflow_tracking_uri}")
         except FileNotFoundError as e:
             logging.warning(f"Unable to initialise MLFlowLogger due to error: {e}")
 

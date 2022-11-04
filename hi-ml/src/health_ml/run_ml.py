@@ -21,6 +21,7 @@ from health_azure.utils import (create_run_recovery_id, ENV_OMPI_COMM_WORLD_RANK
                                 ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK,
                                 is_local_rank_zero, is_global_rank_zero, create_aml_run_object)
 
+
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.model_trainer import create_lightning_trainer, write_experiment_summary_file
@@ -35,9 +36,25 @@ from health_ml.utils.common_utils import (
     df_to_json,
     seed_monai_if_available,
 )
-from health_ml.utils.lightning_loggers import StoringLogger
+from health_ml.utils.lightning_loggers import HimlMLFlowLogger, StoringLogger
 from health_ml.utils.regression_test_utils import REGRESSION_TEST_METRICS_FILENAME, compare_folders_and_run_outputs
 from health_ml.utils.type_annotations import PathOrString
+
+
+def get_mlflow_run_id_from_previous_loggers(trainer: Optional[Trainer]) -> Optional[str]:
+    """
+    If self.trainer has already been intialised with loggers, attempt to retrieve a HimlMLFLowLogger and
+    return the mlflow run_id associated with it, to allow continued logging to the same run. Otherwise, return None
+
+    :return: The mlflow run id from the existing HimlMLFlowLogger
+    """
+    if trainer is None:
+        return None
+    try:
+        mlflow_logger = [logger for logger in trainer.loggers if isinstance(logger, HimlMLFlowLogger)][0]
+        return mlflow_logger.run_id
+    except IndexError:
+        return None
 
 
 def check_dataset_folder_exists(local_dataset: PathOrString) -> Path:
@@ -295,6 +312,7 @@ class MLRunner:
             # We run inference on a single device because distributed strategies such as DDP use DistributedSampler
             # internally, which replicates some samples to make sure all devices have some batch size in case of
             # uneven inputs.
+            mlflow_run_id = get_mlflow_run_id_from_previous_loggers(self.trainer)
             self.container.max_num_gpus = 1
 
             checkpoint_path = (
@@ -305,6 +323,7 @@ class MLRunner:
                 resume_from_checkpoint=checkpoint_path,
                 num_nodes=1,
                 azureml_run_for_logging=self.azureml_run_for_logging,
+                mlflow_run_for_logging=mlflow_run_id
             )
 
             # Change to the outputs folder so that the model can write to current working directory, and still
