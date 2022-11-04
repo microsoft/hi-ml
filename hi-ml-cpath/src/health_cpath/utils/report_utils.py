@@ -4,7 +4,7 @@
 #  -------------------------------------------------------------------------------------------
 
 from pathlib import Path
-from typing import Dict, List, Sequence, Tuple
+from typing import Any, Dict, List, Sequence, Tuple
 
 import dateutil.parser
 import numpy as np
@@ -148,7 +148,7 @@ def get_hyperdrive_metrics_table(metrics_df: pd.DataFrame, metrics_list: Sequenc
         values: pd.Series = metrics_df.loc[metric]
         mean = values.mean()
         std = values.std()
-        round_values: List[str] = [f"{v:.3f}" if v is not None else f"{v}" for v in values]
+        round_values: List[str] = [f"{v:.3f}" if v is not None else "N/A" for v in values]
         agg_values: List[str] = [f"{mean:.3f} ± {std:.3f}"]
         row = [metric] + round_values + agg_values
         metrics_rows.append(row)
@@ -157,7 +157,7 @@ def get_hyperdrive_metrics_table(metrics_df: pd.DataFrame, metrics_list: Sequenc
 
 
 def get_best_epochs(metrics_df: pd.DataFrame, primary_metric: str, max_epochs_dict: Dict[int, int],
-                    maximise: bool = True) -> Dict[int, int]:
+                    maximise: bool = True) -> Dict[int, Any]:
     """Determine the best epoch for each hyperdrive child run based on a given metric.
 
     The returned epoch indices are relative to the logging frequency of the chosen metric, i.e.
@@ -170,21 +170,22 @@ def get_best_epochs(metrics_df: pd.DataFrame, primary_metric: str, max_epochs_di
     :param maximise: Whether the given metric should be maximised (minimised if `False`).
     :return: Dictionary mapping each hyperdrive child index to its best epoch.
     """
-    best_epochs = {}
-    for i in metrics_df.columns:
-        primary_metric_list = metrics_df[i][primary_metric]
+    best_epochs: Dict[int, Any] = {}
+    for child_index in metrics_df.columns:
+        primary_metric_list = metrics_df[child_index][primary_metric]
         if primary_metric_list is not None:
             # If extra validation epoch was logged (N+1), return only the first N elements
             primary_metric_list = primary_metric_list[:-1] \
-                if (len(primary_metric_list) == max_epochs_dict[i] + 1) else primary_metric_list
-            best_epochs[i] = int(np.argmax(primary_metric_list) if maximise else np.argmin(primary_metric_list))
+                if (len(primary_metric_list) == max_epochs_dict[child_index] + 1) else primary_metric_list
+            best_epochs[child_index] = int(np.argmax(primary_metric_list)
+                                           if maximise else np.argmin(primary_metric_list))
         else:
-            best_epochs[i] = None           # type:ignore
+            best_epochs[child_index] = None
     return best_epochs
 
 
 def get_best_epoch_metrics(metrics_df: pd.DataFrame, metrics_list: Sequence[str],
-                           best_epochs: Dict[int, int]) -> pd.DataFrame:
+                           best_epochs: Dict[int, Any]) -> pd.DataFrame:
     """Extract the values of the selected hyperdrive metrics at the given best epochs.
 
     The `best_epoch` indices are relative to the logging frequency of the chosen primary metric,
@@ -260,19 +261,19 @@ def collect_class_info(metrics_df: pd.DataFrame) -> Tuple[int, List[str]]:
     return (num_classes, list(class_names))
 
 
-def collect_epoch_info(metrics_df: pd.DataFrame) -> Dict[int, int]:
+def get_max_epochs(metrics_df: pd.DataFrame) -> Dict[int, int]:
     """
-    Get the maximum number of epochs for each round from metrics dataframe
+    Get the maximum number of epochs for each round from the metrics dataframe.
     :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_hyperdrive_metrics()` and
         :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
-    :return: Number of classes and list of class names
+    :return: Dictionary with the number of epochs in each hyperdrive run.
     """
     max_epochs_dict = {}
-    for i in metrics_df.columns:
-        hyperparams = metrics_df[i][AMLMetricsJsonKey.HYPERPARAMS]
+    for child_index in metrics_df.columns:
+        hyperparams = metrics_df[child_index][AMLMetricsJsonKey.HYPERPARAMS]
         hyperparams_name = hyperparams[AMLMetricsJsonKey.NAME]
         hyperparams_value = hyperparams[AMLMetricsJsonKey.VALUE]
         max_epochs_index = hyperparams_name.index(AMLMetricsJsonKey.MAX_EPOCHS)
         max_epochs = int(hyperparams_value[max_epochs_index])
-        max_epochs_dict[i] = max_epochs
+        max_epochs_dict[child_index] = max_epochs
     return max_epochs_dict

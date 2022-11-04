@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Dict, List, Sequence, Union
+from typing import Any, Dict, List, Sequence, Union
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -176,14 +176,24 @@ def metrics_df() -> pd.DataFrame:
             'val/auroc': [0.8, 0.9, 0.7],
             'test/accuracy': 0.9,
             'test/auroc': 0.9
-        }
+        },
+        4: {'val/accuracy': None,
+            'val/auroc': None,
+            'test/accuracy': None,
+            'test/auroc': None
+            }
     })
 
 
 @pytest.fixture
-def best_epochs(metrics_df: pd.DataFrame) -> Dict[int, int]:
+def max_epochs_dict() -> Dict[int, int]:
+    return {0: 3, 1: 10, 3: 3, 4: 3}
+
+
+@pytest.fixture
+def best_epochs(metrics_df: pd.DataFrame, max_epochs_dict: Dict[int, int]) -> Dict[int, Any]:
     return get_best_epochs(metrics_df=metrics_df, primary_metric='val/accuracy',
-                           max_epochs_dict={0: 3, 1: 3, 3: 3}, maximise=True)
+                           max_epochs_dict=max_epochs_dict, maximise=True)
 
 
 @pytest.fixture
@@ -214,14 +224,13 @@ def test_collect_hyperdrive_metrics(metrics_df: pd.DataFrame, tmp_path: Path, ov
 
 
 @pytest.mark.parametrize('maximise', [True, False])
-def test_get_best_epochs(metrics_df: pd.DataFrame, maximise: bool) -> None:
-    max_epochs_dict = {0: 3, 1: 3, 3: 3}
+def test_get_best_epochs(metrics_df: pd.DataFrame, max_epochs_dict: Dict[int, int], maximise: bool) -> None:
     best_epochs = get_best_epochs(metrics_df=metrics_df, primary_metric='val/accuracy',
                                   max_epochs_dict=max_epochs_dict, maximise=maximise)
     assert list(best_epochs.keys()) == list(metrics_df.columns)
-    assert all(isinstance(epoch, int) for epoch in best_epochs.values())
+    assert all(isinstance(epoch, (int, type(None))) for epoch in best_epochs.values())
 
-    expected_best = {0: 0, 1: 1, 3: 2} if maximise else {0: 1, 1: 2, 3: 0}
+    expected_best = {0: 0, 1: 1, 3: 2, 4: None} if maximise else {0: 1, 1: 2, 3: 0, 4: None}
     for split in metrics_df.columns:
         assert best_epochs[split] == expected_best[split]
 

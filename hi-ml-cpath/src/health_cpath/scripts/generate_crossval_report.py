@@ -19,7 +19,7 @@ from health_cpath.utils.output_utils import (AML_LEGACY_TEST_OUTPUTS_CSV, AML_TE
 from health_cpath.utils.report_utils import (collect_hyperdrive_metrics, collect_hyperdrive_outputs,
                                              child_runs_have_val_and_test_outputs, get_best_epoch_metrics,
                                              get_best_epochs, get_hyperdrive_metrics_table, get_formatted_run_info,
-                                             collect_class_info, collect_epoch_info,
+                                             collect_class_info, get_max_epochs,
                                              download_hyperdrive_metrics_if_required)
 from health_cpath.utils.naming import MetricsKey, ModelKey
 
@@ -60,7 +60,7 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
     # Get metrics dataframe from the downloaded json file
     metrics_df = collect_hyperdrive_metrics(metrics_json=metrics_json)
 
-    max_epochs_dict = collect_epoch_info(metrics_df)
+    max_epochs_dict = get_max_epochs(metrics_df)
     best_epochs = get_best_epochs(metrics_df=metrics_df, primary_metric=f'{ModelKey.VAL}/{primary_metric}',
                                   max_epochs_dict=max_epochs_dict, maximise=True)
 
