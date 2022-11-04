@@ -347,7 +347,8 @@ class DeepMILOutputsHandler:
         plots_handler.save_plots(outputs_dir, self.tiles_selector, results)
 
     def save_validation_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric],
-                                epoch: int, is_global_rank_zero: bool = True, on_extra_val: bool = False
+                                epoch: int, is_global_rank_zero: bool = True, on_extra_val: bool = False,
+                                sync_dist: bool = True
                                 ) -> None:
         """Render and save validation epoch outputs, according to the configured :py:class:`OutputsPolicy`.
 
@@ -358,9 +359,12 @@ class DeepMILOutputsHandler:
             Set to `True` (default) if running a single process.
         :param epoch: Current epoch number.
         :param on_extra_val: Whether this is an extra validation epoch (e.g. after training).
+        :param sync_dist: Whether to synchronise distributed processes before saving outputs.
         """
         # All DDP processes must reach this point to allow synchronising epoch results
-        gathered_epoch_results = gather_results(epoch_results)
+        if sync_dist:
+            epoch_results = gather_results(epoch_results)
+
         if self.should_gather_tiles(self.val_plots_handler):
             self.tiles_selector.gather_selected_tiles_across_devices()  # type: ignore
 
@@ -373,13 +377,13 @@ class DeepMILOutputsHandler:
                 replace_directory(source=self.validation_outputs_dir,
                                   target=self.previous_validation_outputs_dir)
 
-            self._save_outputs(gathered_epoch_results, self.validation_outputs_dir, ModelKey.VAL)
+            self._save_outputs(epoch_results, self.validation_outputs_dir, ModelKey.VAL)
 
             # Writing completed successfully; delete temporary back-up
             if self.previous_validation_outputs_dir.exists():
                 shutil.rmtree(self.previous_validation_outputs_dir, ignore_errors=True)
         elif on_extra_val and is_global_rank_zero:
-            self._save_outputs(gathered_epoch_results, self.extra_validation_outputs_dir, ModelKey.VAL, EXTRA_PREFIX)
+            self._save_outputs(epoch_results, self.extra_validation_outputs_dir, ModelKey.VAL, EXTRA_PREFIX)
 
         # Reset the top and bottom slides heaps
         if self.should_gather_tiles(self.val_plots_handler):
