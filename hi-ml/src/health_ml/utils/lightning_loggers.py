@@ -144,6 +144,7 @@ class HimlMLFlowLogger(MLFlowLogger):
 
             self.experiment.log_param(self.run_id, k, v)
 
+
 def get_mlflow_run_id_from_trainer(self, trainer: Trainer) -> Optional[str]:
     """
     If self.trainer has already been intialised with loggers,
