@@ -46,7 +46,7 @@ class BaseDeepMILModule(LightningModule):
                  outputs_folder: Optional[Path] = None,
                  outputs_handler: Optional[DeepMILOutputsHandler] = None,
                  analyse_loss: Optional[bool] = False,
-                 rank_zero_only_val: bool = False,
+                 val_set_is_dist: bool = True,
                  verbose: bool = False,
                  ) -> None:
         """
@@ -65,7 +65,11 @@ class BaseDeepMILModule(LightningModule):
             validation epoch and test stage. If omitted (default), no outputs will be saved to disk (aside from usual
             metrics logging).
         :param analyse_loss: If True, the loss is analysed per sample and analysed with LossAnalysisCallback.
-        :param rank_zero_only_val: If True, validation is performed on a single device (default=False).
+        :param val_set_is_dist: If True, the validation set is distributed across processes. If False, the entire
+            validation set is replicated on each process. This is useful when the validation set is small. Pytorch
+            Lightning default ddp sampler duplicates samples to make sure all processes get the same number of samples.
+            When set to False, we should make sure to not gather results from all processes befor saving validation
+            results csv.
         """
         super().__init__()
 
@@ -87,7 +91,7 @@ class BaseDeepMILModule(LightningModule):
         # This flag can be switched on before invoking trainer.validate() to enable saving additional time/memory
         # consuming validation outputs via calling self.on_run_extra_validation_epoch()
         self._on_extra_val_epoch = False
-        self.rank_zero_only_val = rank_zero_only_val
+        self.val_set_is_dist = val_set_is_dist
 
         # Model components
         self.encoder = encoder_params.get_encoder(outputs_folder)
@@ -101,22 +105,13 @@ class BaseDeepMILModule(LightningModule):
         self.analyse_loss = analyse_loss
 
         # Metrics Objects
-        self.train_metrics = self.get_metrics(dist_sync_on_step=self.is_distributed)
-        self.val_metrics = self.get_metrics(dist_sync_on_step=self.is_distributed)
-        self.test_metrics = self.get_metrics(dist_sync_on_step=False)
-
-    @property
-    def is_distributed(self) -> bool:
-        """Returns True if the model is running in DDP mode."""
-        return self.trainer is not None and self.trainer.world_size > 1
+        self.train_metrics = self.get_metrics()
+        self.val_metrics = self.get_metrics()
+        self.test_metrics = self.get_metrics()
 
     def should_sync_dist_val(self) -> bool:
         """Whether to sync validation metrics across processes."""
-        return self.is_distributed and not self.rank_zero_only_val
-
-    def should_skip_validation(self) -> bool:
-        """Whether a rank should skip validation if the model is running in DDP mode and rank_zero_only_val is True."""
-        return self.is_distributed and self.rank_zero_only_val and not self.global_rank == 0
+        return self.trainer is not None and self.trainer.world_size > 1 and not self.val_set_is_dist
 
     @staticmethod
     def copy_weights(
