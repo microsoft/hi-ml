@@ -215,9 +215,7 @@ class BaseDeepMILModule(LightningModule):
         """Get extra prefix for the metrics name to avoir overriding best validation metrics."""
         return EXTRA_PREFIX if self._on_extra_val_epoch else ""
 
-    def log_metrics(
-        self, stage: str, prefix: str = '', sync_dist: Optional[bool] = None, rank_zero_only: bool = False
-    ) -> None:
+    def log_metrics(self, stage: str, prefix: str = '') -> None:
         valid_stages = set([stage for stage in ModelKey])
         if stage not in valid_stages:
             raise Exception(f"Invalid stage. Chose one of {valid_stages}")
@@ -226,11 +224,9 @@ class BaseDeepMILModule(LightningModule):
                 metric_value = metric_object.compute()
                 metric_value_n = metric_value / metric_value.sum(axis=1, keepdims=True)
                 for i in range(metric_value_n.shape[0]):
-                    log_on_epoch(self, f'{prefix}{stage}/{self.class_names[i]}', metric_value_n[i, i],
-                                 sync_dist=sync_dist, rank_zero_only=rank_zero_only)
+                    log_on_epoch(self, f'{prefix}{stage}/{self.class_names[i]}', metric_value_n[i, i])
             else:
-                log_on_epoch(self, f'{prefix}{stage}/{metric_name}', metric_object, sync_dist=sync_dist,
-                             rank_zero_only=rank_zero_only)
+                log_on_epoch(self, f'{prefix}{stage}/{metric_name}', metric_object)
 
     def get_instance_features(self, instances: Tensor) -> Tensor:
         if not self.encoder_params.tune_encoder:
@@ -368,7 +364,7 @@ class BaseDeepMILModule(LightningModule):
     def validation_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
         val_result = self._shared_step(batch, batch_idx, ModelKey.VAL)
         name = f'{self.get_extra_prefix()}val/loss'
-        self.log(name, val_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True)
+        self.log(name, val_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True, sync_dist=True)
         return val_result
 
     def test_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
