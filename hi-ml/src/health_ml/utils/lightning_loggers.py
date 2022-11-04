@@ -145,13 +145,14 @@ class HimlMLFlowLogger(MLFlowLogger):
             self.experiment.log_param(self.run_id, k, v)
 
 
-def get_mlflow_run_id_from_trainer(self, trainer: Trainer) -> Optional[str]:
+def get_mlflow_run_id_from_trainer(trainer: Trainer) -> Optional[str]:
     """
-    If self.trainer has already been intialised with loggers,
+    If trainer has already been intialised with loggers, attempt to retrieve one of the type HimlMLFlowLogger,
+    and return its run_id property in order to log to the same run. Otherwise, return None.
 
-    :return: The mlflow run id from the existing HimlMLFlowLogger
+    :return: The mlflow run id from an existing HimlMLFlowLogger if available, else None.
     """
-    if self.trainer is None:
+    if trainer is None:
         return None
     try:
         mlflow_logger = [logger for logger in trainer.loggers if isinstance(logger, HimlMLFlowLogger)][0]
