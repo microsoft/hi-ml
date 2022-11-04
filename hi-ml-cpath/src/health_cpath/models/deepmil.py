@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import logging
 import torch
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 from pytorch_lightning.utilities.rank_zero import rank_zero_warn
@@ -46,7 +47,7 @@ class BaseDeepMILModule(LightningModule):
                  outputs_folder: Optional[Path] = None,
                  outputs_handler: Optional[DeepMILOutputsHandler] = None,
                  analyse_loss: Optional[bool] = False,
-                 validate_on_single_device: bool = False,
+                 rank_zero_only_val: bool = False,
                  verbose: bool = False,
                  ) -> None:
         """
@@ -65,7 +66,7 @@ class BaseDeepMILModule(LightningModule):
             validation epoch and test stage. If omitted (default), no outputs will be saved to disk (aside from usual
             metrics logging).
         :param analyse_loss: If True, the loss is analysed per sample and analysed with LossAnalysisCallback.
-        :param validate_on_single_device: If True, validation is performed on a single device (default=False).
+        :param rank_zero_only_val: If True, validation is performed on a single device (default=False).
         """
         super().__init__()
 
@@ -87,7 +88,7 @@ class BaseDeepMILModule(LightningModule):
         # This flag can be switched on before invoking trainer.validate() to enable saving additional time/memory
         # consuming validation outputs via calling self.on_run_extra_validation_epoch()
         self._on_extra_val_epoch = False
-        self.validate_on_single_device = validate_on_single_device
+        self.rank_zero_only_val = rank_zero_only_val
 
         # Model components
         self.encoder = encoder_params.get_encoder(outputs_folder)
@@ -104,6 +105,16 @@ class BaseDeepMILModule(LightningModule):
         self.train_metrics = self.get_metrics()
         self.val_metrics = self.get_metrics()
         self.test_metrics = self.get_metrics()
+
+    @property
+    def is_distributed(self) -> bool:
+        """Returns True if the model is running in DDP mode."""
+        return self.trainer is not None and self.trainer.world_size > 1
+
+    @property
+    def val_sync_dist(self) -> bool:
+        """Whether to sync validation metrics across processes."""
+        return self.is_distributed and not self.rank_zero_only_val
 
     @staticmethod
     def copy_weights(
@@ -207,7 +218,9 @@ class BaseDeepMILModule(LightningModule):
         """Get extra prefix for the metrics name to avoir overriding best validation metrics."""
         return EXTRA_PREFIX if self._on_extra_val_epoch else ""
 
-    def log_metrics(self, stage: str, prefix: str = "") -> None:
+    def log_metrics(
+        self, stage: str, prefix: str = '', sync_dist: Optional[bool] = None, rank_zero_only: bool = False
+    ) -> None:
         valid_stages = set([stage for stage in ModelKey])
         if stage not in valid_stages:
             raise Exception(f"Invalid stage. Chose one of {valid_stages}")
@@ -216,9 +229,11 @@ class BaseDeepMILModule(LightningModule):
                 metric_value = metric_object.compute()
                 metric_value_n = metric_value / metric_value.sum(axis=1, keepdims=True)
                 for i in range(metric_value_n.shape[0]):
-                    log_on_epoch(self, f'{prefix}{stage}/{self.class_names[i]}', metric_value_n[i, i])
+                    log_on_epoch(self, f'{prefix}{stage}/{self.class_names[i]}', metric_value_n[i, i],
+                                 sync_dist=sync_dist, rank_zero_only=rank_zero_only)
             else:
-                log_on_epoch(self, f'{prefix}{stage}/{metric_name}', metric_object)
+                log_on_epoch(self, f'{prefix}{stage}/{metric_name}', metric_object, sync_dist=sync_dist,
+                             rank_zero_only=rank_zero_only)
 
     def get_instance_features(self, instances: Tensor) -> Tensor:
         if not self.encoder_params.tune_encoder:
@@ -355,16 +370,14 @@ class BaseDeepMILModule(LightningModule):
         return results
 
     def validation_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
-        is_global_rank_zero = self.global_rank == 0
-        is_distributed = torch.distributed.is_initialized() and torch.distributed.get_world_size() > 1
-
-        if is_distributed and self.validate_on_single_device and not is_global_rank_zero:
+        if self.is_distributed and self.rank_zero_only_val and not self.global_rank == 0:
+            logging.info(f"Rank {self.global_rank}:Skipping validation step on non-global rank zero")
             return {}
         else:
+            logging.info(f"Rank {self.global_rank}:Computing validation step on global rank zero")
             val_result = self._shared_step(batch, batch_idx, ModelKey.VAL)
-        sync_dist = is_distributed and not self.validate_on_single_device
         self.log(f'{self.get_extra_prefix()}val/loss', val_result[ResultsKey.LOSS], on_epoch=True,
-                 on_step=True, logger=True, sync_dist=sync_dist)
+                 on_step=True, logger=True, sync_dist=self.val_sync_dist, rank_zero_only=self.rank_zero_only_val)
         return val_result
 
     def test_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
@@ -377,7 +390,8 @@ class BaseDeepMILModule(LightningModule):
         self.log_metrics(ModelKey.TRAIN)
 
     def validation_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
-        self.log_metrics(stage=ModelKey.VAL, prefix=self.get_extra_prefix())
+        self.log_metrics(stage=ModelKey.VAL, prefix=self.get_extra_prefix(), sync_dist=self.val_sync_dist,
+                         rank_zero_only=self.rank_zero_only_val)
         if self.outputs_handler:
             self.outputs_handler.save_validation_outputs(
                 epoch_results=epoch_results,

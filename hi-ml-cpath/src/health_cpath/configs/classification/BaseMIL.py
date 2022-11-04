@@ -79,6 +79,9 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams
     wsi_has_mask: bool = param.Boolean(default=True,
                                        doc="Whether the WSI has a mask. If True, will use the mask to load a specific"
                                            "region of the WSI. If False, will load the whole WSI.")
+    rank_zero_only_val: bool = param.Boolean(True, doc="Whether to run validation only on rank 0. This is useful when "
+                                             "the validation set is small and we want to avoid sharding it across "
+                                             "devices. This overrides `pl_replace_sampler_ddp=not rank_zero_only_val`.")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -86,6 +89,8 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams
         metric_optim = "max" if self.maximise_primary_metric else "min"
         self.best_checkpoint_filename = f"checkpoint_{metric_optim}_val_{self.primary_val_metric.value}"
         self.best_checkpoint_filename_with_suffix = self.best_checkpoint_filename + ".ckpt"
+        # Disable pl sampler replacement if rank_zero_only_val is True
+        self.pl_replace_sampler_ddp = not self.rank_zero_only_val
         self.validate()
 
     def validate(self) -> None:
@@ -288,7 +293,7 @@ class BaseMILTiles(BaseMIL):
                                             outputs_folder=self.outputs_folder,
                                             outputs_handler=outputs_handler,
                                             analyse_loss=self.analyse_loss,
-                                            validate_on_single_device=not self.pl_replace_sampler_ddp)
+                                            rank_zero_only_val=self.rank_zero_only_val)
         deepmil_module.transfer_weights(self.trained_weights_path)
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
         return deepmil_module
@@ -330,7 +335,7 @@ class BaseMILSlides(BaseMIL):
                                              optimizer_params=create_from_matching_params(self, OptimizerParams),
                                              outputs_handler=outputs_handler,
                                              analyse_loss=self.analyse_loss,
-                                             validate_on_single_device=not self.pl_replace_sampler_ddp)
+                                             rank_zero_only_val=self.rank_zero_only_val)
         deepmil_module.transfer_weights(self.trained_weights_path)
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
         return deepmil_module

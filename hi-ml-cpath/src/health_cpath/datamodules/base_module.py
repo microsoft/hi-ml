@@ -54,7 +54,7 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         transforms_dict: Optional[Dict[ModelKey, Union[Callable, None]]] = None,
         crossval_count: int = 0,
         crossval_index: int = 0,
-        pl_replace_sampler_ddp: bool = True,
+        rank_zero_only_val: bool = False,
         dataloader_kwargs: Optional[Dict[str, Any]] = None,
         dataframe_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
@@ -77,8 +77,9 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         By default (`None`).
         :param crossval_count: Number of folds to perform.
         :param crossval_index: Index of the cross validation split to be performed.
-        :param pl_replace_sampler_ddp: If True, the default behavior of Pytorch Lightning is to replace the sampler.
-            If False, the sampler is not replaced so we need to handle it ourselves.
+        :param rank_zero_only_val: If True, only rank 0 will perform validation. This is useful for distributed training
+        when the validation set is small and you want to avoid data sharding. In this case, we should set the
+        ddp sampler for training because we disable replace_ddp_sampler in the trainer.
         :param dataloader_kwargs: Additional keyword arguments for the training, validation, and test dataloaders.
         :param dataframe_kwargs: Keyword arguments to pass to `pd.read_csv()` when loading the dataset CSV.
         """
@@ -92,7 +93,7 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         self.bag_sizes = {ModelKey.TRAIN: max_bag_size, ModelKey.VAL: max_bag_size_inf, ModelKey.TEST: max_bag_size_inf}
         self.crossval_count = crossval_count
         self.crossval_index = crossval_index
-        self.pl_replace_sampler_ddp = pl_replace_sampler_ddp
+        self.rank_zero_only_val = rank_zero_only_val
         self.train_dataset: _SlidesOrTilesDataset
         self.val_dataset: _SlidesOrTilesDataset
         self.test_dataset: _SlidesOrTilesDataset
@@ -113,10 +114,9 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
 
     def _get_ddp_sampler(self, dataset: Dataset, stage: ModelKey) -> Optional[DistributedSampler]:
         is_distributed = torch.distributed.is_initialized() and torch.distributed.get_world_size() > 1
-        if is_distributed and not self.pl_replace_sampler_ddp:
-            if stage == ModelKey.TRAIN:
-                assert self.seed is not None, "seed must be set when using distributed training for reproducibility"
-                return DistributedSampler(dataset, shuffle=True, seed=self.seed)
+        if is_distributed and self.rank_zero_only_val and stage == ModelKey.TRAIN:
+            assert self.seed is not None, "seed must be set when using distributed training for reproducibility"
+            return DistributedSampler(dataset, shuffle=True, seed=self.seed)
         return None
 
     def train_dataloader(self) -> DataLoader:

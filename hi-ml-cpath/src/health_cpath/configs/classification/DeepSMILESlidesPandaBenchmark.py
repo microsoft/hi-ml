@@ -118,8 +118,7 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
             dataloader_kwargs=self.get_dataloader_kwargs(),
-            pl_replace_sampler_ddp=self.pl_replace_sampler_ddp,
-        )
+            rank_zero_only_val=self.rank_zero_only_val)
 
     def create_model(self) -> SlidesDeepMILModule:
         self.data_module = self.get_data_module()
@@ -137,7 +136,7 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             optimizer_params=create_from_matching_params(self, OptimizerParams),
             outputs_handler=outputs_handler,
             analyse_loss=self.analyse_loss,
-            validate_on_single_device=not self.pl_replace_sampler_ddp)
+            rank_zero_only_val=self.rank_zero_only_val)
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
         return deepmil_module
 

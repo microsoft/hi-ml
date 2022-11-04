@@ -88,8 +88,7 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
             crossval_index=self.crossval_index,
             dataloader_kwargs=self.get_dataloader_kwargs(),
             seed=self.get_effective_random_seed(),
-            pl_replace_sampler_ddp=self.pl_replace_sampler_ddp,
-        )
+            rank_zero_only_val=self.rank_zero_only_val)
 
     def get_slides_dataset(self) -> Optional[PandaDataset]:
         return PandaDataset(root=self.local_datasets[1])                             # type: ignore
@@ -166,8 +165,7 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
             dataloader_kwargs=self.get_dataloader_kwargs(),
-            pl_replace_sampler_ddp=self.pl_replace_sampler_ddp,
-        )
+            rank_zero_only_val=self.rank_zero_only_val)
 
     def get_slides_dataset(self) -> PandaDataset:
         return PandaDataset(root=self.local_datasets[0])                             # type: ignore

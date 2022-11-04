@@ -73,8 +73,7 @@ class DeepSMILECrck(BaseMILTiles):
             crossval_index=self.crossval_index,
             dataloader_kwargs=self.get_dataloader_kwargs(),
             seed=self.get_effective_random_seed(),
-            pl_replace_sampler_ddp=self.pl_replace_sampler_ddp,
-        )
+            rank_zero_only_val=self.rank_zero_only_val)
 
     def get_test_plot_options(self) -> Set[PlotOption]:
         plot_options = super().get_test_plot_options()
