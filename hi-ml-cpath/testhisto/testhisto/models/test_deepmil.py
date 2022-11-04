@@ -326,9 +326,10 @@ def test_container(container_type: Type[BaseMILTiles], use_gpu: bool) -> None:
         container = container_type()
 
     container.setup()
+    container.batch_size = 10
+    container.batch_size_inf = 10
 
     data_module: TilesDataModule = container.get_data_module()  # type: ignore
-    data_module.bag_sizes = 10
 
     module = container.create_model()
     module.outputs_handler = MagicMock()
