@@ -208,9 +208,11 @@ class OutputsPolicy:
         :param epoch: Current epoch number.
         :param is_global_rank_zero: Whether this is the global rank-0 process in distributed scenarios.
             Set to `True` (default) if running a single process.
-        :param on_extra_val_epoch: Whether this is an extra validation epoch (e.g. after training).
+        :param on_extra_val: Whether this is an extra validation epoch (e.g. after training).
         :return: Whether this is the best validation epoch so far.
         """
+        if on_extra_val:
+            return False
         metric = metrics_dict[self.primary_val_metric]
         # If the metric hasn't been updated we don't want to save it
         if not metric._update_called:
@@ -237,7 +239,7 @@ class OutputsPolicy:
             self._best_metric_epoch = epoch
             self._save_best_metric()
 
-        return is_best and not on_extra_val
+        return is_best
 
     def should_save_test_outputs(self, is_global_rank_zero: bool = True) -> bool:
         """Determine whether test outputs should be saved.
@@ -365,8 +367,8 @@ class DeepMILOutputsHandler:
         if sync_dist:
             epoch_results = gather_results(epoch_results)
 
-        if self.should_gather_tiles(self.val_plots_handler):
-            self.tiles_selector.gather_selected_tiles_across_devices()  # type: ignore
+            if self.should_gather_tiles(self.val_plots_handler):
+                self.tiles_selector.gather_selected_tiles_across_devices()  # type: ignore
 
         # Only global rank-0 process should actually render and save the outputs
         # We also want to save the plots of the extra validation epoch

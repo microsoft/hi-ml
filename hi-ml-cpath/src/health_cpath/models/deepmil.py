@@ -102,7 +102,7 @@ class BaseDeepMILModule(LightningModule):
 
         # Metrics Objects
         self.train_metrics = self.get_metrics(dist_sync_on_step=self.is_distributed)
-        self.val_metrics = self.get_metrics(dist_sync_on_step=self.should_sync_dist_val())
+        self.val_metrics = self.get_metrics(dist_sync_on_step=self.is_distributed)
         self.test_metrics = self.get_metrics(dist_sync_on_step=False)
 
     @property
@@ -188,39 +188,33 @@ class BaseDeepMILModule(LightningModule):
     def get_bag_label(labels: Tensor) -> Tensor:
         raise NotImplementedError
 
-    def get_metrics(self, dist_sync_on_step: bool = False) -> nn.ModuleDict:
+    def get_metrics(self) -> nn.ModuleDict:
         if self.n_classes > 1:
             return nn.ModuleDict({
-                MetricsKey.ACC: Accuracy(num_classes=self.n_classes, dist_sync_on_step=dist_sync_on_step),
-                MetricsKey.AUROC: AUROC(num_classes=self.n_classes, dist_sync_on_step=dist_sync_on_step),
-                MetricsKey.AVERAGE_PRECISION: AveragePrecision(num_classes=self.n_classes,
-                                                               dist_sync_on_step=dist_sync_on_step),
+                MetricsKey.ACC: Accuracy(num_classes=self.n_classes),
+                MetricsKey.AUROC: AUROC(num_classes=self.n_classes),
+                MetricsKey.AVERAGE_PRECISION: AveragePrecision(num_classes=self.n_classes),
                 # Quadratic Weighted Kappa (QWK) used in PANDA challenge
                 # is calculated using Cohen's Kappa with quadratic weights
                 # https://www.kaggle.com/code/reighns/understanding-the-quadratic-weighted-kappa/
-                MetricsKey.COHENKAPPA: CohenKappa(num_classes=self.n_classes, weights='quadratic',
-                                                  dist_sync_on_step=dist_sync_on_step),
-                MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=self.n_classes,
-                                                        dist_sync_on_step=dist_sync_on_step),
+                MetricsKey.COHENKAPPA: CohenKappa(num_classes=self.n_classes, weights='quadratic'),
+                MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=self.n_classes),
                 # Metrics below are computed for multi-class case only
-                MetricsKey.ACC_MACRO: Accuracy(num_classes=self.n_classes, average='macro',
-                                               dist_sync_on_step=dist_sync_on_step),
-                MetricsKey.ACC_WEIGHTED: Accuracy(num_classes=self.n_classes, average='weighted',
-                                                  dist_sync_on_step=dist_sync_on_step)})
+                MetricsKey.ACC_MACRO: Accuracy(num_classes=self.n_classes, average='macro'),
+                MetricsKey.ACC_WEIGHTED: Accuracy(num_classes=self.n_classes, average='weighted')})
         else:
             return nn.ModuleDict({
-                MetricsKey.ACC: Accuracy(dist_sync_on_step=dist_sync_on_step),
-                MetricsKey.AUROC: AUROC(num_classes=None, dist_sync_on_step=dist_sync_on_step),
+                MetricsKey.ACC: Accuracy(),
+                MetricsKey.AUROC: AUROC(num_classes=None),
                 # Average precision is a measure of area under the PR curve
-                MetricsKey.AVERAGE_PRECISION: AveragePrecision(dist_sync_on_step=dist_sync_on_step),
-                MetricsKey.COHENKAPPA: CohenKappa(num_classes=2, weights='quadratic',
-                                                  dist_sync_on_step=dist_sync_on_step),
-                MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=2, dist_sync_on_step=dist_sync_on_step),
+                MetricsKey.AVERAGE_PRECISION: AveragePrecision(),
+                MetricsKey.COHENKAPPA: CohenKappa(num_classes=2, weights='quadratic'),
+                MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=2),
                 # Metrics below are computed for binary case only
-                MetricsKey.F1: F1(dist_sync_on_step=dist_sync_on_step),
-                MetricsKey.PRECISION: Precision(dist_sync_on_step=dist_sync_on_step),
-                MetricsKey.RECALL: Recall(dist_sync_on_step=dist_sync_on_step),
-                MetricsKey.SPECIFICITY: Specificity(dist_sync_on_step=dist_sync_on_step)})
+                MetricsKey.F1: F1(),
+                MetricsKey.PRECISION: Precision(),
+                MetricsKey.RECALL: Recall(),
+                MetricsKey.SPECIFICITY: Specificity()})
 
     def get_extra_prefix(self) -> str:
         """Get extra prefix for the metrics name to avoir overriding best validation metrics."""
@@ -366,8 +360,7 @@ class BaseDeepMILModule(LightningModule):
 
     def training_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
         train_result = self._shared_step(batch, batch_idx, ModelKey.TRAIN)
-        self.log('train/loss', train_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
-                 sync_dist=True)
+        self.log('train/loss', train_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True, sync_dist=True)
         if self.verbose:
             print(f"After loading images batch {batch_idx} -", _format_cuda_memory_stats())
         results = {ResultsKey.LOSS: train_result[ResultsKey.LOSS]}
@@ -378,56 +371,30 @@ class BaseDeepMILModule(LightningModule):
         return results
 
     def validation_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
-
-        if self.should_skip_validation():
-            print(f"Rank {self.global_rank}:Skipping validation step on non-global rank zero for batch {batch_idx}")
-            return {}
-        else:
-            print(f"Rank {self.global_rank}:Computing validation step on global rank zero for batch {batch_idx}")
-            val_result = self._shared_step(batch, batch_idx, ModelKey.VAL)
-
-        self.log(f'{self.get_extra_prefix()}val/loss',
-                 val_result[ResultsKey.LOSS],
-                 on_epoch=True,
-                 on_step=True,
-                 logger=True,
-                 sync_dist=self.should_sync_dist_val(),
-                 rank_zero_only=self.rank_zero_only_val)
+        val_result = self._shared_step(batch, batch_idx, ModelKey.VAL)
+        name = f'{self.get_extra_prefix()}val/loss'
+        self.log(name, val_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True)
         return val_result
 
     def test_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
         test_result = self._shared_step(batch, batch_idx, ModelKey.TEST)
-        self.log('test/loss', test_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
-                 sync_dist=True)
+        self.log('test/loss', test_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True, sync_dist=True)
         return test_result
 
     def training_epoch_end(self, outputs: EpochResultsType) -> None:  # type: ignore
         self.log_metrics(ModelKey.TRAIN)
 
     def validation_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
-        if self.should_skip_validation():
-            # Pause other processes until rank zero is done with logging and saving outputs
-            print(f"Rank {self.global_rank}:Skipping validation epoch end on non-global rank zero")
-            # torch.distributed.barrier()
-        else:
-            print(f"Rank {self.global_rank}:Logging validation metrics on global rank zero")
-            self.log_metrics(stage=ModelKey.VAL,
-                             prefix=self.get_extra_prefix(),
-                             sync_dist=self.should_sync_dist_val(),
-                             rank_zero_only=self.rank_zero_only_val)
-            print(f"Rank {self.global_rank}:Finished logging validation metrics on global rank zero")
-            if self.outputs_handler:
-                self.outputs_handler.save_validation_outputs(
-                    epoch_results=epoch_results,
-                    metrics_dict=self.get_metrics_dict(ModelKey.VAL),  # type: ignore
-                    epoch=self.current_epoch,
-                    is_global_rank_zero=self.global_rank == 0,
-                    on_extra_val=self._on_extra_val_epoch,
-                    sync_dist=self.should_sync_dist_val(),
-                )
-            # if self.is_distributed and self.global_rank == 0 and not self._on_extra_val_epoch:
-            #     # Unpause other processes
-            #     torch.distributed.barrier()
+        self.log_metrics(stage=ModelKey.VAL, prefix=self.get_extra_prefix())
+        if self.outputs_handler:
+            self.outputs_handler.save_validation_outputs(
+                epoch_results=epoch_results,
+                metrics_dict=self.get_metrics_dict(ModelKey.VAL),  # type: ignore
+                epoch=self.current_epoch,
+                is_global_rank_zero=self.global_rank == 0,
+                on_extra_val=self._on_extra_val_epoch,
+                sync_dist=self.should_sync_dist_val(),
+            )
 
     def test_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
         self.log_metrics(ModelKey.TEST)
