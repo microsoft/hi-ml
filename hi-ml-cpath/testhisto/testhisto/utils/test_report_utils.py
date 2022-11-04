@@ -258,4 +258,4 @@ def test_get_hyperdrive_metrics_table(
 
     original_values = df.loc[metrics_list].values
     table_values = metrics_table.iloc[:, :-1].applymap(float).values
-    assert (table_values == original_values).all()
+    assert (table_values[~pd.isnull(table_values)] == original_values[~pd.isnull(original_values)]).all()

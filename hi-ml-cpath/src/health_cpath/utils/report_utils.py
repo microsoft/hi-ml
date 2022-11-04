@@ -148,7 +148,7 @@ def get_hyperdrive_metrics_table(metrics_df: pd.DataFrame, metrics_list: Sequenc
         values: pd.Series = metrics_df.loc[metric]
         mean = values.mean()
         std = values.std()
-        round_values: List[str] = [f"{v:.3f}" if v is not None else "N/A" for v in values]
+        round_values: List[str] = [f"{v:.3f}" if v is not None else str(np.nan) for v in values]
         agg_values: List[str] = [f"{mean:.3f} ± {std:.3f}"]
         row = [metric] + round_values + agg_values
         metrics_rows.append(row)
@@ -238,20 +238,30 @@ def get_formatted_run_info(parent_run: Run) -> str:
     return html
 
 
-def collect_class_info(metrics_df: pd.DataFrame) -> Tuple[int, List[str]]:
+def get_child_runs_hyperparams(metrics_df: pd.DataFrame) -> Dict[int, Dict]:
     """
-    Get the class names from metrics dataframe
-    :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_hyperdrive_metrics()` and
+    Get the hyperparameters of each child run from the metrics dataframe.
+    :param: metrics_df: Metrics dataframe, as returned by :py:func:`collect_hyperdrive_metrics()` and
         :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
-    :return: Number of classes and list of class names
+    :return: A dictionary of hyperparameter dictionaries for the child runs.
     """
-    hyperparams = metrics_df[0][AMLMetricsJsonKey.HYPERPARAMS]
-    hyperparams_name = hyperparams[AMLMetricsJsonKey.NAME]
-    hyperparams_value = hyperparams[AMLMetricsJsonKey.VALUE]
-    num_classes_index = hyperparams_name.index(AMLMetricsJsonKey.N_CLASSES)
-    num_classes = int(hyperparams_value[num_classes_index])
-    class_names_index = hyperparams_name.index(AMLMetricsJsonKey.CLASS_NAMES)
-    class_names = hyperparams_value[class_names_index]
+    hyperparams_children = {}
+    for child_index in metrics_df.columns:
+        hyperparams = metrics_df[child_index][AMLMetricsJsonKey.HYPERPARAMS]
+        hyperparams_dict = dict(zip(hyperparams[AMLMetricsJsonKey.NAME], hyperparams[AMLMetricsJsonKey.VALUE]))
+        hyperparams_children[child_index] = hyperparams_dict
+    return hyperparams_children
+
+
+def collect_class_info(hyperparams_children: Dict[int, Dict]) -> Tuple[int, List[str]]:
+    """
+    Get the class names from the hyperparameters of child runs.
+    :param hyperparams_children: Dict of hyperparameter dicts, as returned by :py:func:`get_child_runs_hyperparams()`.
+    :return: Number of classes and list of class names.
+    """
+    hyperparams_single_run = list(hyperparams_children.values())[0]
+    num_classes = int(hyperparams_single_run[AMLMetricsJsonKey.N_CLASSES])
+    class_names = hyperparams_single_run[AMLMetricsJsonKey.CLASS_NAMES]
     if class_names == "None":
         class_names = None
     else:
@@ -261,19 +271,13 @@ def collect_class_info(metrics_df: pd.DataFrame) -> Tuple[int, List[str]]:
     return (num_classes, list(class_names))
 
 
-def get_max_epochs(metrics_df: pd.DataFrame) -> Dict[int, int]:
+def get_max_epochs(hyperparams_children: Dict[int, Dict]) -> Dict[int, int]:
     """
     Get the maximum number of epochs for each round from the metrics dataframe.
-    :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_hyperdrive_metrics()` and
-        :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
+    :param hyperparams_children: Dict of hyperparameter dicts, as returned by :py:func:`get_child_runs_hyperparams()`.
     :return: Dictionary with the number of epochs in each hyperdrive run.
     """
     max_epochs_dict = {}
-    for child_index in metrics_df.columns:
-        hyperparams = metrics_df[child_index][AMLMetricsJsonKey.HYPERPARAMS]
-        hyperparams_name = hyperparams[AMLMetricsJsonKey.NAME]
-        hyperparams_value = hyperparams[AMLMetricsJsonKey.VALUE]
-        max_epochs_index = hyperparams_name.index(AMLMetricsJsonKey.MAX_EPOCHS)
-        max_epochs = int(hyperparams_value[max_epochs_index])
-        max_epochs_dict[child_index] = max_epochs
+    for child_index in hyperparams_children.keys():
+        max_epochs_dict[child_index] = int(hyperparams_children[child_index][AMLMetricsJsonKey.MAX_EPOCHS])
     return max_epochs_dict

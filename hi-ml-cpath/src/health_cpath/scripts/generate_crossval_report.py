@@ -18,8 +18,8 @@ from health_cpath.utils.output_utils import (AML_LEGACY_TEST_OUTPUTS_CSV, AML_TE
                                              AML_VAL_OUTPUTS_CSV)
 from health_cpath.utils.report_utils import (collect_hyperdrive_metrics, collect_hyperdrive_outputs,
                                              child_runs_have_val_and_test_outputs, get_best_epoch_metrics,
-                                             get_best_epochs, get_hyperdrive_metrics_table, get_formatted_run_info,
-                                             collect_class_info, get_max_epochs,
+                                             get_best_epochs, get_child_runs_hyperparams, get_hyperdrive_metrics_table,
+                                             get_formatted_run_info, collect_class_info, get_max_epochs,
                                              download_hyperdrive_metrics_if_required)
 from health_cpath.utils.naming import MetricsKey, ModelKey
 
@@ -60,7 +60,8 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
     # Get metrics dataframe from the downloaded json file
     metrics_df = collect_hyperdrive_metrics(metrics_json=metrics_json)
 
-    max_epochs_dict = get_max_epochs(metrics_df)
+    hyperparameters_children = get_child_runs_hyperparams(metrics_df)
+    max_epochs_dict = get_max_epochs(hyperparams_children=hyperparameters_children)
     best_epochs = get_best_epochs(metrics_df=metrics_df, primary_metric=f'{ModelKey.VAL}/{primary_metric}',
                                   max_epochs_dict=max_epochs_dict, maximise=True)
 
@@ -70,7 +71,7 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
                            primary_metric=primary_metric)
 
     # Get metrics list with class names
-    num_classes, class_names = collect_class_info(metrics_df=metrics_df)
+    num_classes, class_names = collect_class_info(hyperparams_children=hyperparameters_children)
 
     base_metrics_list: List[str] = [MetricsKey.ACC, MetricsKey.AUROC, MetricsKey.AVERAGE_PRECISION,
                                     MetricsKey.COHENKAPPA]
