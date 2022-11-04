@@ -101,10 +101,8 @@ def _create_v1_dataset(datastore_name: str, dataset_name: str, workspace: Worksp
     if not dataset_name:
         raise ValueError(f"Cannot create dataset without a valid dataset name (received '{dataset_name}')")
 
-    if datastore_name:
-        datastore = get_datastore(workspace, datastore_name)
-    else:
-        datastore = workspace.get_default_datastore()
+    datastore = get_datastore(workspace, datastore_name)
+
     assert isinstance(datastore, AzureBlobDatastore)
     logging.info(f"Creating a new dataset from data in folder '{dataset_name}' in the datastore")
     # Ensure that there is a / at the end of the file path, otherwise folder that share a prefix could create

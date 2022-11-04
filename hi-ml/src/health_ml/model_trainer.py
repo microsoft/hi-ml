@@ -14,12 +14,12 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.profiler import BaseProfiler, SimpleProfiler, AdvancedProfiler, PyTorchProfiler
 
-from health_azure.utils import RUN_CONTEXT, is_running_in_azure_ml, is_running_on_azure_agent
+from health_azure.utils import RUN_CONTEXT, is_running_in_azure_ml, get_workspace
 
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils import AzureMLProgressBar
 from health_ml.utils.common_utils import AUTOSAVE_CHECKPOINT_FILE_NAME, EXPERIMENT_SUMMARY_FILE
-from health_ml.utils.lightning_loggers import StoringLogger, MlflowLogger
+from health_ml.utils.lightning_loggers import StoringLogger, HimlMLFlowLogger
 
 
 T = TypeVar('T')
@@ -97,7 +97,7 @@ def create_lightning_trainer(container: LightningContainer,
 
     if is_running_in_azure_ml():
         mlflow_run_id = os.environ.get("MLFLOW_RUN_ID", None)
-        mlflow_logger = MlflowLogger(
+        mlflow_logger = HimlMLFlowLogger(
             run_id=mlflow_run_id
         )
     else:
@@ -105,7 +105,7 @@ def create_lightning_trainer(container: LightningContainer,
         try:
             mlflow_run_dir.mkdir(exist_ok=True)
             mlflow_tracking_uri = "file:" + str(mlflow_run_dir)
-            mlflow_logger = MlflowLogger(run_id=mlflow_run_for_logging, tracking_uri=mlflow_tracking_uri)
+            mlflow_logger = HimlMLFlowLogger(run_id=mlflow_run_for_logging, tracking_uri=mlflow_tracking_uri)
             loggers.append(mlflow_logger)
             print(f"Local MLFlow logs are stored in {mlflow_tracking_uri}")
         except FileNotFoundError as e:

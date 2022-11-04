@@ -114,7 +114,7 @@ class StoringLogger(LightningLoggerBase):
         return {epoch: self.extract_by_prefix(epoch, prefix_filter) for epoch in self.epochs}
 
 
-class MlflowLogger(MLFlowLogger):
+class HimlMLFlowLogger(MLFlowLogger):
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
 
