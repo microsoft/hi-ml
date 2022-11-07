@@ -191,7 +191,7 @@ def test_on_train_epoch_end_distributed(tmp_path: Path) -> None:
 
 
 def test_on_train_and_val_end(tmp_path: Path) -> None:
-    pl_module = MagicMock(global_rank=0, _run_extra_val_epoch=False)
+    pl_module = MagicMock(global_rank=0, _on_extra_val_epoch=False)
     max_epochs = 4
     trainer = MagicMock(current_epoch=max_epochs - 1)
 
@@ -224,7 +224,7 @@ def test_on_train_and_val_end(tmp_path: Path) -> None:
 
 
 def test_on_validation_end_not_called_if_extra_val_epoch(tmp_path: Path) -> None:
-    pl_module = MagicMock(global_rank=0, _run_extra_val_epoch=True)
+    pl_module = MagicMock(global_rank=0, _on_extra_val_epoch=True)
     max_epochs = 4
     trainer = MagicMock(current_epoch=0)
     loss_callback = LossAnalysisCallback(
@@ -264,7 +264,7 @@ def test_nans_detection(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> Non
 def test_log_exceptions_flag(log_exceptions: bool, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     max_epochs = 3
     trainer = MagicMock(current_epoch=max_epochs - 1)
-    pl_module = MagicMock(global_rank=0, _run_extra_val_epoch=False)
+    pl_module = MagicMock(global_rank=0, _on_extra_val_epoch=False)
     loss_callback = LossAnalysisCallback(
         outputs_folder=tmp_path, max_epochs=max_epochs,
         num_slides_heatmap=2, num_slides_scatter=2, log_exceptions=log_exceptions

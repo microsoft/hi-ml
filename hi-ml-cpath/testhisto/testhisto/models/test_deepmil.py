@@ -713,13 +713,13 @@ def test_on_run_extra_val_epoch(mock_panda_tiles_root_dir: Path) -> None:
     container.setup()
     container.data_module = MagicMock()
     container.create_lightning_module_and_store()
-    assert not container.model._run_extra_val_epoch
+    assert not container.model._on_extra_val_epoch
     assert (
         container.model.outputs_handler.test_plots_handler.plot_options  # type: ignore
         != container.model.outputs_handler.val_plots_handler.plot_options  # type: ignore
     )
     container.on_run_extra_validation_epoch()
-    assert container.model._run_extra_val_epoch
+    assert container.model._on_extra_val_epoch
     assert (
         container.model.outputs_handler.test_plots_handler.plot_options  # type: ignore
         == container.model.outputs_handler.val_plots_handler.plot_options  # type: ignore
