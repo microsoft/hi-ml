@@ -231,7 +231,6 @@ class OutputsPolicy:
         if isinstance(metric, Accuracy):
             metric.reset()
 
-
         return is_best
 
     def should_save_test_outputs(self, is_global_rank_zero: bool = True) -> bool:
