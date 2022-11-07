@@ -213,10 +213,6 @@ class OutputsPolicy:
         # The metric needs to be computed on all ranks to allow synchronisation
         metric_value = float(metric.compute())
 
-        # It seems to be necessary to reset the Accuracy metric after computing, else some processes get stuck here
-        if isinstance(metric, Accuracy):
-            metric.reset()
-
         # Validation outputs and best metric should be saved only by the global rank-0 process
         if not is_global_rank_zero:
             return False
