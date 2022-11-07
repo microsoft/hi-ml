@@ -14,6 +14,7 @@ import torch
 import logging
 
 from ruamel.yaml import YAML
+from torchmetrics import Accuracy
 from torchmetrics.metric import Metric
 
 from health_azure.utils import replace_directory
@@ -225,6 +226,11 @@ class OutputsPolicy:
             self._best_metric_value = metric_value
             self._best_metric_epoch = epoch
             self._save_best_metric()
+
+        # It seems to be necessary to reset the Accuracy metric after computing, else some processes get stuck here
+        if isinstance(metric, Accuracy):
+            metric.reset()
+
 
         return is_best
 
