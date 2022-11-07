@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Dict, List, Sequence, Union
+from typing import Any, Dict, List, Sequence, Union
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -14,7 +14,7 @@ from health_cpath.utils.output_utils import (AML_LEGACY_TEST_OUTPUTS_CSV, AML_OU
 from health_cpath.utils.report_utils import (collect_hyperdrive_metrics, collect_hyperdrive_outputs,
                                              child_runs_have_val_and_test_outputs, get_best_epoch_metrics,
                                              get_best_epochs, get_hyperdrive_metrics_table,
-                                             run_has_val_and_test_outputs)
+                                             run_has_val_and_test_outputs, download_hyperdrive_metrics_if_required)
 
 
 def test_run_has_val_and_test_outputs() -> None:
@@ -176,13 +176,24 @@ def metrics_df() -> pd.DataFrame:
             'val/auroc': [0.8, 0.9, 0.7],
             'test/accuracy': 0.9,
             'test/auroc': 0.9
-        }
+        },
+        4: {'val/accuracy': None,
+            'val/auroc': None,
+            'test/accuracy': None,
+            'test/auroc': None
+            }
     })
 
 
 @pytest.fixture
-def best_epochs(metrics_df: pd.DataFrame) -> Dict[int, int]:
-    return get_best_epochs(metrics_df, 'val/accuracy', maximise=True)
+def max_epochs_dict() -> Dict[int, int]:
+    return {0: 3, 1: 10, 3: 3, 4: 3}
+
+
+@pytest.fixture
+def best_epochs(metrics_df: pd.DataFrame, max_epochs_dict: Dict[int, int]) -> Dict[int, Any]:
+    return get_best_epochs(metrics_df=metrics_df, primary_metric='val/accuracy',
+                           max_epochs_dict=max_epochs_dict, maximise=True)
 
 
 @pytest.fixture
@@ -195,13 +206,15 @@ def best_epoch_metrics(metrics_df: pd.DataFrame, best_epochs: Dict[int, int]) ->
 def test_collect_hyperdrive_metrics(metrics_df: pd.DataFrame, tmp_path: Path, overwrite: bool) -> None:
     with patch('health_cpath.utils.report_utils.aggregate_hyperdrive_metrics',
                return_value=metrics_df) as mock_aggregate:
-        returned_df = collect_hyperdrive_metrics(parent_run_id="", download_dir=tmp_path,
-                                                 aml_workspace=None, overwrite=overwrite)
+        returned_json = download_hyperdrive_metrics_if_required(parent_run_id="", download_dir=tmp_path,
+                                                                aml_workspace=None, overwrite=overwrite)
+        returned_df = collect_hyperdrive_metrics(metrics_json=returned_json)
         mock_aggregate.assert_called_once()
         mock_aggregate.reset_mock()
 
-        new_returned_df = collect_hyperdrive_metrics(parent_run_id="", download_dir=tmp_path,
-                                                     aml_workspace=None, overwrite=overwrite)
+        new_returned_json = download_hyperdrive_metrics_if_required(parent_run_id="", download_dir=tmp_path,
+                                                                    aml_workspace=None, overwrite=overwrite)
+        new_returned_df = collect_hyperdrive_metrics(metrics_json=new_returned_json)
         if overwrite:
             mock_aggregate.assert_called_once()
         else:
@@ -211,12 +224,13 @@ def test_collect_hyperdrive_metrics(metrics_df: pd.DataFrame, tmp_path: Path, ov
 
 
 @pytest.mark.parametrize('maximise', [True, False])
-def test_get_best_epochs(metrics_df: pd.DataFrame, maximise: bool) -> None:
-    best_epochs = get_best_epochs(metrics_df, 'val/accuracy', maximise=maximise)
+def test_get_best_epochs(metrics_df: pd.DataFrame, max_epochs_dict: Dict[int, int], maximise: bool) -> None:
+    best_epochs = get_best_epochs(metrics_df=metrics_df, primary_metric='val/accuracy',
+                                  max_epochs_dict=max_epochs_dict, maximise=maximise)
     assert list(best_epochs.keys()) == list(metrics_df.columns)
-    assert all(isinstance(epoch, int) for epoch in best_epochs.values())
+    assert all(isinstance(epoch, (int, type(None))) for epoch in best_epochs.values())
 
-    expected_best = {0: 0, 1: 1, 3: 2} if maximise else {0: 1, 1: 2, 3: 0}
+    expected_best = {0: 0, 1: 1, 3: 2, 4: None} if maximise else {0: 1, 1: 2, 3: 0, 4: None}
     for split in metrics_df.columns:
         assert best_epochs[split] == expected_best[split]
 
@@ -244,4 +258,4 @@ def test_get_hyperdrive_metrics_table(
 
     original_values = df.loc[metrics_list].values
     table_values = metrics_table.iloc[:, :-1].applymap(float).values
-    assert (table_values == original_values).all()
+    assert (table_values[~pd.isnull(table_values)] == original_values[~pd.isnull(original_values)]).all()
