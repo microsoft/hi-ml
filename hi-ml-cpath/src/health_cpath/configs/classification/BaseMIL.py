@@ -284,7 +284,7 @@ class BaseMILTiles(BaseMIL):
                                             class_weights=self.data_module.class_weights,
                                             encoder_params=create_from_matching_params(self, EncoderParams),
                                             pooling_params=create_from_matching_params(self, PoolingParams),
-                                            classifier_parms=create_from_matching_params(self, ClassifierParams),
+                                            classifier_params=create_from_matching_params(self, ClassifierParams),
                                             optimizer_params=create_from_matching_params(self, OptimizerParams),
                                             outputs_folder=self.outputs_folder,
                                             outputs_handler=outputs_handler,
