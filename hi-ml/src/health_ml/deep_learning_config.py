@@ -11,13 +11,14 @@ import re
 from enum import Enum, unique
 from param import Parameterized
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
 from azureml.train.hyperdrive import HyperDriveConfig
 
 from health_azure import create_crossval_hyperdrive_config
-from health_azure.himl import create_grid_hyperdrive_config
+from health_azure.himl import (create_grid_hyperdrive_config, create_crossval_hyperparam_args_v2,
+                               create_grid_hyperparam_args_v2)
 from health_azure.amulet import (ENV_AMLT_PROJECT_NAME, ENV_AMLT_INPUT_OUTPUT,
                                  ENV_AMLT_SNAPSHOT_DIR, ENV_AMLT_AZ_BATCHAI_DIR,
                                  is_amulet_job, get_amulet_aml_working_dir)
@@ -294,6 +295,16 @@ class WorkflowParams(param.Parameterized):
                                              argument_name=self.RANDOM_SEED_ARG_NAME,
                                              metric_name="val/loss"
                                              )
+
+    def get_crossval_hyperparam_args_v2(self) -> Dict[str, Any]:
+        return create_crossval_hyperparam_args_v2(num_splits=self.crossval_count,
+                                                  cross_val_index_arg_name=self.CROSSVAL_INDEX_ARG_NAME,
+                                                  metric_name="val/loss")
+
+    def get_grid_hyperparam_args_v2(self) -> Dict[str, Any]:
+        return create_grid_hyperparam_args_v2(values=list(map(str, range(self.different_seeds))),
+                                              argument_name=self.RANDOM_SEED_ARG_NAME,
+                                              metric_name="val/loss")
 
 
 class DatasetParams(param.Parameterized):

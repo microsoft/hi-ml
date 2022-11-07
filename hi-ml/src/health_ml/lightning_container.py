@@ -183,6 +183,15 @@ class LightningContainer(WorkflowParams,
             return self.get_different_seeds_hyperdrive_config()
         return None
 
+    def get_hyperparam_args(self) -> Dict[str, Any]:
+        if self.hyperdrive:
+            return NotImplementedError
+        if self.is_crossvalidation_enabled:
+            return self.get_crossval_hyperparam_args_v2()
+        if self.different_seeds > 0:
+            return self.get_grid_hyperparam_args_v2()
+        return None
+
     def load_model_checkpoint(self, checkpoint_path: Path) -> None:
         """
         Load a checkpoint from the given path. We need to define a separate method since pytorch lightning cannot
