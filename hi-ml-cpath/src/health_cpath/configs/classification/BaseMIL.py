@@ -170,7 +170,11 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams
                                                   num_slides_scatter=self.num_slides_scatter,
                                                   num_slides_heatmap=self.num_slides_heatmap,
                                                   save_tile_ids=self.save_tile_ids,
-                                                  log_exceptions=self.log_exceptions))
+                                                  log_exceptions=self.log_exceptions,
+                                                  val_set_is_dist=(
+                                                      self.pl_replace_sampler_ddp and self.max_num_gpus > 1),
+                                                  )
+                             )
         return callbacks
 
     def get_checkpoint_to_test(self) -> Path:

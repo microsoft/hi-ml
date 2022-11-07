@@ -93,6 +93,7 @@ class LossAnalysisCallback(Callback):
         save_tile_ids: bool = False,
         log_exceptions: bool = True,
         create_outputs_folders: bool = True,
+        val_set_is_dist: bool = True,
     ) -> None:
         """
 
@@ -107,6 +108,7 @@ class LossAnalysisCallback(Callback):
         :param log_exceptions: If True, will log exceptions raised during loss values analysis, defaults to True. If
         False will raise the intercepted exceptions.
         :param create_outputs_folders: If True, will create the output folders if they don't exist, defaults to True.
+        :param val_set_is_dist: If True, will assume that the validation set is distributed, defaults to True.
         """
 
         self.patience = patience
@@ -116,6 +118,7 @@ class LossAnalysisCallback(Callback):
         self.num_slides_heatmap = num_slides_heatmap
         self.save_tile_ids = save_tile_ids
         self.log_exceptions = log_exceptions
+        self.val_set_is_dist = val_set_is_dist
 
         self.outputs_folder = outputs_folder / "loss_analysis_callback"
         if create_outputs_folders:
@@ -216,7 +219,7 @@ class LossAnalysisCallback(Callback):
 
     def gather_loss_cache(self, rank: int, stage: ModelKey) -> None:
         """Gathers the loss cache from all the workers"""
-        if torch.distributed.is_initialized():
+        if self.val_set_is_dist and torch.distributed.is_initialized():
             world_size = torch.distributed.get_world_size()
             if world_size > 1:
                 loss_caches = [None] * world_size
