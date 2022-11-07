@@ -288,7 +288,7 @@ class BaseMILTiles(BaseMIL):
                                             outputs_folder=self.outputs_folder,
                                             outputs_handler=outputs_handler,
                                             analyse_loss=self.analyse_loss,
-                                            val_set_is_dist=self.pl_replace_sampler_ddp,
+                                            val_set_is_dist=not self.pl_replace_sampler_ddp,
                                             )
         deepmil_module.transfer_weights(self.trained_weights_path)
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
@@ -331,7 +331,7 @@ class BaseMILSlides(BaseMIL):
                                              optimizer_params=create_from_matching_params(self, OptimizerParams),
                                              outputs_handler=outputs_handler,
                                              analyse_loss=self.analyse_loss,
-                                             val_set_is_dist=self.pl_replace_sampler_ddp,
+                                             val_set_is_dist=not self.pl_replace_sampler_ddp,
                                              )
         deepmil_module.transfer_weights(self.trained_weights_path)
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
