@@ -257,7 +257,8 @@ class DeepMILOutputsHandler:
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
                  maximise: bool, val_plot_options: Collection[PlotOption],
-                 test_plot_options: Collection[PlotOption], wsi_has_mask: bool = True) -> None:
+                 test_plot_options: Collection[PlotOption], wsi_has_mask: bool = True,
+                 val_set_is_dist: bool = True) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
@@ -270,6 +271,10 @@ class DeepMILOutputsHandler:
         :param val_plot_options: The desired plot options for validation time.
         :param test_plot_options: The desired plot options for test time.
         :param wsi_has_mask: Whether the whole slides have a mask to crop specific ROIs.
+        :param val_set_is_dist: If True, the validation set is distributed across processes. Otherwise, the validation
+            set is replicated on each process. This shouldn't affect the results, as we take the mean of the validation
+            set metrics across processes. This is only relevant for the outputs_handler, which needs to know whether to
+            gather the validation set outputs across processes or not before saving them.
         """
         self.outputs_root = outputs_root
         self.n_classes = n_classes
@@ -299,6 +304,7 @@ class DeepMILOutputsHandler:
             stage=ModelKey.TEST,
             wsi_has_mask=wsi_has_mask
         )
+        self.val_set_is_dist = val_set_is_dist
 
     @property
     def validation_outputs_dir(self) -> Path:
@@ -349,9 +355,7 @@ class DeepMILOutputsHandler:
         plots_handler.save_plots(outputs_dir, self.tiles_selector, results)
 
     def save_validation_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric],
-                                epoch: int, is_global_rank_zero: bool = True, on_extra_val: bool = False,
-                                sync_dist: bool = True
-                                ) -> None:
+                                epoch: int, is_global_rank_zero: bool = True, on_extra_val: bool = False) -> None:
         """Render and save validation epoch outputs, according to the configured :py:class:`OutputsPolicy`.
 
         :param epoch_results: Aggregated results from all epoch batches, as passed to :py:meth:`validation_epoch_end()`.
@@ -361,10 +365,9 @@ class DeepMILOutputsHandler:
             Set to `True` (default) if running a single process.
         :param epoch: Current epoch number.
         :param on_extra_val: Whether this is an extra validation epoch (e.g. after training).
-        :param sync_dist: Whether to synchronise distributed processes before saving outputs.
         """
         # All DDP processes must reach this point to allow synchronising epoch results
-        if sync_dist:
+        if self.val_set_is_dist:
             epoch_results = gather_results(epoch_results)
 
             if self.should_gather_tiles(self.val_plots_handler):

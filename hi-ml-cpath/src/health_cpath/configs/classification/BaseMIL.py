@@ -147,6 +147,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams
             val_plot_options=self.get_val_plot_options(),
             test_plot_options=self.get_test_plot_options(),
             wsi_has_mask=self.wsi_has_mask,
+            val_set_is_dist=not self.pl_replace_sampler_ddp,
         )
         if self.num_top_slides > 0:
             outputs_handler.tiles_selector = TilesSelector(
@@ -288,7 +289,6 @@ class BaseMILTiles(BaseMIL):
                                             outputs_folder=self.outputs_folder,
                                             outputs_handler=outputs_handler,
                                             analyse_loss=self.analyse_loss,
-                                            val_set_is_dist=not self.pl_replace_sampler_ddp,
                                             )
         deepmil_module.transfer_weights(self.trained_weights_path)
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
@@ -331,7 +331,7 @@ class BaseMILSlides(BaseMIL):
                                              optimizer_params=create_from_matching_params(self, OptimizerParams),
                                              outputs_handler=outputs_handler,
                                              analyse_loss=self.analyse_loss,
-                                             val_set_is_dist=not self.pl_replace_sampler_ddp,
+
                                              )
         deepmil_module.transfer_weights(self.trained_weights_path)
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())

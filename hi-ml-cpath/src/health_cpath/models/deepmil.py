@@ -46,7 +46,6 @@ class BaseDeepMILModule(LightningModule):
                  outputs_folder: Optional[Path] = None,
                  outputs_handler: Optional[DeepMILOutputsHandler] = None,
                  analyse_loss: Optional[bool] = False,
-                 val_set_is_dist: bool = True,
                  verbose: bool = False,
                  ) -> None:
         """
@@ -55,21 +54,16 @@ class BaseDeepMILModule(LightningModule):
          set to 1.
         :param class_weights: Tensor containing class weights (default=None).
         :param class_names: The names of the classes if available (default=None).
-        :param verbose: if True statements about memory usage are output at each step.
-        :param outputs_folder: Path to output folder where encoder checkpoint is downloaded.
         :param encoder_params: Encoder parameters that specify all encoder specific attributes.
         :param pooling_params: Pooling layer parameters that specify all encoder specific attributes.
         :param classifier_params: Classifier parameters that specify all classifier specific attributes.
         :param optimizer_params: Optimizer parameters that specify all specific attributes to be used for oprimization.
+        :param outputs_folder: Path to output folder where encoder checkpoint is downloaded.
         :param outputs_handler: A configured :py:class:`DeepMILOutputsHandler` object to save outputs for the best
             validation epoch and test stage. If omitted (default), no outputs will be saved to disk (aside from usual
             metrics logging).
         :param analyse_loss: If True, the loss is analysed per sample and analysed with LossAnalysisCallback.
-        :param val_set_is_dist: If True, the validation set is distributed across processes. If False, the entire
-            validation set is replicated on each process. This is useful when the validation set is small. Pytorch
-            Lightning default ddp sampler duplicates samples to make sure all processes get the same number of samples.
-            When set to False, we should make sure to not gather results from all processes befor saving validation
-            results csv.
+        :param verbose: if True statements about memory usage are output at each step.
         """
         super().__init__()
 
@@ -91,7 +85,6 @@ class BaseDeepMILModule(LightningModule):
         # This flag can be switched on before invoking trainer.validate() to enable saving additional time/memory
         # consuming validation outputs via calling self.on_run_extra_validation_epoch()
         self._on_extra_val_epoch = False
-        self.val_set_is_dist = val_set_is_dist
 
         # Model components
         self.encoder = encoder_params.get_encoder(outputs_folder)
@@ -108,10 +101,6 @@ class BaseDeepMILModule(LightningModule):
         self.train_metrics = self.get_metrics()
         self.val_metrics = self.get_metrics()
         self.test_metrics = self.get_metrics()
-
-    def should_sync_dist_val(self) -> bool:
-        """Whether to sync validation metrics across processes."""
-        return self.trainer is not None and self.trainer.world_size > 1 and not self.val_set_is_dist
 
     @staticmethod
     def copy_weights(
@@ -383,8 +372,7 @@ class BaseDeepMILModule(LightningModule):
                 metrics_dict=self.get_metrics_dict(ModelKey.VAL),  # type: ignore
                 epoch=self.current_epoch,
                 is_global_rank_zero=self.global_rank == 0,
-                on_extra_val=self._on_extra_val_epoch,
-                sync_dist=self.should_sync_dist_val(),
+                on_extra_val=self._on_extra_val_epoch
             )
 
     def test_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
