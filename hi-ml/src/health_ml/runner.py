@@ -252,6 +252,8 @@ class Runner:
                                    datastore=datastore,
                                    use_mounting=use_mounting)
         hyperdrive_config = self.lightning_container.get_hyperdrive_config()
+        hyperparam_args = self.lightning_container.get_hyperparam_args()
+
         if self.experiment_config.cluster and not is_running_in_azure_ml():
             ml_client = get_ml_client()
 
@@ -278,6 +280,7 @@ class Runner:
                 docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
                 docker_shm_size=self.experiment_config.docker_shm_size,
                 hyperdrive_config=hyperdrive_config,
+                hyperparam_args=hyperparam_args,
                 create_output_folders=False,
                 after_submission=after_submission_hook,
                 tags=self.additional_run_tags(script_params),

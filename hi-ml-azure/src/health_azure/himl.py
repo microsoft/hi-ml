@@ -22,8 +22,9 @@ from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
 
 from azure.ai.ml import MLClient, Input, Output, command
 from azure.ai.ml.constants import AssetTypes, InputOutputModes
-from azure.ai.ml.entities import Data, Job
+from azure.ai.ml.entities import Data, Job, Command, Sweep
 from azure.ai.ml.entities import Environment as EnvironmentV2
+
 from azure.ai.ml.sweep import Choice
 from azureml._base_sdk_common import user_agent
 from azureml.core import ComputeTarget, Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
@@ -268,7 +269,7 @@ def create_grid_hyperdrive_config(values: List[str],
     )
 
 
-def create_grid_hyperparam_args_v2(values: List[str],
+def create_grid_hyperparam_args_v2(values: List[Any],
                                    argument_name: str,
                                    metric_name: str) -> Dict[str, Any]:
     """
@@ -476,6 +477,8 @@ def submit_run_v2(workspace: Optional[Workspace],
         cmd += _generate_output_dataset_command(output_datasets_v2)
     else:
         output_datasets_v2 = {}
+
+    job_to_submit: Union[Command, Sweep]
 
     if hyperparam_args:
         param_sampling = hyperparam_args[PARAM_SAMPLING_ARG]

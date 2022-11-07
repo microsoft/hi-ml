@@ -183,9 +183,9 @@ class LightningContainer(WorkflowParams,
             return self.get_different_seeds_hyperdrive_config()
         return None
 
-    def get_hyperparam_args(self) -> Dict[str, Any]:
+    def get_hyperparam_args(self) -> Optional[Dict[str, Any]]:
         if self.hyperdrive:
-            return NotImplementedError
+            raise NotImplementedError("Parameter search is not implemented yet.")
         if self.is_crossvalidation_enabled:
             return self.get_crossval_hyperparam_args_v2()
         if self.different_seeds > 0:
