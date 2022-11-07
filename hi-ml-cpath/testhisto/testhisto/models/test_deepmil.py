@@ -3,15 +3,13 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from copy import deepcopy
-import logging
 import os
-import shutil
 from pytorch_lightning import Trainer
 import torch
 import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, Type
+from typing import Any, Callable, Dict, Iterable, List, Optional, Type
 
 from torch import Tensor, argmax, nn, rand, randint, randn, round, stack, allclose
 from torch.utils.data._utils.collate import default_collate
@@ -33,7 +31,6 @@ from health_cpath.models.encoders import IdentityEncoder, ImageNetEncoder, Resne
 from health_cpath.utils.deepmil_utils import ClassifierParams, EncoderParams, PoolingParams
 from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey
 from testhisto.mocks.base_data_generator import MockHistoDataType
-from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPositioningType
 from testhisto.mocks.tiles_generator import MockPandaTilesGenerator
 from testhisto.mocks.container import MockDeepSMILETilesPanda, MockDeepSMILESlidesPanda
 from health_ml.utils.common_utils import is_gpu_available
@@ -139,29 +136,6 @@ def _test_lightningmodule(
         else:
             assert torch.all(score >= 0)
             assert torch.all(score <= 1)
-
-
-@pytest.fixture(scope="session")
-def mock_panda_slides_root_dir(
-    tmp_path_factory: pytest.TempPathFactory, tmp_path_to_pathmnist_dataset: Path
-) -> Generator:
-    tmp_root_dir = tmp_path_factory.mktemp("mock_slides")
-    wsi_generator = MockPandaSlidesGenerator(
-        dest_data_path=tmp_root_dir,
-        src_data_path=tmp_path_to_pathmnist_dataset,
-        mock_type=MockHistoDataType.PATHMNIST,
-        n_tiles=4,
-        n_slides=10,
-        n_channels=3,
-        n_levels=3,
-        tile_size=28,
-        background_val=255,
-        tiles_pos_type=TilesPositioningType.RANDOM
-    )
-    logging.info("Generating temporary mock slides that will be deleted at the end of the session.")
-    wsi_generator.generate_mock_histo_data()
-    yield tmp_root_dir
-    shutil.rmtree(tmp_root_dir)
 
 
 @pytest.mark.parametrize("n_classes", [1, 3])

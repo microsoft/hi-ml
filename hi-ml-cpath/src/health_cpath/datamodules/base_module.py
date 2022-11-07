@@ -61,7 +61,7 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         """
         :param root_path: Root directory of the source dataset.
         :param batch_size: Number of slides to load per batch.
-        :param batch_size_inf: Number of slides to load per batch during inference.
+        :param batch_size_inf: Number of slides to load per batch during inference. If None, use batch_size.
         :param max_bag_size: Upper bound on number of tiles in each loaded bag during training stage. If 0 (default),
         will return all samples in each bag. If > 0 , bags larger than `max_bag_size` will yield
         random subsets of instances. For SlideDataModule, this parameter is used in TileOnGridd Transform to set the
@@ -289,10 +289,6 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         random) subset, defaults to "min" (which assumes background is high value). This param is passed to TileOnGridd
         monai transform for tiling on the fly.
         """
-        # TileOnGridd transform expects None to select all foreground tile so we hardcode max_bag_size and
-        # max_bag_size_inf to None if set to 0
-        kwargs["max_bag_size"] = None if kwargs["max_bag_size"] == 0 else kwargs["max_bag_size"]
-        kwargs["max_bag_size_inf"] = None if kwargs["max_bag_size_inf"] == 0 else kwargs["max_bag_size_inf"]
         super().__init__(**kwargs)
         self.level = level
         self.tile_size = tile_size
@@ -301,9 +297,11 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         self.pad_full = pad_full
         self.background_val = background_val
         self.filter_mode = filter_mode
-
-    def get_collate_fn(self) -> Callable:
-        return image_collate
+        # TileOnGridd transform expects None to select all foreground tile so we hardcode max_bag_size and
+        # max_bag_size_inf to None if set to 0
+        for model_key, max_bag_size in self.bag_sizes.items():
+            if max_bag_size == 0:
+                self.bag_sizes[model_key] = None  # type: ignore
 
     def _load_dataset(self, slides_dataset: SlidesDataset, stage: ModelKey) -> Dataset:
         base_transform = Compose(
