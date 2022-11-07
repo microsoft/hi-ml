@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
+import os
 from pathlib import Path
 from typing import Any, List, Optional, Tuple, TypeVar
 
@@ -16,9 +17,9 @@ from pytorch_lightning.profiler import BaseProfiler, SimpleProfiler, AdvancedPro
 from health_azure.utils import RUN_CONTEXT, is_running_in_azure_ml
 
 from health_ml.lightning_container import LightningContainer
-from health_ml.utils import AzureMLLogger, AzureMLProgressBar
+from health_ml.utils import AzureMLProgressBar
 from health_ml.utils.common_utils import AUTOSAVE_CHECKPOINT_FILE_NAME, EXPERIMENT_SUMMARY_FILE
-from health_ml.utils.lightning_loggers import StoringLogger
+from health_ml.utils.lightning_loggers import StoringLogger, HimlMLFlowLogger
 
 
 T = TypeVar('T')
@@ -55,7 +56,8 @@ def create_lightning_trainer(container: LightningContainer,
                              resume_from_checkpoint: Optional[Path] = None,
                              num_nodes: int = 1,
                              multiple_trainloader_mode: str = "max_size_cycle",
-                             azureml_run_for_logging: Optional[Run] = None) -> \
+                             azureml_run_for_logging: Optional[Run] = None,
+                             mlflow_run_for_logging: Optional[str] = None) -> \
         Tuple[Trainer, StoringLogger]:
     """
     Creates a Pytorch Lightning Trainer object for the given model configuration. It creates checkpoint handlers
@@ -91,9 +93,27 @@ def create_lightning_trainer(container: LightningContainer,
             message += "s per node with DDP"
     logging.info(f"Using {message}")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
-    azureml_logger = AzureMLLogger(enable_logging_outside_azure_ml=container.log_from_vm,
-                                   run=azureml_run_for_logging)
-    loggers = [tensorboard_logger, azureml_logger]
+    loggers: List[Any] = [tensorboard_logger]
+
+    if is_running_in_azure_ml():
+        mlflow_run_id = os.environ.get("MLFLOW_RUN_ID", None)
+        logging.info(f"Logging to MLFlow run with id: {mlflow_run_id}")
+        mlflow_logger = HimlMLFlowLogger(
+            run_id=mlflow_run_id
+        )
+        loggers.append(mlflow_logger)
+    else:
+        mlflow_run_dir = container.outputs_folder / "mlruns"
+        try:
+            mlflow_run_dir.mkdir(exist_ok=True)
+            mlflow_tracking_uri = "file:" + str(mlflow_run_dir)
+            mlflow_logger = HimlMLFlowLogger(run_id=mlflow_run_for_logging, tracking_uri=mlflow_tracking_uri)
+            loggers.append(mlflow_logger)
+            logging.info(f"Logging to MLFlow run with id: {mlflow_run_for_logging}. Local MLFlow logs are stored in "
+                         f"{mlflow_tracking_uri}")
+        except FileNotFoundError as e:
+            logging.warning(f"Unable to initialise MLFlowLogger due to error: {e}")
+
     storing_logger = StoringLogger()
     loggers.append(storing_logger)
     # Use 32bit precision when running on CPU. Otherwise, make it depend on use_mixed_precision flag.

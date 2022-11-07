@@ -38,7 +38,7 @@ def test_update_tau() -> None:
     initial_tau = 0.99
     byol_weight_update = ByolMovingAverageWeightUpdate(initial_tau=initial_tau)
     trainer = Trainer(max_epochs=5)
-    trainer.train_dataloader = dummy_rsna_train_dataloader
+    trainer.train_dataloader = dummy_rsna_train_dataloader  # type: ignore
     total_steps = len(trainer.train_dataloader) * trainer.max_epochs  # type: ignore
     global_step = 15
     byol_module = BootstrapYourOwnLatent(num_samples=16,
