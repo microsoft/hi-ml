@@ -105,7 +105,8 @@ def test_submit_to_azureml_if_needed(mock_get_workspace: MagicMock,
                                      mock_get_env_files: MagicMock,
                                      mock_runner: Runner
                                      ) -> None:
-    def _mock_dont_submit_to_aml(input_datasets: List[DatasetConfig], submit_to_azureml: bool  # type: ignore
+    def _mock_dont_submit_to_aml(input_datasets: List[DatasetConfig],
+                                 submit_to_azureml: bool, strictly_aml_v1: bool,   # type: ignore
                                  ) -> AzureRunInfo:
         datasets_input = [d.target_folder for d in input_datasets] if input_datasets else []
         return AzureRunInfo(input_datasets=datasets_input,
@@ -224,9 +225,10 @@ def _test_hyperdrive_submission(mock_runner: Runner,
     with change_working_folder_and_add_environment(mock_runner.project_root):
         with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
             with patch("health_ml.runner.get_workspace"):
-                with patch.object(sys, "argv", arguments):
-                    with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
-                        mock_runner.run()
+                with patch("health_ml.runner.get_ml_client"):
+                    with patch.object(sys, "argv", arguments):
+                        with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
+                            mock_runner.run()
             mock_run_in_situ.assert_called_once()
             mock_submit_to_aml.assert_called_once()
             # call_args is a tuple of (args, kwargs)
@@ -252,10 +254,11 @@ def test_submit_to_azure_docker(mock_runner: Runner) -> None:
     # start in that temp folder.
     with change_working_folder_and_add_environment(mock_runner.project_root):
         with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
-            with patch("health_ml.runner.get_workspace"):
-                with patch.object(sys, "argv", arguments):
-                    with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
-                        mock_runner.run()
+            with patch("health_ml.runner.get_ml_client"):
+                with patch("health_ml.runner.get_workspace"):
+                    with patch.object(sys, "argv", arguments):
+                        with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
+                            mock_runner.run()
             mock_run_in_situ.assert_called_once()
             mock_submit_to_aml.assert_called_once()
             # call_args is a tuple of (args, kwargs)

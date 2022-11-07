@@ -1,3 +1,5 @@
+#! /usr/bin/env python
+
 #  ------------------------------------------------------------------------------------------
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
@@ -27,16 +29,17 @@ from health_azure.datasets import create_dataset_configs  # noqa: E402
 from health_azure.logging import logging_to_stdout   # noqa: E402
 from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
 from health_azure.amulet import prepare_amulet_job  # noqa: E402
-from health_azure.utils import (get_workspace, is_local_rank_zero, is_running_in_azure_ml,  # noqa: E402
-                                set_environment_variables_for_multi_node,
-                                create_argparser, parse_arguments, ParserResult, apply_overrides)
+from health_azure.utils import (get_workspace, get_ml_client, is_local_rank_zero,  # noqa: E402
+                                is_running_in_azure_ml, set_environment_variables_for_multi_node,
+                                create_argparser, parse_arguments, ParserResult, apply_overrides,
+                                filter_v2_input_output_args)
 
 from health_ml.experiment_config import ExperimentConfig  # noqa: E402
 from health_ml.lightning_container import LightningContainer  # noqa: E402
 from health_ml.run_ml import MLRunner  # noqa: E402
 from health_ml.utils import fixed_paths  # noqa: E402
-from health_ml.utils.common_utils import (check_conda_environment, choose_conda_env_file,  # noqa: E402
-                                          is_linux)
+from health_ml.utils.common_utils import (DEFAULT_DOCKER_BASE_IMAGE, check_conda_environment,  # noqa: E402
+                                          choose_conda_env_file, is_linux)
 from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
 
 
@@ -45,8 +48,6 @@ from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
 # path.
 runner_path = Path(sys.argv[0])
 sys.argv[0] = str(runner_path.resolve())
-
-DEFAULT_DOCKER_BASE_IMAGE = "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04"
 
 
 def initialize_rpdb() -> None:
@@ -126,8 +127,12 @@ class Runner:
 
         :return: ParserResult object containing args, overrides and settings
         """
+        # Filter out any args for passing inputs and outputs to scripts with AML SDK v2
+        args = sys.argv[1:]
+        filtered_args = filter_v2_input_output_args(args)
+
         parser1 = create_runner_parser()
-        parser1_result = parse_arguments(parser1, args=sys.argv[1:])
+        parser1_result = parse_arguments(parser1, args=filtered_args)
         experiment_config = ExperimentConfig(**parser1_result.args)
 
         self.experiment_config = experiment_config
@@ -227,7 +232,13 @@ class Runner:
             except ValueError:
                 raise ValueError("Unable to submit the script to AzureML because no workspace configuration file "
                                  "(config.json) was found.")
-        default_datastore = workspace.get_default_datastore().name if workspace is not None else ""
+
+        if self.lightning_container.datastore:
+            datastore = self.lightning_container.datastore
+        elif workspace:
+            datastore = workspace.get_default_datastore().name
+        else:
+            datastore = ""
 
         local_datasets = self.lightning_container.local_datasets
         all_local_datasets = [Path(p) for p in local_datasets] if len(local_datasets) > 0 else []
@@ -238,10 +249,12 @@ class Runner:
             create_dataset_configs(all_azure_dataset_ids=self.lightning_container.azure_datasets,
                                    all_dataset_mountpoints=self.lightning_container.dataset_mountpoints,
                                    all_local_datasets=all_local_datasets,  # type: ignore
-                                   datastore=default_datastore,
+                                   datastore=datastore,
                                    use_mounting=use_mounting)
         hyperdrive_config = self.lightning_container.get_hyperdrive_config()
         if self.experiment_config.cluster and not is_running_in_azure_ml():
+            ml_client = get_ml_client()
+
             env_file = choose_conda_env_file(env_file=self.experiment_config.conda_env)
             logging.info(f"Using this Conda environment definition: {env_file}")
             check_conda_environment(env_file)
@@ -252,9 +265,10 @@ class Runner:
                 script_params=script_params,
                 conda_environment_file=env_file,
                 aml_workspace=workspace,
+                ml_client=ml_client,
                 compute_cluster_name=self.experiment_config.cluster,
                 environment_variables=environment_variables,
-                default_datastore=default_datastore,
+                default_datastore=datastore,
                 experiment_name=self.lightning_container.effective_experiment_name,
                 input_datasets=input_datasets,  # type: ignore
                 num_nodes=self.experiment_config.num_nodes,
@@ -266,12 +280,15 @@ class Runner:
                 hyperdrive_config=hyperdrive_config,
                 create_output_folders=False,
                 after_submission=after_submission_hook,
-                tags=self.additional_run_tags(script_params)
+                tags=self.additional_run_tags(script_params),
+                strictly_aml_v1=self.experiment_config.strictly_aml_v1,
             )
         else:
             azure_run_info = submit_to_azure_if_needed(
                 input_datasets=input_datasets,  # type: ignore
-                submit_to_azureml=False)
+                submit_to_azureml=False,
+                strictly_aml_v1=self.experiment_config.strictly_aml_v1,
+            )
         if azure_run_info.run:
             # This code is only reached inside Azure. Set display name again - this will now affect
             # Hypdrive child runs (for other jobs, this has already been done after submission)

@@ -4,6 +4,8 @@
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
 
+from azureml.core import Datastore
+
 from health_azure.datasets import get_datastore
 from health_azure import get_workspace
 
@@ -13,8 +15,8 @@ def main() -> None:
 
     workspace = get_workspace()
 
-    datastore = get_datastore(workspace=workspace,
-                              datastore_name="himldatasets")
+    datastore: Datastore = get_datastore(workspace=workspace,
+                                         datastore_name="himldatasets")
 
     # Either download all outputs:
     # run.download_files(prefix="outputs", output_directory=str(path))
