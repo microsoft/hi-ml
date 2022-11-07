@@ -14,7 +14,6 @@ import torch
 import logging
 
 from ruamel.yaml import YAML
-from torchmetrics import Accuracy
 from torchmetrics.metric import Metric
 
 from health_azure.utils import replace_directory
