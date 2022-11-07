@@ -147,7 +147,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams
             val_plot_options=self.get_val_plot_options(),
             test_plot_options=self.get_test_plot_options(),
             wsi_has_mask=self.wsi_has_mask,
-            val_set_is_dist=not self.pl_replace_sampler_ddp,
+            val_set_is_dist=self.pl_replace_sampler_ddp and self.max_num_gpus > 1,
         )
         if self.num_top_slides > 0:
             outputs_handler.tiles_selector = TilesSelector(
