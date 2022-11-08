@@ -105,9 +105,8 @@ jobs:
         with:
           lfs: true
 
-      - name: Set up smoke test environment
-        id: setup-slides-smoke-test-environment
-        uses: ./.github/actions/prepare_smoke_test_environment
+      - name: Prepare Conda environment
+        uses: ./.github/actions/prepare_cpath_environment
 
       - name: smoke test
         run: |
