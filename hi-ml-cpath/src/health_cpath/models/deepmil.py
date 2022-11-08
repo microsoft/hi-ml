@@ -9,7 +9,7 @@ from pathlib import Path
 
 from pytorch_lightning import LightningModule
 from torch import Tensor, argmax, mode, nn, optim, round, set_grad_enabled
-from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall, CohenKappa  # type: ignore
+from torchmetrics import AUROC, F1Score, Accuracy, ConfusionMatrix, Precision, Recall, CohenKappa  # type: ignore
 
 from health_ml.utils import log_on_epoch
 from health_ml.deep_learning_config import OptimizerParams
@@ -148,7 +148,7 @@ class BaseDeepMILModule(LightningModule):
                                   MetricsKey.AUROC: AUROC(num_classes=self.n_classes),
                                   MetricsKey.PRECISION: Precision(threshold=threshold),
                                   MetricsKey.RECALL: Recall(threshold=threshold),
-                                  MetricsKey.F1: F1(threshold=threshold),
+                                  MetricsKey.F1: F1Score(threshold=threshold),
                                   MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=2, threshold=threshold)})
 
     def log_metrics(self, stage: str) -> None:
