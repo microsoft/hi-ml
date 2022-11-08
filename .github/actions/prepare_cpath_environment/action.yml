@@ -32,20 +32,22 @@ runs:
 
     # Modify the path to point to the cached Conda environment. This is effectively also what `conda activate` does.
     - name: Activate cached environment
+      shell: bash
       if: steps.cache-conda.outputs.cache-hit == 'true'
       run: echo "${{ env.conda_env_bin }}" >> $GITHUB_PATH
 
     - name: Conda info
+      shell: bash
       run: conda info
 
     - name: Install hi-ml locally
-      shell: bash -l {0}
+      shell: bash
       run: |
         cd hi-ml
         make pip_local
 
     - name: Install hi-ml-azure locally
-      shell: bash -l {0}
+      shell: bash
       run: |
         cd hi-ml-azure
         make pip_local
