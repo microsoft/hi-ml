@@ -1,12 +1,6 @@
 name: 'Hi-ml-cpath environment setup'
 description: 'Set up environment hi-ml-cpath workflows'
 
-env:
-  # The following environment variables depend on each other, but we can't reference a first variable when defining a second
-  conda_env_name: HimlHisto
-  conda_env_folder: /usr/share/miniconda/envs/HimlHisto
-  conda_env_bin: /usr/share/miniconda/envs/HimlHisto/bin
-
 runs:
   using: "composite"
   steps:
@@ -20,7 +14,7 @@ runs:
       id: cache-conda
       uses: actions/cache@v3
       with:
-        path: ${{ env.conda_env_folder }}
+        path: /usr/share/miniconda/envs/HimlHisto
         key: hi-ml-cpath-conda-${{ hashFiles('hi-ml-cpath/environment.yml') }}
 
     # If the cache action didn't find a cache, then install the conda environment afresh.
@@ -34,7 +28,7 @@ runs:
     - name: Activate cached environment
       shell: bash
       if: steps.cache-conda.outputs.cache-hit == 'true'
-      run: echo "${{ env.conda_env_bin }}" >> $GITHUB_PATH
+      run: echo "/usr/share/miniconda/envs/HimlHisto/bin" >> $GITHUB_PATH
 
     - name: Conda info
       shell: bash
