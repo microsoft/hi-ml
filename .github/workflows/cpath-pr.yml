@@ -76,8 +76,18 @@ jobs:
           path: /usr/share/miniconda/envs/HimlHisto
           key: hi-ml-cpath-conda-${{ hashFiles('hi-ml-cpath/environment.yml') }}
 
+      - name: Python tests 1
+        shell: bash -l {0}
+        run: |
+          conda activate HimlHisto
+          which python
+
+      - name: Conda info
+        shell: bash -l {0}
+        run: conda info
+
       - uses: conda-incubator/setup-miniconda@v2
-        if: steps.cache-conda.outputs.cache-hit != 'true'
+        # if: steps.cache-conda.outputs.cache-hit != 'true'
         with:
           environment-file: hi-ml-cpath/environment.yml
           activate-environment: HimlHisto
@@ -85,6 +95,12 @@ jobs:
       - name: Conda info
         shell: bash -l {0}
         run: conda info
+
+      - name: Python tests 2
+        shell: bash -l {0}
+        run: |
+          conda activate HimlHisto
+          which python
 
       - name: Install hi-ml locally
         shell: bash -l {0}
@@ -97,11 +113,6 @@ jobs:
         run: |
           cd hi-ml-azure
           make pip_local
-
-      - name: Python tests again
-        shell: bash -l {0}
-        run: |
-          which python
 
       # - name: Test with pytest
       #   shell: bash -l {0}
