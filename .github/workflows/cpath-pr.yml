@@ -17,8 +17,8 @@ env:
   pythonVersion: 3.9
   folder: hi-ml-cpath
   conda_env_name: HimlHisto
-  conda_env_folder: /usr/share/miniconda/envs/${{ env.conda_env_name }}
-  conda_env_bin: ${{ env.conda_env_bin }}/bin
+  conda_env_folder: /usr/share/miniconda/envs/${{ conda_env_name }}
+  conda_env_bin: ${{ conda_env_bin }}/bin
   module_for_coverage_reporting: health_cpath
   HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
   HIML_RESOURCE_GROUP: ${{ secrets.HIML_RESOURCE_GROUP }}
