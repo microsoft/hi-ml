@@ -16,6 +16,9 @@ on:
 env:
   pythonVersion: 3.9
   folder: hi-ml-cpath
+  conda_env_name: HimlHisto
+  conda_env_folder: /usr/share/miniconda/envs/${{ env.conda_env_name }}
+  conda_env_bin: ${{ env.conda_env_bin }}/bin
   module_for_coverage_reporting: health_cpath
   HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
   HIML_RESOURCE_GROUP: ${{ secrets.HIML_RESOURCE_GROUP }}
@@ -69,38 +72,29 @@ jobs:
         with:
           lfs: true
 
-      - name: Cache Conda environment
+      # Use a cache action to save the full conda environment, so that we don't have to reinstall it every time.
+      # Paths are tied to the location of the miniconda installation, and may need adjustment on a different OS.
+      - name: Retrieve cached Conda environment
         id: cache-conda
         uses: actions/cache@v3
         with:
-          path: /usr/share/miniconda/envs/HimlHisto
+          path: ${{ env.conda_env_folder }}
           key: hi-ml-cpath-conda-${{ hashFiles('hi-ml-cpath/environment.yml') }}
 
-      - name: Python tests 1
-        shell: bash -l {0}
-        run: |
-          conda activate HimlHisto
-          which python
-
-      - name: Conda info
-        shell: bash -l {0}
-        run: conda info
-
-      - uses: conda-incubator/setup-miniconda@v2
-        # if: steps.cache-conda.outputs.cache-hit != 'true'
+      # If the cache action didn't find a cache, then install the conda environment afresh.
+      - name: Build Conda environment from scratch
+        uses: conda-incubator/setup-miniconda@v2
+        if: steps.cache-conda.outputs.cache-hit != 'true'
         with:
           environment-file: hi-ml-cpath/environment.yml
-          activate-environment: HimlHisto
+
+      # Modify the path to point to the cached Conda environment. This is effectively also what `conda activate` does.
+      - name: Activate cached environment
+        if: steps.cache-conda.outputs.cache-hit == 'true'
+        run: echo "${{ env.conda_env_bin }}" >> $GITHUB_PATH
 
       - name: Conda info
-        shell: bash -l {0}
         run: conda info
-
-      - name: Python tests 2
-        shell: bash -l {0}
-        run: |
-          conda activate HimlHisto
-          which python
 
       - name: Install hi-ml locally
         shell: bash -l {0}
@@ -114,15 +108,15 @@ jobs:
           cd hi-ml-azure
           make pip_local
 
-      # - name: Test with pytest
-      #   shell: bash -l {0}
-      #   run: |
-      #     cd ${{ env.folder }}
-#
-      #     # Run tests
-      #     make pip_test
-      #     make pytest_coverage
-#
+      - name: Test with pytest
+        shell: bash -l {0}
+        run: |
+          cd ${{ env.folder }}
+
+          # Run tests
+          make pip_test
+          make pytest_coverage
+
       # - name: Run GPU tests
       #   # GPU tests should be run even if other tests fail
       #   if: always()
