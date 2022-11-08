@@ -191,7 +191,7 @@ define LOSS_ANALYSIS_ARGS
 endef
 
 define DDP_SAMPLER_ARGS
---pl_replcate_ddp_sampler=False
+--pl_replace_sampler_ddp=False
 endef
 
 # The following test takes around 5 minutes
@@ -269,7 +269,7 @@ smoke_test_slides_panda_no_ddp_sampler_local:
 
 smoke_test_slides_panda_no_ddp_sampler_aml:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDASLIDES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
-	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS} ${AML_MULTIPLE_DEVICE_ARGS} ${DDP_SAMPLER_ARGS};}
+	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS} ${DDP_SAMPLER_ARGS} ${AML_MULTIPLE_DEVICE_ARGS};}
 
 smoke tests local: smoke_test_slidespandaimagenetmil_local smoke_test_tilespandaimagenetmil_local smoke_test_tcgacrcksslmil_local smoke_test_crck_simclr_local smoke_test_crck_flexible_finetuning_local smoke_test_tcgacrckimagenetmil_local smoke_test_crck_loss_analysis_local smoke_test_slides_panda_loss_analysis_local smoke_test_slides_panda_no_ddp_sampler_local
 
