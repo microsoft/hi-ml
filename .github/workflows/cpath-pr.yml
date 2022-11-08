@@ -69,10 +69,22 @@ jobs:
         with:
           lfs: true
 
-      - uses: conda-incubator/setup-miniconda@v2
+      - name: Cache Conda environment
+        id: cache-conda
+        uses: actions/cache@v3
         with:
-          environment-file: ${{ env.folder }}/environment.yml
+          path: ${{ env.folder }}/.conda
+          key: conda-${{ hashFiles('hi-ml-cpath/environment.yml') }}
+
+      - uses: conda-incubator/setup-miniconda@v2
+        if: steps.cache-conda.outputs.cache-hit != 'true'
+        with:
+          environment-file: hi-ml-cpath/environment.yml
           activate-environment: HimlHisto
+
+      - name: Conda info
+        shell: bash -l {0}
+        run: conda info
 
       - name: Install hi-ml locally
         shell: bash -l {0}
