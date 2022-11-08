@@ -73,8 +73,8 @@ jobs:
         id: cache-conda
         uses: actions/cache@v3
         with:
-          path: ${{ env.folder }}/.conda
-          key: conda-${{ hashFiles('hi-ml-cpath/environment.yml') }}
+          path: /usr/share/miniconda/envs/HimlHisto
+          key: hi-ml-cpath-conda-${{ hashFiles('hi-ml-cpath/environment.yml') }}
 
       - uses: conda-incubator/setup-miniconda@v2
         if: steps.cache-conda.outputs.cache-hit != 'true'
@@ -98,32 +98,37 @@ jobs:
           cd hi-ml-azure
           make pip_local
 
-      - name: Test with pytest
+      - name: Python tests
         shell: bash -l {0}
         run: |
-          cd ${{ env.folder }}
+          which python
 
-          # Run tests
-          make pip_test
-          make pytest_coverage
-
-      - name: Run GPU tests
-        # GPU tests should be run even if other tests fail
-        if: always()
-        shell: bash -l {0}
-        run: |
-          branch_prefix="refs/heads/"
-          full_branch_name=$GITHUB_REF
-          branch_name_without_prefix=${full_branch_name#$branch_prefix}
-          python hi-ml-azure/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ env.folder }}/environment.yml --folder=${{ env.folder }} --coverage_module=${{ env.module_for_coverage_reporting }} --experiment="$branch_name_without_prefix"
-
-      - name: Upload coverage reports to Codecov
-        # Coverage should also be uploaded if tests still fail.
-        # This will pick up both the files coverage.xml (from the normal tests) and pytest_gpu_coverage.xml (from the GPU tests).
-        if: always()
-        uses: codecov/codecov-action@v3
-        with:
-            flags: ${{ env.folder }}
+      # - name: Test with pytest
+      #   shell: bash -l {0}
+      #   run: |
+      #     cd ${{ env.folder }}
+#
+      #     # Run tests
+      #     make pip_test
+      #     make pytest_coverage
+#
+      # - name: Run GPU tests
+      #   # GPU tests should be run even if other tests fail
+      #   if: always()
+      #   shell: bash -l {0}
+      #   run: |
+      #     branch_prefix="refs/heads/"
+      #     full_branch_name=$GITHUB_REF
+      #     branch_name_without_prefix=${full_branch_name#$branch_prefix}
+      #     python hi-ml-azure/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ env.folder }}/environment.yml --folder=${{ env.folder }} --coverage_module=${{ env.module_for_coverage_reporting }} --experiment="$branch_name_without_prefix"
+#
+      # - name: Upload coverage reports to Codecov
+      #   # Coverage should also be uploaded if tests still fail.
+      #   # This will pick up both the files coverage.xml (from the normal tests) and pytest_gpu_coverage.xml (from the GPU tests).
+      #   if: always()
+      #   uses: codecov/codecov-action@v3
+      #   with:
+      #       flags: ${{ env.folder }}
 
   smoke_test_slidespandaimagenetmil:
     runs-on: ubuntu-20.04
