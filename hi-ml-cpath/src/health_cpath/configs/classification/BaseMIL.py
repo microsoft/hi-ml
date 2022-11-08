@@ -87,6 +87,10 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams
         self.best_checkpoint_filename = f"checkpoint_{metric_optim}_val_{self.primary_val_metric.value}"
         self.best_checkpoint_filename_with_suffix = self.best_checkpoint_filename + ".ckpt"
         self.validate()
+        if not self.pl_replace_sampler_ddp and self.max_num_gpus > 1:
+            logging.info(
+                "Replacing sampler with `DistributedSampler` is disabled. Make sure to set your own DDP sampler"
+            )
 
     def validate(self) -> None:
         super().validate()
