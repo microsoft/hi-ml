@@ -23,10 +23,6 @@ env:
   HIML_WORKSPACE_NAME: ${{ secrets.HIML_WORKSPACE_NAME }}
   HIML_SERVICE_PRINCIPAL_ID: ${{ secrets.HIML_SERVICE_PRINCIPAL_ID }}
   HIML_SERVICE_PRINCIPAL_PASSWORD: ${{ secrets.HIML_SERVICE_PRINCIPAL_PASSWORD }}
-  # The following environment variables depend on each other, but we can't reference a first variable when defining a second
-  conda_env_name: HimlHisto
-  conda_env_folder: /usr/share/miniconda/envs/HimlHisto
-  conda_env_bin: /usr/share/miniconda/envs/HimlHisto/bin
 
 jobs:
 
