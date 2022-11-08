@@ -44,5 +44,5 @@ dependencies:
       - -r requirements_build.txt
       # Pinned secondary dependencies to prevent clashes
       - cloudpickle==1.6.0
-      - importlib-metadata==4.2.0
+      - importlib-metadata>=4.11.4
       - markdown==2.6.8
