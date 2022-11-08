@@ -385,7 +385,7 @@ class BaseDeepMILModule(LightningModule):
 
     def on_run_extra_validation_epoch(self) -> None:
         """Hook to be called at the beginning of an extra validation epoch to set validation plots options to the same
-        as the test plots options."""
+        as the test plots options. """
         self._on_extra_val_epoch = True
         if self.outputs_handler:
             self.outputs_handler.val_plots_handler.plot_options = self.outputs_handler.test_plots_handler.plot_options
