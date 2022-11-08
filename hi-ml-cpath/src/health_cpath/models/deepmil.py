@@ -319,6 +319,7 @@ class BaseDeepMILModule(LightningModule):
             predicted_probs = predicted_probs.squeeze(dim=1)
 
         results = dict()
+
         if self.analyse_loss and stage in [ModelKey.TRAIN, ModelKey.VAL]:
             loss_per_sample = self._compute_loss(self.loss_fn_no_reduction, bag_logits, bag_labels)
             results[ResultsKey.LOSS_PER_SAMPLE] = loss_per_sample.detach().cpu().numpy()
