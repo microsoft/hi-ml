@@ -16,9 +16,6 @@ on:
 env:
   pythonVersion: 3.9
   folder: hi-ml-cpath
-  conda_env_name: HimlHisto
-  conda_env_folder: /usr/share/miniconda/envs/${{ conda_env_name }}
-  conda_env_bin: ${{ conda_env_bin }}/bin
   module_for_coverage_reporting: health_cpath
   HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
   HIML_RESOURCE_GROUP: ${{ secrets.HIML_RESOURCE_GROUP }}
@@ -26,6 +23,10 @@ env:
   HIML_WORKSPACE_NAME: ${{ secrets.HIML_WORKSPACE_NAME }}
   HIML_SERVICE_PRINCIPAL_ID: ${{ secrets.HIML_SERVICE_PRINCIPAL_ID }}
   HIML_SERVICE_PRINCIPAL_PASSWORD: ${{ secrets.HIML_SERVICE_PRINCIPAL_PASSWORD }}
+  # The following environment variables depend on each other, but we can't reference a first variable when defining a second
+  conda_env_name: HimlHisto
+  conda_env_folder: /usr/share/miniconda/envs/HimlHisto
+  conda_env_bin: /usr/share/miniconda/envs/HimlHisto/bin
 
 jobs:
 
