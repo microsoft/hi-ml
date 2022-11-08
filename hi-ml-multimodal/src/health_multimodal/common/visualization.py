@@ -29,7 +29,7 @@ def _plot_image(
     :param title: Title used for the axis.
     """
     axis.imshow(image)
-    axis.axis('off')
+    axis.axis("off")
     if title is not None:
         axis.set_title(title)
 
@@ -45,7 +45,7 @@ def _plot_isolines(
         heatmap: np.ndarray,
         axis: plt.Axes,
         title: Optional[str] = None,
-        colormap: str = 'RdBu_r',
+        colormap: str = "RdBu_r",
         step: float = 0.25,
 ) -> None:
     """Plot an image and overlay heatmap isolines on it.
@@ -68,7 +68,7 @@ def _plot_isolines(
         levels=levels,
     )
     axis.clabel(contours, inline=True, fontsize=10)
-    axis.axis('off')
+    axis.axis("off")
     if title is not None:
         axis.set_title(title)
 
@@ -78,7 +78,7 @@ def _plot_heatmap(
         heatmap: np.ndarray,
         figure: plt.Figure,
         axis: plt.Axes,
-        colormap: str = 'RdBu_r',
+        colormap: str = "RdBu_r",
         title: Optional[str] = None,
         alpha: float = 0.5,
 ) -> None:
@@ -96,24 +96,25 @@ def _plot_heatmap(
     axes_image = axis.matshow(heatmap, alpha=alpha, cmap=colormap, vmin=-1, vmax=1)
     # https://www.geeksforgeeks.org/how-to-change-matplotlib-color-bar-size-in-python/
     divider = make_axes_locatable(axis)
-    colorbar_axes = divider.append_axes('right', size='10%', pad=0.1)
+    colorbar_axes = divider.append_axes("right", size="10%", pad=0.1)
     colorbar = figure.colorbar(axes_image, cax=colorbar_axes)
     # https://stackoverflow.com/a/50671487/3956024
     colorbar.ax.tick_params(pad=35)
-    plt.setp(colorbar.ax.get_yticklabels(), ha='right')
-    axis.axis('off')
+    plt.setp(colorbar.ax.get_yticklabels(), ha="right")
+    axis.axis("off")
     if title is not None:
         axis.set_title(title)
 
 
-def plot_phrase_grounding_similarity_map(image_path: Path, similarity_map: np.ndarray) -> None:
+def plot_phrase_grounding_similarity_map(image_path: Path, similarity_map: np.ndarray) -> plt.Figure:
     """Plot visualization of the input image, the similarity heatmap and the heatmap isolines.
 
     :param image_path: Path to the input image.
     :param similarity_map: Phase grounding similarity map of the same size as the image.
     """
     fig, axes = plt.subplots(1, 3, figsize=(15, 6))
-    image = load_image(image_path).convert('RGB')
-    _plot_image(image, axis=axes[0], title='Input image')
-    _plot_isolines(image, similarity_map, axis=axes[1], title='Similarity isolines')
-    _plot_heatmap(image, similarity_map, figure=fig, axis=axes[2], title='Similarity heatmap')
+    image = load_image(image_path).convert("RGB")
+    _plot_image(image, axis=axes[0], title="Input image")
+    _plot_isolines(image, similarity_map, axis=axes[1], title="Similarity isolines")
+    _plot_heatmap(image, similarity_map, figure=fig, axis=axes[2], title="Similarity heatmap")
+    return fig

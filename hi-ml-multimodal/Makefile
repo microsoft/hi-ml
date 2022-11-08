@@ -1,5 +1,11 @@
 ## Package management
 
+# Create a Conda environment for this folder only
+env:
+	conda env create --file environment.yml
+	pip install -r requirements_test.txt
+	pip install -r requirements_build.txt
+
 # pip upgrade
 pip_upgrade:
 	python -m pip install --upgrade pip
@@ -57,8 +63,3 @@ pyright:
 
 # run basic checks
 check: flake8 mypy pyright
-
-# run notebooks to ensure there are no errors
-notebooks: pip_test
-	ipython kernel install --name "python3" --user
-	papermill notebooks/phrase_grounding.ipynb /tmp/phrase_grounding_output.ipynb

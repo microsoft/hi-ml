@@ -1,3 +1,5 @@
+#! /usr/bin/env python
+
 #  ------------------------------------------------------------------------------------------
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
@@ -7,7 +9,6 @@ import logging
 import os
 import param
 import sys
-import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -18,7 +19,7 @@ from azureml.core import Workspace, Run
 himl_root = Path(__file__).resolve().parent.parent.parent.parent
 folders_to_add = [himl_root / "hi-ml" / "src",
                   himl_root / "hi-ml-azure" / "src",
-                  himl_root / "hi-ml-histopathology" / "src"]
+                  himl_root / "hi-ml-cpath" / "src"]
 for folder in folders_to_add:
     if folder.is_dir():
         sys.path.insert(0, str(folder))
@@ -27,17 +28,18 @@ from health_azure import AzureRunInfo, submit_to_azure_if_needed  # noqa: E402
 from health_azure.datasets import create_dataset_configs  # noqa: E402
 from health_azure.logging import logging_to_stdout   # noqa: E402
 from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
-from health_azure.utils import (get_workspace, is_local_rank_zero, is_running_in_azure_ml,  # noqa: E402
-                                merge_conda_files, set_environment_variables_for_multi_node,
-                                create_argparser, parse_arguments, ParserResult, apply_overrides)
+from health_azure.amulet import prepare_amulet_job  # noqa: E402
+from health_azure.utils import (get_workspace, get_ml_client, is_local_rank_zero,  # noqa: E402
+                                is_running_in_azure_ml, set_environment_variables_for_multi_node,
+                                create_argparser, parse_arguments, ParserResult, apply_overrides,
+                                filter_v2_input_output_args)
 
 from health_ml.experiment_config import ExperimentConfig  # noqa: E402
 from health_ml.lightning_container import LightningContainer  # noqa: E402
 from health_ml.run_ml import MLRunner  # noqa: E402
 from health_ml.utils import fixed_paths  # noqa: E402
-from health_ml.utils.common_utils import (check_conda_environment, choose_conda_env_file,  # noqa: E402
-                                          get_all_pip_requirements_files,
-                                          is_linux)
+from health_ml.utils.common_utils import (DEFAULT_DOCKER_BASE_IMAGE, check_conda_environment,  # noqa: E402
+                                          choose_conda_env_file, is_linux)
 from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
 
 
@@ -46,8 +48,6 @@ from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
 # path.
 runner_path = Path(sys.argv[0])
 sys.argv[0] = str(runner_path.resolve())
-
-DEFAULT_DOCKER_BASE_IMAGE = "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04"
 
 
 def initialize_rpdb() -> None:
@@ -127,8 +127,12 @@ class Runner:
 
         :return: ParserResult object containing args, overrides and settings
         """
+        # Filter out any args for passing inputs and outputs to scripts with AML SDK v2
+        args = sys.argv[1:]
+        filtered_args = filter_v2_input_output_args(args)
+
         parser1 = create_runner_parser()
-        parser1_result = parse_arguments(parser1, args=sys.argv[1:])
+        parser1_result = parse_arguments(parser1, args=filtered_args)
         experiment_config = ExperimentConfig(**parser1_result.args)
 
         self.experiment_config = experiment_config
@@ -172,7 +176,7 @@ class Runner:
         """
         return {
             "commandline_args": " ".join(script_params),
-            "tag": self.experiment_config.tag
+            "tag": self.lightning_container.tag
         }
 
     def run(self) -> Tuple[LightningContainer, AzureRunInfo]:
@@ -209,8 +213,8 @@ class Runner:
             """
             # Set the default display name to what was provided as the "tag". This will affect single runs
             # and Hyperdrive parent runs
-            if self.experiment_config.tag:
-                azure_run.display_name = self.experiment_config.tag
+            if self.lightning_container.tag:
+                azure_run.display_name = self.lightning_container.tag
 
         root_folder = self.project_root
         entry_script = Path(sys.argv[0]).resolve()
@@ -228,7 +232,13 @@ class Runner:
             except ValueError:
                 raise ValueError("Unable to submit the script to AzureML because no workspace configuration file "
                                  "(config.json) was found.")
-        default_datastore = workspace.get_default_datastore().name if workspace is not None else ""
+
+        if self.lightning_container.datastore:
+            datastore = self.lightning_container.datastore
+        elif workspace:
+            datastore = workspace.get_default_datastore().name
+        else:
+            datastore = ""
 
         local_datasets = self.lightning_container.local_datasets
         all_local_datasets = [Path(p) for p in local_datasets] if len(local_datasets) > 0 else []
@@ -239,64 +249,58 @@ class Runner:
             create_dataset_configs(all_azure_dataset_ids=self.lightning_container.azure_datasets,
                                    all_dataset_mountpoints=self.lightning_container.dataset_mountpoints,
                                    all_local_datasets=all_local_datasets,  # type: ignore
-                                   datastore=default_datastore,
+                                   datastore=datastore,
                                    use_mounting=use_mounting)
         hyperdrive_config = self.lightning_container.get_hyperdrive_config()
-        temp_conda_file: Optional[Path] = None
-        try:
-            if self.experiment_config.cluster and not is_running_in_azure_ml():
-                env_file = choose_conda_env_file(env_file=self.experiment_config.conda_env)
-                logging.info(f"Using this Conda environment definition: {env_file}")
-                check_conda_environment(env_file)
-                # This adds all pip packages required by hi-ml and hi-ml-azure in case the code is used directly from
-                # source (submodule) rather than installed as a package.
-                pip_requirements_files = get_all_pip_requirements_files()
+        if self.experiment_config.cluster and not is_running_in_azure_ml():
+            ml_client = get_ml_client()
 
-                # Merge the project-specific dependencies with the packages and write unified definition to temp file.
-                if len(pip_requirements_files) > 0:
-                    temp_conda_file = root_folder / f"temp_environment-{uuid.uuid4().hex[:8]}.yml"
-                    merge_conda_files([env_file], temp_conda_file, pip_files=pip_requirements_files)
+            env_file = choose_conda_env_file(env_file=self.experiment_config.conda_env)
+            logging.info(f"Using this Conda environment definition: {env_file}")
+            check_conda_environment(env_file)
 
-                if not self.experiment_config.cluster:
-                    raise ValueError("You need to specify a cluster name via '--cluster NAME' to submit "
-                                     "the script to run in AzureML")
-                azure_run_info = submit_to_azure_if_needed(
-                    entry_script=entry_script,
-                    snapshot_root_directory=root_folder,
-                    script_params=script_params,
-                    conda_environment_file=temp_conda_file or env_file,
-                    aml_workspace=workspace,
-                    compute_cluster_name=self.experiment_config.cluster,
-                    environment_variables=environment_variables,
-                    default_datastore=default_datastore,
-                    experiment_name=self.lightning_container.model_name,  # create_experiment_name(),
-                    input_datasets=input_datasets,  # type: ignore
-                    num_nodes=self.experiment_config.num_nodes,
-                    wait_for_completion=self.experiment_config.wait_for_completion,
-                    ignored_folders=[],
-                    submit_to_azureml=bool(self.experiment_config.cluster),
-                    docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
-                    docker_shm_size=self.experiment_config.docker_shm_size,
-                    hyperdrive_config=hyperdrive_config,
-                    create_output_folders=False,
-                    after_submission=after_submission_hook,
-                    tags=self.additional_run_tags(script_params)
-                )
-                if self.experiment_config.tag and azure_run_info.run:
-                    if self.lightning_container.is_crossvalidation_enabled:
-                        # This code is only reached inside Azure. Set display name again - this will now affect
-                        # Hypdrive child runs (for other jobs, this has already been done after submission)
-                        cv_index = self.lightning_container.crossval_index
-                        full_display_name = f"{self.experiment_config.tag} {cv_index}"
-                        azure_run_info.run.display_name = full_display_name
+            azure_run_info = submit_to_azure_if_needed(
+                entry_script=entry_script,
+                snapshot_root_directory=root_folder,
+                script_params=script_params,
+                conda_environment_file=env_file,
+                aml_workspace=workspace,
+                ml_client=ml_client,
+                compute_cluster_name=self.experiment_config.cluster,
+                environment_variables=environment_variables,
+                default_datastore=datastore,
+                experiment_name=self.lightning_container.effective_experiment_name,
+                input_datasets=input_datasets,  # type: ignore
+                num_nodes=self.experiment_config.num_nodes,
+                wait_for_completion=self.experiment_config.wait_for_completion,
+                ignored_folders=[],
+                submit_to_azureml=bool(self.experiment_config.cluster),
+                docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
+                docker_shm_size=self.experiment_config.docker_shm_size,
+                hyperdrive_config=hyperdrive_config,
+                create_output_folders=False,
+                after_submission=after_submission_hook,
+                tags=self.additional_run_tags(script_params),
+                strictly_aml_v1=self.experiment_config.strictly_aml_v1,
+            )
+        else:
+            azure_run_info = submit_to_azure_if_needed(
+                input_datasets=input_datasets,  # type: ignore
+                submit_to_azureml=False,
+                strictly_aml_v1=self.experiment_config.strictly_aml_v1,
+            )
+        if azure_run_info.run:
+            # This code is only reached inside Azure. Set display name again - this will now affect
+            # Hypdrive child runs (for other jobs, this has already been done after submission)
+            suffix = None
+            if self.lightning_container.is_crossvalidation_enabled:
+                suffix = f"crossval {self.lightning_container.crossval_index}"
+            elif self.lightning_container.different_seeds > 0:
+                suffix = f"seed {self.lightning_container.random_seed}"
+            if suffix:
+                current_name = self.lightning_container.tag or azure_run_info.run.display_name
+                azure_run_info.run.display_name = f"{current_name} {suffix}"
 
-            else:
-                azure_run_info = submit_to_azure_if_needed(
-                    input_datasets=input_datasets,  # type: ignore
-                    submit_to_azureml=False)
-        finally:
-            if temp_conda_file and temp_conda_file.is_file():
-                temp_conda_file.unlink()
         # submit_to_azure_if_needed calls sys.exit after submitting to AzureML. We only reach this when running
         # the script locally or in AzureML.
         return azure_run_info
@@ -313,10 +317,12 @@ class Runner:
         # Suppress the logging from all processes but the one for GPU 0 on each node, to make log files more readable
         logging_to_stdout("INFO" if is_local_rank_zero() else "ERROR")
         package_setup_and_hacks()
+        prepare_amulet_job()
 
         # Set environment variables for multi-node training if needed. This function will terminate early
         # if it detects that it is not in a multi-node environment.
-        set_environment_variables_for_multi_node()
+        if self.experiment_config.num_nodes > 1:
+            set_environment_variables_for_multi_node()
         self.ml_runner = MLRunner(
             experiment_config=self.experiment_config,
             container=self.lightning_container,

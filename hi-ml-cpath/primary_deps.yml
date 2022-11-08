@@ -1,0 +1,46 @@
+name: HimlHisto
+channels:
+  - defaults
+  - pytorch
+  - conda-forge
+dependencies:
+  - cudatoolkit=11.3.1
+  - pip=20.1.1
+  - python=3.9.13
+  - pytorch=1.10.0
+  - torchvision=0.11.1
+  - pip:
+      # Run requirements for hi-ml
+      - dataclasses-json==0.5.2
+      - jinja2==3.0.2
+      - matplotlib==3.4.3
+      - opencv-python-headless==4.5.1.48
+      - pandas==1.3.4
+      - pre-commit==2.19.0
+      - protobuf==3.20.1
+      - pytorch-lightning>=1.6.0, <1.7
+      - rpdb==0.1.6
+      - setuptools==59.5.0
+      # Run requirements for hi-ml-azure
+      - azureml-core==1.43.0
+      - azureml-dataset-runtime[fuse]==1.43.0
+      - azureml-tensorboard==1.43.0
+      - azureml-train-core==1.43.0
+      - conda-merge==0.1.5
+      - msal-extensions==0.3.1
+      - param==1.12
+      - ruamel.yaml==0.16.12
+      - tensorboard==2.6.0
+      # Histopathology requirements
+      - -r requirements_run.txt
+      # Test requirements
+      - -r requirements_test.txt
+      # Build requirements
+      - -r requirements_build.txt
+      # Pinned secondary dependencies to prevent clashes
+      - attrs==21.4.0
+      - azure-mgmt-core==1.3.0
+      - azure-mgmt-keyvault==10.0.0
+      - cloudpickle==1.6.0
+      - importlib-metadata==4.2.0
+      - markdown==2.6.8

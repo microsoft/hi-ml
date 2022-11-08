@@ -16,11 +16,11 @@ from the Cancer Genome Atlas (TCGA) with accompanying binarized MicroSatellite I
 TCGA-CRCk, the dataset is already tiled, i.e., the WSI are not available. In [public_datasets.md](./public_datasets.md)
 you will find instructions on how to download and setup the TCGA-CRCk dataset.
 
-To train an image encoder using SSL locally run this in the `hi-ml-histopathology` folder, with the `HimlHisto` conda
+To train an image encoder using SSL locally run this in the `hi-ml-cpath` folder, with the `HimlHisto` conda
 enviroment activated:
 
 ```bash
-python ../hi-ml/src/health_ml/runner.py --model histopathology.CRCK_SimCLR
+python ../hi-ml/src/health_ml/runner.py --model SSL.CRCK_SimCLR
 ```
 
 The model class
@@ -39,9 +39,9 @@ etc. Here, we need to define some important parameters:
 1. The dataset we want to use for training the image encoder and the linear model we only use for evaluation of the
    image encoder. In theory, they could be two different datasets.
 
-+ [```ssl_training_dataset_name=SSLDatasetNameHiml.TCGA_CRCK```](https://github.com/microsoft/hi-ml/blob/7f4baadaa8bc0d08a4895ca896ebc3f68ea6a4f8/hi-ml-histopathology/src/histopathology/configs/SSL/CRCK_SimCLRContainer.py#L40)
++ [```ssl_training_dataset_name=SSL_Dataset_TCGA_CRCK```](https://github.com/microsoft/hi-ml/blob/7f4baadaa8bc0d08a4895ca896ebc3f68ea6a4f8/hi-ml-histopathology/src/histopathology/configs/SSL/CRCK_SimCLRContainer.py#L40)
 
-+ [```linear_head_dataset_name=SSLDatasetNameHiml.TCGA_CRCK```](https://github.com/microsoft/hi-ml/blob/7f4baadaa8bc0d08a4895ca896ebc3f68ea6a4f8/hi-ml-histopathology/src/histopathology/configs/SSL/CRCK_SimCLRContainer.py#L41)
++ [```linear_head_dataset_name=SSL_Dataset_TCGA_CRCK```](https://github.com/microsoft/hi-ml/blob/7f4baadaa8bc0d08a4895ca896ebc3f68ea6a4f8/hi-ml-histopathology/src/histopathology/configs/SSL/CRCK_SimCLRContainer.py#L41)
 
 1. Model checkpointing: We use [PyTorch lightning
    checkpointing](https://pytorch-lightning.readthedocs.io/en/stable/common/checkpointing.html). Among others, we define
@@ -76,7 +76,7 @@ the TCGA-CRCk dataset. Assuming you are using a total of 8  GPUs (e.g. 1 node wi
 Azure you can start training with the following command in the repository root folder:
 
 ```bash
-python hi-ml/src/health_ml/runner.py --model histopathology.CRCK_SimCLR --cluster CLUSTER_NAME --conda_env hi-ml-histopathology/environment.yml
+python hi-ml/src/health_ml/runner.py --model SSL.CRCK_SimCLR --cluster CLUSTER_NAME --conda_env hi-ml-cpath/environment.yml
 ```
 
 A SimCLR run with 200 epochs, 8 GPUs, and a batch size of 48 (per GPU) takes about 6 hours. On Azure we use
@@ -128,4 +128,4 @@ Here the data augmentations are applied and the ```__getitem__``` method is defi
 The dataset is then wrapped one last time in
 [```TcgaCrck_TilesDatasetWithReturnIndex```](https://github.com/microsoft/hi-ml/blob/main/hi-ml-histopathology/src/histopathology/datasets/tcga_crck_tiles_dataset.py),
 where we inherit the ability to return the tile index from
-[```DataClassBaseWithReturnIndex```](https://github.com/microsoft/hi-ml/blob/main/hi-ml-histopathology/src/SSL/data/dataset_cls_utils.py).
+[```DatasetWithReturnIndex```](https://github.com/microsoft/hi-ml/blob/main/hi-ml-histopathology/src/SSL/data/dataset_cls_utils.py).

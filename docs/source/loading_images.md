@@ -303,7 +303,7 @@ If the image is known to be a png then a shortcut can be taken, which is quicker
 from pathlib import Path
 
 import numpy as np
-import PIL.PngImagePlugin
+from PIL import PngImagePlugin
 from PIL import Image
 
 
@@ -325,7 +325,7 @@ def read_image_pillow3(input_filename: Path) -> np.array:  # type: ignore
     :param input_filename: Source image file path.
     :return: numpy array of shape (H, W), (H, W, 3).
     """
-    with PIL.PngImagePlugin.PngImageFile(input_filename) as pil_png:
+    with PngImagePlugin.PngImageFile(input_filename) as pil_png:
         return np.asarray(pil_png, np.float)
 ```
 

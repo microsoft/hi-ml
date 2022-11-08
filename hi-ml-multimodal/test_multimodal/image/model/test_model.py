@@ -3,11 +3,15 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  -------------------------------------------------------------------------------------------
 
+from dataclasses import fields
 
 import pytest
 import torch
 
-from health_multimodal.image.model.model import ImageEncoder, ImageModel
+from health_multimodal.image.model.model import ImageModel
+from health_multimodal.image.model.model import ImageEncoder
+from health_multimodal.image.model.model import ImageModelOutput
+from health_multimodal.image.model.model import get_biovil_resnet
 from health_multimodal.image.model.modules import MultiTaskModel
 from health_multimodal.image.model.resnet import resnet50
 
@@ -132,3 +136,23 @@ def test_reload_resnet_with_dilation() -> None:
     with torch.no_grad():
         expected_output = expected_model(image)
         assert torch.allclose(outputs_dilation, expected_output)
+
+
+@torch.no_grad()
+def test_hubconf() -> None:
+    """Test that instantiating the image model using the PyTorch Hub is consistent with older methods."""
+    image = torch.rand(1, 3, 480, 480)
+
+    github = 'microsoft/hi-ml:main'
+    model_hub = torch.hub.load(github, 'biovil_resnet', pretrained=True)
+    model_himl = get_biovil_resnet()
+
+    output_hub: ImageModelOutput = model_hub(image)
+    output_himl: ImageModelOutput = model_himl(image)
+
+    for field_himl in fields(output_himl):
+        value_hub = getattr(output_hub, field_himl.name)
+        value_himl = getattr(output_himl, field_himl.name)
+        if value_hub is None and value_himl is None:  # for example, class_logits
+            continue
+        assert torch.allclose(value_hub, value_himl)

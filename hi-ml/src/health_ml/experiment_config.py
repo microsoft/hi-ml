@@ -11,7 +11,6 @@ class ExperimentConfig(param.Parameterized):
                                                   "job in AzureML.")
     model: str = param.String(doc="The fully qualified name of the model to train/test -e.g."
                                   "mymodule.configs.MyConfig.")
-    tag: str = param.String(doc="A string that will be used as the display name of the run in AzureML.")
     mount_in_azureml: bool = param.Boolean(False,
                                            doc="If False (default), consume datasets in AzureML by downloading at "
                                                "job start. If True, datasets in AzureML are mounted (read on demand "
@@ -27,3 +26,5 @@ class ExperimentConfig(param.Parameterized):
                             doc="The Conda environment file that should be used when submitting the present run to "
                                 "AzureML. If not specified, the environment file in the current folder or one of its "
                                 "parents will be used.")
+    strictly_aml_v1: bool = param.Boolean(default=False, doc="If True, use AzureML v1 SDK. If False (default), use "
+                                                             "the v2 of the SDK")

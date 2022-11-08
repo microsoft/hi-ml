@@ -5,17 +5,23 @@
 from __future__ import annotations
 
 import logging
+import os
+import param
+import re
 from enum import Enum, unique
+from param import Parameterized
 from pathlib import Path
 from typing import List, Optional
+from urllib.parse import urlparse
 
-import param
 from azureml.train.hyperdrive import HyperDriveConfig
-from param import Parameterized
 
 from health_azure import create_crossval_hyperdrive_config
-from health_azure.utils import RUN_CONTEXT, PathOrString, is_global_rank_zero, is_running_in_azure_ml
-
+from health_azure.himl import create_grid_hyperdrive_config
+from health_azure.amulet import (ENV_AMLT_PROJECT_NAME, ENV_AMLT_INPUT_OUTPUT,
+                                 ENV_AMLT_SNAPSHOT_DIR, ENV_AMLT_AZ_BATCHAI_DIR,
+                                 is_amulet_job, get_amulet_aml_working_dir)
+from health_azure.utils import (RUN_CONTEXT, PathOrString, is_global_rank_zero, is_running_in_azure_ml)
 from health_ml.utils import fixed_paths
 from health_ml.utils.common_utils import (CHECKPOINT_FOLDER,
                                           create_unique_timestamp_id,
@@ -108,12 +114,27 @@ class ExperimentFolderHandler(Parameterized):
         else:
             logging.info("Running inside AzureML.")
             logging.info("All results will be written to a subfolder of the project root folder.")
-            run_folder = project_root
-            outputs_folder = project_root / DEFAULT_AML_UPLOAD_DIR
-            logs_folder = project_root / DEFAULT_LOGS_DIR_NAME
+            if not is_amulet_job():
+                run_folder = project_root
+                outputs_folder = project_root / DEFAULT_AML_UPLOAD_DIR
+                logs_folder = project_root / DEFAULT_LOGS_DIR_NAME
+            else:
+                # Job submitted via Amulet
+                amlt_root_folder = Path(os.environ[ENV_AMLT_INPUT_OUTPUT])
+                project_name = os.environ[ENV_AMLT_PROJECT_NAME]
+                snapshot_dir = get_amulet_aml_working_dir()
+                assert snapshot_dir, \
+                    f"Either {ENV_AMLT_SNAPSHOT_DIR} or {ENV_AMLT_AZ_BATCHAI_DIR} must exist in env vars"
+                print(f"Found the following environment variables set by Amulet: "
+                      f"AZURE_ML_INPUT_OUTPUT: {amlt_root_folder}, AZUREML_ARM_PROJECT_NAME: {project_name}")
+                run_id = RUN_CONTEXT.id
+                run_folder = amlt_root_folder / "projects" / project_name / "amlt-code" / run_id
+                outputs_folder = snapshot_dir / DEFAULT_AML_UPLOAD_DIR
+                logs_folder = snapshot_dir / DEFAULT_LOGS_DIR_NAME
 
-        logging.info(f"Run outputs folder: {outputs_folder}")
-        logging.info(f"Logs folder: {logs_folder}")
+        print(f"Run outputs folder: {outputs_folder}")
+        print(f"Logs folder: {logs_folder}")
+        print(f"Run root directory: {run_folder}")
         return ExperimentFolderHandler(
             outputs_folder=outputs_folder,
             logs_folder=logs_folder,
@@ -122,25 +143,43 @@ class ExperimentFolderHandler(Parameterized):
         )
 
 
+SRC_CHECKPOINT_FORMAT_DOC = ("<AzureML_run_id>:<optional/custom/path/to/checkpoints/><filename.ckpt>"
+                             "If no custom path is provided (e.g., <AzureML_run_id>:<filename.ckpt>)"
+                             "the checkpoint will be downloaded from the default checkpoint folder "
+                             "(e.g., 'outputs/checkpoints/'). If no filename is provided, (e.g., "
+                             "`src_checkpoint=<AzureML_run_id>`) the latest checkpoint (last.ckpt) "
+                             "will be used to initialize the model."
+                             )
+
+
 class WorkflowParams(param.Parameterized):
     """
     This class contains all parameters that affect how the whole training and testing workflow is executed.
     """
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
-    weights_url: str = param.String(default="",
-                                    doc="If provided, use this URL to download checkpoints for inference.")
-    local_weights_path: Optional[Path] = \
-        param.ClassSelector(class_=Path, allow_None=True, default=None,
-                            doc="Checkpoint paths to use for inference, when the job is running outside Azure.")
+    src_checkpoint: str = param.String(default="",
+                                       doc="This flag can be used in 3 different scenarios:"
+                                           "1- Resume training from a checkpoint to train longer."
+                                           "2- Run inference-only using `run_inference_only` flag jointly."
+                                           "3- Transfer learning from a pretrained model checkpoint."
+                                           "We currently support three types of checkpoints: "
+                                           "    a. A local checkpoint folder that contains a checkpoint file."
+                                           "    b. A URL to a remote checkpoint to be downloaded."
+                                           "    c. A previous azureml run id where the checkpoint is supposed to be "
+                                           "       saved ('outputs/checkpoints/' folder by default.)"
+                                           "For the latter case 'c' : src_checkpoint should be in the format of "
+                                           f"{SRC_CHECKPOINT_FORMAT_DOC}")
     crossval_count: int = param.Integer(default=1, bounds=(0, None),
                                         doc="The number of splits to use when doing cross-validation. "
                                             "Use 1 to disable cross-validation")
     crossval_index: int = param.Integer(default=0, bounds=(0, None),
                                         doc="When doing cross validation, this is the index of the current "
                                             "split. Valid values: 0 .. (crossval_count -1)")
-    hyperdrive: bool = param.Boolean(False, doc="If True, use the Hyperdrive configuration specified in the "
-                                                "LightningContainer to run hyperparameter tuning. If False, just "
-                                                "run a plain single training job.")
+    hyperdrive: bool = param.Boolean(False,
+                                     doc="If True, use the Hyperdrive configuration specified in the "
+                                         "LightningContainer to run hyperparameter tuning. If False, just "
+                                         "run a plain single training job. This cannot be combined with "
+                                         "the flags --different_seeds or --crossval_count.")
     regression_test_folder: Optional[Path] = \
         param.ClassSelector(class_=Path, default=None, allow_None=True,
                             doc="A path to a folder that contains a set of files. At the end of training and "
@@ -153,17 +192,62 @@ class WorkflowParams(param.Parameterized):
                      doc="When comparing CSV files during regression tests, use this value as the maximum allowed "
                          "relative difference of actual and expected results. Default: 0.0 (must match exactly)")
     regression_metrics: str = param.String(default=None, doc="A list of names of metrics to compare")
+    run_inference_only: bool = param.Boolean(False, doc="If True, run only inference and skip training after loading"
+                                                        "model weights from the specified checkpoint in "
+                                                        "`src_checkpoint` flag. If False, run training and inference.")
+    tag: str = param.String(doc="A string that will be used as the display name of the run in AzureML.")
+    experiment: str = param.String(default="", doc="The name of the AzureML experiment to use for this run. If not "
+                                   "provided, the name of the model class will be used.")
+    log_from_vm: bool = param.Boolean(False, doc="If True, a training run outside AzureML will still log its "
+                                      "metrics to AzureML. Both intermediate validation metrics and final test results"
+                                      "will be recorded. You need to have an AzureML workspace config.json file "
+                                      "and will be asked for interactive authentication.")
+    different_seeds: int = param.Integer(default=0, bounds=(0, None),
+                                         doc="If > 0, run the same training job multiple times with different seeds. "
+                                         "This uses AzureML hyperdrive to run multiple jobs in parallel, and hence "
+                                         "cannot be used when running outside AzureML. "
+                                         "This cannot be combined with the --hyperdrive or the --crossval_count flags.")
 
     CROSSVAL_INDEX_ARG_NAME = "crossval_index"
     CROSSVAL_COUNT_ARG_NAME = "crossval_count"
+    RANDOM_SEED_ARG_NAME = "random_seed"
+
+    @property
+    def src_checkpoint_is_url(self) -> bool:
+        try:
+            result = urlparse(self.src_checkpoint)
+            return all([result.scheme, result.netloc])
+        except ValueError:
+            return False
+
+    @property
+    def src_checkpoint_is_local_file(self) -> bool:
+        return Path(self.src_checkpoint).is_file()
+
+    @property
+    def src_checkpoint_is_aml_run_id(self) -> bool:
+        match = re.match(r"[_\w-]*$", self.src_checkpoint.split(":")[0])
+        return match is not None and not self.src_checkpoint_is_url and not self.src_checkpoint_is_local_file
+
+    @property
+    def is_valid_src_checkpoint(self) -> bool:
+        if self.src_checkpoint:
+            return self.src_checkpoint_is_local_file or self.src_checkpoint_is_url or self.src_checkpoint_is_aml_run_id
+        return True
 
     def validate(self) -> None:
-        if self.weights_url and self.local_weights_path:
-            raise ValueError("Cannot specify more than one of local_weights_path, weights_url.")
-
+        if not self.is_valid_src_checkpoint:
+            raise ValueError(f"Invalid src_checkpoint: {self.src_checkpoint}. Please provide a valid URL, local file "
+                             "or azureml run id.")
         if self.crossval_count > 1:
             if not (0 <= self.crossval_index < self.crossval_count):
                 raise ValueError(f"Attribute crossval_index out of bounds (crossval_count = {self.crossval_count})")
+
+        if self.run_inference_only and not self.src_checkpoint:
+            raise ValueError("Cannot run inference without a src_checkpoint. Please specify a valid src_checkpoint."
+                             "You can either use a URL, a local file or an azureml run id. For custom checkpoint paths "
+                             "within an azureml run, (other than last.ckpt), provide a src_checkpoint in the format."
+                             f"{SRC_CHECKPOINT_FORMAT_DOC}")
 
     @property
     def is_running_in_aml(self) -> bool:
@@ -204,8 +288,16 @@ class WorkflowParams(param.Parameterized):
                                                  metric_name="val/loss"
                                                  )
 
+    def get_different_seeds_hyperdrive_config(self) -> HyperDriveConfig:
+        """Returns a configuration object for AzureML Hyperdrive that varies the random seed for each run."""
+        return create_grid_hyperdrive_config(values=list(map(str, range(self.different_seeds))),
+                                             argument_name=self.RANDOM_SEED_ARG_NAME,
+                                             metric_name="val/loss"
+                                             )
+
 
 class DatasetParams(param.Parameterized):
+    datastore: str = param.String(default="", doc="Datastore to look for data in")
     azure_datasets: List[str] = param.List(default=[], class_=str,
                                            doc="If provided, the ID of one or more datasets to use when running in"
                                                " AzureML. This dataset must exist as a folder of the same name "
@@ -367,10 +459,12 @@ class TrainerParams(param.Parameterized):
                                                          "If pl_check_val_every_n_epoch > 1, this means that "
                                                          "checkpoints are saved every "
                                                          "N * pl_check_val_every_n_epoch training epochs.")
-    detect_anomaly: bool = param.Boolean(False, doc="If true, test gradients for anomalies (NaN or Inf) during "
-                                                    "training.")
-    use_mixed_precision: bool = param.Boolean(False, doc="If true, mixed precision training is activated during "
-                                                         "training.")
+    detect_anomaly: bool = param.Boolean(False,
+                                         doc="If true, test gradients for anomalies (NaN or Inf) during training.")
+    use_mixed_precision: bool = \
+        param.Boolean(True,
+                      doc="If True, use float16 precision (Native Adaptive Mixed Precision) during training. "
+                          "If False, use float32.")
     max_num_gpus: int = param.Integer(default=-1,
                                       doc="The maximum number of GPUS to use. If set to a value < 0, use"
                                           "all available GPUs. In distributed training, this is the "

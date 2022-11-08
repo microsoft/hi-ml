@@ -7,7 +7,6 @@ import shutil
 import sys
 from pathlib import Path
 from typing import Generator, List, Optional
-from unittest import mock
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -20,8 +19,6 @@ from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.deep_learning_config import WorkflowParams
 from health_ml.lightning_container import LightningContainer
 from health_ml.runner import Runner
-from health_ml.utils.checkpoint_handler import CheckpointHandler
-from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 from health_ml.utils.common_utils import change_working_directory
 from health_ml.utils.fixed_paths import repository_root_directory
 
@@ -102,15 +99,14 @@ def test_run(mock_runner: Runner) -> None:
 
 
 @patch("health_ml.runner.choose_conda_env_file")
-@patch("health_ml.runner.get_all_pip_requirements_files")
 @patch("health_ml.runner.get_workspace")
 @pytest.mark.fast
 def test_submit_to_azureml_if_needed(mock_get_workspace: MagicMock,
-                                     mock_get_pip_req_files: MagicMock,
                                      mock_get_env_files: MagicMock,
                                      mock_runner: Runner
                                      ) -> None:
-    def _mock_dont_submit_to_aml(input_datasets: List[DatasetConfig], submit_to_azureml: bool  # type: ignore
+    def _mock_dont_submit_to_aml(input_datasets: List[DatasetConfig],
+                                 submit_to_azureml: bool, strictly_aml_v1: bool,   # type: ignore
                                  ) -> AzureRunInfo:
         datasets_input = [d.target_folder for d in input_datasets] if input_datasets else []
         return AzureRunInfo(input_datasets=datasets_input,
@@ -122,7 +118,6 @@ def test_submit_to_azureml_if_needed(mock_get_workspace: MagicMock,
                             logs_folder=None)  # type: ignore
 
     mock_get_env_files.return_value = Path("some_file.txt")
-    mock_get_pip_req_files.return_value = []
 
     mock_default_datastore = MagicMock()
     mock_default_datastore.name.return_value = "dummy_datastore"
@@ -181,6 +176,7 @@ def test_crossval_config() -> None:
         assert isinstance(crossval_config, HyperDriveConfig)
 
 
+@pytest.mark.fast
 def test_crossval_argument_names() -> None:
     """
     Cross validation uses hardcoded argument names, check if they match the field names
@@ -188,26 +184,51 @@ def test_crossval_argument_names() -> None:
     container = HelloWorld()
     crossval_count = 8
     crossval_index = 5
+    random_seed = 4711
     container.crossval_count = crossval_count
     container.crossval_index = crossval_index
+    container.random_seed = random_seed
     assert getattr(container, container.CROSSVAL_INDEX_ARG_NAME) == crossval_index
+    assert getattr(container, container.RANDOM_SEED_ARG_NAME) == random_seed
 
 
 def test_submit_to_azure_hyperdrive(mock_runner: Runner) -> None:
     """
-    Test if the hyperdrive configurations are passed to the submission function.
+    Test if the hyperdrive configurations are passed to the submission function if using cross validation.
     """
-    model_name = "HelloWorld"
     crossval_count = 2
-    arguments = ["", f"--model={model_name}", "--cluster=foo", "--crossval_count", str(crossval_count)]
+    _test_hyperdrive_submission(mock_runner,
+                                commandline_arg=f"--crossval_count={crossval_count}",
+                                expected_argument_name=WorkflowParams.CROSSVAL_INDEX_ARG_NAME,
+                                expected_argument_values=list(map(str, range(crossval_count))))
+
+
+def test_submit_to_azure_differents_seeds(mock_runner: Runner) -> None:
+    """
+    Test if the hyperdrive configurations are passed to the submission function if running with dfferent seeds.
+    """
+    num_seeds = 2
+    _test_hyperdrive_submission(mock_runner,
+                                commandline_arg=f"--different_seeds={num_seeds}",
+                                expected_argument_name=WorkflowParams.RANDOM_SEED_ARG_NAME,
+                                expected_argument_values=list(map(str, range(num_seeds))))
+
+
+def _test_hyperdrive_submission(mock_runner: Runner,
+                                commandline_arg: str,
+                                expected_argument_name: str,
+                                expected_argument_values: List[str]) -> None:
+    model_name = "HelloWorld"
+    arguments = ["", f"--model={model_name}", "--cluster=foo", commandline_arg]
     # Use a special simplified environment file only for the tests here. Copy that to a temp folder, then let the runner
     # start in that temp folder.
     with change_working_folder_and_add_environment(mock_runner.project_root):
         with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
             with patch("health_ml.runner.get_workspace"):
-                with patch.object(sys, "argv", arguments):
-                    with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
-                        mock_runner.run()
+                with patch("health_ml.runner.get_ml_client"):
+                    with patch.object(sys, "argv", arguments):
+                        with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
+                            mock_runner.run()
             mock_run_in_situ.assert_called_once()
             mock_submit_to_aml.assert_called_once()
             # call_args is a tuple of (args, kwargs)
@@ -218,7 +239,8 @@ def test_submit_to_azure_hyperdrive(mock_runner: Runner) -> None:
             # Check details of the Hyperdrive config
             hyperdrive_config = call_kwargs["hyperdrive_config"]
             parameter_space = hyperdrive_config._generator_config["parameter_space"]
-            assert parameter_space[WorkflowParams.CROSSVAL_INDEX_ARG_NAME] == ["choice", [list(range(crossval_count))]]
+            assert expected_argument_name in parameter_space
+            assert parameter_space[expected_argument_name] == ["choice", [expected_argument_values]]
 
 
 def test_submit_to_azure_docker(mock_runner: Runner) -> None:
@@ -232,10 +254,11 @@ def test_submit_to_azure_docker(mock_runner: Runner) -> None:
     # start in that temp folder.
     with change_working_folder_and_add_environment(mock_runner.project_root):
         with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
-            with patch("health_ml.runner.get_workspace"):
-                with patch.object(sys, "argv", arguments):
-                    with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
-                        mock_runner.run()
+            with patch("health_ml.runner.get_ml_client"):
+                with patch("health_ml.runner.get_workspace"):
+                    with patch.object(sys, "argv", arguments):
+                        with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
+                            mock_runner.run()
             mock_run_in_situ.assert_called_once()
             mock_submit_to_aml.assert_called_once()
             # call_args is a tuple of (args, kwargs)
@@ -295,36 +318,3 @@ def test_invalid_profiler(mock_runner: Runner) -> None:
         with pytest.raises(ValueError) as ex:
             mock_runner.run()
         assert "Unsupported profiler." in str(ex)
-
-
-def test_custom_checkpoint_for_test(tmp_path: Path) -> None:
-    """Test if the logic to choose a checkpoint for inference works.
-    """
-    # Default behaviour: checkpoint handler returns the default inference checkpoint specified by the container.
-    container = HelloWorld()
-    container.set_output_to(tmp_path)
-    container.checkpoint_folder.mkdir(parents=True)
-    last_checkpoint = container.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
-    last_checkpoint.touch()
-    checkpoint_handler = CheckpointHandler(container=container,
-                                           project_root=tmp_path)
-    checkpoint_handler.additional_training_done()
-    assert container.get_checkpoint_to_test() == last_checkpoint
-    # Now mock a container that has the get_checkpoint_to_test method overridden. If the checkpoint exists,
-    # the checkpoint handler should return it.
-    mock_checkpoint = tmp_path / "mock.txt"
-    mock_checkpoint.touch()
-    with mock.patch("health_ml.configs.hello_world.HelloWorld.get_checkpoint_to_test") as mock1:
-        mock1.return_value = mock_checkpoint
-        assert checkpoint_handler.get_checkpoint_to_test() == mock_checkpoint
-        mock1.assert_called_once()
-
-    # If the get_checkpoint_to_test method is overridden, and the checkpoint file does not exist, an error should
-    # be raised.
-    does_not_exist = Path("does_not_exist")
-    with mock.patch("health_ml.configs.hello_world.HelloWorld.get_checkpoint_to_test") as mock2:
-        mock2.return_value = does_not_exist
-        with pytest.raises(FileNotFoundError) as ex:
-            checkpoint_handler.get_checkpoint_to_test()
-        assert str(does_not_exist) in str(ex)
-        mock2.assert_called_once()

@@ -19,6 +19,7 @@ The `hi-ml` toolbox provides
    :caption: Working with Azure
 
    first_steps.md
+   azure_setup.md
    authentication.md
    datasets.md
    hyperdrive.md
@@ -26,6 +27,13 @@ The `hi-ml` toolbox provides
    commandline_tools.md
    downloading.md
    examples.md
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Working with Amulet
+
+   amulet_overview.md
+   amulet_example.rst
 
 .. toctree::
    :maxdepth: 1
@@ -42,8 +50,8 @@ The `hi-ml` toolbox provides
    histopathology.md
    public_datasets.md
    panda_model.md
+   tcga_model.md
    ssl_on_tile_dataset.md
-   azure_setup.md
    dsa.md
 
 .. toctree::

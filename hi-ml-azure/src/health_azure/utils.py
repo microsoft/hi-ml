@@ -27,7 +27,7 @@ from typing import (Any, Callable, DefaultDict, Dict, Generator, Iterable, List,
 import conda_merge
 import pandas as pd
 import param
-import ruamel.yaml
+
 from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Experiment, Run, Workspace, get_run
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
@@ -35,6 +35,16 @@ from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.run import _OfflineRun
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.train.hyperdrive import HyperDriveRun
+
+from azure.ai.ml import MLClient
+from azure.ai.ml.entities import Job
+from azure.ai.ml.entities import Workspace as WorkspaceV2
+from azure.ai.ml.entities import Environment as EnvironmentV2
+from azure.core.credentials import TokenCredential
+from azure.core.exceptions import ClientAuthenticationError, ResourceNotFoundError
+from azure.identity import (ClientSecretCredential, DeviceCodeCredential,
+                            DefaultAzureCredential, InteractiveBrowserCredential)
+
 
 T = TypeVar("T")
 
@@ -55,6 +65,7 @@ ENV_WORKSPACE_NAME = "HIML_WORKSPACE_NAME"
 
 # Environment variables used for multi-node training
 ENV_AZ_BATCHAI_MPI_MASTER_NODE = "AZ_BATCHAI_MPI_MASTER_NODE"
+ENV_AZ_BATCH_MASTER_NODE = "AZ_BATCH_MASTER_NODE"
 ENV_MASTER_ADDR = "MASTER_ADDR"
 ENV_MASTER_IP = "MASTER_IP"
 ENV_MASTER_PORT = "MASTER_PORT"
@@ -62,7 +73,10 @@ ENV_OMPI_COMM_WORLD_RANK = "OMPI_COMM_WORLD_RANK"
 ENV_NODE_RANK = "NODE_RANK"
 ENV_GLOBAL_RANK = "GLOBAL_RANK"
 ENV_LOCAL_RANK = "LOCAL_RANK"
+ENV_RANK = "RANK"
+MASTER_PORT_DEFAULT = 6105
 
+# Other Azure ML related variables
 ENVIRONMENT_VERSION = "1"
 FINAL_MODEL_FOLDER = "final_model"
 MODEL_ID_KEY_NAME = "model_id"
@@ -90,6 +104,10 @@ DEFAULT_ENVIRONMENT_VARIABLES = {
     "RSLEX_DIRECT_VOLUME_MOUNT_MAX_CACHE_SIZE": "1",
     "DATASET_MOUNT_CACHE_SIZE": "1",
 }
+
+
+V2_INPUT_DATASET_PATTERN = r"--INPUT_\d[=| ]"
+V2_OUTPUT_DATASET_PATTERN = r"--OUTPUT_\d[=| ]"
 
 PathOrString = Union[Path, str]
 
@@ -610,69 +628,6 @@ class RunIdOrListParam(CustomTypeParam):
         return [determine_run_id_type(x) for x in res]
 
 
-class CheckpointDownloader:
-    def __init__(
-        self,
-        run_id: str,
-        checkpoint_filename: str,
-        azure_config_json_path: Optional[Path] = None,
-        aml_workspace: Workspace = None,
-        download_dir: PathOrString = "checkpoints",
-        remote_checkpoint_dir: PathOrString = "checkpoints",
-    ) -> None:
-        """
-        Utility class for downloading checkpoint files from an Azure ML run
-
-        :param run_id: Recovery ID of the run from which to load the checkpoint.
-        :param checkpoint_filename: Name of the checkpoint file, expected to be inside the
-        `outputs/checkpoints/` directory (e.g. `"best_checkpoint.ckpt"`).
-        :param azure_config_json_path: An optional Azure ML settings (JSON file) to use to access the specified
-            experiment run. If not running inside an AML Run, and no aml_workspace object is provided, this
-            is required.
-        :param aml_workspace: An optional Azure ML Workspace object. If not running inside an AML Run, and no
-            azure_config_json_path is provided, this is required.
-        :param download_dir: The local directory in which to save the downloaded checkpoint files.
-        :param remote_checkpoint_dir: The remote folder from which to download the checkpoint file
-        """
-        self.azure_config_json_path = azure_config_json_path
-        self.aml_workspace = aml_workspace
-        self.run_id = run_id
-        self.checkpoint_filename = checkpoint_filename
-        self.download_dir = Path(download_dir)
-        self.remote_checkpoint_dir = Path(remote_checkpoint_dir)
-
-    @property
-    def local_checkpoint_dir(self) -> Path:
-        # in case we run_id is a run recovery id, extract the run id
-        run_id_parts = self.run_id.split(":")
-        run_id = run_id_parts[-1]
-        return self.download_dir / run_id
-
-    @property
-    def remote_checkpoint_path(self) -> Path:
-        return self.remote_checkpoint_dir / self.checkpoint_filename
-
-    @property
-    def local_checkpoint_path(self) -> Path:
-        return self.local_checkpoint_dir / self.remote_checkpoint_path
-
-    def download_checkpoint_if_necessary(self) -> Path:
-        """Downloads the specified checkpoint if it does not already exist.
-
-        :return: The local path to the downloaded checkpoint file.
-        """
-        workspace = get_workspace(aml_workspace=self.aml_workspace, workspace_config_path=self.azure_config_json_path)
-
-        if not self.local_checkpoint_path.exists():
-            self.local_checkpoint_dir.mkdir(exist_ok=True, parents=True)
-            download_checkpoints_from_run_id(
-                self.run_id, str(self.remote_checkpoint_path), self.local_checkpoint_dir, aml_workspace=workspace
-            )
-            assert self.local_checkpoint_path.exists()
-
-        return self.local_checkpoint_path
-
-
 def is_private_field_name(name: str) -> bool:
     """
     A private field is any Python class member that starts with an underscore eg: _hello
@@ -760,6 +715,7 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
     if is_running_in_azure_ml(RUN_CONTEXT):
         return RUN_CONTEXT.experiment.workspace
 
+    # If aml_workspace has been provided, use that
     if aml_workspace:
         return aml_workspace
 
@@ -1098,76 +1054,20 @@ def is_conda_file_with_pip_include(conda_file: Path) -> Tuple[bool, Dict]:
     return False, conda_yaml
 
 
-def merge_conda_files(
-    conda_files: List[Path],
-    result_file: Path,
-    pip_files: Optional[List[Path]] = None,
-) -> None:
+def generate_unique_environment_name(environment_description_string: str) -> str:
     """
-    Merges the given Conda environment files using the conda_merge package, optionally adds any
-    dependencies from pip requirements files, and writes the merged file to disk.
+    Generates a unique environment name beginning with "HealthML" and ending with a hash string generated
+    from the environment description.
 
-    :param conda_files: The Conda environment files to read.
-    :param result_file: The location where the merge results should be written.
-    :param pip_files: An optional list of one or more pip requirements files including extra dependencies.
+    :param environment_description_string: String to be hashed that should include everything that can
+        reasonably change between environments.
+    :return: A string representing the unique environment name.
     """
-    env_definitions: List[Any] = []
-    for file in conda_files:
-        _, pip_without_include = is_conda_file_with_pip_include(file)
-        env_definitions.append(pip_without_include)
-    unified_definition = {}
 
-    extra_pip_deps = []
-    for pip_file in pip_files or []:
-        additional_pip_deps = [d for d in pip_file.read_text().split("\n") if d and not is_pip_include_dependency(d)]
-        extra_pip_deps.extend(additional_pip_deps)
-
-    name = conda_merge.merge_names(env.get(CONDA_NAME) for env in env_definitions)
-    if name:
-        unified_definition[CONDA_NAME] = name
-
-    try:
-        channels = conda_merge.merge_channels(env.get(CONDA_CHANNELS) for env in env_definitions)
-    except conda_merge.MergeError:
-        logging.error("Failed to merge channel priorities.")
-        raise
-    if channels:
-        unified_definition[CONDA_CHANNELS] = channels
-
-    try:
-        deps_to_merge = [env.get(CONDA_DEPENDENCIES) for env in env_definitions]
-        if len(extra_pip_deps) > 0:
-            deps_to_merge.append([{CONDA_PIP: extra_pip_deps}])
-        deps = conda_merge.merge_dependencies(deps_to_merge)
-
-        # Get conda dependencies and pip dependencies from specification
-        pip_deps_entries = [d for d in deps if isinstance(d, dict) and CONDA_PIP in d]  # type: ignore
-        if len(pip_deps_entries) == 0:
-            raise ValueError("Didn't find a dictionary with the key 'pip' in the list of dependencies")
-        pip_deps_entry: Dict[str, List[str]] = pip_deps_entries[0]
-        pip_deps = pip_deps_entry[CONDA_PIP]
-        # temporarily remove pip dependencies from deps to be added back after deduplicaton
-        deps.remove(pip_deps_entry)
-
-        # remove all non-pip duplicates from the list of dependencies
-        unique_deps = _retrieve_unique_deps(deps, PinnedOperator.CONDA)
-
-        unique_pip_deps = sorted(_retrieve_unique_deps(pip_deps, PinnedOperator.PIP))
-
-        # finally add back the deduplicated list of dependencies
-        unique_deps.append({CONDA_PIP: unique_pip_deps})  # type: ignore
-
-    except conda_merge.MergeError:
-        logging.error("Failed to merge dependencies.")
-        raise
-    if unique_deps:
-        unified_definition[CONDA_DEPENDENCIES] = unique_deps
-    else:
-        raise ValueError("No dependencies found in any of the conda files.")
-
-    with result_file.open("w") as f:
-        ruamel.yaml.dump(unified_definition, f, indent=2, default_flow_style=False)
-    _log_conda_dependencies_stats(CondaDependencies(result_file), "Merged Conda environment")
+    sha1 = hashlib.sha1(environment_description_string.encode("utf8"))
+    overall_hash = sha1.hexdigest()[:32]
+    unique_env_name = f"HealthML-{overall_hash}"
+    return unique_env_name
 
 
 def create_python_environment(
@@ -1210,8 +1110,7 @@ def create_python_environment(
         logging.info(f"Added add_private_pip_wheel {private_pip_wheel_path} to AzureML environment.")
     # Create a name for the environment that will likely uniquely identify it. AzureML does hashing on top of that,
     # and will re-use existing environments even if they don't have the same name.
-    # Hashing should include everything that can reasonably change. Rely on hashlib here, because the built-in
-    hash_string = "\n".join(
+    env_description_string = "\n".join(
         [
             yaml_contents,
             docker_base_image,
@@ -1226,9 +1125,7 @@ def create_python_environment(
     )
     # Python's hash function gives different results for the same string in different python instances,
     # hence need to use hashlib
-    sha1 = hashlib.sha1(hash_string.encode("utf8"))
-    overall_hash = sha1.hexdigest()[:32]
-    unique_env_name = f"HealthML-{overall_hash}"
+    unique_env_name = generate_unique_environment_name(env_description_string)
     env = Environment(name=unique_env_name)
     env.python.conda_dependencies = conda_dependencies
     if docker_base_image:
@@ -1262,6 +1159,69 @@ def register_environment(workspace: Workspace, environment: Environment) -> Envi
         return environment.register(workspace)
 
 
+def create_python_environment_v2(
+    conda_environment_file: Path,
+    pip_extra_index_url: str = "",
+    private_pip_wheel_path: Optional[Path] = None,
+    docker_base_image: str = ""
+) -> EnvironmentV2:
+    """
+    Creates a description for the V2 Python execution environment in AzureML, based on the arguments.
+    The environment will have a name that uniquely identifies it (it is based on hashing the contents of the
+    Conda file, the docker base image, environment variables and private wheels.
+
+    :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
+    :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
+        the Docker image.
+    :param private_pip_wheel_path: If provided, add this wheel as a private package to the AzureML environment.
+    :param conda_environment_file: The file that contains the Conda environment definition.
+    :return: A v2 Azure ML Environment object
+    """
+    yaml_contents = conda_environment_file.read_text()
+    environment_description_string = "\n".join(
+        [
+            yaml_contents,
+            docker_base_image,
+            # Changing the index URL can lead to differences in package version resolution
+            pip_extra_index_url,
+            # Use the path of the private wheel as a proxy. This could lead to problems if
+            # a new environment uses the same private wheel file name, but the wheel has different
+            # contents. In hi-ml PR builds, the wheel file name is unique to the build, so it
+            # should not occur there.
+            str(private_pip_wheel_path),
+        ]
+    )
+    unique_env_name = generate_unique_environment_name(environment_description_string)
+    environment = EnvironmentV2(
+        image=docker_base_image,
+        name=unique_env_name + "-v2",
+        conda_file=conda_environment_file,
+    )
+    return environment
+
+
+def register_environment_v2(environment: EnvironmentV2, ml_client: MLClient) -> EnvironmentV2:
+    """
+    Try to get the v2 AzureML environment by name and version from the AzureML workspace. If it succeeds, return that
+    environment object. If that fails, register the environment with the MLClient.
+
+    :param ml_client: An AzureML MLClient object.
+    :param environment: An AzureML execution environment.
+    :return: A v2 AzureML Environment object. If the environment did already exist on the workspace, returns that,
+        otherwise returns the newly registered environment.
+    """
+    try:
+        if environment.version:
+            env = ml_client.environments.get(environment.name, environment.version)
+        else:
+            env = ml_client.environments.get(environment.name, label="latest")
+        logging.info(f"Found a registered environment with name {environment.name}, returning that.")
+    except ResourceNotFoundError:
+        logging.info("Didn't find existing environment. Registering a new one.")
+        env = ml_client.environments.create_or_update(environment)
+    return env
+
+
 def run_duration_string_to_seconds(s: str) -> Optional[int]:
     """
     Parse a string that represents a timespan, and returns it converted into seconds. The string is expected to be
@@ -1292,23 +1252,46 @@ def set_environment_variables_for_multi_node() -> None:
     """
     Sets the environment variables that PyTorch Lightning needs for multi-node training.
     """
-    if ENV_AZ_BATCHAI_MPI_MASTER_NODE in os.environ:
+    if ENV_AZ_BATCH_MASTER_NODE in os.environ:
+        master_node = os.environ[ENV_AZ_BATCH_MASTER_NODE]
+        logging.debug(
+            f"Found AZ_BATCH_MASTER_NODE: {master_node} in environment variables")
         # For AML BATCHAI
-        os.environ[ENV_MASTER_ADDR] = os.environ[ENV_AZ_BATCHAI_MPI_MASTER_NODE]
+        split_master_node_addr = master_node.split(":")
+        if len(split_master_node_addr) == 2:
+            master_addr, port = split_master_node_addr
+            os.environ[ENV_MASTER_PORT] = port
+        elif len(split_master_node_addr) == 1:
+            master_addr = split_master_node_addr[0]
+        else:
+            raise ValueError(f"Format not recognized: {master_node}")
+        os.environ[ENV_MASTER_ADDR] = master_addr
+    elif ENV_AZ_BATCHAI_MPI_MASTER_NODE in os.environ and os.environ.get(ENV_AZ_BATCHAI_MPI_MASTER_NODE) != "localhost":
+        mpi_master_node = os.environ[ENV_AZ_BATCHAI_MPI_MASTER_NODE]
+        logging.debug(
+            f"Found AZ_BATCHAI_MPI_MASTER_NODE: {mpi_master_node} in environment variables")
+        # For AML BATCHAI
+        os.environ[ENV_MASTER_ADDR] = mpi_master_node
     elif ENV_MASTER_IP in os.environ:
+        master_ip = os.environ[ENV_MASTER_IP]
+        logging.debug(
+            f"Found MASTER_IP: {master_ip} in environment variables")
         # AKS
-        os.environ[ENV_MASTER_ADDR] = os.environ[ENV_MASTER_IP]
+        os.environ[ENV_MASTER_ADDR] = master_ip
     else:
         logging.info("No settings for the MPI central node found. Assuming that this is a single node training job.")
         return
 
     if ENV_MASTER_PORT not in os.environ:
-        os.environ[ENV_MASTER_PORT] = "6105"
+        os.environ[ENV_MASTER_PORT] = str(MASTER_PORT_DEFAULT)
 
     if ENV_OMPI_COMM_WORLD_RANK in os.environ:
-        os.environ[ENV_NODE_RANK] = os.environ[ENV_OMPI_COMM_WORLD_RANK]  # node rank is the world_rank from mpi run
+        world_rank = os.environ[ENV_OMPI_COMM_WORLD_RANK]
+        logging.debug(f"Found OMPI_COMM_WORLD_RANK: {world_rank} in environment variables")
+        os.environ[ENV_NODE_RANK] = world_rank  # node rank is the world_rank from mpi run
+
     env_vars = ", ".join(f"{var} = {os.environ[var]}" for var in [ENV_MASTER_ADDR, ENV_MASTER_PORT, ENV_NODE_RANK])
-    print(f"Distributed training: {env_vars}")
+    logging.info(f"Distributed training: {env_vars}")
 
 
 def is_run_and_child_runs_completed(run: Run) -> bool:
@@ -1416,7 +1399,7 @@ def get_run_file_names(run: Run, prefix: str = "") -> List[str]:
     :return: A list of paths within the Run's container
     """
     all_files = run.get_file_names()
-    print(f"Selecting files with prefix {prefix}")
+    logging.info(f"Selecting files with prefix {prefix}")
     return [f for f in all_files if f.startswith(prefix)] if prefix else all_files
 
 
@@ -1432,7 +1415,8 @@ def _download_files_from_run(run: Run, output_dir: Path, prefix: str = "", valid
     """
     run_paths = get_run_file_names(run, prefix=prefix)
     if len(run_paths) == 0:
-        raise ValueError("No such files were found for this Run.")
+        prefix_string = f' with prefix "{prefix}"' if prefix else ""
+        raise FileNotFoundError(f"No files{prefix_string} were found for run with ID {run.id}")
 
     for run_path in run_paths:
         output_path = output_dir / run_path
@@ -1535,12 +1519,12 @@ def download_file_if_necessary(run: Run, filename: str, output_file: Path, overw
     :return: Local path to the downloaded file.
     """
     if not overwrite and output_file.exists():
-        print("File already exists at", output_file)
+        logging.info(f"File already exists at {output_file}")
     else:
         output_file.parent.mkdir(exist_ok=True, parents=True)
         _download_file_from_run(run, filename, output_file, validate_checksum=True)
         assert output_file.exists()
-        print("File is downloaded at", output_file)
+        logging.info(f"File is downloaded at {output_file}")
     return output_file
 
 
@@ -1987,7 +1971,7 @@ def replace_directory(source: Path, target: Path) -> None:
         assert not target.exists()
 
         shutil.copytree(source, target)
-        shutil.rmtree(source)
+        shutil.rmtree(source, ignore_errors=True)
     else:
         # Outside of Azure ML, it should be much faster to rename the directory
         # than to copy all contents then delete, especially for large dirs.
@@ -2031,7 +2015,7 @@ def create_aml_run_object(
     exp = Experiment(workspace=actual_workspace, name=experiment_name)
     if snapshot_directory is None or snapshot_directory == "":
         snapshot_directory = tempfile.mkdtemp()
-    return exp.start_logging(name=run_name, snapshot_directory=str(snapshot_directory))  # type: ignore
+    return exp.start_logging(display_name=run_name, snapshot_directory=str(snapshot_directory))  # type: ignore
 
 
 def aml_workspace_for_unittests() -> Workspace:
@@ -2128,3 +2112,219 @@ def check_is_any_of(message: str, actual: Optional[str], valid: Iterable[Optiona
     if actual not in valid:
         all_valid = ", ".join(["<None>" if v is None else v for v in valid])
         raise ValueError("{} must be one of [{}], but got: {}".format(message, all_valid, actual))
+
+
+def _validate_credential(credential: TokenCredential) -> None:
+    """
+    Validate credential by attempting to get token. If authentication has been successful, get_token
+    will succeed. Otherwise an exception will be raised
+
+    :param credential: The credential object to validate.
+    """
+    credential.get_token("https://management.azure.com/.default")
+
+
+def _get_legitimate_service_principal_credential(tenant_id: str, service_principal_id: str,
+                                                 service_principal_password: str) -> TokenCredential:
+    """
+    Create a ClientSecretCredential given a tenant id, service principal id and password
+
+    :param tenant_id: The Azure tenant id.
+    :param service_principal_id: The id of an existing Service Principal.
+    :param service_principal_password: The password of an existing Service Principal.
+    :raises ValueError: If the credential cannot be validated (i.e. authentication was unsucessful).
+    :return: The validated credential.
+    """
+    cred = ClientSecretCredential(tenant_id=tenant_id,
+                                  client_id=service_principal_id,
+                                  client_secret=service_principal_password)
+    try:
+        _validate_credential(cred)
+        return cred
+    except ClientAuthenticationError as e:
+        raise ValueError(f"Found environment variables for {ENV_SERVICE_PRINCIPAL_ID}, "
+                         f"{ENV_SERVICE_PRINCIPAL_PASSWORD}, and {ENV_TENANT_ID} but was "
+                         f"not able to authenticate: {e}")
+
+
+def _get_legitimate_device_code_credential() -> Optional[TokenCredential]:
+    """
+    Create a DeviceCodeCredential for interacting with Azure resources. If the credential can't be
+    validated, return None.
+
+    :return: A valid Azure credential.
+    """
+    cred = DeviceCodeCredential(timeout=60)
+    try:
+        _validate_credential(cred)
+        return cred
+    except ClientAuthenticationError:
+        return None
+
+
+def _get_legitimate_default_credential() -> Optional[TokenCredential]:
+    """
+    Create a DefaultAzure credential for interacting with Azure resources. If the credential can't be
+    validated, return None.
+
+    :return: A valid Azure credential.
+    """
+    cred = DefaultAzureCredential(timeout=60)
+    try:
+        _validate_credential(cred)
+        return cred
+    except ClientAuthenticationError:
+        return None
+
+
+def _get_legitimate_interactive_browser_credential() -> Optional[TokenCredential]:
+    """
+    Create an InteractiveBrowser credential for interacting with Azure resources. If the credential can't be
+    validated, return None.
+
+    :return: A valid Azure credential.
+    """
+    cred = InteractiveBrowserCredential(timeout=60)
+    try:
+        _validate_credential(cred)
+        return cred
+    except ClientAuthenticationError:
+        return None
+
+
+def get_credential() -> Optional[TokenCredential]:
+    """
+    Get a credential for authenticating with Azure.There are multiple ways to retrieve a credential.
+    If environment variables pertaining to details of a Service Principal are available, those will be used
+    to authenticate. If no environment variables exist, and the script is not currently
+    running inside of Azure ML or another Azure agent, will attempt to retrieve a credential via a
+    device code (which requires the user to visit a link and enter a provided code). If this fails, or if running in
+    Azure, DefaultAzureCredential will be used which iterates through a number of possible authentication methods
+    including identifying an Azure managed identity, cached credentials from VS code, Azure CLI, Powershell etc.
+    Otherwise returns None.
+
+    :return: Any of the aforementioned credentials if available, else None.
+    """
+    service_principal_id = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_ID, allow_missing=True)
+    tenant_id = get_secret_from_environment(ENV_TENANT_ID, allow_missing=True)
+    service_principal_password = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
+    if service_principal_id and tenant_id and service_principal_password:
+        return _get_legitimate_service_principal_credential(tenant_id, service_principal_id, service_principal_password)
+
+    try:
+        cred = _get_legitimate_default_credential()
+        if cred is not None:
+            return cred
+    except ClientAuthenticationError:
+        cred = _get_legitimate_device_code_credential()
+        if cred is not None:
+            return cred
+
+        cred = _get_legitimate_interactive_browser_credential()
+        if cred is not None:
+            return cred
+
+    raise ValueError("Unable to generate and validate a credential. Please see Azure ML documentation"
+                     "for instructions on diffrent options to get a credential")
+
+
+def get_ml_client(ml_client: Optional[MLClient] = None,
+                  aml_workspace: Optional[Workspace] = None,
+                  workspace_config_path: Optional[PathOrString] = None,
+                  subscription_id: Optional[str] = None,
+                  resource_group: Optional[str] = None,
+                  workspace_name: str = "",
+                  ) -> MLClient:
+    """
+    Instantiate an MLClient for interacting with Azure resources via v2 of the Azure ML SDK.
+    If a ml_client is provided, return that. Otherwise, create one using workspace details
+    coming from either an existing Workspace object, a config.json file or passed in as an argument.
+
+    :param ml_client: An optional existing MLClient object to be returned.
+    :param aml_workspace: An optional Workspace object to take connection details from.
+    :param workspace_config_path: An optional path toa  config.json file containing details of the Workspace.
+    :param subscription_id: An optional subscription ID.
+    :param resource_group: An optional resource group name.
+    :param workspace_name: An optional workspace name.
+    :return: An instance of MLClient to interact with Azure resources.
+    """
+    if ml_client:
+        return ml_client
+
+    credential = get_credential()
+    if credential is None:
+        raise ValueError("Can't connect to MLClient without a valid credential")
+    if aml_workspace is not None:
+        ml_client = MLClient(
+            subscription_id=aml_workspace.subscription_id,
+            resource_group_name=aml_workspace.resource_group,
+            workspace_name=aml_workspace.name,
+            credential=credential)  # type: ignore
+    elif workspace_config_path:
+        ml_client = MLClient.from_config(
+            credential=credential,  # type: ignore
+            path=str(workspace_config_path))
+    elif subscription_id and resource_group and workspace_name:
+        ml_client = MLClient(
+            subscription_id=subscription_id,
+            resource_group_name=resource_group,
+            workspace_name=workspace_name,
+            credential=credential)  # type: ignore
+    else:
+        try:
+            workspace = get_workspace()
+            ml_client = MLClient(
+                subscription_id=workspace.subscription_id,
+                resource_group_name=workspace.resource_group,
+                workspace_name=workspace.name,
+                credential=credential)  # type: ignore
+        except ValueError as e:
+            raise ValueError(f"Couldn't connect to MLClient: {e}")
+    logging.info(f"Logged into AzureML workspace {ml_client.workspace_name}")
+    return ml_client
+
+
+def retrieve_workspace_from_client(ml_client: MLClient, workspace_name: Optional[str] = None
+                                   ) -> WorkspaceV2:
+    """
+    Get a v2 Workspace object from an MLClient object. If a workspace_name is passed, will attempt
+    to retrieve a workspace with that name. Otherweise will use the MLClient's default workspace_name
+
+    :param ml_client: An MLClient object to retrieve the Workspace from
+    :param workspace_name: An optional name of the workspace to retrieve.
+    :return: A v2 Workspace object.
+    """
+    if workspace_name is not None:
+        workspace_name = workspace_name
+    elif ml_client.workspace_name is not None:
+        workspace_name = ml_client.workspace_name
+    else:
+        workspace_name = ""
+    workspace = ml_client.workspaces.get(workspace_name)
+    return workspace
+
+
+def fetch_job(ml_client: MLClient, run_id: str) -> Job:
+    """
+    Retrieve a job with a given run_id from an MLClient
+
+    :param ml_client: An MLClient object.
+    :param run_id: The id of the run to retrieve.
+    :return: An Azure ML (v2) Job object.
+    """
+    job = ml_client.jobs.get(run_id)
+    return job
+
+
+def filter_v2_input_output_args(args: List[str]) -> List[str]:
+    """
+    Filter out AML v2 Input and Output entries from a list of args. Under AML SDK v2 it is necessary to
+    pass input and output arguments to a script via the command line, of which there can be an unknown number.
+    Therefore we need to remove these from the list of args passed to the argument parsers.
+
+    :param args: A list of arguments from which to remove input and output args
+    :return: A filtered list of arguments, without entries in the format of INPUT_i or OUTPUT_i where i is
+        any integer.
+    """
+    return [a for a in args if
+            not re.match(V2_INPUT_DATASET_PATTERN, a) and not re.match(V2_OUTPUT_DATASET_PATTERN, a)]

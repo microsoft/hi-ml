@@ -15,8 +15,9 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import DEFAULT, MagicMock, patch
 from uuid import uuid4
+from xmlrpc.client import Boolean
 
 import conda_merge
 import numpy as np
@@ -25,15 +26,18 @@ import param
 import pytest
 from _pytest.capture import CaptureFixture
 from _pytest.logging import LogCaptureFixture
+from azure.identity import (ClientSecretCredential, DeviceCodeCredential, DefaultAzureCredential)
+from azure.storage.blob import ContainerClient
 from azureml.core import Experiment, Run, ScriptRunConfig, Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.environment import CondaDependencies
+from azure.core.exceptions import ClientAuthenticationError, ResourceNotFoundError
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
-from health_azure import paths
 
 import health_azure.utils as util
 from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore
-from health_azure.utils import PackageDependency, create_argparser
+from health_azure.utils import (ENV_MASTER_ADDR, ENV_MASTER_PORT, MASTER_PORT_DEFAULT,
+                                PackageDependency, create_argparser, get_credential)
 from testazure.test_himl import RunTarget, render_and_run_test_script
 from testazure.utils_testazure import (DEFAULT_IGNORE_FOLDERS, DEFAULT_WORKSPACE, MockRun, change_working_directory,
                                        himl_azure_root, repository_root)
@@ -66,7 +70,7 @@ def test_find_file_in_parent_folders(caplog: LogCaptureFixture) -> None:
         )
         last_caplog_msg = caplog.messages[-1]
         assert found_file_path == current_file_path
-        assert(f"Searching for file {current_file_path.name} in {himl_azure_test_root}" in last_caplog_msg)
+        assert f"Searching for file {current_file_path.name} in {himl_azure_test_root}" in last_caplog_msg
 
         # Now try to search for a nonexistent path in the same folder. This should return None
         nonexistent_path = himl_az_root / "idontexist.py"
@@ -540,233 +544,6 @@ def _create_and_write_env_file(env_definition: str, temp_folder: Path, file_name
     return file_path
 
 
-def _merge_conda_files_and_read_text(files: List[Path], temp_folder: Path,
-                                     pip_files: Optional[List[Path]] = None) -> Tuple[Path, str]:
-    """
-    Given one or more files containing Conda environment definitions, call merge_conda_files and return the path
-    to the merged definition, and its contents
-    """
-    merged_file = temp_folder / "merged.yml"
-    util.merge_conda_files(files, merged_file, pip_files=pip_files)
-    merged_file_text = merged_file.read_text()
-    return merged_file, merged_file_text
-
-
-@pytest.mark.fast
-def test_merge_conda_one_pinned(random_folder: Path) -> None:
-    """
-    Tests the logic for merging Conda environment files succeeds when encountering duplicate packages in
-    environment definitions, if the package is only pinned in one of the definitions
-    """
-    env1 = _generate_conda_env_str(channels=["defaults", "pytorch"],
-                                   conda_packages=["conda1=1.0", "conda2=2.0", "conda_both=3.0"],
-                                   pip_packages=["azureml-sdk==1.7.0", "foo==1.0"])
-    env2 = _generate_conda_env_str(channels=["defaults"],
-                                   conda_packages=["conda1", "conda2"],
-                                   pip_packages=["azureml-sdk>-1.60", "bar==2.0"])
-    # Spurious test failures on Linux build agents, saying that they can't write the file. Wait a bit.
-    time.sleep(0.5)
-
-    file1 = _create_and_write_env_file(env1, random_folder, "env1.yml")
-    file2 = _create_and_write_env_file(env2, random_folder, "env2.yml")
-    merged_file, merged_file_text = _merge_conda_files_and_read_text([file1, file2], random_folder)
-
-    expected_env_lines = _generate_conda_env_lines(channels=["defaults", "pytorch"],
-                                                   conda_packages=["conda1=1.0", "conda2=2.0", "conda_both=3.0"],
-                                                   pip_packages=["azureml-sdk==1.7.0", "bar==2.0", "foo==1.0"])
-    assert merged_file_text.splitlines() == expected_env_lines
-    conda_dep = CondaDependencies(merged_file)
-
-    # We expect to see the union of channels.
-    assert list(conda_dep.conda_channels) == ["defaults", "pytorch"]
-
-    # Package version conflicts are not resolved, both versions are retained.
-    assert list(conda_dep.conda_packages) == ["conda1=1.0", "conda2=2.0", "conda_both=3.0"]
-    assert list(conda_dep.pip_packages) == ["azureml-sdk==1.7.0", "bar==2.0", "foo==1.0"]
-
-
-@pytest.mark.fast
-def test_merge_conda_with_pip_requirements(random_folder: Path) -> None:
-    """Tests that merging conda files, with an additional pip requirements file works as expected"""
-    # Assert that extra pip requirements are added correctly
-    env1 = _generate_conda_env_str(channels=["defaults", "pytorch"],
-                                   conda_packages=["conda1=1.0", "conda2=2.0", "conda_both=3.0"],
-                                   pip_packages=["azureml-sdk==1.7.0", "foo==1.0"])
-    env2 = _generate_conda_env_str(channels=["defaults"],
-                                   conda_packages=["conda1", "conda2"],
-                                   pip_packages=["azureml-sdk>=1.6.0", "bar==2.0"])
-    # Spurious test failures on Linux build agents, saying that they can't write the file. Wait a bit.
-    time.sleep(0.5)
-    file1 = _create_and_write_env_file(env1, random_folder, "env1.yml")
-    file2 = _create_and_write_env_file(env2, random_folder, "env2.yml")
-
-    pip_contents = """package1==0.0.1
-    package2==0.0.1"""
-    pip_file = _create_and_write_env_file(pip_contents, random_folder, "req.txt")
-
-    merged_file, merged_file_txt = _merge_conda_files_and_read_text([file1, file2], random_folder, pip_files=[pip_file])
-
-    assert merged_file_txt.splitlines() ==\
-        _generate_conda_env_lines(channels=["defaults", "pytorch"],
-                                  conda_packages=["conda1=1.0", "conda2=2.0", "conda_both=3.0"],
-                                  pip_packages=["azureml-sdk==1.7.0", "bar==2.0", "foo==1.0",
-                                                "package1==0.0.1", "package2==0.0.1"])
-
-    # Are names merged correctly?
-    assert "name:" not in merged_file_txt
-    env1 = "name: env1\n" + env1
-    file1.write_text(env1)
-    env2 = "name: env2\n" + env2
-    file2.write_text(env2)
-    util.merge_conda_files([file1, file2], merged_file)
-    assert "name: env2" in merged_file.read_text()
-
-
-@pytest.mark.fast
-def test_merge_conda_failure_cases(random_folder: Path, caplog: LogCaptureFixture) -> None:
-    """Tests various failure cases of merging, such as empty conda files, no specified channels etc"""
-    merged_file = random_folder / "merged.yml"
-    env1 = _generate_conda_env_str(channels=["defaults", "pytorch"],
-                                   conda_packages=["conda1=1.0", "conda2=2.0", "conda_both=3.0"],
-                                   pip_packages=["azureml-sdk==1.7.0", "foo==1.0"])
-    env2 = _generate_conda_env_str(channels=["defaults"],
-                                   conda_packages=["conda1", "conda2"],
-                                   pip_packages=["azureml-sdk>=1.6.0", "bar==2.0"])
-    # Spurious test failures on Linux build agents, saying that they can't write the file. Wait a bit.
-    time.sleep(0.5)
-    file1 = _create_and_write_env_file(env1, random_folder, "env1.yml")
-    file2 = _create_and_write_env_file(env2, random_folder, "env2.yml")
-    files = [file1, file2]
-
-    def raise_a_merge_error() -> None:
-        raise conda_merge.MergeError("raising an exception")
-
-    with mock.patch("health_azure.utils.conda_merge.merge_channels") as mock_merge_channels:
-        mock_merge_channels.side_effect = lambda _: raise_a_merge_error()
-        with pytest.raises(conda_merge.MergeError):
-            util.merge_conda_files(files, merged_file)
-    assert "Failed to merge channel priorities" in caplog.text  # type: ignore
-
-    # If there are no channels do not produce any merge of them
-    with mock.patch("health_azure.utils.conda_merge.merge_channels") as mock_merge_channels:
-        mock_merge_channels.return_value = []
-        util.merge_conda_files(files, merged_file)
-        assert "channels:" not in merged_file.read_text()
-
-    with mock.patch("health_azure.utils.conda_merge.merge_dependencies") as mock_merge_dependencies:
-        mock_merge_dependencies.side_effect = lambda _: raise_a_merge_error()
-        with pytest.raises(conda_merge.MergeError):
-            util.merge_conda_files(files, merged_file)
-    assert "Failed to merge dependencies" in caplog.text  # type: ignore
-
-    # If there are no dependencies then something is wrong with the conda files or our parsing of them
-    with mock.patch("health_azure.utils.conda_merge.merge_dependencies") as mock_merge_dependencies:
-        mock_merge_dependencies.return_value = []
-        with pytest.raises(ValueError):
-            util.merge_conda_files(files, merged_file)
-
-
-@pytest.mark.fast
-def test_merge_conda_two_pinned(random_folder: Path) -> None:
-    """If 2 environment specs contain the same package name and both are pinned, an exception should be raised"""
-    # first test the case where duplicate pinned conda packages are specified, with different pinned versions
-    env1 = _generate_conda_env_str(channels=["defaults", "pytorch"],
-                                   conda_packages=["conda_both=3.0"],
-                                   pip_packages=["azureml-sdk==1.7.0", "foo==1.0"])
-    env2 = _generate_conda_env_str(channels=["defaults"],
-                                   conda_packages=["conda_both=1.0"],
-                                   pip_packages=["azureml-sdk>=1.6.0", "bar==2.0"])
-    # Spurious test failures on Linux build agents, saying that they can't write the file. Wait a bit.
-    time.sleep(0.5)
-    file1 = _create_and_write_env_file(env1, random_folder, "env1.yml")
-    file2 = _create_and_write_env_file(env2, random_folder, "env2.yml")
-
-    files = [file1, file2]
-    merged_file = random_folder / "merged.yml"
-    with pytest.raises(ValueError) as e:
-        util.merge_conda_files(files, merged_file)
-        assert "Found more than one pinned dependency for package: conda1" in str(e)
-
-    # if the pinned packages are both the same version, conda_merge will only retain one of them, so
-    # an error won't be raised
-    env3 = _generate_conda_env_str(channels=["defaults"],
-                                   conda_packages=["conda_both=1.0"],
-                                   pip_packages=["foo"])
-    env4 = _generate_conda_env_str(channels=["defaults"],
-                                   conda_packages=["conda_both=1.0"],
-                                   pip_packages=["foo==2.0"])
-
-    # Spurious test failures on Linux build agents, saying that they can't write the file. Wait a bit.
-    time.sleep(0.5)
-    file3 = _create_and_write_env_file(env3, random_folder, "env3.yml")
-    file4 = _create_and_write_env_file(env4, random_folder, "env4.yml")
-
-    merged_path, merged_contents = _merge_conda_files_and_read_text([file3, file4], random_folder)
-    assert merged_contents.splitlines() ==\
-        _generate_conda_env_lines(channels=["defaults"],
-                                  conda_packages=["conda_both=1.0"],
-                                  pip_packages=["foo==2.0"])
-
-
-@pytest.mark.fast
-def test_merge_conda_none_pinned(random_folder: Path) -> None:
-    """If duplicate conda packages are specified with no pinned version, an exception should be raised"""
-    env1 = _generate_conda_env_str(channels=["defaults"],
-                                   conda_packages=["conda1"],
-                                   pip_packages=["foo"])
-
-    env2 = _generate_conda_env_str(channels=["defaults"],
-                                   conda_packages=["conda1>0.1"],
-                                   pip_packages=["foo==2.0"])
-    # Spurious test failures on Linux build agents, saying that they can't write the file. Wait a bit.
-    time.sleep(0.5)
-    file1 = _create_and_write_env_file(env1, random_folder, "env1.yml")
-    file2 = _create_and_write_env_file(env2, random_folder, "env2.yml")
-
-    files = [file1, file2]
-    merged_file = random_folder / "merged.yml"
-    with pytest.raises(ValueError) as e:
-        util.merge_conda_files(files, merged_file)
-        assert "Encountered 2 requirements for package conda1, none of which specify a pinned version" in str(e)
-
-
-@pytest.mark.fast
-def test_merge_conda_pip_include(random_folder: Path) -> None:
-    """
-    Tests the logic to exclude PIP include statements from Conda environments.
-    """
-    env1 = _generate_conda_env_str(channels=["default"],
-                                   conda_packages=["conda_both=3.0"],
-                                   pip_packages=["-r requirements.txt", "foo==1.0"])
-    file1 = _create_and_write_env_file(env1, random_folder, "env1.yml")
-
-    merged_file = random_folder / "merged.yml"
-    util.merge_conda_files([file1], merged_file)
-    merged_contents = merged_file.read_text()
-    assert "-r requirements.txt" not in merged_contents
-
-    pip_req_contents = "package==1.0.0"
-    file2 = _create_and_write_env_file(pip_req_contents, random_folder, "requirements.txt")
-
-    merged_file2, merged_contents2 = _merge_conda_files_and_read_text([file1], random_folder, pip_files=[file2])
-
-    assert merged_contents2.splitlines() ==\
-        _generate_conda_env_lines(channels=["default"],
-                                  conda_packages=["conda_both=3.0"],
-                                  pip_packages=["foo==1.0", "package==1.0.0"])
-
-
-def test_merge_conda_pip_include2(random_folder: Path) -> None:
-    """
-    Tests the logic to exclude PIP include statements from Conda environments, on the root level environment file.
-    """
-    if paths.is_himl_used_from_git_repo():
-        root_yaml = paths.shared_himl_conda_env_file()
-        requirements = paths.git_repo_root_folder() / "hi-ml-azure" / "run_requirements.txt"
-        merged_file2 = random_folder / "merged2.yml"
-        util.merge_conda_files([root_yaml], merged_file2, pip_files=[requirements])
-
-
 def assert_pip_length(yaml: Any, expected_length: int) -> None:
     """Checks if the pip dependencies section of a Conda YAML file has the expected number of entries
     """
@@ -776,23 +553,30 @@ def assert_pip_length(yaml: Any, expected_length: int) -> None:
 
 
 @pytest.mark.fast
-def test_pip_include_1() -> None:
+def test_pip_include_1(tmp_path: Path) -> None:
     """Test if Conda files that use PIP include are handled correctly. This uses the top-level environment.yml
     file in the repository.
     """
-    if paths.is_himl_used_from_git_repo():
-        env_file_path = paths.shared_himl_conda_env_file()
-        assert env_file_path.is_file()
-        original_yaml = conda_merge.read_file(env_file_path)
-        # At the time of writing, the top-level environment file only had 4 include statements in the pip
-        # section, they should all be filtered out.
-        assert_pip_length(original_yaml, 4)
-        uses_pip_include, modified_yaml = util.is_conda_file_with_pip_include(env_file_path)
-        assert uses_pip_include
-        pip = util._get_pip_dependencies(modified_yaml)
-        # The pip section of the top-level yaml has nothing but include statements, so after filtering the
-        # pip section is empty. In this case, no pip section shoudld be present at all.
-        assert pip is None
+    yaml_contents = """name: himl
+channels:
+  - defaults
+dependencies:
+  - pip=20.1.1
+  - pip:
+      - -r run_requirements.txt
+      - some_other_pip_package
+"""
+    env_file = tmp_path / "environment.yml"
+    env_file.write_text(yaml_contents)
+    assert env_file.is_file()
+    original_yaml = conda_merge.read_file(env_file)
+    # The pip section has 2 entries, one that is a reference to a file, and one that is a package.
+    assert_pip_length(original_yaml, 2)
+    uses_pip_include, modified_yaml = util.is_conda_file_with_pip_include(env_file)
+    assert uses_pip_include
+    # After filtering out the pip include, the pip section should have only one entry
+    pip = util._get_pip_dependencies(modified_yaml)
+    assert pip == (1, ["some_other_pip_package"])
 
 
 @pytest.mark.fast
@@ -871,6 +655,19 @@ def test_nonexisting_amlignore(random_folder: Path) -> None:
     os.chdir(cwd)
 
 
+def test_generate_unique_environment_name() -> None:
+    dummy_env_description_string_1 = "A pretend environment description\ncontaining information about pip "
+    "packages\netc etc"
+    env_name_1 = util.generate_unique_environment_name(dummy_env_description_string_1)
+    assert env_name_1.startswith("HealthML-")
+
+    dummy_env_description_string_2 = "A slightly differetpretend environment description\ncontaining "
+    "information about pip packages\netc etc"
+    env_name_2 = util.generate_unique_environment_name(dummy_env_description_string_2)
+    assert env_name_2.startswith("HealthML-")
+    assert env_name_1 != env_name_2
+
+
 @patch("health_azure.utils.Workspace")
 def test_create_python_environment(
         mock_workspace: mock.MagicMock,
@@ -882,7 +679,7 @@ dependencies:
   - python=3.7.3
   - pip:
     - azureml-sdk==1.23.0
-    - conda-merge==0.1.5
+    - something-else==0.1.5
   - pip:
     - --index-url https://test.pypi.org/simple/
     - --extra-index-url https://pypi.org/simple
@@ -917,6 +714,42 @@ dependencies:
     envs_pip_packages = list(env.python.conda_dependencies.pip_packages)
     assert "hi-ml-azure" in envs_pip_packages
     assert private_pip_wheel_url in envs_pip_packages
+
+
+@patch("health_azure.utils.Workspace")
+def test_create_python_environment_v2(
+        mock_workspace: mock.MagicMock,
+        random_folder: Path,
+) -> None:
+    conda_str = """name: simple-env
+dependencies:
+  - pip=20.1.1
+  - python=3.7.3
+  - pip:
+    - azureml-sdk==1.23.0
+    - something-else==0.1.5
+  - pip:
+    - --index-url https://test.pypi.org/simple/
+    - --extra-index-url https://pypi.org/simple
+    - hi-ml-azure
+"""
+    conda_environment_file = random_folder / "environment.yml"
+    conda_environment_file.write_text(conda_str)
+    env = util.create_python_environment_v2(conda_environment_file=conda_environment_file)
+
+    # Check that the environment has a reasonable name. Detailed checks for uniqueness of the name follow below.
+    assert env.name.startswith("HealthML")
+    assert env.name.endswith("-v2")
+    assert env._conda_file_path == conda_environment_file
+
+    pip_extra_index_url = "https://where.great.packages.live/"
+    docker_base_image = "viennaglobal.azurecr.io/azureml/azureml_a187a87cc7c31ac4d9f67496bc9c8239"
+    env = util.create_python_environment_v2(
+        conda_environment_file=conda_environment_file,
+        pip_extra_index_url=pip_extra_index_url,
+        docker_base_image=docker_base_image)
+
+    assert env.image == docker_base_image
 
 
 def test_create_environment_unique_name(random_folder: Path) -> None:
@@ -1034,39 +867,198 @@ def test_register_environment(
                 assert env.version == util.ENVIRONMENT_VERSION
 
 
-def test_set_environment_variables_for_multi_node(
+@patch("azure.ai.ml.entities.Environment")
+@patch("azure.ai.ml.MLClient")
+def test_register_environment_v2(
+        mock_ml_client: MagicMock,
+        mock_environment_v2: MagicMock,
         caplog: LogCaptureFixture,
-        capsys: CaptureFixture,
 ) -> None:
+    def _mock_cant_find_env(env_name: str, label_or_version: str) -> None:
+        raise ResourceNotFoundError("Does not exist")
+
+    env_name = "an environment"
+    env_version = "environment version"
+    mock_ml_client.environments.get.return_value = mock_environment_v2
+    mock_environment_v2.name = env_name
+    mock_environment_v2.version = env_version
+    with caplog.at_level(logging.INFO):  # type: ignore
+        _ = util.register_environment_v2(mock_environment_v2, mock_ml_client)
+        caplog_text = caplog.text
+        assert f"Found a registered environment with name {env_name}, returning that." in caplog_text
+
+        # test that log is correct when exception is triggered
+        mock_ml_client.environments.get.side_effect = _mock_cant_find_env
+        _ = util.register_environment_v2(mock_environment_v2, mock_ml_client)
+        caplog_text = caplog.text
+        assert "Didn't find existing environment. Registering a new one." in caplog_text
+
+
+def test_set_environment_variables_for_multi_node(caplog: LogCaptureFixture) -> None:
+    # If none of AZ_BATCHAI_MPI_MASTER_NODE, AZ_BATCH_MASTER_NODE or ENV_MASTER_IP are set, should assume
+    # single node training job
     with caplog.at_level(logging.INFO):  # type: ignore
         util.set_environment_variables_for_multi_node()
-        assert "No settings for the MPI central node found" in caplog.text  # type: ignore
+        assert "No settings for the MPI central node found" in caplog.messages[-1]   # type: ignore
         assert "Assuming that this is a single node training job" in caplog.text  # type: ignore
 
-    with mock.patch.dict(
-            os.environ,
-            {
-                util.ENV_AZ_BATCHAI_MPI_MASTER_NODE: "here",
-                util.ENV_MASTER_PORT: "there",
-                util.ENV_OMPI_COMM_WORLD_RANK: "everywhere",
-                util.ENV_MASTER_ADDR: "else",
-            },
-            clear=True):
-        util.set_environment_variables_for_multi_node()
-    out = capsys.readouterr().out
-    assert "Distributed training: MASTER_ADDR = here, MASTER_PORT = there, NODE_RANK = everywhere" in out
+    # If all of ENV_MASTER_IP, AZ_BATCHAI_MPI_MASTER_NODE and AZ_BATCH_MASTER_NODE are set, the latter should
+    # take precedence. NODE_RANK should get updated to the value of ENV_OMPI_COMM_WORLD_RANK
+    port_mock = str(MASTER_PORT_DEFAULT - 1)  # Avoid setting to the default value
+    node_rank_mock = "8"
 
-    with mock.patch.dict(
-            os.environ,
-            {
-                util.ENV_MASTER_IP: "here",
-                util.ENV_NODE_RANK: "everywhere",
-                util.ENV_MASTER_ADDR: "else",
-            },
-            clear=True):
-        util.set_environment_variables_for_multi_node()
-    out = capsys.readouterr().out
-    assert "Distributed training: MASTER_ADDR = here, MASTER_PORT = 6105, NODE_RANK = everywhere" in out
+    master_addr_mock = "1234.0.0.0"
+    master_node_mock = f"{master_addr_mock}:{port_mock}"
+
+    mpi_master_addr_mock = "5678.9.9.9"
+    mpi_master_node_mock = f"{mpi_master_addr_mock}"
+
+    master_ip_mock = "9012.3.3.3"
+
+    env_dict_with_master_var = {
+        # mpi_master vars
+        util.ENV_AZ_BATCHAI_MPI_MASTER_NODE: mpi_master_node_mock,
+        util.ENV_MASTER_ADDR: mpi_master_addr_mock,
+        # master vars
+        util.ENV_AZ_BATCH_MASTER_NODE: master_node_mock,
+        # AKS vars
+        util.ENV_MASTER_IP: master_ip_mock,
+        # other vars
+        util.ENV_OMPI_COMM_WORLD_RANK: node_rank_mock,
+        util.ENV_MASTER_PORT: port_mock,
+    }
+
+    with caplog.at_level(logging.INFO):  # type: ignore
+        with mock.patch.dict(os.environ, env_dict_with_master_var, clear=True):
+            util.set_environment_variables_for_multi_node()
+            out = caplog.messages[-1]
+            assert (f"Distributed training: MASTER_ADDR = {master_addr_mock}, MASTER_PORT = "
+                    f"{port_mock}, NODE_RANK = {node_rank_mock}") in out
+            assert os.environ[ENV_MASTER_ADDR] == master_addr_mock
+            assert os.environ[ENV_MASTER_PORT] == port_mock
+
+    # If AZ_BATCH_MASTER_NODE is not set, but AZ_BATCHAI_MPI_MASTER_NODE is, address should be taken from that
+    # In this case we expect master address to equal the mpi version, but port and rank will be the same as before
+    env_dict_with_mpi_master_var = {
+        # mpi_master vars
+        util.ENV_AZ_BATCHAI_MPI_MASTER_NODE: mpi_master_node_mock,
+        util.ENV_MASTER_ADDR: mpi_master_addr_mock,
+        # AKS vars
+        util.ENV_MASTER_IP: master_ip_mock,
+        # other vars
+        util.ENV_OMPI_COMM_WORLD_RANK: node_rank_mock,
+        util.ENV_MASTER_PORT: port_mock,
+    }
+
+    with caplog.at_level(logging.INFO):  # type: ignore
+        with mock.patch.dict(os.environ, env_dict_with_mpi_master_var, clear=True):
+            util.set_environment_variables_for_multi_node()
+            out = caplog.messages[-1]
+            assert (f"Distributed training: MASTER_ADDR = {mpi_master_addr_mock}, MASTER_PORT = "
+                    f"{port_mock}, NODE_RANK = {node_rank_mock}") in out
+            assert os.environ[ENV_MASTER_ADDR] == mpi_master_addr_mock
+            assert os.environ[ENV_MASTER_PORT] == port_mock
+
+    # If neither AZ_BATCH_MASTER_NODE nor AZ_BATCHAI_MPI_MASTER_NODE is set, but ENV_MASTER_IP is, the address
+    # should be updated with its value
+    env_dict_with_env_master_ip_var = {
+        # mpi_master vars
+        util.ENV_MASTER_ADDR: mpi_master_addr_mock,
+        # AKS vars
+        util.ENV_MASTER_IP: master_ip_mock,
+        # other vars
+        util.ENV_OMPI_COMM_WORLD_RANK: node_rank_mock,
+        util.ENV_MASTER_PORT: port_mock,
+    }
+
+    with caplog.at_level(logging.INFO):  # type: ignore
+        with mock.patch.dict(os.environ, env_dict_with_env_master_ip_var, clear=True):
+            util.set_environment_variables_for_multi_node()
+            out = caplog.messages[-1]
+            assert (f"Distributed training: MASTER_ADDR = {master_ip_mock}, MASTER_PORT = "
+                    f"{port_mock}, NODE_RANK = {node_rank_mock}") in out
+            assert os.environ[ENV_MASTER_ADDR] == master_ip_mock
+            assert os.environ[ENV_MASTER_PORT] == port_mock
+
+    # If ENV_MASTER_PORT is not set, the default port value should be used
+    env_dict_with_mpi_master_var_no_master_port = {
+        # mpi_master vars
+        util.ENV_AZ_BATCHAI_MPI_MASTER_NODE: mpi_master_node_mock,
+        util.ENV_MASTER_ADDR: mpi_master_addr_mock,
+        # AKS vars
+        util.ENV_MASTER_IP: master_ip_mock,
+        # other vars
+        util.ENV_OMPI_COMM_WORLD_RANK: node_rank_mock,
+    }
+
+    with caplog.at_level(logging.INFO):  # type: ignore
+        with mock.patch.dict(os.environ, env_dict_with_mpi_master_var_no_master_port, clear=True):
+            util.set_environment_variables_for_multi_node()
+            out = caplog.messages[-1]
+            assert (f"Distributed training: MASTER_ADDR = {mpi_master_addr_mock}, MASTER_PORT = "
+                    f"{MASTER_PORT_DEFAULT}, NODE_RANK = {node_rank_mock}") in out
+            assert os.environ[ENV_MASTER_ADDR] == mpi_master_addr_mock
+            assert os.environ[ENV_MASTER_PORT] == str(MASTER_PORT_DEFAULT)
+
+    # If OMPI_COMM_WORLD_RANK is not set, but one of AZ_BATCHAI_MPI_MASTER_NODE, AZ_BATCH_MASTER_NODE or
+    # ENV_MASTER_IP is set, a KeyError should be raised
+    env_dict_with_mpi_master_var_no_world_rank = {
+        # mpi_master vars
+        util.ENV_AZ_BATCHAI_MPI_MASTER_NODE: mpi_master_node_mock,
+        util.ENV_MASTER_ADDR: mpi_master_addr_mock,
+        # AKS vars
+        util.ENV_MASTER_IP: master_ip_mock,
+    }
+
+    with pytest.raises(KeyError) as ex:
+        with mock.patch.dict(os.environ, env_dict_with_mpi_master_var_no_world_rank, clear=True):
+            util.set_environment_variables_for_multi_node()
+            out = caplog.messages[-1]
+            assert "NODE_RANK" in str(ex)
+
+    # # If ENV_AZ_BATCHAI_MPI_MASTER_NODE is set to localhost, it should be assumed to be a single node job
+    caplog.clear()
+
+    env_dict_with_mpi_master_localhost = {
+        # mpi_master vars
+        util.ENV_AZ_BATCHAI_MPI_MASTER_NODE: "localhost",
+        util.ENV_MASTER_ADDR: mpi_master_addr_mock,
+        # other vars
+        util.ENV_OMPI_COMM_WORLD_RANK: node_rank_mock,
+    }
+
+    with mock.patch.dict(os.environ, env_dict_with_mpi_master_localhost, clear=True):
+        with caplog.at_level(logging.INFO):  # type: ignore
+            util.set_environment_variables_for_multi_node()
+            assert "No settings for the MPI central node found" in caplog.messages[-1]   # type: ignore
+            assert "Assuming that this is a single node training job" in caplog.text  # type: ignore
+
+
+@pytest.mark.parametrize("master_node_mock, addr, port, should_pass", [
+    ("1234.0.0.0", "1234.0.0.0", "6105", True),
+    ("1234.0.0.0:4444", "1234.0.0.0", "4444", True),
+    ("1234.0.0.0:4444:1", "1234.0.0.0", "4444", False)])
+def test_set_env_vars_multi_node_split_master_addr(
+        master_node_mock: str, addr: str, port: str, should_pass: Boolean, caplog: LogCaptureFixture) -> None:
+    # Accepted formats of AZ_BATCH_MASTER_NODE are "ip:port" and "ip". Check these are parsed correctly
+    node_rank_mock = "1"
+    env_dict_with_master_var = {
+        util.ENV_AZ_BATCH_MASTER_NODE: master_node_mock,
+        # need to set OMPI_GLOBAL_WORLD_RANK to avoid a KeyError when finding NODE_RANK
+        util.ENV_OMPI_COMM_WORLD_RANK: node_rank_mock,
+    }
+    if should_pass:
+        with caplog.at_level(logging.INFO):  # type: ignore
+            with mock.patch.dict(os.environ, env_dict_with_master_var, clear=True):
+                util.set_environment_variables_for_multi_node()
+                out = caplog.messages[-1]
+                assert (f"Distributed training: MASTER_ADDR = {addr}, MASTER_PORT = "
+                        f"{port}, NODE_RANK = {node_rank_mock}") in out
+    else:
+        with pytest.raises(ValueError) as ex:
+            with mock.patch.dict(os.environ, env_dict_with_master_var, clear=True):
+                util.set_environment_variables_for_multi_node()
+        assert "Format not recognized" in str(ex.value)
 
 
 @pytest.mark.fast
@@ -1354,16 +1346,19 @@ import sys
 from pathlib import Path
 from azureml.core import Run
 from health_azure.utils import download_files_from_run_id""",
-        "body": script_body
+        "body": script_body,
     }
     # Run the script locally first, then in the cloud. In local runs, the workspace should be picked up from the
     # config.json file, in AzureML runs it should be read off the run context.
-    render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options, extra_args=[], expected_pass=True)
+    render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options,
+                               extra_args=[], expected_pass=True)
     print("Local run finished")
-    render_and_run_test_script(tmp_path / "foo", RunTarget.AZUREML, extra_options, extra_args=[], expected_pass=True)
+    render_and_run_test_script(tmp_path / "foo", RunTarget.AZUREML, extra_options,
+                               extra_args=[], expected_pass=True)
 
 
 def test_replace_directory(tmp_path: Path) -> None:
+
     extra_options = {
         "imports": """
 import sys
@@ -1384,13 +1379,15 @@ from health_azure.utils import replace_directory
 
     assert not output_dir.exists()
     assert (new_output_dir / file_name).exists()
-"""
+""",
     }
 
-    render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options, extra_args=[], expected_pass=True)
+    render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options,
+                               extra_args=[], expected_pass=True)
     print("Local run finished")
 
-    render_and_run_test_script(tmp_path / "foo", RunTarget.AZUREML, extra_options, extra_args=[], expected_pass=True)
+    render_and_run_test_script(tmp_path / "foo", RunTarget.AZUREML, extra_options,
+                               extra_args=[], expected_pass=True)
 
 
 def test_is_global_rank_zero() -> None:
@@ -1433,17 +1430,32 @@ def test_get_run_source(dummy_recovery_id: str,
             assert isinstance(script_config.run, str)
 
 
-def delete_existing_blobs(datastore: AzureBlobDatastore, prefix: str) -> None:
+def get_container_client(datastore: AzureBlobDatastore) -> ContainerClient:
+    """Gets a ContainerClient to interact with the blobs in the given datastore.
+
+    param datastore: The datastore from which the files should be read.
+    """
+    return datastore.blob_service.get_container_client(datastore.container_name)
+
+
+def get_blobs_in_datastore(datastore: AzureBlobDatastore, prefix: str) -> List[Any]:
+    """Gets all blobs in the datastore where the name starts with the given prefix.
+
+    param datastore: The datastore from which the files should be read.
+    param prefix: The prefix string for the files that should be returned.
+    """
+    return list(get_container_client(datastore).list_blobs(name_starts_with=prefix))
+
+
+def delete_blobs_in_datastore(datastore: AzureBlobDatastore, prefix: str) -> None:
     """Deletes all existing files in blob storage at the location that the test uses.
 
     param datastore: The datastore from which the files should be deleted.
     param prefix: The prefix string for the files that should be deleted.
     """
-    container = datastore.container_name
-    existing_blobs = list(datastore.blob_service.list_blobs(prefix=prefix,
-                                                            container_name=container))
-    for existing_blob in existing_blobs:
-        datastore.blob_service.delete_blob(container_name=container, blob_name=existing_blob.name)
+    container_client = get_container_client(datastore)
+    for existing_blob in get_blobs_in_datastore(datastore, prefix):
+        container_client.delete_blob(existing_blob.name)
 
 
 @pytest.mark.parametrize("overwrite", [True, False])
@@ -1461,7 +1473,7 @@ def test_download_from_datastore(tmp_path: Path, overwrite: bool) -> None:
     local_data_path.mkdir()
     test_data_path_remote = "test_data/abc"
 
-    delete_existing_blobs(datastore=default_datastore, prefix=test_data_path_remote)
+    delete_blobs_in_datastore(datastore=default_datastore, prefix=test_data_path_remote)
     try:
         # Create dummy data files and upload to datastore (checking they are uploaded)
         dummy_filenames = []
@@ -1474,8 +1486,7 @@ def test_download_from_datastore(tmp_path: Path, overwrite: bool) -> None:
         default_datastore.upload(str(local_data_path), test_data_path_remote, overwrite=False)
         # Wait a bit because there seem to be spurious errors with files not yet existing at this point
         time.sleep(0.1)
-        existing = list(default_datastore.blob_service.list_blobs(prefix=test_data_path_remote,
-                                                                  container_name=default_datastore.container_name))
+        existing = get_blobs_in_datastore(default_datastore, prefix=test_data_path_remote)
         assert len(existing) == num_dummy_files
 
         # Check that the file doesn't currently exist at download location
@@ -1490,7 +1501,7 @@ def test_download_from_datastore(tmp_path: Path, overwrite: bool) -> None:
         expected_download_paths = [expected_local_download_dir / dummy_filename for dummy_filename in dummy_filenames]
         assert all([p.exists() for p in expected_download_paths])
     finally:
-        delete_existing_blobs(datastore=default_datastore, prefix=test_data_path_remote)
+        delete_blobs_in_datastore(datastore=default_datastore, prefix=test_data_path_remote)
 
 
 @pytest.mark.parametrize("overwrite", [True, False])
@@ -1503,14 +1514,13 @@ def test_upload_to_datastore(tmp_path: Path, overwrite: bool) -> None:
     """
     ws = DEFAULT_WORKSPACE.workspace
     default_datastore: AzureBlobDatastore = ws.get_default_datastore()
-    container = default_datastore.container_name
     dummy_file_content = "Hello world"
 
     remote_data_dir = "test_data"
     dummy_file_name = Path("abc/uploaded_file.txt")
     expected_remote_path = Path(remote_data_dir) / dummy_file_name.name
 
-    delete_existing_blobs(datastore=default_datastore, prefix=str(expected_remote_path.as_posix()))
+    delete_blobs_in_datastore(datastore=default_datastore, prefix=str(expected_remote_path.as_posix()))
 
     try:
         # Create a dummy data file and upload to datastore
@@ -1523,11 +1533,10 @@ def test_upload_to_datastore(tmp_path: Path, overwrite: bool) -> None:
         # Wait a bit because there seem to be spurious errors with files not yet existing at this point
         time.sleep(0.1)
 
-        existing_blobs = list(default_datastore.blob_service.list_blobs(prefix=str(expected_remote_path.as_posix()),
-                                                                        container_name=container))
+        existing_blobs = get_blobs_in_datastore(default_datastore, prefix=str(expected_remote_path.as_posix()))
         assert len(existing_blobs) == 1
     finally:
-        delete_existing_blobs(datastore=default_datastore, prefix=str(expected_remote_path.as_posix()))
+        delete_blobs_in_datastore(datastore=default_datastore, prefix=str(expected_remote_path.as_posix()))
 
 
 @pytest.mark.parametrize("arguments, run_id", [
@@ -2339,7 +2348,7 @@ def test_create_run() -> None:
         run = util.create_aml_run_object(experiment_name=experiment_name, run_name=run_name,
                                          workspace=DEFAULT_WORKSPACE.workspace)
         assert run is not None
-        assert run.name == run_name
+        assert run.display_name == run_name
         assert run.experiment.name == experiment_name
         metric_name = "mymetric"
         metric_value = 1.234
@@ -2350,3 +2359,150 @@ def test_create_run() -> None:
     finally:
         if run is not None:
             run.complete()
+
+
+def test_get_credential() -> None:
+    def _mock_validation_error() -> None:
+        raise ClientAuthenticationError("")
+    # test the case where service principal credentials are set as environment variables
+    mock_env_vars = {
+        util.ENV_SERVICE_PRINCIPAL_ID: "foo",
+        util.ENV_TENANT_ID: "bar",
+        util.ENV_SERVICE_PRINCIPAL_PASSWORD: "baz"
+    }
+
+    with patch.object(os.environ, "get", return_value=mock_env_vars):
+        with patch.multiple(
+            "health_azure.utils",
+            is_running_in_azure_ml=DEFAULT,
+            is_running_on_azure_agent=DEFAULT,
+            _get_legitimate_service_principal_credential=DEFAULT,
+            _get_legitimate_device_code_credential=DEFAULT,
+            _get_legitimate_default_credential=DEFAULT,
+            _get_legitimate_interactive_browser_credential=DEFAULT
+        ) as mocks:
+            mocks["is_running_in_azure_ml"].return_value = False
+            mocks["is_running_on_azure_agent"].return_value = False
+            _ = get_credential()
+            mocks["_get_legitimate_service_principal_credential"].assert_called_once()
+            mocks["_get_legitimate_device_code_credential"].assert_not_called()
+            mocks["_get_legitimate_default_credential"].assert_not_called()
+            mocks["_get_legitimate_interactive_browser_credential"].assert_not_called()
+
+    # if the environment variables are not set and we are running on a local machine, a
+    # DefaultAzureCredential should be attempted first
+    with patch.object(os.environ, "get", return_value={}):
+        with patch.multiple(
+            "health_azure.utils",
+            is_running_in_azure_ml=DEFAULT,
+            is_running_on_azure_agent=DEFAULT,
+            _get_legitimate_service_principal_credential=DEFAULT,
+            _get_legitimate_device_code_credential=DEFAULT,
+            _get_legitimate_default_credential=DEFAULT,
+            _get_legitimate_interactive_browser_credential=DEFAULT
+        ) as mocks:
+            mock_get_sp_cred = mocks["_get_legitimate_service_principal_credential"]
+            mock_get_device_cred = mocks["_get_legitimate_device_code_credential"]
+            mock_get_default_cred = mocks["_get_legitimate_default_credential"]
+            mock_get_browser_cred = mocks["_get_legitimate_interactive_browser_credential"]
+
+            mocks["is_running_in_azure_ml"].return_value = False
+            mocks["is_running_on_azure_agent"].return_value = False
+            _ = get_credential()
+            mock_get_sp_cred.assert_not_called()
+            mock_get_device_cred.assert_not_called()
+            mock_get_default_cred.assert_called_once()
+            mock_get_browser_cred.assert_not_called()
+
+            # if that fails, a DeviceCode credential should be attempted
+            mock_get_default_cred.side_effect = _mock_validation_error
+            _ = get_credential()
+            mock_get_sp_cred.assert_not_called()
+            mock_get_device_cred.assert_called_once()
+            assert mock_get_default_cred.call_count == 2
+            mock_get_browser_cred.assert_not_called()
+
+            # if None of the previous credentials work, an InteractiveBrowser credential should be tried
+            mock_get_device_cred.return_value = None
+            _ = get_credential()
+            mock_get_sp_cred.assert_not_called()
+            assert mock_get_device_cred.call_count == 2
+            assert mock_get_default_cred.call_count == 3
+            mock_get_browser_cred.assert_called_once()
+
+            # finally, if none of the methods work, an Exception should be raised
+            mock_get_browser_cred.return_value = None
+            with pytest.raises(Exception) as e:
+                get_credential()
+                assert "Unable to generate and validate a credential. Please see Azure ML documentation"\
+                       "for instructions on different options to get a credential" in str(e)
+
+
+def test_get_legitimate_service_principal_credential() -> None:
+    # first attempt to create and valiadate a credential with non-existant service principal credentials
+    # and check it fails
+    mock_service_principal_id = "foo"
+    mock_service_principal_password = "bar"
+    mock_tenant_id = "baz"
+    expected_error_msg = f"Found environment variables for {util.ENV_SERVICE_PRINCIPAL_ID}, "
+    f"{util.ENV_SERVICE_PRINCIPAL_PASSWORD}, and {util.ENV_TENANT_ID} but was not able to authenticate"
+    with pytest.raises(Exception) as e:
+        util._get_legitimate_service_principal_credential(mock_tenant_id, mock_service_principal_id,
+                                                          mock_service_principal_password)
+        assert expected_error_msg in str(e)
+
+    # now mock the case where validating the credential succeeds and check the value of that
+    with patch("health_azure.utils._validate_credential"):
+        cred = util._get_legitimate_service_principal_credential(mock_tenant_id, mock_service_principal_id,
+                                                                 mock_service_principal_password)
+        assert isinstance(cred, ClientSecretCredential)
+
+
+def test_get_legitimate_device_code_credential() -> None:
+    def _mock_credential_fast_timeout(timeout: int) -> DeviceCodeCredential:
+        return DeviceCodeCredential(timeout=1)
+
+    with patch("health_azure.utils.DeviceCodeCredential", new=_mock_credential_fast_timeout):
+        cred = util._get_legitimate_device_code_credential()
+        assert cred is None
+
+    # now mock the case where validating the credential succeeds
+    with patch("health_azure.utils._validate_credential"):
+        cred = util._get_legitimate_device_code_credential()
+        assert isinstance(cred, DeviceCodeCredential)
+
+
+def test_get_legitimate_default_credential() -> None:
+    def _mock_credential_fast_timeout(timeout: int) -> DefaultAzureCredential:
+        return DefaultAzureCredential(timeout=1)
+
+    with patch("health_azure.utils.DefaultAzureCredential", new=_mock_credential_fast_timeout):
+        cred = util._get_legitimate_default_credential()
+        assert cred is None
+
+    with patch("health_azure.utils._validate_credential"):
+        cred = util._get_legitimate_default_credential()
+        assert isinstance(cred, DefaultAzureCredential)
+
+
+def test_filter_v2_input_output_args() -> None:
+    def _compare_args(expected: List[str], actual: List[str]) -> None:
+        assert len(actual) == len(expected)
+        for actual_entry in actual:
+            assert actual_entry in expected
+
+    args_to_filter = ["--a=foo", "--INPUT_0=input0", "--b=bar", "--INPUT_1=input1"]
+    expected_filtered = ["--a=foo", "--b=bar"]
+    actual_filtered = util.filter_v2_input_output_args(args_to_filter)
+    _compare_args(expected_filtered, actual_filtered)
+
+    # try passing empty list
+    empty_list: List[str] = []
+    actual_filtered = util.filter_v2_input_output_args(empty_list)
+    assert actual_filtered == empty_list
+
+    # pass args with similar but different input and output args
+    args_to_filter = ["--input_0=input0", "--a=foo"]
+    expected_filtered = ["--input_0=input0", "--a=foo"]
+    actual_filtered = util.filter_v2_input_output_args(args_to_filter)
+    _compare_args(expected_filtered, actual_filtered)

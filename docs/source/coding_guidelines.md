@@ -221,15 +221,19 @@ Try gauging the value of your contribution for yourself by asking the following 
 
 ### Pull Request Titles
 
-To enable good auto-generated changelogs, we prefix all PR titles with a category string, like "BUG: Out of bounds error when using small images".
+To enable good auto-generated changelogs, we prefix all PR titles with a category string, like `BUG: Fix out of bounds error when using small images`.
 Those category prefixes must be in upper case, followed by a colon (`:`).
 Valid categories are
 
 * `ENH` for enhancements, new capabilities
 * `BUG` for bugfixes
-* `STYLE` for stylistic changes (for example, refactoring) that do not impact the functionality
+* `STY` for stylistic changes (for example, refactoring) that do not impact the functionality
 * `DOC` for changes to documentation only
 * `DEL` for removing something from the codebase
+* `TEST` for adding or modifying tests
+* `FIX` to fix something that is not a `BUG` such as a typo
+* `MNT` maintenance, to upgrade package version, packaging, linting, CI etc.
+* `PERF` performance related
 
 ## Notes on Branching
 

@@ -20,7 +20,7 @@ We provide a set of example debugging configs for each of hi-ml module:
 
 * [launch.json in hi-ml](https://github.com/microsoft/hi-ml/tree/main/hi-ml/.vscode/launch.json)
 * [launch.json in hi-ml-azure](https://github.com/microsoft/hi-ml/tree/main/hi-ml-azure/.vscode/launch.json)
-* [launch.json in hi-ml-histopathology](https://github.com/microsoft/hi-ml/tree/main/hi-ml-histopathology/.vscode/launch.json)
+* [launch.json in hi-ml-cpath](https://github.com/microsoft/hi-ml/tree/main/hi-ml-cpath/.vscode/launch.json)
 
 VS Code restricts debugging to user-written code only by default. If you want to step through external code and
 standard libraries functions, set `"justMyCode": false` inside the debugging config block in the `launch.json` file.

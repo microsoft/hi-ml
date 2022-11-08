@@ -1,13 +1,20 @@
+#! /usr/bin/env python
+
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+
 import logging
 import sys
 from pathlib import Path
+import time
 
 import pytest
 import param
 from _pytest.main import ExitCode
 from azureml._restclient.constants import RunStatus
 from azureml.core import Run
-
 
 # Add hi-ml packages to sys.path so that AML can find them if we are using the runner directly from the git repo
 himl_root = Path(__file__).resolve().parent.parent
@@ -34,7 +41,7 @@ from health_azure.utils import (  # noqa: E402
     is_running_in_azure_ml,
     parse_arguments,
 )
-from health_ml.utils.common_utils import DEFAULT_AML_UPLOAD_DIR  # noqa: E402
+from health_ml.utils.common_utils import DEFAULT_AML_UPLOAD_DIR, DEFAULT_DOCKER_BASE_IMAGE  # noqa: E402
 
 PYTEST_RESULTS_FILE = "pytest_results.xml"
 PYTEST_GPU_COVERAGE_FILE = "pytest_gpu_coverage.xml"
@@ -50,7 +57,7 @@ class RunPytestConfig(param.Parameterized):
     coverage_module: str = param.String(
         default="",
         doc="This value is used as an argument to --cov of pytest to collect code coverage for the specified pyhton "
-        "module. For example, in the subfolder hi-ml-histopathology, one can collect code coverage for the "
+        "module. For example, in the subfolder hi-ml-cpath, one can collect code coverage for the "
         "histopathology module by setting `module=histopathology`. If set to '' (default), no coverage is collected."
     )
     cluster: str = param.String(default="", doc="The name of the AzureML compute cluster where the script should run.")
@@ -68,6 +75,8 @@ class RunPytestConfig(param.Parameterized):
         default="",
         doc="A folder name that should be added to sys.path. The folder name should be relative to repository root."
     )
+    strictly_aml_v1: bool = param.Boolean(default=True, doc="If True, use AzureML v1 SDK. If False (default), use "
+                                          "the v2 of the SDK")
 
 
 def run_pytest(folder_to_test: str, pytest_mark: str, coverage_module: str) -> None:
@@ -81,7 +90,9 @@ def run_pytest(folder_to_test: str, pytest_mark: str, coverage_module: str) -> N
     :param coverage_module: The module for which test code coverage should be collected. When set to empty string '', no
         code coverage is collected.
     """
-    results_file = Path(OUTPUT_FOLDER) / PYTEST_RESULTS_FILE
+    output_dir = Path(OUTPUT_FOLDER)
+    output_dir.mkdir(exist_ok=True)
+    results_file = output_dir / PYTEST_RESULTS_FILE
     pytest_args = [folder_to_test, f"--junitxml={str(results_file)}"]
 
     if coverage_module:
@@ -176,5 +187,8 @@ if __name__ == "__main__":
                 experiment_name=config.experiment,
                 max_run_duration=config.max_run_duration,
                 after_submission=pytest_after_submission_hook,
+                docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
+                strictly_aml_v1=config.strictly_aml_v1,
             )
     run_pytest(folder_to_test=config.folder, pytest_mark=config.mark, coverage_module=config.coverage_module)
+    time.sleep(10)  # Give the AzureML job time to finish uploading the pytest result file.

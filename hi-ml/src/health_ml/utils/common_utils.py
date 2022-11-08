@@ -41,6 +41,7 @@ CHECKPOINT_FOLDER = "checkpoints"
 DEFAULT_AML_UPLOAD_DIR = "outputs"
 DEFAULT_LOGS_DIR_NAME = "logs"
 EXPERIMENT_SUMMARY_FILE = "experiment_summary.txt"
+DEFAULT_AML_CHECKPOINT_DIR = f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}"
 
 # run recovery
 RUN_RECOVERY_ID_KEY = "run_recovery_id"
@@ -48,6 +49,7 @@ RUN_RECOVERY_FROM_ID_KEY_NAME = "recovered_from"
 
 # other
 EFFECTIVE_RANDOM_SEED_KEY_NAME = "effective_random_seed"
+DEFAULT_DOCKER_BASE_IMAGE = "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04"
 
 
 @unique
@@ -148,37 +150,12 @@ def check_conda_environment(env_file: Path) -> None:
 
     :param env_file: The Conda environment YAML file to check.
     """
-    if paths.is_himl_used_from_git_repo():
-        repo_root_yaml: Optional[Path] = paths.shared_himl_conda_env_file()
-    else:
-        repo_root_yaml = None
     has_pip_include, _ = is_conda_file_with_pip_include(env_file)
-    # PIP include statements are only valid when reading from the repository root YAML file, because we
-    # are manually adding the included files in get_all_pip_requirements_files
-    if has_pip_include and env_file != repo_root_yaml:
+    if has_pip_include:
         raise ValueError(
             f"The Conda environment definition in {env_file} uses '-r' to reference pip requirements "
             "files. This does not work in AzureML. Please add the pip dependencies directly."
         )
-
-
-def get_all_pip_requirements_files() -> List[Path]:
-    """
-    If the root level hi-ml directory is available (e.g. it has been installed as a submodule or
-    downloaded directly into a parent repo) then we must add it's pip requirements to any environment
-    definition. This function returns a list of the necessary pip requirements files. If the hi-ml
-    root directory does not exist (e.g. hi-ml has been installed as a pip package, this is not necessary
-    and so this function returns an empty list.)
-
-    :return: An list list of pip requirements files in the hi-ml and hi-ml-azure packages if relevant,
-        or else an empty list
-    """
-    files = []
-    if paths.is_himl_used_from_git_repo():
-        git_root = paths.git_repo_root_folder()
-        for folder in [Path("hi-ml") / "run_requirements.txt", Path("hi-ml-azure") / "run_requirements.txt"]:
-            files.append(git_root / folder)
-    return files
 
 
 def create_unique_timestamp_id() -> str:

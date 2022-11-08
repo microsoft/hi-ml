@@ -130,10 +130,10 @@ To use this code with your own data, you will need to:
 
 1. Define your own Lightening Container that inherits from `SSLContainer` as described in the paragraph above.
 2. Create a dataset class that reads your new dataset, inheriting from both `VisionDataset`
-   and `InnerEyeDataClassBaseWithReturnIndex`. See for example how we constructed `RSNAKaggleCXR`
+   and `DatasetWithReturnIndex`. See for example how we constructed `RSNAKaggleCXR`
    class. WARNING: the first positional argument of your dataset class constructor MUST be the data directory ("root"),
    as VisionDataModule expects this in the prepare_data step.
-3. In your own container update the `_SSLDataClassMappings` member of the class so that the code knows which data class
+3. In your own container update the `DatasetToClassMapping` member of the class so that the code knows which data class
    to associate to your new dataset name.
 4. Create a yaml configuration file that contains the augmentations specific to your dataset. The yaml file will be
    consumed by the `create_transforms_from_config` function defined in the
@@ -164,7 +164,7 @@ top of the `SSLContainer` with additional command line arguments allowing you to
 for your pretrained model. For this you have two options:
 
 - If you are running locally, you can provide the local path to your pretrained model checkpoint
-  via `--local_weights_path`.
+  via `--src_checkpoint`.
 - If your are running on AML, use the `pretraining_run_recovery_id` field. Providing this field, will mean that AML will
   automatically download the checkpoints to the current node, will pick the latest checkpoint to build the classifier on
   top. Beware not to confuse `pretraining_run_recovery_id` with `run_recovery_id` as the latter is use to continue training on
@@ -195,5 +195,5 @@ python ML/runner.py --model=CXRImageClassifier --pretraining_run_recovery_id={TH
 or for a local run
 
 ```
-python ML/runner.py --model=CXRImageClassifier --local_weights_path={LOCAL_PATH_TO_YOUR_SSL_CHECKPOINT}
+python ML/runner.py --model=CXRImageClassifier --src_checkpoint={LOCAL_PATH_TO_YOUR_SSL_CHECKPOINT}
 ```

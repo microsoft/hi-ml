@@ -22,18 +22,20 @@ env:
   HIML_DIST_ARTIFACT_SUFFIX: '-dist'
   HIML_PACKAGE_NAME_ARTIFACT_SUFFIX: '-package_name'
   HIML_VERSION_ARTIFACT_SUFFIX: '-latest_version'
+  PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+  PYPI_TEST_API_TOKEN: ${{ secrets.PYPI_TEST_API_TOKEN }}
 
 jobs:
 
   flake8:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           lfs: true
 
       - name: Set up Python ${{ env.pythonVersion }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ env.pythonVersion }}
 
@@ -41,14 +43,14 @@ jobs:
         run: make flake8
 
   mypy:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           lfs: true
 
       - name: Set up Python ${{ env.pythonVersion }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ env.pythonVersion }}
 
@@ -56,12 +58,12 @@ jobs:
         run: make mypy
 
   pyright:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           lfs: true
-      - uses: actions/setup-node@v2
+      - uses: actions/setup-node@v3
         with:
           node-version: '14'
       - uses: conda-incubator/setup-miniconda@v2
@@ -72,19 +74,19 @@ jobs:
           make pyright
 
   pytest_fast:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
       # This will let all parts of the matrix run, to collect as many errors as possible, rather than aborting after first fail
       fail-fast: false
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           lfs: true
 
       - name: Set up Python ${{ env.pythonVersion }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ env.pythonVersion }}
 
@@ -115,18 +117,18 @@ jobs:
           make pytest_fast
 
   build-python:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     needs: [ pytest_fast ]
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           lfs: true
 
       - name: Set up Python ${{ env.pythonVersion }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ env.pythonVersion }}
 
@@ -141,18 +143,18 @@ jobs:
           folder: ${{ matrix.folder }}
 
   test-artifact-pkg:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     needs: [ build-python ]
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           lfs: true
 
       - name: Set up Python ${{ env.pythonVersion }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ env.pythonVersion }}
 
@@ -197,19 +199,19 @@ jobs:
       - name: Upload coverage report to Codecov
         # Coverage should also be uploaded if tests still fail
         if: always()
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
         with:
             flags: ${{ matrix.folder }}
 
   publish-testpypi-pkg:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     needs: [ test-artifact-pkg ]
     if: "!startsWith(github.ref, 'refs/tags/v')"
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           lfs: true
 
@@ -219,19 +221,11 @@ jobs:
         with:
           folder: ${{ matrix.folder }}
 
-      - name: Set envs
-        run: |
-          if [ ${{ matrix.folder }} = 'hi-ml' ]; then
-            echo "TESTPYPI_TOKEN=${{ secrets.TEST_PIPY_TOKEN }}" >> $GITHUB_ENV
-          elif [ ${{ matrix.folder }} = 'hi-ml-azure' ]; then
-            echo "TESTPYPI_TOKEN=${{ secrets.PYPI_TEST_AZURE_TOKEN }}" >> $GITHUB_ENV
-          fi
-
       - name: Publish package to TestPyPI
         uses: pypa/gh-action-pypi-publish@master
         with:
           user: __token__
-          password: ${{ env.TESTPYPI_TOKEN }}
+          password: ${{ env.PYPI_TEST_API_TOKEN }}
           packages_dir: ${{ matrix.folder }}/dist/
           repository_url: https://test.pypi.org/legacy/
           verbose: true
@@ -242,14 +236,14 @@ jobs:
           echo "pip install --extra-""index-url https://test.pypi.org/simple ${{ steps.download.outputs.package_version }}"
 
   publish-pypi-pkg:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     needs: [ test-artifact-pkg ]
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           lfs: true
 
@@ -259,34 +253,26 @@ jobs:
         with:
           folder: ${{ matrix.folder }}
 
-      - name: Set envs
-        run: |
-          if [ ${{ matrix.folder }} = 'hi-ml' ]; then
-            echo "PYPI_TOKEN=${{ secrets.PYPI_TOKEN }}" >> $GITHUB_ENV
-          elif [ ${{ matrix.folder }} = 'hi-ml-azure' ]; then
-            echo "PYPI_TOKEN=${{ secrets.PYPI_AZURE_TOKEN }}" >> $GITHUB_ENV
-          fi
-
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@master
         with:
           user: __token__
-          password: ${{ env.PYPI_TOKEN }}
+          password: ${{ env.PYPI_API_TOKEN }}
           packages_dir: ${{ matrix.folder }}/dist/
 
   test-pypi-pkg:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     needs: [ publish-pypi-pkg ]
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           lfs: true
 
       - name: Set up Python ${{ env.pythonVersion }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ env.pythonVersion }}
 

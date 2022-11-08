@@ -27,8 +27,8 @@ class TextInferenceEngine(TextInput):
         assert isinstance(text_model, BertForMaskedLM), f"Expected a BertForMaskedLM, got {type(text_model)}"
 
         self.model = text_model
-        self.device = next(self.model.parameters()).device
         self.max_allowed_input_length = self.model.config.max_position_embeddings
+        self.to = self.model.to
 
     def is_in_eval(self) -> bool:
         """Returns True if the model is in eval mode."""
@@ -36,8 +36,9 @@ class TextInferenceEngine(TextInput):
 
     def tokenize_input_prompts(self, prompts: Union[str, List[str]], verbose: bool = True) -> Any:
         tokenizer_output = super().tokenize_input_prompts(prompts, verbose=verbose)
-        tokenizer_output.input_ids = tokenizer_output.input_ids.to(self.device)
-        tokenizer_output.attention_mask = tokenizer_output.attention_mask.to(self.device)
+        device = next(self.model.parameters()).device
+        tokenizer_output.input_ids = tokenizer_output.input_ids.to(device)
+        tokenizer_output.attention_mask = tokenizer_output.attention_mask.to(device)
 
         max_length = tokenizer_output.input_ids.shape[1]
         if tokenizer_output.input_ids.shape[1] > self.max_allowed_input_length:
@@ -47,10 +48,14 @@ class TextInferenceEngine(TextInput):
         return tokenizer_output
 
     @torch.no_grad()
-    def get_embeddings_from_prompt(self, prompts: Union[str, List[str]], verbose: bool = True) -> torch.Tensor:
+    def get_embeddings_from_prompt(self,
+                                   prompts: Union[str, List[str]],
+                                   normalize: bool = True,
+                                   verbose: bool = True) -> torch.Tensor:
         """Generate L2-normalised embeddings for a list of input text prompts.
 
         :param prompts: Input text prompt(s) either in string or list of string format.
+        :param normalize: If True, L2-normalise the embeddings.
         :param verbose: If set to True, tokenized words are displayed in the console.
         :return: Tensor of shape (batch_size, embedding_size).
         """
@@ -59,7 +64,8 @@ class TextInferenceEngine(TextInput):
         tokenizer_output = self.tokenize_input_prompts(prompts=prompts, verbose=verbose)
         txt_emb = self.model.get_projected_text_embeddings(  # type: ignore
             input_ids=tokenizer_output.input_ids,
-            attention_mask=tokenizer_output.attention_mask)
+            attention_mask=tokenizer_output.attention_mask,
+            normalize_embeddings=normalize)
 
         return txt_emb
 

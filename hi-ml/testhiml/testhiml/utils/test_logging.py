@@ -21,6 +21,7 @@ from azureml.core import Run
 
 from health_azure import RUN_CONTEXT, create_aml_run_object
 from health_ml.utils import AzureMLLogger, AzureMLProgressBar, log_learning_rate, log_on_epoch
+from health_ml.utils.logging import _preprocess_hyperparams
 from testhiml.utils_testhiml import DEFAULT_WORKSPACE
 
 
@@ -143,7 +144,7 @@ def test_azureml_logger() -> None:
     logger = create_mock_logger()
     # On all build agents, this should not be detected as an AzureML run.
     assert not logger.is_running_in_azure_ml
-    assert logger.has_custom_run
+    assert not logger.has_user_provided_run
     logger.log_metrics({"foo": 1.0})
     assert logger.run is not None
     logger.run.log.assert_called_once_with("foo", 1.0, step=None)
@@ -240,8 +241,7 @@ def test_azureml_logger_hyperparams_processing() -> None:
     """
     hyperparams = {"A long list": ["foo", 1.0, "abc"],
                    "foo": 1.0}
-    logger = AzureMLLogger(enable_logging_outside_azure_ml=False)
-    actual = logger._preprocess_hyperparams(hyperparams)
+    actual = _preprocess_hyperparams(hyperparams)
     assert actual == {"A long list": "['foo', 1.0, 'abc']", "foo": "1.0"}
 
 
@@ -271,7 +271,8 @@ def test_azureml_logger_init1() -> None:
         with mock.patch("health_ml.utils.logging.RUN_CONTEXT", "foo"):
             logger = AzureMLLogger(enable_logging_outside_azure_ml=True)
             assert logger.is_running_in_azure_ml
-            assert not logger.has_custom_run
+            assert logger.enable_logging_outside_azure_ml
+            assert not logger.has_user_provided_run
             assert logger.run == "foo"
             # We should be able to call finalize without any effect (logger.run == "foo", which has no
             # "Complete" method). When running in AzureML, the logger should not
@@ -300,7 +301,7 @@ def test_azureml_logger_actual_run() -> None:
     assert logger.run != RUN_CONTEXT
     assert isinstance(logger.run, Run)
     assert logger.run.experiment.name == "azureml_logger"
-    assert logger.has_custom_run
+    assert not logger.has_user_provided_run
     expected_metrics = {"foo": 1.0, "bar": 2.0}
     logger.log_metrics(expected_metrics)
     logger.run.flush()
@@ -328,13 +329,36 @@ def test_azureml_logger_init4() -> None:
                                snapshot_directory="snapshot",
                                workspace="workspace",  # type: ignore
                                workspace_config_path=Path("config_path"))
-        assert logger.has_custom_run
+        assert not logger.has_user_provided_run
         assert logger.run == run_mock
         mock_create.assert_called_once_with(experiment_name="exp",
                                             run_name="run",
                                             snapshot_directory="snapshot",
                                             workspace="workspace",
                                             workspace_config_path=Path("config_path"))
+    # The run created in the constructor is under the control of the AzureML logger, and should be completed.
+    # Check that the finalize method calls the run's complete method, but not the run's flush method.
+    run_mock.flush = MagicMock()
+    run_mock.complete = MagicMock()
+    logger.finalize(status="nothing")
+    run_mock.flush.assert_not_called()
+    run_mock.complete.assert_called_once()
+
+
+def test_azureml_logger_finalize() -> None:
+    """Test if the finalize method correctly updates the run status. It should only operate on runs that are
+    outside of AzureML."""
+    run_mock = MagicMock()
+    logger = AzureMLLogger(enable_logging_outside_azure_ml=True, run=run_mock)
+    assert logger.run is not None
+    assert logger.has_user_provided_run
+    run_mock.flush = MagicMock()
+    run_mock.complete = MagicMock()
+    # When providing a run explicitly, the finalize method should not call the run's complete method. Completing
+    # the run is the responsibility of the user.
+    logger.finalize(status="nothing")
+    run_mock.flush.assert_called_once()
+    run_mock.complete.assert_not_called()
 
 
 def test_progress_bar_enable() -> None:
