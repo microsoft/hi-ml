@@ -98,7 +98,7 @@ jobs:
           cd hi-ml-azure
           make pip_local
 
-      - name: Python tests
+      - name: Python tests again
         shell: bash -l {0}
         run: |
           which python
