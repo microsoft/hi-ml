@@ -184,6 +184,12 @@ class LightningContainer(WorkflowParams,
         return None
 
     def get_hyperparam_args(self) -> Optional[Dict[str, Any]]:
+        """
+        Returns a dictionary of hyperparameter search arguments that will be passed to an AML v2 command to
+        enable either hyperparameter tuning,  cross validation, or running with different seeds.
+
+        :return: A dictionary of hyperparameter search arguments and values.
+        """
         if self.hyperdrive:
             raise NotImplementedError("Parameter search is not implemented yet.")
         if self.is_crossvalidation_enabled:

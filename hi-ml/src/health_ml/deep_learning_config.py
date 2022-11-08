@@ -297,11 +297,23 @@ class WorkflowParams(param.Parameterized):
                                              )
 
     def get_crossval_hyperparam_args_v2(self) -> Dict[str, Any]:
+        """
+        Wrapper function to create hyperparameter search arguments specifically for running cross validation
+        with AML SDK v2
+
+        :return: A dictionary of hyperparameter search arguments and values.
+        """
         return create_crossval_hyperparam_args_v2(num_splits=self.crossval_count,
                                                   cross_val_index_arg_name=self.CROSSVAL_INDEX_ARG_NAME,
                                                   metric_name="val/loss")
 
     def get_grid_hyperparam_args_v2(self) -> Dict[str, Any]:
+        """
+        Wrapper function to create hyperparameter search arguments specifically for running grid search
+        with AML SDK v2
+
+        :return: A dictionary of hyperparameter search arguments and values.
+        """
         return create_grid_hyperparam_args_v2(values=list(map(str, range(self.different_seeds))),
                                               argument_name=self.RANDOM_SEED_ARG_NAME,
                                               metric_name="val/loss")
