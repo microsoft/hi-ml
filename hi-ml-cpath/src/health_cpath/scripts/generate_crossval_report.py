@@ -18,8 +18,9 @@ from health_cpath.utils.output_utils import (AML_LEGACY_TEST_OUTPUTS_CSV, AML_TE
                                              AML_VAL_OUTPUTS_CSV)
 from health_cpath.utils.report_utils import (collect_hyperdrive_metrics, collect_hyperdrive_outputs,
                                              child_runs_have_val_and_test_outputs, get_best_epoch_metrics,
-                                             get_best_epochs, get_hyperdrive_metrics_table, get_formatted_run_info,
-                                             collect_class_info)
+                                             get_best_epochs, get_child_runs_hyperparams, get_hyperdrive_metrics_table,
+                                             get_formatted_run_info, collect_class_info, get_max_epochs,
+                                             download_hyperdrive_metrics_if_required)
 from health_cpath.utils.naming import MetricsKey, ModelKey
 
 
@@ -53,10 +54,16 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
     report.add_heading("Azure ML metrics", level=2)
 
     # Download metrics from AML. Can take several seconds for each child run
-    metrics_df = collect_hyperdrive_metrics(
-        parent_run_id, report_dir, aml_workspace, overwrite=overwrite, hyperdrive_arg_name=hyperdrive_arg_name
-    )
-    best_epochs = get_best_epochs(metrics_df, f'{ModelKey.VAL}/{primary_metric}', maximise=True)
+    metrics_json = download_hyperdrive_metrics_if_required(parent_run_id, report_dir, aml_workspace,
+                                                           overwrite=overwrite, hyperdrive_arg_name=hyperdrive_arg_name)
+
+    # Get metrics dataframe from the downloaded json file
+    metrics_df = collect_hyperdrive_metrics(metrics_json=metrics_json)
+
+    hyperparameters_children = get_child_runs_hyperparams(metrics_df)
+    max_epochs_dict = get_max_epochs(hyperparams_children=hyperparameters_children)
+    best_epochs = get_best_epochs(metrics_df=metrics_df, primary_metric=f'{ModelKey.VAL}/{primary_metric}',
+                                  max_epochs_dict=max_epochs_dict, maximise=True)
 
     # Add training curves for loss and AUROC (train and val.)
     render_training_curves(report, heading="Training curves", level=3,
@@ -64,7 +71,7 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
                            primary_metric=primary_metric)
 
     # Get metrics list with class names
-    num_classes, class_names = collect_class_info(metrics_df=metrics_df)
+    num_classes, class_names = collect_class_info(hyperparams_children=hyperparameters_children)
 
     base_metrics_list: List[str] = [MetricsKey.ACC, MetricsKey.AUROC, MetricsKey.AVERAGE_PRECISION,
                                     MetricsKey.COHENKAPPA]
@@ -87,56 +94,58 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
                              metrics_df=metrics_df, best_epochs=None,
                              base_metrics_list=base_metrics_list, metrics_prefix=f'{ModelKey.TEST}/')
 
-    has_val_and_test_outputs = child_runs_have_val_and_test_outputs(parent_run)
-
-    # Get output data frames
-    if has_val_and_test_outputs:
-        output_filename_val = AML_VAL_OUTPUTS_CSV
-        outputs_dfs_val = collect_hyperdrive_outputs(parent_run_id=parent_run_id, download_dir=report_dir,
-                                                     aml_workspace=aml_workspace,
-                                                     output_filename=output_filename_val, overwrite=overwrite,
-                                                     hyperdrive_arg_name=hyperdrive_arg_name)
-        if include_test:
-            output_filename_test = AML_TEST_OUTPUTS_CSV if has_val_and_test_outputs else AML_LEGACY_TEST_OUTPUTS_CSV
-            outputs_dfs_test = collect_hyperdrive_outputs(parent_run_id=parent_run_id, download_dir=report_dir,
-                                                          aml_workspace=aml_workspace,
-                                                          output_filename=output_filename_test, overwrite=overwrite,
-                                                          hyperdrive_arg_name=hyperdrive_arg_name)
-
-    if num_classes == 1:
-        # Currently ROC and PR curves rendered only for binary case
-        # TODO: Enable rendering of multi-class ROC and PR curves
-        report.add_heading("ROC and PR curves", level=2)
+    # Get output data frames if available
+    try:
+        has_val_and_test_outputs = child_runs_have_val_and_test_outputs(parent_run)
         if has_val_and_test_outputs:
-            # Add val. ROC and PR curves
-            render_roc_and_pr_curves(report=report, heading="Validation ROC and PR curves", level=3,
-                                     report_dir=report_dir,
-                                     outputs_dfs=outputs_dfs_val,
-                                     prefix=f'{ModelKey.VAL}_')
+            output_filename_val = AML_VAL_OUTPUTS_CSV
+            outputs_dfs_val = collect_hyperdrive_outputs(parent_run_id=parent_run_id, download_dir=report_dir,
+                                                         aml_workspace=aml_workspace,
+                                                         output_filename=output_filename_val, overwrite=overwrite,
+                                                         hyperdrive_arg_name=hyperdrive_arg_name)
+            if include_test:
+                output_filename_test = AML_TEST_OUTPUTS_CSV if has_val_and_test_outputs else AML_LEGACY_TEST_OUTPUTS_CSV
+                outputs_dfs_test = collect_hyperdrive_outputs(parent_run_id=parent_run_id, download_dir=report_dir,
+                                                              aml_workspace=aml_workspace,
+                                                              output_filename=output_filename_test, overwrite=overwrite,
+                                                              hyperdrive_arg_name=hyperdrive_arg_name)
+
+        if num_classes == 1:
+            # Currently ROC and PR curves rendered only for binary case
+            # TODO: Enable rendering of multi-class ROC and PR curves
+            report.add_heading("ROC and PR curves", level=2)
+            if has_val_and_test_outputs:
+                # Add val. ROC and PR curves
+                render_roc_and_pr_curves(report=report, heading="Validation ROC and PR curves", level=3,
+                                         report_dir=report_dir,
+                                         outputs_dfs=outputs_dfs_val,
+                                         prefix=f'{ModelKey.VAL}_')
+            if include_test:
+                # Add test ROC and PR curves
+                render_roc_and_pr_curves(report=report, heading="Test ROC and PR curves", level=3,
+                                         report_dir=report_dir,
+                                         outputs_dfs=outputs_dfs_test,
+                                         prefix=f'{ModelKey.TEST}_')
+
+        # Add confusion matrices for each fold
+        report.add_heading("Confusion matrices", level=2)
+        if has_val_and_test_outputs:
+            # Add val. confusion matrices
+            render_confusion_matrices(report=report, heading="Validation confusion matrices", level=3,
+                                      class_names=class_names,
+                                      report_dir=report_dir, outputs_dfs=outputs_dfs_val,
+                                      prefix=f'{ModelKey.VAL}_')
+
         if include_test:
-            # Add test ROC and PR curves
-            render_roc_and_pr_curves(report=report, heading="Test ROC and PR curves", level=3,
-                                     report_dir=report_dir,
-                                     outputs_dfs=outputs_dfs_test,
-                                     prefix=f'{ModelKey.TEST}_')
+            # Add test confusion matrices
+            render_confusion_matrices(report=report, heading="Test confusion matrices", level=3,
+                                      class_names=class_names,
+                                      report_dir=report_dir, outputs_dfs=outputs_dfs_test,
+                                      prefix=f'{ModelKey.TEST}_')
 
-    # Add confusion matrices for each fold
-
-    report.add_heading("Confusion matrices", level=2)
-
-    if has_val_and_test_outputs:
-        # Add val. confusion matrices
-        render_confusion_matrices(report=report, heading="Validation confusion matrices", level=3,
-                                  class_names=class_names,
-                                  report_dir=report_dir, outputs_dfs=outputs_dfs_val,
-                                  prefix=f'{ModelKey.VAL}_')
-
-    if include_test:
-        # Add test confusion matrices
-        render_confusion_matrices(report=report, heading="Test confusion matrices", level=3,
-                                  class_names=class_names,
-                                  report_dir=report_dir, outputs_dfs=outputs_dfs_test,
-                                  prefix=f'{ModelKey.TEST}_')
+    except ValueError as e:
+        print(e)
+        print("Since all expected output files were not found, skipping ROC-PR curves and confusion matrices.")
 
     # TODO: Add qualitative model outputs
     # report.add_heading("Qualitative model outputs", level=2)
