@@ -74,7 +74,7 @@ jobs:
           lfs: true
 
       - name: Prepare Conda environment
-        uses: .github/actions/prepare_cpath_environment
+        uses: ./.github/actions/prepare_cpath_environment
 
       - name: Test with pytest
         run: |
