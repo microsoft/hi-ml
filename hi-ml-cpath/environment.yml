@@ -74,25 +74,25 @@ dependencies:
     - asynctest==0.13.0
     - attrs==22.1.0
     - azure-common==1.1.28
-    - azure-core==1.26.1
+    - azure-core==1.24.2
     - azure-graphrbac==0.61.1
     - azure-identity==1.7.0
     - azure-mgmt-authorization==2.0.0
     - azure-mgmt-containerregistry==10.0.0
     - azure-mgmt-core==1.3.2
-    - azure-mgmt-keyvault==10.1.0
-    - azure-mgmt-resource==21.2.1
-    - azure-mgmt-storage==20.1.0
+    - azure-mgmt-keyvault==10.0.0
+    - azure-mgmt-resource==21.1.0
+    - azure-mgmt-storage==20.0.0
     - azure-storage-blob==12.5.0
-    - azureml-core==1.47.0
-    - azureml-dataprep==4.5.7
+    - azureml-core==1.43.0
+    - azureml-dataprep==4.0.4
     - azureml-dataprep-native==38.0.0
-    - azureml-dataprep-rslex==2.11.4
-    - azureml-dataset-runtime==1.47.0
-    - azureml-telemetry==1.47.0
-    - azureml-tensorboard==1.47.0
-    - azureml-train-core==1.47.0
-    - azureml-train-restclients-hyperdrive==1.47.0
+    - azureml-dataprep-rslex==2.6.3
+    - azureml-dataset-runtime==1.43.0.post2
+    - azureml-telemetry==1.43.0
+    - azureml-tensorboard==1.43.0
+    - azureml-train-core==1.43.0
+    - azureml-train-restclients-hyperdrive==1.43.0
     - babel==2.11.0
     - backports-tempfile==1.0
     - backports-weakref==1.0.post1
@@ -117,14 +117,13 @@ dependencies:
     - diskcache==5.4.0
     - distlib==0.3.6
     - distro==1.8.0
-    - docker==6.0.1
+    - docker==5.0.3
     - docutils==0.16
     - dotnetcore2==3.1.23
     - filelock==3.8.0
     - flake8==4.0.1
     - frozenlist==1.3.1
     - fsspec==2022.10.0
-    - fusepy==3.0.1
     - girder-client==3.1.14
     - google-auth==1.35.0
     - google-auth-oauthlib==0.4.6
@@ -135,7 +134,7 @@ dependencies:
     - idna==3.4
     - imageio==2.22.4
     - imagesize==1.4.1
-    - importlib-metadata==5.0.0
+    - importlib-metadata==4.2.0
     - importlib-resources==5.10.0
     - iniconfig==1.1.1
     - isodate==0.6.1
@@ -143,13 +142,13 @@ dependencies:
     - jaraco-classes==3.2.3
     - jeepney==0.8.0
     - jinja2==3.0.2
-    - jmespath==1.0.1
+    - jmespath==1.0.0
     - joblib==1.2.0
     - jsonpickle==2.2.0
     - jsonschema==4.17.0
     - keyring==23.11.0
     - kiwisolver==1.4.4
-    - knack==0.10.0
+    - knack==0.9.0
     - lazy-object-proxy==1.8.0
     - lightning-bolts==0.4.0
     - llvmlite==0.39.1
@@ -194,7 +193,7 @@ dependencies:
     - pre-commit==2.19.0
     - protobuf==3.20.1
     - py==1.11.0
-    - pyarrow==9.0.0
+    - pyarrow==3.0.0
     - pyasn1==0.4.8
     - pyasn1-modules==0.2.8
     - pycobertura==2.0.1
@@ -263,7 +262,7 @@ dependencies:
     - typed-ast==1.5.4
     - typing-inspect==0.8.0
     - umap-learn==0.5.2
-    - urllib3==1.26.12
+    - urllib3==1.26.9
     - virtualenv==20.16.6
     - webencodings==0.5.1
     - websocket-client==1.4.2

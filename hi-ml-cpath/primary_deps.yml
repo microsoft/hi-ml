@@ -21,17 +21,21 @@ dependencies:
       - pytorch-lightning>=1.6.0, <1.7
       - rpdb==0.1.6
       - setuptools==59.5.0
+      - oauthlib==3.2.1
       # Run requirements for hi-ml-azure
-      - azure-mgmt-core>=1.3.1, <2.0.0
-      - azureml-core==1.47.0
+      - azure-core==1.24.2
+      - azure-mgmt-keyvault==10.0.0
+      - azure-mgmt-resource==21.1.0
+      - azureml-core==1.43.0
+      - azureml-dataprep==4.0.4
+      - azureml-dataprep-rslex==2.6.3
+      - azureml-dataset-runtime==1.43.0.post2
       - azureml-dataset-runtime[fuse]
-      - azureml-tensorboard==1.47.0
-      - azureml-train-core==1.47.0
+      - azureml-tensorboard==1.43.0
+      - azureml-train-core==1.43.0
       - cryptography==38.0.3
       - conda-merge==0.1.5
       - msal-extensions==0.3.1
-      - msrest>=0.7.1
-      - oauthlib==3.2.1
       - param==1.12
       - pysocks==1.6.0
       - ruamel.yaml==0.16.12
@@ -44,5 +48,5 @@ dependencies:
       - -r requirements_build.txt
       # Pinned secondary dependencies to prevent clashes
       - cloudpickle==1.6.0
-      - importlib-metadata>=4.11.4
+      - importlib-metadata==4.2.0
       - markdown==2.6.8
