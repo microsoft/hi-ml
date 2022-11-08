@@ -73,44 +73,10 @@ jobs:
         with:
           lfs: true
 
-      # Use a cache action to save the full conda environment, so that we don't have to reinstall it every time.
-      # Paths are tied to the location of the miniconda installation, and may need adjustment on a different OS.
-      - name: Retrieve cached Conda environment
-        id: cache-conda
-        uses: actions/cache@v3
-        with:
-          path: ${{ env.conda_env_folder }}
-          key: hi-ml-cpath-conda-${{ hashFiles('hi-ml-cpath/environment.yml') }}
-
-      # If the cache action didn't find a cache, then install the conda environment afresh.
-      - name: Build Conda environment from scratch
-        uses: conda-incubator/setup-miniconda@v2
-        if: steps.cache-conda.outputs.cache-hit != 'true'
-        with:
-          environment-file: hi-ml-cpath/environment.yml
-
-      # Modify the path to point to the cached Conda environment. This is effectively also what `conda activate` does.
-      - name: Activate cached environment
-        if: steps.cache-conda.outputs.cache-hit == 'true'
-        run: echo "${{ env.conda_env_bin }}" >> $GITHUB_PATH
-
-      - name: Conda info
-        run: conda info
-
-      - name: Install hi-ml locally
-        shell: bash -l {0}
-        run: |
-          cd hi-ml
-          make pip_local
-
-      - name: Install hi-ml-azure locally
-        shell: bash -l {0}
-        run: |
-          cd hi-ml-azure
-          make pip_local
+      - name: Prepare Conda environment
+        uses: .github/actions/prepare_cpath_environment
 
       - name: Test with pytest
-        shell: bash -l {0}
         run: |
           cd ${{ env.folder }}
 
