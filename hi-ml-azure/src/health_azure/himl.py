@@ -497,7 +497,7 @@ def submit_run_v2(workspace: Optional[Workspace],
     else:
         output_datasets_v2 = {}
 
-    sla_tier = sla_tier.value if sla_tier else ""
+    sla_tier_str = sla_tier.value if sla_tier else ""
 
     # The following parameters are specified for submitting jobs to Singularity. Other compute types will ignore th
     job_resources = {
@@ -507,7 +507,7 @@ def submit_run_v2(workspace: Optional[Workspace],
             "AISuperComputer": {
                 "interactive": False,
                 "imageVersion": docker_base_image,
-                "slaTier": sla_tier,
+                "slaTier": sla_tier_str,
                 "tensorboardLogDirectory": "/scratch/tensorboard_logs",
                 "scalePolicy": {
                     "autoScaleIntervalInSec": 120,
