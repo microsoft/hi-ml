@@ -219,7 +219,7 @@ def _test_hyperdrive_submission(mock_runner: Runner,
                                 expected_argument_name: str,
                                 expected_argument_values: List[str]) -> None:
     model_name = "HelloWorld"
-    arguments = ["", f"--model={model_name}", "--cluster=foo", commandline_arg]
+    arguments = ["", f"--model={model_name}", "--cluster=foo", commandline_arg, "--strictly_aml_v1=True"]
     # Use a special simplified environment file only for the tests here. Copy that to a temp folder, then let the runner
     # start in that temp folder.
     with change_working_folder_and_add_environment(mock_runner.project_root):
