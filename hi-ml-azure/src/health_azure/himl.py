@@ -295,7 +295,6 @@ def create_grid_hyperparam_args_v2(values: List[Any],
         SAMPLING_ALGORITHM_ARG: "grid",
         PRIMARY_METRIC_ARG: metric_name,
         GOAL_ARG: "Minimize"
-
     }
     return hyperparam_args
 
