@@ -1,4 +1,4 @@
-# Hyperparameter Search via Hyperdrive (AML SDK v2)
+# Hyperparameter Search via Hyperdrive (AML SDK v1)
 
 [HyperDrive runs](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters)
 can start multiple AzureML jobs in parallel. This can be used for tuning hyperparameters, or executing multiple
