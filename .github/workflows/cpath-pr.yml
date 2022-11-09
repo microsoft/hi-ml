@@ -72,6 +72,9 @@ jobs:
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
 
+      - name: Run python
+        run: which python
+
       # - name: Test with pytest
       #   run: |
       #     cd ${{ env.folder }}
