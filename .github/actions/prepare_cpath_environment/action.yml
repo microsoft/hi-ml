@@ -23,12 +23,10 @@ runs:
       if: steps.cache-conda.outputs.cache-hit != 'true'
       with:
         environment-file: hi-ml-cpath/environment.yml
-        activate-environment: HimlHisto
 
     # Modify the path to point to the cached Conda environment. This is effectively also what `conda activate` does.
     - name: Activate cached environment
       shell: bash
-      if: steps.cache-conda.outputs.cache-hit == 'true'
       run: |
         echo "Adding Conda bin folder to path"
         echo "/usr/share/miniconda/envs/HimlHisto/bin" >> $GITHUB_PATH
