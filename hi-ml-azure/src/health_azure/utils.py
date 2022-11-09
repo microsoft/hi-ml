@@ -18,6 +18,7 @@ from argparse import (_UNRECOGNIZED_ARGS_ATTR, OPTIONAL, SUPPRESS, ArgumentDefau
 from collections import defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 from itertools import islice
 from pathlib import Path
@@ -1068,6 +1069,14 @@ def generate_unique_environment_name(environment_description_string: str) -> str
     overall_hash = sha1.hexdigest()[:32]
     unique_env_name = f"HealthML-{overall_hash}"
     return unique_env_name
+
+
+def generate_unique_job_name(experiment_name: str) -> str:
+    job_description_string = experiment_name + datetime.now().strftime("%d/%m/%Y%-H:%M:%S")
+    sha1 = hashlib.sha1(job_description_string.encode("utf8"))
+    overall_hash = sha1.hexdigest()[:32]
+    unique_job_name = f"himl-job-{overall_hash}"
+    return unique_job_name
 
 
 def create_python_environment(

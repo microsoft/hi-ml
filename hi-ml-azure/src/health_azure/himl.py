@@ -38,7 +38,7 @@ from health_azure.utils import (create_python_environment, create_run_recovery_i
                                 run_duration_string_to_seconds, to_azure_friendly_string, RUN_CONTEXT, get_workspace,
                                 PathOrString, DEFAULT_ENVIRONMENT_VARIABLES, get_ml_client,
                                 create_python_environment_v2, register_environment_v2, V2_INPUT_DATASET_PATTERN,
-                                V2_OUTPUT_DATASET_PATTERN)
+                                V2_OUTPUT_DATASET_PATTERN, generate_unique_job_name)
 from health_azure.datasets import (DatasetConfig, StrOrDatasetConfig, setup_local_datasets,
                                    _input_dataset_key, _output_dataset_key, _replace_string_datasets)
 
@@ -429,7 +429,13 @@ def submit_run_v2(workspace: Optional[Workspace],
     else:
         output_datasets_v2 = {}
 
+    unique_job_name = generate_unique_job_name(experiment_name)
+
+    display_name = tags["tag"].replace(" ", "-") if "tag" in tags else None
+
     command_job = command(
+        name=unique_job_name,
+        display_name=display_name,
         code=str(snapshot_root_directory),
         command=cmd,
         inputs=input_datasets_v2,
