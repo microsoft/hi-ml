@@ -10,7 +10,7 @@ import param
 from enum import Enum, unique
 from param import Parameterized
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from azureml.train.hyperdrive import HyperDriveConfig
 
