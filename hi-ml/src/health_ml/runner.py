@@ -251,8 +251,13 @@ class Runner:
                                    all_local_datasets=all_local_datasets,  # type: ignore
                                    datastore=datastore,
                                    use_mounting=use_mounting)
-        hyperdrive_config = self.lightning_container.get_hyperdrive_config()
-        hyperparam_args = self.lightning_container.get_hyperparam_args()
+
+        if self.experiment_config.strictly_aml_v1:
+            hyperdrive_config = self.lightning_container.get_hyperdrive_config()
+            hyperparam_args = None
+        else:
+            hyperparam_args = self.lightning_container.get_hyperparam_args()
+            hyperdrive_config = None
 
         if self.experiment_config.cluster and not is_running_in_azure_ml():
             ml_client = get_ml_client()

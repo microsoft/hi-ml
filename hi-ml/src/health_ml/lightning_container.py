@@ -94,6 +94,14 @@ class LightningContainer(WorkflowParams,
         raise NotImplementedError("Parameter search is not implemented. Please override 'get_parameter_tuning_config' "
                                   "in your model container.")
 
+    def get_parameter_tuning_args(self) -> Dict[str, Any]:
+        """
+        Returns a dictionary of hyperperameter argument names and values as expected by a AML SDK v2 job
+        to perform hyperparameter search
+        """
+        raise NotImplementedError("Parameter search is not implemented. Please override 'get_parameter_tuning_args' "
+                                  "in your model container.")
+
     def update_experiment_config(self, experiment_config: ExperimentConfig) -> None:
         """
         This method allows overriding ExperimentConfig parameters from within a LightningContainer.
@@ -191,7 +199,7 @@ class LightningContainer(WorkflowParams,
         :return: A dictionary of hyperparameter search arguments and values.
         """
         if self.hyperdrive:
-            raise NotImplementedError("Parameter search is not implemented yet.")
+            return self.get_parameter_tuning_args()
         if self.is_crossvalidation_enabled:
             return self.get_crossval_hyperparam_args_v2()
         if self.different_seeds > 0:

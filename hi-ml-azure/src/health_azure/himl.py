@@ -56,7 +56,13 @@ OUTPUT_FOLDER = "outputs"
 RUN_RECOVERY_FILE = "most_recent_run.txt"
 SDK_NAME = "innereye"
 SDK_VERSION = "2.0"
+
+# hyperparameter search args
 PARAM_SAMPLING_ARG = "parameter_sampling"
+MAX_TOTAL_TRIALS_ARG = "max_total_trials"
+PRIMARY_METRIC_ARG = "primary_metric"
+SAMPLING_ALGORITHM_ARG = "sampling_algorithm"
+GOAL_ARG = "goal"
 
 
 @dataclass
@@ -284,11 +290,11 @@ def create_grid_hyperparam_args_v2(values: List[Any],
     """
     param_sampling = {argument_name: Choice(values)}
     hyperparam_args = {
-        "max_total_trials": len(values),
+        MAX_TOTAL_TRIALS_ARG: len(values),
         PARAM_SAMPLING_ARG: param_sampling,
-        "sampling_algorithm": "grid",
-        "primary_metric": metric_name,
-        "goal": "Minimize"
+        SAMPLING_ALGORITHM_ARG: "grid",
+        PRIMARY_METRIC_ARG: metric_name,
+        GOAL_ARG: "Minimize"
 
     }
     return hyperparam_args
@@ -497,7 +503,6 @@ def submit_run_v2(workspace: Optional[Workspace],
             experiment_name=experiment_name,
             environment_variables={
                 "JOB_EXECUTION_MODE": "Basic",
-                "AZUREML_COMPUTE_USE_COMMON_RUNTIME": "true"
             }
         )
 
@@ -515,7 +520,7 @@ def submit_run_v2(workspace: Optional[Workspace],
         # AML docs state to reset certain properties here which aren't picked up from the
         # underlying command such as experiment name and max_total_trials
         job_to_submit.experiment_name = experiment_name
-        job_to_submit.set_limits(max_total_trials=hyperparam_args.get("max_total_trials", None))
+        job_to_submit.set_limits(max_total_trials=hyperparam_args.get(MAX_TOTAL_TRIALS_ARG, None))
 
     else:
         job_to_submit = command(
@@ -528,7 +533,6 @@ def submit_run_v2(workspace: Optional[Workspace],
             experiment_name=experiment_name,
             environment_variables={
                 "JOB_EXECUTION_MODE": "Basic",
-                "AZUREML_COMPUTE_USE_COMMON_RUNTIME": "true"
             }
         )
 

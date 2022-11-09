@@ -1312,12 +1312,12 @@ def test_create_crossval_hyperparam_args_v2() -> None:
     num_splits = 3
     crossval_args = himl.create_crossval_hyperparam_args_v2(num_splits)
     assert isinstance(crossval_args, Dict)
-    assert crossval_args["max_total_trials"] == num_splits
+    assert crossval_args[himl.MAX_TOTAL_TRIALS_ARG] == num_splits
     assert isinstance(crossval_args[himl.PARAM_SAMPLING_ARG], Dict)
     assert isinstance(crossval_args[himl.PARAM_SAMPLING_ARG]["crossval_index"], Choice)
-    assert crossval_args["primary_metric"] == "val/loss"
-    assert crossval_args["sampling_algorithm"] == "grid"
-    assert crossval_args["goal"] == "Minimize"
+    assert crossval_args[himl.PRIMARY_METRIC_ARG] == "val/loss"
+    assert crossval_args[himl.SAMPLING_ALGORITHM_ARG] == "grid"
+    assert crossval_args[himl.GOAL_ARG] == "Minimize"
 
 
 def test_create_grid_hyperparam_args_v2() -> None:
@@ -1327,12 +1327,12 @@ def test_create_grid_hyperparam_args_v2() -> None:
     hparams_args_float = himl.create_grid_hyperparam_args_v2(mock_values_float, mock_arg_name_float,
                                                              mock_metric_name_float)
     assert isinstance(hparams_args_float, Dict)
-    assert hparams_args_float["max_total_trials"] == len(mock_values_float)
+    assert hparams_args_float[himl.MAX_TOTAL_TRIALS_ARG] == len(mock_values_float)
     assert isinstance(hparams_args_float[himl.PARAM_SAMPLING_ARG], Dict)
     assert isinstance(hparams_args_float[himl.PARAM_SAMPLING_ARG][mock_arg_name_float], Choice)
-    assert hparams_args_float["primary_metric"] == mock_metric_name_float
-    assert hparams_args_float["sampling_algorithm"] == "grid"
-    assert hparams_args_float["goal"] == "Minimize"
+    assert hparams_args_float[himl.PRIMARY_METRIC_ARG] == mock_metric_name_float
+    assert hparams_args_float[himl.SAMPLING_ALGORITHM_ARG] == "grid"
+    assert hparams_args_float[himl.GOAL_ARG] == "Minimize"
 
     mock_values_str = ["a", "b", "c"]
     mock_arg_name_str = "letter"
@@ -1340,12 +1340,12 @@ def test_create_grid_hyperparam_args_v2() -> None:
     hparam_args_str = himl.create_grid_hyperparam_args_v2(mock_values_str, mock_arg_name_str,
                                                           mock_metric_name_str)
     assert isinstance(hparam_args_str, Dict)
-    assert hparam_args_str["max_total_trials"] == len(mock_values_str)
+    assert hparam_args_str[himl.MAX_TOTAL_TRIALS_ARG ]== len(mock_values_str)
     assert isinstance(hparam_args_str[himl.PARAM_SAMPLING_ARG], Dict)
     assert isinstance(hparam_args_str[himl.PARAM_SAMPLING_ARG][mock_arg_name_str], Choice)
-    assert hparam_args_str["primary_metric"] == mock_metric_name_str
-    assert hparam_args_str["sampling_algorithm"] == "grid"
-    assert hparam_args_str["goal"] == "Minimize"
+    assert hparam_args_str[himl.PRIMARY_METRIC_ARG] == mock_metric_name_str
+    assert hparam_args_str[himl.SAMPLING_ALGORITHM_ARG] == "grid"
+    assert hparam_args_str[himl.GOAL_ARG] == "Minimize"
 
 
 @pytest.mark.fast
