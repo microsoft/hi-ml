@@ -40,7 +40,7 @@ from health_azure.utils import (create_python_environment, create_run_recovery_i
                                 run_duration_string_to_seconds, to_azure_friendly_string, RUN_CONTEXT, get_workspace,
                                 PathOrString, DEFAULT_ENVIRONMENT_VARIABLES, get_ml_client,
                                 create_python_environment_v2, register_environment_v2, V2_INPUT_DATASET_PATTERN,
-                                V2_OUTPUT_DATASET_PATTERN)
+                                V2_OUTPUT_DATASET_PATTERN, SLATierType)
 from health_azure.datasets import (DatasetConfig, StrOrDatasetConfig, setup_local_datasets,
                                    _input_dataset_key, _output_dataset_key, _replace_string_datasets)
 
@@ -422,7 +422,13 @@ def submit_run_v2(workspace: Optional[Workspace],
                   wait_for_completion_show_output: bool = False,
                   workspace_config_path: Optional[PathOrString] = None,
                   ml_client: Optional[MLClient] = None,
-                  hyperparam_args: Optional[Dict[str, Any]] = None) -> Job:
+                  docker_base_image: str = "",
+                  docker_shm_size: str = "",
+                  sla_tier: Optional[SLATierType] = None,
+                  instance_type: Optional[str] = None,
+                  instance_count: int = 1,
+                  hyperparam_args: Optional[Dict[str, Any]] = None,
+                  ) -> Job:
     """
     Starts a v2 AML Job on a given workspace by submitting a command
 
@@ -444,6 +450,14 @@ def submit_run_v2(workspace: Optional[Workspace],
         the completion of this run (if True).
     :param wait_for_completion_show_output: If wait_for_completion is True this parameter indicates whether to show the
         run output on sys.stdout.
+    :param docker_base_image: The Docker base image that should be specified when submitting a job to a virtual cluster.
+    :param docker_shm_size: The Docker shared memory size that should be used when creating a new Docker image.
+    :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
+        the Docker image.
+    :param sla_tier: Optional service level acccess tier if submitting to compute that requires this specification.
+        Should be one of 'Premium', 'Standard', 'Basic' or None.
+    :param instance_type: If more than one instance type is available in the virtual cluster, specify which type to use.
+    :param instance_count: The number of Azure ML nodes to request for the job.
     :param workspace_config_path: If not provided with an AzureML Workspace, then load one given the information in this
         config
     :param ml_client: An Azure MLClient object for interacting with Azure resources.
@@ -483,7 +497,25 @@ def submit_run_v2(workspace: Optional[Workspace],
     else:
         output_datasets_v2 = {}
 
-    job_to_submit: Union[Command, Sweep]
+    sla_tier_str = sla_tier.value if sla_tier else ""
+
+    # The following parameters are specified for submitting jobs to Singularity. Other compute types will ignore th
+    job_resources = {
+        "instance_type": instance_type,
+        "instance_count": instance_count,
+        "properties": {
+            "AISuperComputer": {
+                "interactive": False,
+                "imageVersion": docker_base_image,
+                "slaTier": sla_tier_str,
+                "tensorboardLogDirectory": "/scratch/tensorboard_logs",
+                "scalePolicy": {
+                    "autoScaleIntervalInSec": 120,
+                    "maxInstanceTypeCount": 1,
+                    "minInstanceTypeCount": 1,
+                },
+                "sshPublicKeys": []}}
+    }
 
     if hyperparam_args:
         param_sampling = hyperparam_args[PARAM_SAMPLING_ARG]
@@ -500,6 +532,8 @@ def submit_run_v2(workspace: Optional[Workspace],
             environment=environment.name + "@latest",
             compute=compute_target,
             experiment_name=experiment_name,
+            shm_size=docker_shm_size,
+            resources=job_resources,
             environment_variables={
                 "JOB_EXECUTION_MODE": "Basic",
             }
@@ -530,6 +564,8 @@ def submit_run_v2(workspace: Optional[Workspace],
             environment=environment.name + "@latest",
             compute=compute_target,
             experiment_name=experiment_name,
+            shm_size=docker_shm_size,
+            resources=job_resources,
             environment_variables={
                 "JOB_EXECUTION_MODE": "Basic",
             }
@@ -704,6 +740,9 @@ def submit_to_azure_if_needed(  # type: ignore
         hyperparam_args: Optional[Dict[str, Any]] = None,
         create_output_folders: bool = True,
         strictly_aml_v1: bool = False,
+        sla_tier: Optional[SLATierType] = None,
+        instance_type: Optional[str] = None,
+        instance_count: int = 1,
 ) -> AzureRunInfo:  # pragma: no cover
     """
     Submit a folder to Azure, if needed and run it.
@@ -759,6 +798,10 @@ def submit_to_azure_if_needed(  # type: ignore
     :param hyperdrive_config: A configuration object for Hyperdrive (hyperparameter search).
     :param create_output_folders: If True (default), create folders "outputs" and "logs" in the current working folder.
     :param strictly_aml_v1: If True, use Azure ML SDK v1. Otherwise, attempt to use Azure ML SDK v2.
+    :param sla_tier: Optional service level acccess tier if submitting to compute that requires this specification.
+        Should be one of 'Premium', 'Standard', 'Basic' or None.
+    :param instance_type: If more than one instance type is available in the virtual cluster, specify which type to use.
+    :param instance_count: The number of Azure ML nodes to request for the job.
     :return: If the script is submitted to AzureML then we terminate python as the script should be executed in AzureML,
         otherwise we return a AzureRunInfo object.
     """
@@ -892,6 +935,11 @@ def submit_to_azure_if_needed(  # type: ignore
                                 tags=tags,
                                 wait_for_completion=wait_for_completion,
                                 wait_for_completion_show_output=wait_for_completion_show_output,
+                                docker_base_image=docker_base_image,
+                                docker_shm_size=docker_shm_size,
+                                sla_tier=sla_tier,
+                                instance_type=instance_type,
+                                instance_count=instance_count,
                                 hyperparam_args=hyperparam_args
                                 )
 
