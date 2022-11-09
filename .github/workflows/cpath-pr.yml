@@ -69,30 +69,8 @@ jobs:
         with:
           lfs: true
 
-      - name: Set up Python ${{ env.pythonVersion }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.pythonVersion }}
-
-      - name: PIP upgrade
-        run: |
-          cd ${{ env.folder }}
-          make pip_upgrade
-
-      - name: Install required packages
-        run: |
-          cd ${{ env.folder }}
-          make pip_from_conda
-
-      - name: Install hi-ml locally
-        run: |
-          cd hi-ml
-          make pip_local
-
-      - name: Install hi-ml-azure locally
-        run: |
-          cd hi-ml-azure
-          make pip_local
+      - name: Prepare Conda environment
+        uses: ./.github/actions/prepare_cpath_environment
 
       - name: Test with pytest
         run: |
@@ -105,6 +83,7 @@ jobs:
       - name: Run GPU tests
         # GPU tests should be run even if other tests fail
         if: always()
+        shell: bash -l {0}
         run: |
           branch_prefix="refs/heads/"
           full_branch_name=$GITHUB_REF
@@ -126,9 +105,8 @@ jobs:
         with:
           lfs: true
 
-      - name: Set up smoke test environment
-        id: setup-slides-smoke-test-environment
-        uses: ./.github/actions/prepare_smoke_test_environment
+      - name: Prepare Conda environment
+        uses: ./.github/actions/prepare_cpath_environment
 
       - name: smoke test
         run: |
@@ -142,9 +120,8 @@ jobs:
         with:
           lfs: true
 
-      - name: Set up smoke test environment
-        id: setup-tiles-smoke-test-environment
-        uses: ./.github/actions/prepare_smoke_test_environment
+      - name: Prepare Conda environment
+        uses: ./.github/actions/prepare_cpath_environment
 
       - name: smoke test
         run: |
@@ -158,9 +135,8 @@ jobs:
         with:
           lfs: true
 
-      - name: Set up smoke test environment
-        id: setup-sslmil-smoke-test-environment
-        uses: ./.github/actions/prepare_smoke_test_environment
+      - name: Prepare Conda environment
+        uses: ./.github/actions/prepare_cpath_environment
 
       - name: smoke test
         run: |
@@ -174,9 +150,8 @@ jobs:
         with:
           lfs: true
 
-      - name: Set up smoke test environment
-        id: setup-simclr-smoke-test-environment
-        uses: ./.github/actions/prepare_smoke_test_environment
+      - name: Prepare Conda environment
+        uses: ./.github/actions/prepare_cpath_environment
 
       - name: smoke test
         run: |
