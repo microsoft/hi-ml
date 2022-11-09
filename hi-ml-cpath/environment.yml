@@ -78,7 +78,7 @@ dependencies:
 #   - tzdata=2022f=h04d1e81_0
 #   - x264=1!157.20191217=h7b6447c_0
 #   - xz=5.2.6=h5eee18b_0
-#   - zlib=1.2.13=h5eee18b_0
+  - zlib=1.2.13=h5eee18b_0
 #   - zstd=1.5.2=ha4553b6_0
 #   - pip:
 #     - absl-py==1.3.0
