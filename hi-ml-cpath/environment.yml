@@ -133,7 +133,7 @@ dependencies:
     - conda-merge==0.1.5
     - contextlib2==21.6.0
     - coverage==6.3.2
-    - cryptography==37.0.4
+    - cryptography==38.0.3
     - cucim==22.4.0
     - cycler==0.11.0
     - databricks-cli==0.17.3
