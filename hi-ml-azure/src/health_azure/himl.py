@@ -455,7 +455,7 @@ def submit_run_v2(workspace: Optional[Workspace],
         environment=environment.name + "@latest",
         compute=compute_target,
         experiment_name=experiment_name,
-        tags=tags,
+        tags=tags or {},
         display_name=display_name,
         environment_variables={
             "JOB_EXECUTION_MODE": "Basic",
