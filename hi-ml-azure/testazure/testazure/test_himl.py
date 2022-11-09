@@ -1340,7 +1340,7 @@ def test_create_grid_hyperparam_args_v2() -> None:
     hparam_args_str = himl.create_grid_hyperparam_args_v2(mock_values_str, mock_arg_name_str,
                                                           mock_metric_name_str)
     assert isinstance(hparam_args_str, Dict)
-    assert hparam_args_str[himl.MAX_TOTAL_TRIALS_ARG ]== len(mock_values_str)
+    assert hparam_args_str[himl.MAX_TOTAL_TRIALS_ARG] == len(mock_values_str)
     assert isinstance(hparam_args_str[himl.PARAM_SAMPLING_ARG], Dict)
     assert isinstance(hparam_args_str[himl.PARAM_SAMPLING_ARG][mock_arg_name_str], Choice)
     assert hparam_args_str[himl.PRIMARY_METRIC_ARG] == mock_metric_name_str
