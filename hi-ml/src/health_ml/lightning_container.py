@@ -13,8 +13,8 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 
 from health_azure.utils import create_from_matching_params
-from health_ml.deep_learning_config import DatasetParams, OptimizerParams, OutputParams, TrainerParams, \
-    WorkflowParams
+from health_ml.deep_learning_config import (DatasetParams, OptimizerParams, OutputParams, TrainerParams,
+                                            WorkflowParams, ComputeParams)
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
 from health_ml.utils.lr_scheduler import SchedulerWithWarmUp
@@ -25,7 +25,8 @@ class LightningContainer(WorkflowParams,
                          DatasetParams,
                          OutputParams,
                          TrainerParams,
-                         OptimizerParams):
+                         OptimizerParams,
+                         ComputeParams):
     """
     A LightningContainer contains all information to train a user-specified PyTorch Lightning model. The model that
     should be trained is returned by the `get_model` method. The training data must be returned in the form of

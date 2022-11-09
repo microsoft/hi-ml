@@ -251,7 +251,13 @@ class Runner:
                                    all_local_datasets=all_local_datasets,  # type: ignore
                                    datastore=datastore,
                                    use_mounting=use_mounting)
+
         hyperdrive_config = self.lightning_container.get_hyperdrive_config()
+        sla_tier = self.lightning_container.sla_tier
+        instance_type = self.lightning_container.instance_type
+        image_version = self.lightning_container.image_version
+        instance_count = self.lightning_container.instance_count
+
         if self.experiment_config.cluster and not is_running_in_azure_ml():
             ml_client = get_ml_client()
 
@@ -275,13 +281,16 @@ class Runner:
                 wait_for_completion=self.experiment_config.wait_for_completion,
                 ignored_folders=[],
                 submit_to_azureml=bool(self.experiment_config.cluster),
-                docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
+                docker_base_image=image_version or DEFAULT_DOCKER_BASE_IMAGE,
                 docker_shm_size=self.experiment_config.docker_shm_size,
                 hyperdrive_config=hyperdrive_config,
                 create_output_folders=False,
                 after_submission=after_submission_hook,
                 tags=self.additional_run_tags(script_params),
                 strictly_aml_v1=self.experiment_config.strictly_aml_v1,
+                sla_tier=sla_tier,
+                instance_type=instance_type,
+                instance_count=instance_count,
             )
         else:
             azure_run_info = submit_to_azure_if_needed(

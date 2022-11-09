@@ -21,7 +21,7 @@ from health_azure.himl import create_grid_hyperdrive_config
 from health_azure.amulet import (ENV_AMLT_PROJECT_NAME, ENV_AMLT_INPUT_OUTPUT,
                                  ENV_AMLT_SNAPSHOT_DIR, ENV_AMLT_AZ_BATCHAI_DIR,
                                  is_amulet_job, get_amulet_aml_working_dir)
-from health_azure.utils import (RUN_CONTEXT, PathOrString, is_global_rank_zero, is_running_in_azure_ml)
+from health_azure.utils import (RUN_CONTEXT, PathOrString, is_global_rank_zero, is_running_in_azure_ml, SLATierType)
 from health_ml.utils import fixed_paths
 from health_ml.utils.common_utils import (CHECKPOINT_FOLDER,
                                           create_unique_timestamp_id,
@@ -551,3 +551,15 @@ class TrainerParams(param.Parameterized):
             logging.warning(
                 f"You requested max_num_gpus {self.max_num_gpus} but there are only {num_gpus} available.")
         return num_gpus
+
+
+class ComputeParams(param.Parameterized):
+    sla_tier: Optional[SLATierType] = param.ClassSelector(
+        default=None, class_=SLATierType, instantiate=False, doc="Optional service level agreement tier"
+    )
+    instance_type: Optional[str] = param.String(default="", doc="If more than one instance type is available "
+                                                "in the cluster, specify which type to use")
+    instance_count: Optional[int] = param.Integer(default=1, doc="Optional number of AML nodes to request in a "
+                                                  "virtual cluster")
+    image_version: Optional[str] = param.String(default="", doc="The base Docker image to use for environment "
+                                                "building in AML.")

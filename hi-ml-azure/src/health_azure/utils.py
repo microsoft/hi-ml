@@ -112,6 +112,12 @@ V2_OUTPUT_DATASET_PATTERN = r"--OUTPUT_\d[=| ]"
 PathOrString = Union[Path, str]
 
 
+class SLATierType(Enum):
+    Premium = "Premium"
+    Standard = "Standard"
+    Basic = "Basic"
+
+
 class IntTuple(param.NumericTuple):
     """
     Parameter class that must always have integer values
