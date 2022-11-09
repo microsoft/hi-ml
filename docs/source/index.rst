@@ -22,7 +22,7 @@ The `hi-ml` toolbox provides
    azure_setup.md
    authentication.md
    datasets.md
-   hyperdrive.md
+   hyperparameter_search.md
    lowpriority.md
    commandline_tools.md
    downloading.md
