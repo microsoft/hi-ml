@@ -18,12 +18,14 @@ from argparse import ArgumentParser
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
 
 from azure.ai.ml import MLClient, Input, Output, command
 from azure.ai.ml.constants import AssetTypes, InputOutputModes
-from azure.ai.ml.entities import Data, Job
+from azure.ai.ml.entities import Data, Job, Command, Sweep
 from azure.ai.ml.entities import Environment as EnvironmentV2
+
+from azure.ai.ml.sweep import Choice
 from azureml._base_sdk_common import user_agent
 from azureml.core import ComputeTarget, Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
@@ -54,6 +56,13 @@ OUTPUT_FOLDER = "outputs"
 RUN_RECOVERY_FILE = "most_recent_run.txt"
 SDK_NAME = "innereye"
 SDK_VERSION = "2.0"
+
+# hyperparameter search args
+PARAM_SAMPLING_ARG = "parameter_sampling"
+MAX_TOTAL_TRIALS_ARG = "max_total_trials"
+PRIMARY_METRIC_ARG = "primary_metric"
+SAMPLING_ALGORITHM_ARG = "sampling_algorithm"
+GOAL_ARG = "goal"
 
 
 @dataclass
@@ -266,6 +275,30 @@ def create_grid_hyperdrive_config(values: List[str],
     )
 
 
+def create_grid_hyperparam_args_v2(values: List[Any],
+                                   argument_name: str,
+                                   metric_name: str) -> Dict[str, Any]:
+    """
+    Create a dictionary of arguments to create an Azure ML v2 SDK Sweep job.
+
+    :param values: The list of values to try for the commandline argument given by `argument_name`.
+    :param argument_name: The name of the commandline argument that each of the child runs gets, to
+        indicate which value they should work on.
+    :param metric_name: The name of the metric that the sweep job will compare runs by. Please note that it is
+        your responsibility to make sure a metric with this name is logged to the Run in your training script
+    :return: A dictionary of arguments and values to pass in to the command job.
+    """
+    param_sampling = {argument_name: Choice(values)}
+    hyperparam_args = {
+        MAX_TOTAL_TRIALS_ARG: len(values),
+        PARAM_SAMPLING_ARG: param_sampling,
+        SAMPLING_ALGORITHM_ARG: "grid",
+        PRIMARY_METRIC_ARG: metric_name,
+        GOAL_ARG: "Minimize"
+    }
+    return hyperparam_args
+
+
 def create_crossval_hyperdrive_config(num_splits: int,
                                       cross_val_index_arg_name: str = "crossval_index",
                                       metric_name: str = "val/loss") -> HyperDriveConfig:
@@ -284,6 +317,24 @@ def create_crossval_hyperdrive_config(num_splits: int,
     return create_grid_hyperdrive_config(values=list(map(str, range(num_splits))),
                                          argument_name=cross_val_index_arg_name,
                                          metric_name=metric_name)
+
+
+def create_crossval_hyperparam_args_v2(num_splits: int,
+                                       cross_val_index_arg_name: str = "crossval_index",
+                                       metric_name: str = "val/loss") -> Dict[str, Any]:
+    """
+    Create a dictionary of arguments to create an Azure ML v2 SDK Sweep job.
+
+    :param num_splits: The number of splits for k-fold cross validation
+    :param cross_val_index_arg_name: The name of the commandline argument that each of the child runs gets, to
+        indicate which split they should work on.
+    :param metric_name: The name of the metric that the HyperDriveConfig will compare runs by. Please note that it is
+        your responsibility to make sure a metric with this name is logged to the Run in your training script
+    :return: A dictionary of arguments and values to pass in to the command job.
+    """
+    return create_grid_hyperparam_args_v2(values=list(map(str, range(num_splits))),
+                                          argument_name=cross_val_index_arg_name,
+                                          metric_name=metric_name)
 
 
 def create_script_run(snapshot_root_directory: Optional[Path] = None,
@@ -376,6 +427,7 @@ def submit_run_v2(workspace: Optional[Workspace],
                   sla_tier: Optional[SLATierType] = None,
                   instance_type: Optional[str] = None,
                   instance_count: int = 1,
+                  hyperparam_args: Optional[Dict[str, Any]] = None,
                   ) -> Job:
     """
     Starts a v2 AML Job on a given workspace by submitting a command
@@ -398,8 +450,6 @@ def submit_run_v2(workspace: Optional[Workspace],
         the completion of this run (if True).
     :param wait_for_completion_show_output: If wait_for_completion is True this parameter indicates whether to show the
         run output on sys.stdout.
-    :param workspace_config_path:
-    :param ml_client:
     :param docker_base_image: The Docker base image that should be specified when submitting a job to a virtual cluster.
     :param docker_shm_size: The Docker shared memory size that should be used when creating a new Docker image.
     :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
@@ -408,6 +458,10 @@ def submit_run_v2(workspace: Optional[Workspace],
         Should be one of 'Premium', 'Standard', 'Basic' or None.
     :param instance_type: If more than one instance type is available in the virtual cluster, specify which type to use.
     :param instance_count: The number of Azure ML nodes to request for the job.
+    :param workspace_config_path: If not provided with an AzureML Workspace, then load one given the information in this
+        config
+    :param ml_client: An Azure MLClient object for interacting with Azure resources.
+    :param hyperparam_args: A dictionary of hyperparameter search args to pass into a sweep job.
     :return: An AzureML Run object.
     """
     if ml_client is None:
@@ -463,23 +517,61 @@ def submit_run_v2(workspace: Optional[Workspace],
                 "sshPublicKeys": []}}
     }
 
-    command_job = command(
-        code=str(snapshot_root_directory),
-        command=cmd,
-        inputs=input_datasets_v2,
-        outputs=output_datasets_v2,
-        environment=environment.name + "@latest",
-        compute=compute_target,
-        instance_count=instance_count,
-        experiment_name=experiment_name,
-        shm_size=docker_shm_size,
-        resources=job_resources,
-        environment_variables={
-            "JOB_EXECUTION_MODE": "Basic",
-            "AZUREML_COMPUTE_USE_COMMON_RUNTIME": "true"
-        }
-    )
-    returned_job = ml_client.jobs.create_or_update(command_job)
+    if hyperparam_args:
+        param_sampling = hyperparam_args[PARAM_SAMPLING_ARG]
+
+        for sample_param, choices in param_sampling.items():
+            input_datasets_v2[sample_param] = choices.values[0]
+            cmd += f" --{sample_param}=" + "${{inputs." + sample_param + "}}"
+
+        command_job = command(
+            code=str(snapshot_root_directory),
+            command=cmd,
+            inputs=input_datasets_v2,
+            outputs=output_datasets_v2,
+            environment=environment.name + "@latest",
+            compute=compute_target,
+            experiment_name=experiment_name,
+            shm_size=docker_shm_size,
+            resources=job_resources,
+            environment_variables={
+                "JOB_EXECUTION_MODE": "Basic",
+            }
+        )
+
+        del hyperparam_args[PARAM_SAMPLING_ARG]
+        # override command with parameter expressions
+        command_job = command_job(
+            **param_sampling,
+        )
+
+        job_to_submit = command_job.sweep(
+            compute=compute_target,  # AML docs suggest setting this here although already passed to command
+            **hyperparam_args
+        )
+
+        # AML docs state to reset certain properties here which aren't picked up from the
+        # underlying command such as experiment name and max_total_trials
+        job_to_submit.experiment_name = experiment_name
+        job_to_submit.set_limits(max_total_trials=hyperparam_args.get(MAX_TOTAL_TRIALS_ARG, None))
+
+    else:
+        job_to_submit = command(
+            code=str(snapshot_root_directory),
+            command=cmd,
+            inputs=input_datasets_v2,
+            outputs=output_datasets_v2,
+            environment=environment.name + "@latest",
+            compute=compute_target,
+            experiment_name=experiment_name,
+            shm_size=docker_shm_size,
+            resources=job_resources,
+            environment_variables={
+                "JOB_EXECUTION_MODE": "Basic",
+            }
+        )
+
+    returned_job = ml_client.jobs.create_or_update(job_to_submit)
     logging.info(f"URL to job: {returned_job.services['Studio'].endpoint}")  # type: ignore
     return returned_job
 
@@ -645,6 +737,7 @@ def submit_to_azure_if_needed(  # type: ignore
         tags: Optional[Dict[str, str]] = None,
         after_submission: Optional[Callable[[Run], None]] = None,
         hyperdrive_config: Optional[HyperDriveConfig] = None,
+        hyperparam_args: Optional[Dict[str, Any]] = None,
         create_output_folders: bool = True,
         strictly_aml_v1: bool = False,
         sla_tier: Optional[SLATierType] = None,
@@ -829,6 +922,7 @@ def submit_to_azure_if_needed(  # type: ignore
             registered_env = register_environment_v2(environment, ml_client)
             input_datasets_v2 = create_v2_inputs(ml_client, cleaned_input_datasets)
             output_datasets_v2 = create_v2_outputs(cleaned_output_datasets)
+
             run = submit_run_v2(workspace=workspace,
                                 input_datasets_v2=input_datasets_v2,
                                 output_datasets_v2=output_datasets_v2,
@@ -846,6 +940,7 @@ def submit_to_azure_if_needed(  # type: ignore
                                 sla_tier=sla_tier,
                                 instance_type=instance_type,
                                 instance_count=instance_count,
+                                hyperparam_args=hyperparam_args
                                 )
 
     if after_submission is not None and strictly_aml_v1:

@@ -95,6 +95,14 @@ class LightningContainer(WorkflowParams,
         raise NotImplementedError("Parameter search is not implemented. Please override 'get_parameter_tuning_config' "
                                   "in your model container.")
 
+    def get_parameter_tuning_args(self) -> Dict[str, Any]:
+        """
+        Returns a dictionary of hyperperameter argument names and values as expected by a AML SDK v2 job
+        to perform hyperparameter search
+        """
+        raise NotImplementedError("Parameter search is not implemented. Please override 'get_parameter_tuning_args' "
+                                  "in your model container.")
+
     def update_experiment_config(self, experiment_config: ExperimentConfig) -> None:
         """
         This method allows overriding ExperimentConfig parameters from within a LightningContainer.
@@ -182,6 +190,21 @@ class LightningContainer(WorkflowParams,
             return self.get_crossval_hyperdrive_config()
         if self.different_seeds > 0:
             return self.get_different_seeds_hyperdrive_config()
+        return None
+
+    def get_hyperparam_args(self) -> Optional[Dict[str, Any]]:
+        """
+        Returns a dictionary of hyperparameter search arguments that will be passed to an AML v2 command to
+        enable either hyperparameter tuning,  cross validation, or running with different seeds.
+
+        :return: A dictionary of hyperparameter search arguments and values.
+        """
+        if self.hyperdrive:
+            return self.get_parameter_tuning_args()
+        if self.is_crossvalidation_enabled:
+            return self.get_crossval_hyperparam_args_v2()
+        if self.different_seeds > 0:
+            return self.get_grid_hyperparam_args_v2()
         return None
 
     def load_model_checkpoint(self, checkpoint_path: Path) -> None:
