@@ -70,7 +70,7 @@ dependencies:
 #   - pytorch=1.10.0=py3.9_cuda11.3_cudnn8.2.0_0
 #   - pytorch-mutex=1.0=cuda
 #   - readline=8.2=h5eee18b_0
-#   - six=1.16.0=pyhd3eb1b0_1
+  - six=1.16.0=pyhd3eb1b0_1
 #   - sqlite=3.39.3=h5082296_0
 #   - tk=8.6.12=h1ccaba5_0
 #   - torchvision=0.11.1=py39_cu113
