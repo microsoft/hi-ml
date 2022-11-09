@@ -1468,3 +1468,24 @@ def test_extract_v2_inputs_outputs_from_args() -> None:
         input_datasets, output_datasets = himl._extract_v2_inputs_outputs_from_args()
         assert len(input_datasets) == 0
         assert len(output_datasets) == 0
+
+
+def test_get_display_name_v2() -> None:
+    dummy_display_name = "job display name"
+    expected_display_name = "job-display-name"
+    dummy_tags = {
+        "tag": dummy_display_name
+    }
+    display_name = himl.get_display_name_v2(dummy_tags)
+    assert display_name == expected_display_name
+
+    # if tag named 'tag' is missing, display name should be empty
+    dummy_tags_missing = {
+        "some_tag": dummy_display_name
+    }
+    display_name = himl.get_display_name_v2(dummy_tags_missing)
+    assert display_name == ""
+
+    # if no tags provided, display name should be empty
+    display_name = himl.get_display_name_v2()
+    assert display_name == ""

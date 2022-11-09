@@ -18,7 +18,7 @@ from argparse import ArgumentParser
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
 
 from azure.ai.ml import MLClient, Input, Output, command
 from azure.ai.ml.constants import AssetTypes, InputOutputModes
@@ -357,6 +357,22 @@ def _generate_output_dataset_command(output_datasets_v2: Dict[str, Output]) -> s
     return output_cmd
 
 
+def get_display_name_v2(tags: Optional[Dict[str, Any]] = None) -> str:
+    """
+    If the command line argument 'tag' is provided, return its value to be set as the job's display name.
+    Empty spaces in the tag will be replaced with hyphens, otherwise AML treats it as multiple statements.
+    Otherwise return an empty string.
+
+    :param tags: An optional dictionary of tag names and values to be provided to the job.
+    :return: A string either containing the value of tag, or else empty.
+    """
+    if tags is None:
+        return ""
+    tag = tags.get("tag", "")
+    display_name = tag.replace(" ", "-")
+    return display_name
+
+
 def submit_run_v2(workspace: Optional[Workspace],
                   experiment_name: str,
                   environment: EnvironmentV2,
@@ -429,6 +445,8 @@ def submit_run_v2(workspace: Optional[Workspace],
     else:
         output_datasets_v2 = {}
 
+    display_name = get_display_name_v2(tags)
+
     command_job = command(
         code=str(snapshot_root_directory),
         command=cmd,
@@ -437,6 +455,8 @@ def submit_run_v2(workspace: Optional[Workspace],
         environment=environment.name + "@latest",
         compute=compute_target,
         experiment_name=experiment_name,
+        tags=tags,
+        display_name=display_name,
         environment_variables={
             "JOB_EXECUTION_MODE": "Basic",
             "AZUREML_COMPUTE_USE_COMMON_RUNTIME": "true"
