@@ -29,11 +29,17 @@ runs:
     - name: Activate cached environment
       shell: bash
       if: steps.cache-conda.outputs.cache-hit == 'true'
-      run: echo "/usr/share/miniconda/envs/HimlHisto/bin" >> $GITHUB_PATH
+      run: |
+        echo "Adding Conda bin folder to path"
+        echo "/usr/share/miniconda/envs/HimlHisto/bin" >> $GITHUB_PATH
 
     - name: Conda info
       shell: bash
       run: conda info
+
+    - name: Show active Python path
+      shell: bash
+      run: which python
 
     - name: Install hi-ml locally
       shell: bash
