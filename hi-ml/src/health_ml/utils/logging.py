@@ -124,7 +124,7 @@ class AzureMLLogger(LightningLoggerBase):
             return
         if params is None:
             return
-        params_final = self._preprocess_hyperparams(params)
+        params_final = _preprocess_hyperparams(params)
         if len(params_final) > 0:
             # Log hyperparameters as a table with 2 columns. Each "step" is one hyperparameter
             self.run.log_table(self.HYPERPARAMS_NAME, {"name": list(params_final.keys()),
@@ -149,24 +149,6 @@ class AzureMLLogger(LightningLoggerBase):
             else:
                 # Run.complete should only be called if we created an AzureML run here in the constructor.
                 self.run.complete()
-
-    def _preprocess_hyperparams(self, params: Any) -> Dict[str, str]:
-        """
-        Converts arbitrary hyperparameters to a simple dictionary structure, in particular argparse Namespaces.
-        Nested dictionaries are converted to folder-like strings, like ``{'a': {'b': 'c'}} -> {'a/b': 'c'}``.
-        All hyperparameter values are converted to strings, because Run.log_table can't deal with mixed datatypes.
-        :param params: The parameters to convert
-        :return: A dictionary mapping from string to string.
-        """
-        # Convert from Namespace to dictionary
-        params = _convert_params(params)
-        # Convert nested dictionaries to folder-like structure
-        params = _flatten_dict(params)
-        # Convert anything that is not a primitive type to str
-        params_final = _sanitize_params(params)
-        if not isinstance(params_final, dict):
-            raise ValueError(f"Expected the converted hyperparameters to be a dictionary, but got {type(params)}")
-        return {str(key): str(value) for key, value in params_final.items()}
 
 
 class AzureMLProgressBar(ProgressBarBase):
@@ -331,6 +313,25 @@ class AzureMLProgressBar(ProgressBarBase):
         else:
             print(message)
             sys.stdout.flush()
+
+
+def _preprocess_hyperparams(params: Any) -> Dict[str, str]:
+    """
+    Converts arbitrary hyperparameters to a simple dictionary structure, in particular argparse Namespaces.
+    Nested dictionaries are converted to folder-like strings, like ``{'a': {'b': 'c'}} -> {'a/b': 'c'}``.
+    All hyperparameter values are converted to strings, because Run.log_table can't deal with mixed datatypes.
+    :param params: The parameters to convert
+    :return: A dictionary mapping from string to string.
+    """
+    # Convert from Namespace to dictionary
+    params = _convert_params(params)
+    # Convert nested dictionaries to folder-like structure
+    params = _flatten_dict(params)
+    # Convert anything that is not a primitive type to str
+    params_final = _sanitize_params(params)
+    if not isinstance(params_final, dict):
+        raise ValueError(f"Expected the converted hyperparameters to be a dictionary, but got {type(params)}")
+    return {str(key): str(value) for key, value in params_final.items()}
 
 
 def log_on_epoch(module: LightningModule,

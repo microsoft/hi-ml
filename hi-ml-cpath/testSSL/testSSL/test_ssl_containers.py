@@ -129,7 +129,7 @@ def test_ssl_container_cifar10_resnet_simclr() -> None:
     assert loaded_config.max_epochs == 1
     assert loaded_config.ssl_training_type == SSLTrainingType.SimCLR
     assert loaded_config.online_eval.num_classes == 10
-    assert loaded_config.online_eval.dataset == SSLDatasetName.CIFAR10.value
+    assert loaded_config.online_eval.dataset == SSLDatasetName.CIFAR10
     assert loaded_config.ssl_training_dataset_name == SSLDatasetName.CIFAR10
     assert not loaded_config.use_balanced_binary_loss_for_linear_head
     assert isinstance(loaded_config.model.encoder.cnn_model, ResNet)
@@ -208,7 +208,7 @@ def test_ssl_container_rsna() -> None:
         loaded_config, _ = runner.run()
     assert loaded_config is not None
     assert isinstance(loaded_config.model, BootstrapYourOwnLatent)
-    assert loaded_config.online_eval.dataset == SSLDatasetName.RSNAKaggleCXR.value
+    assert loaded_config.online_eval.dataset == SSLDatasetName.RSNAKaggleCXR
     assert loaded_config.online_eval.num_classes == 2
     assert loaded_config.ssl_training_dataset_name == SSLDatasetName.NIHCXR
     assert loaded_config.ssl_training_type == SSLTrainingType.BYOL

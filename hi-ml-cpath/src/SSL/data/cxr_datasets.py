@@ -101,7 +101,7 @@ class RSNAKaggleCXR(CxrDatasetWithReturnIndex):
             self.dataset_dataframe = pd.read_csv(self.root / "dataset.csv")
             self.targets = self.dataset_dataframe.label.values.astype(np.int64)
             self.subject_ids = self.dataset_dataframe.subject.values
-            self.indices = np.arange(len(self.dataset_dataframe))
+            self.indices = np.arange(len(self.dataset_dataframe)).tolist()
             self.filenames = [self.root / f"{subject_id}.dcm" for subject_id in self.subject_ids]
         else:
             # No test set implemented for this data class.
@@ -141,7 +141,7 @@ class NIHCXR(CxrDatasetWithReturnIndex):
             train_ids = pd.read_csv(self.root / "train_val_list.txt", header=None).values.reshape(-1)
             is_train_val_ids = self.dataset_dataframe["Image Index"].isin(train_ids).values
             self.subject_ids = np.where(is_train_val_ids)[0] if self.train else np.where(~is_train_val_ids)[0]
-        self.indices = np.arange(len(self.subject_ids))
+        self.indices = np.arange(len(self.subject_ids)).tolist()
         self.filenames = [self.root / f"{subject_id}" for subject_id in self.subject_ids]
 
 
@@ -175,7 +175,7 @@ class CheXpert(CxrDatasetWithReturnIndex):
         # Strip away the name of the folder that is included in the path column of the dataset
         strip_n = len("CheXpert-v1.0-small/")
         self.dataset_dataframe.Path = self.dataset_dataframe.Path.apply(lambda x: x[strip_n:])
-        self.indices = np.arange(len(self.dataset_dataframe))
+        self.indices = np.arange(len(self.dataset_dataframe)).tolist()
         self.filenames = [self.root / p for p in self.dataset_dataframe.Path.values]
 
 
@@ -191,7 +191,7 @@ class CovidDataset(CxrDatasetWithReturnIndex):
         mapping = {0: 0, 3: 0, 1: 1, 2: 1}
         # For monitoring purpose with use binary classification CV03vsCV12
         self.dataset_dataframe["final_label"] = self.dataset_dataframe.final_label.apply(lambda x: mapping[x])
-        self.indices = np.arange(len(self.dataset_dataframe))
+        self.indices = np.arange(len(self.dataset_dataframe)).tolist()
         self.subject_ids = self.dataset_dataframe.subject.values
         self.filenames = [self.root / file for file in self.dataset_dataframe.filepath.values]
         self.targets = self.dataset_dataframe.final_label.values.astype(np.int64).reshape(-1)

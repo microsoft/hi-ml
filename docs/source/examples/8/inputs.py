@@ -5,6 +5,7 @@
 from pathlib import Path
 
 import numpy as np
+from azureml.core import Datastore
 from sklearn import datasets
 
 from health_azure import get_workspace
@@ -25,8 +26,8 @@ def main() -> None:
 
     workspace = get_workspace()
 
-    datastore = get_datastore(workspace=workspace,
-                              datastore_name="himldatasets")
+    datastore: Datastore = get_datastore(workspace=workspace,
+                                         datastore_name="himldatasets")
 
     datastore.upload_files(
         [str(X_csv), str(y_csv)],

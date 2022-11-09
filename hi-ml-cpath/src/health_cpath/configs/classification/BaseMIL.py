@@ -292,7 +292,6 @@ class BaseMILTiles(BaseMIL):
                                             pretrained_classifier=self.pretrained_classifier,
                                             dropout_rate=self.dropout_rate,
                                             outputs_folder=self.outputs_folder,
-
                                             encoder_params=create_from_matching_params(self, EncoderParams),
                                             pooling_params=create_from_matching_params(self, PoolingParams),
                                             optimizer_params=create_from_matching_params(self, OptimizerParams),

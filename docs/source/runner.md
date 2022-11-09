@@ -291,3 +291,12 @@ experiment will get run 3 times with seeds 0, 1 and 2. This is equivalent to sta
 
 These runs will be started in parallel in AzureML via the HyperDrive framework. It is not possible to run with different
 seeds on a local machine, other than by manually starting runs with `--random_seed=0` etc.
+
+## Common problems with running in AML
+
+1. `"Your total snapshot size exceeds the limit <SNAPSHOT_LIMIT>"`. Cause: The size of your source directory is larger than
+   the limit that AML sets for snapshots. Solution: check for cache files, log files or other files that are not
+   necessary for running your experiment and add them to a `.amlignore` file in the root directory. Alternatively, you
+   can see Azure ML documentation for instructions on increasing this limit, although it will make your jobs slower.
+2. `"FileNotFoundError"`. Possible cause: Symlinked files. Azure ML SDK v2 will resolve the symlink and attempt to upload
+the resolved file. Solution: Remove symlinks from any files that should be uploaded to Azure ML.

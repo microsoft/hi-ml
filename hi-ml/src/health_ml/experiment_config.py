@@ -44,3 +44,5 @@ class ExperimentConfig(param.Parameterized):
                                                          "`INFO` or `DETAIL` for different levels of logging. "
                                                          "`DETAIL` may impact the application performance and thus "
                                                          "should only be used when debugging issues")
+    strictly_aml_v1: bool = param.Boolean(default=False, doc="If True, use AzureML v1 SDK. If False (default), use "
+                                                             "the v2 of the SDK")

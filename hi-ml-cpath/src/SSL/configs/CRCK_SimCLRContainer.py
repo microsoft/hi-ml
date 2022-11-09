@@ -2,18 +2,16 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from enum import Enum
 from typing import Any
 
-from SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
+from SSL.lightning_containers.ssl_container import EncoderName, SSLContainer
 from SSL.utils import SSLTrainingType
 from health_cpath.datasets.default_paths import TCGA_CRCK_DATASET_ID
 from health_cpath.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDatasetWithReturnIndex
 from SSL.configs.HistoSimCLRContainer import HistoSSLContainer
 
 
-class SSLDatasetNameHiml(SSLDatasetName, Enum):  # type: ignore
-    TCGA_CRCK = "CRCKTilesDataset"
+SSL_Dataset_TCGA_CRCK = "CRCKTilesDataset"
 
 
 class CRCK_SimCLR(HistoSSLContainer):
@@ -23,7 +21,7 @@ class CRCK_SimCLR(HistoSSLContainer):
     in the _get_transforms method.
     It has been tested locally and on AML on the full training dataset (93408 tiles).
     """
-    SSLContainer._SSLDataClassMappings.update({SSLDatasetNameHiml.TCGA_CRCK.value:
+    SSLContainer.DatasetToClassMapping.update({SSL_Dataset_TCGA_CRCK:
                                                TcgaCrck_TilesDatasetWithReturnIndex})
 
     def __init__(self, **kwargs: Any) -> None:
@@ -32,8 +30,8 @@ class CRCK_SimCLR(HistoSSLContainer):
         # --num_workers = 0
         # --max_epochs = 2
 
-        super().__init__(ssl_training_dataset_name=SSLDatasetNameHiml.TCGA_CRCK,
-                         linear_head_dataset_name=SSLDatasetNameHiml.TCGA_CRCK,
+        super().__init__(ssl_training_dataset_name=SSL_Dataset_TCGA_CRCK,
+                         linear_head_dataset_name=SSL_Dataset_TCGA_CRCK,
                          azure_datasets=[TCGA_CRCK_DATASET_ID],
                          random_seed=1,
                          num_workers=8,

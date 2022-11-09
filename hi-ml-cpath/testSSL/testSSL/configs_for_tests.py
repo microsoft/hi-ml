@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Callable, Optional
-from enum import Enum
 from yacs.config import CfgNode
 
 import pandas as pd
@@ -23,7 +22,7 @@ from health_ml.lightning_container import LightningContainer, LightningModuleWit
 
 from health_cpath.datasets.dataset_return_index import DatasetWithReturnIndex
 from SSL.data.transforms_utils import DualViewTransformWrapper
-from SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
+from SSL.lightning_containers.ssl_container import EncoderName, SSLContainer
 from SSL.utils import SSLTrainingType
 from SSL.data.transform_pipeline import ImageTransformationPipeline
 
@@ -322,19 +321,18 @@ class DummySimCLRHimlData(DatasetWithReturnIndex, DummySimCLRData):
         return 2
 
 
-class DummySimCLRSSLDatasetName(SSLDatasetName, Enum):  # type: ignore
-    DUMMY = "DUMMY"
+SSL_Dataset_Dummy = "DUMMY"
 
 
 class DummySimCLR(SSLContainer):
     """
     This module trains an SSL encoder using SimCLR on the DummySimCLRData and finetunes a linear head too.
     """
-    SSLContainer._SSLDataClassMappings.update({DummySimCLRSSLDatasetName.DUMMY.value: DummySimCLRHimlData})
+    SSLContainer.DatasetToClassMapping.update({SSL_Dataset_Dummy: DummySimCLRHimlData})
 
     def __init__(self) -> None:
-        super().__init__(ssl_training_dataset_name=DummySimCLRSSLDatasetName.DUMMY,
-                         linear_head_dataset_name=DummySimCLRSSLDatasetName.DUMMY,
+        super().__init__(ssl_training_dataset_name=SSL_Dataset_Dummy,
+                         linear_head_dataset_name=SSL_Dataset_Dummy,
                          # Train with as little data as possible for the test
                          ssl_training_batch_size=2,
                          linear_head_batch_size=2,

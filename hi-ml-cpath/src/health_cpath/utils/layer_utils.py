@@ -42,7 +42,7 @@ def load_weights_to_model(weights_url: str, model: nn.Module) -> nn.Module:
     https://github.com/ozanciga/self-supervised-histopathology
     """
     map_location = device('cpu')
-    state = load_state_dict_from_url(weights_url, map_location=map_location)
+    state = load_state_dict_from_url(weights_url, map_location=map_location)  # type: ignore
     state_dict = state['state_dict']
     model_dict = model.state_dict()
 

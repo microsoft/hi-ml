@@ -133,7 +133,7 @@ To use this code with your own data, you will need to:
    and `DatasetWithReturnIndex`. See for example how we constructed `RSNAKaggleCXR`
    class. WARNING: the first positional argument of your dataset class constructor MUST be the data directory ("root"),
    as VisionDataModule expects this in the prepare_data step.
-3. In your own container update the `_SSLDataClassMappings` member of the class so that the code knows which data class
+3. In your own container update the `DatasetToClassMapping` member of the class so that the code knows which data class
    to associate to your new dataset name.
 4. Create a yaml configuration file that contains the augmentations specific to your dataset. The yaml file will be
    consumed by the `create_transforms_from_config` function defined in the
