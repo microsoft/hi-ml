@@ -101,11 +101,14 @@ dependencies:
     - azure-mgmt-keyvault==10.0.0
     - azure-mgmt-resource==21.2.1
     - azure-mgmt-storage==20.0.0
+    - azure-storage-blob==12.10.0
     - azureml-core==1.43.0
     - azureml-dataprep==4.0.4
     - azureml-dataprep-native==38.0.0
     - azureml-dataprep-rslex==2.6.3
     - azureml-dataset-runtime==1.43.0
+    - azure-ai-ml>=0.1.0b3
+    - azureml-mlflow>=1.46.0
     - azureml-telemetry==1.43.0
     - azureml-tensorboard==1.43.0
     - azureml-train-core==1.43.0
@@ -122,7 +125,7 @@ dependencies:
     - charset-normalizer==2.1.1
     - click==8.1.3
     - cloudpickle==1.6.0
-    - colorama==0.4.6
+    - colorama==0.4.4
     - coloredlogs==15.0.1
     - conda-merge==0.1.5
     - contextlib2==21.6.0
@@ -180,6 +183,7 @@ dependencies:
     - matplotlib==3.4.3
     - mccabe==0.6.1
     - mdit-py-plugins==0.2.8
+    - mlflow==1.29.0
     - monai==0.8.0
     - more-itertools==8.10.0
     - msal==1.20.0
@@ -201,7 +205,7 @@ dependencies:
     - pandas==1.3.4
     - param==1.12.0
     - paramiko==2.11.0
-    - pathspec==0.10.1
+    - pathspec>=0.9.0
     - pillow==9.0.1
     - pipdeptree==2.2.1
     - pkginfo==1.8.3
@@ -275,7 +279,7 @@ dependencies:
     - tomli==2.0.1
     - tomlkit==0.11.6
     - torchmetrics==0.6.0
-    - tqdm==4.64.1
+    - tqdm==4.63.0
     - twine==3.3.0
     - typing-inspect==0.8.0
     - umap-learn==0.5.2

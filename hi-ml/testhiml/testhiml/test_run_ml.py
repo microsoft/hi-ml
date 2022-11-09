@@ -9,15 +9,16 @@ from pathlib import Path
 from typing import Generator
 from unittest.mock import DEFAULT, MagicMock, Mock, patch
 
-from azureml._restclient.constants import RunStatus
+import mlflow
+from pytorch_lightning import Trainer
 
 from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
-from health_ml.run_ml import MLRunner
+from health_ml.run_ml import MLRunner, get_mlflow_run_id_from_previous_loggers
 from health_ml.utils.common_utils import is_gpu_available
+from health_ml.utils.lightning_loggers import HimlMLFlowLogger, StoringLogger
 from health_azure.utils import is_global_rank_zero
-from health_ml.utils.logging import AzureMLLogger
 from testazure.utils_testazure import DEFAULT_WORKSPACE
 from testhiml.utils.fixed_paths_for_tests import mock_run_id
 
@@ -350,22 +351,7 @@ def test_log_on_vm(log_from_vm: bool) -> None:
     assert runner.trainer.loggers is not None
     assert len(runner.trainer.loggers) > 1
     logger = runner.trainer.loggers[1]
-    assert isinstance(logger, AzureMLLogger)
-    if log_from_vm:
-        assert logger.run is not None
-        # Check that all user supplied data (experiment and display name) are respected.
-        assert logger.run.experiment is not None
-        assert logger.run.experiment.name == experiment_name
-        assert logger.run.display_name == tag
-        # Both trainig and inference metrics must be logged in the same Run object.
-        metrics = logger.run.get_metrics()
-        assert "test_mse" in metrics
-        assert "loss" in metrics
-        # The run must have been correctly marked as completed.
-        logger.run.wait_for_completion()
-        assert logger.run.status == RunStatus.COMPLETED
-    else:
-        assert logger.run is None
+    assert isinstance(logger, HimlMLFlowLogger)
 
 
 def test_experiment_name() -> None:
@@ -380,3 +366,21 @@ def test_experiment_name() -> None:
     experiment_name = "unittest"
     container.experiment = experiment_name
     assert container.effective_experiment_name == experiment_name
+
+
+def test_get_mlflow_run_id_from_previous_loggers() -> None:
+    trainer_without_loggers = Trainer()
+    run_id = get_mlflow_run_id_from_previous_loggers(trainer_without_loggers)
+    assert run_id is None
+
+    loggers_not_inc_mlflow = [StoringLogger()]
+    trainer_with_single_logger = Trainer(logger=loggers_not_inc_mlflow)
+    run_id = get_mlflow_run_id_from_previous_loggers(trainer_with_single_logger)
+    assert run_id is None
+
+    mock_run_id = "run_id_123"
+    loggers_inc_mlflow = [StoringLogger(), HimlMLFlowLogger(run_id=mock_run_id)]
+    trainer_with_loggers = Trainer(logger=loggers_inc_mlflow)
+    with patch.object(mlflow.tracking.client.TrackingServiceClient, "get_run"):
+        run_id = get_mlflow_run_id_from_previous_loggers(trainer_with_loggers)
+        assert run_id == mock_run_id

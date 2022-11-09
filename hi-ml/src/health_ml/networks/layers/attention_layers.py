@@ -204,7 +204,7 @@ class TransformerPooling(Module):
                                               self.num_heads,
                                               dim_feedforward=self.dim_representation,
                                               dropout=0.1,
-                                              activation=F.gelu,
+                                              activation=F.gelu,  # type: ignore
                                               batch_first=True))
         self.transformer_encoder_layers = torch.nn.ModuleList(self.transformer_encoder_layers)  # type: ignore
 

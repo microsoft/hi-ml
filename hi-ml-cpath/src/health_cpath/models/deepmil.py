@@ -9,7 +9,7 @@ from pathlib import Path
 
 from pytorch_lightning import LightningModule
 from torch import Tensor, argmax, mode, nn, optim, round, set_grad_enabled
-from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall, CohenKappa
+from torchmetrics import AUROC, F1, Accuracy, ConfusionMatrix, Precision, Recall, CohenKappa  # type: ignore
 
 from health_ml.utils import log_on_epoch
 from health_ml.deep_learning_config import OptimizerParams

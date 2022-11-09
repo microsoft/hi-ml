@@ -96,7 +96,7 @@ import sys
         loss.backward()
         optimizer.step()
     writer.flush()
-            """
+            """,
     }
 
     extra_args: List[str] = []

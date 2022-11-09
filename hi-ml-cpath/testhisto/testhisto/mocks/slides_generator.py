@@ -4,15 +4,13 @@
 #  ------------------------------------------------------------------------------------------
 from enum import Enum
 from pathlib import Path
-import numpy as np
-import pandas as pd
-
-from torch import Tensor
-from tifffile import TiffWriter
-
 from typing import Any, Optional, Tuple, List, Union
 
+import numpy as np
+import pandas as pd
 import torch
+from tifffile import TiffWriter
+from torch import Tensor
 from health_cpath.datasets.panda_dataset import PandaDataset
 from testhisto.mocks.base_data_generator import MockHistoDataGenerator, MockHistoDataType, PANDA_N_CLASSES
 
@@ -206,7 +204,7 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
             if self.n_tiles_list:
                 self.total_tiles = self.n_tiles_list[slide_counter]
                 self.n_tiles: int = self.n_tiles_list[slide_counter]
-                self.dataloader: torch.data.utils.Dataloader = self.get_dataloader()
+                self.dataloader: torch.utils.data.DataLoader = self.get_dataloader()
                 iterator = iter(self.dataloader)
 
             tiles, _ = next(iterator) if iterator else (None, None)
