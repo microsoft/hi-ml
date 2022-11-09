@@ -22,7 +22,7 @@ from health_cpath.datasets.base_dataset import SlidesDataset
 from health_cpath.utils.plots_utils import DeepMILPlotsHandler, TilesSelector
 from health_cpath.utils.naming import MetricsKey, ModelKey, PlotOption, ResultsKey
 
-OUTPUTS_CSV_FILENAME = "{}_output.csv"
+OUTPUTS_CSV_FILENAME_TEMPLATE = "{}_output.csv"
 VAL_OUTPUTS_SUBDIR = "val"
 PREV_VAL_OUTPUTS_SUBDIR = "val_old"
 TEST_OUTPUTS_SUBDIR = "test"
@@ -30,9 +30,9 @@ EXTRA_VAL_OUTPUTS_SUBDIR = "extra_val"
 EXTRA_PREFIX = "extra_"
 
 AML_OUTPUTS_DIR = "outputs"
-AML_LEGACY_TEST_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, OUTPUTS_CSV_FILENAME.format("test")])
-AML_VAL_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, VAL_OUTPUTS_SUBDIR, OUTPUTS_CSV_FILENAME.format("val")])
-AML_TEST_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, TEST_OUTPUTS_SUBDIR, OUTPUTS_CSV_FILENAME.format("test")])
+AML_LEGACY_TEST_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, OUTPUTS_CSV_FILENAME_TEMPLATE.format("test")])
+AML_VAL_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, VAL_OUTPUTS_SUBDIR, OUTPUTS_CSV_FILENAME_TEMPLATE.format("val")])
+AML_TEST_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, TEST_OUTPUTS_SUBDIR, OUTPUTS_CSV_FILENAME_TEMPLATE.format("test")])
 
 BatchResultsType = Dict[ResultsKey, Any]
 EpochResultsType = List[BatchResultsType]
@@ -136,7 +136,7 @@ def save_outputs_csv(results: ResultsType, outputs_dir: Path, stage: str, prefix
 
     assert outputs_dir.is_dir(), f"No such dir: {outputs_dir}"
     logging.info(f"Metrics results will be output to {outputs_dir}")
-    csv_filename = outputs_dir / OUTPUTS_CSV_FILENAME.format(f"{prefix}{stage}")
+    csv_filename = outputs_dir / OUTPUTS_CSV_FILENAME_TEMPLATE.format(f"{prefix}{stage}")
 
     # Collect the list of dictionaries in a list of pandas dataframe and save
     df_list = []
