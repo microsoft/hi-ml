@@ -261,7 +261,7 @@ def test_results_gathering_with_val_set_is_dist_flag(val_set_is_dist: bool, tmp_
     outputs_handler.val_set_is_dist = val_set_is_dist
     outputs_handler._save_outputs = MagicMock()  # type: ignore
     metric_value = 0.5
-    with patch("health_cpath.utils.output_utils.gather_results") as gather_results_mock:
+    with patch("health_cpath.utils.output_utils.gather_results") as mock_gather_results:
         with patch.object(outputs_handler.tiles_selector, "gather_selected_tiles_across_devices") as mock_gather_tiles:
             with patch.object(outputs_handler.tiles_selector, "_clear_cached_slides_heaps") as mock_clear_cache:
                 with patch.object(outputs_handler, "should_gather_tiles") as mock_should_gather_tiles:
@@ -273,6 +273,6 @@ def test_results_gathering_with_val_set_is_dist_flag(val_set_is_dist: bool, tmp_
                             metrics_dict=_get_mock_metrics_dict(metric_value),
                             epoch=0,
                             is_global_rank_zero=rank == 0)
-                        assert gather_results_mock.called == val_set_is_dist
+                        assert mock_gather_results.called == val_set_is_dist
                         assert mock_gather_tiles.called == val_set_is_dist
                         mock_clear_cache.assert_called()
