@@ -23,6 +23,7 @@ from health_cpath.utils.plots_utils import DeepMILPlotsHandler, TilesSelector
 from health_cpath.utils.naming import MetricsKey, ModelKey, PlotOption, ResultsKey
 
 OUTPUTS_CSV_FILENAME_TEMPLATE = "{}_output.csv"
+OUTPUTS_CSV_FILENAME = OUTPUTS_CSV_FILENAME_TEMPLATE.format("test")
 VAL_OUTPUTS_SUBDIR = "val"
 PREV_VAL_OUTPUTS_SUBDIR = "val_old"
 TEST_OUTPUTS_SUBDIR = "test"
@@ -30,9 +31,10 @@ EXTRA_VAL_OUTPUTS_SUBDIR = "extra_val"
 EXTRA_PREFIX = "extra_"
 
 AML_OUTPUTS_DIR = "outputs"
-AML_LEGACY_TEST_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, OUTPUTS_CSV_FILENAME_TEMPLATE.format("test")])
-AML_VAL_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, VAL_OUTPUTS_SUBDIR, OUTPUTS_CSV_FILENAME_TEMPLATE.format("val")])
-AML_TEST_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, TEST_OUTPUTS_SUBDIR, OUTPUTS_CSV_FILENAME_TEMPLATE.format("test")])
+AML_LEGACY_TEST_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, OUTPUTS_CSV_FILENAME])
+# AML_VAL_OUTPUTS_CSV is kept as test_ouputs.csv for backward compatibility with previous versions of the code.
+AML_VAL_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, VAL_OUTPUTS_SUBDIR, OUTPUTS_CSV_FILENAME])
+AML_TEST_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, TEST_OUTPUTS_SUBDIR, OUTPUTS_CSV_FILENAME])
 
 BatchResultsType = Dict[ResultsKey, Any]
 EpochResultsType = List[BatchResultsType]
@@ -366,7 +368,7 @@ class DeepMILOutputsHandler:
         :param epoch: Current epoch number.
         :param on_extra_val: Whether this is an extra validation epoch (e.g. after training).
         """
-        # All DDP processes must reach this point to allow synchronising epoch results
+        # All DDP processes must reach this point to allow synchronising epoch results if val_set_is_dist is True
         if self.val_set_is_dist:
             epoch_results = gather_results(epoch_results)
 
@@ -382,7 +384,9 @@ class DeepMILOutputsHandler:
                 replace_directory(source=self.validation_outputs_dir,
                                   target=self.previous_validation_outputs_dir)
 
-            self._save_outputs(epoch_results, self.validation_outputs_dir, ModelKey.VAL)
+            # Here we use stage=ModelKey.TEST for backward compatibility with previous versions of the code
+            # TODO: Change this to ModelKey.VAL while keeping backward compatibility for HTML reports
+            self._save_outputs(epoch_results, self.validation_outputs_dir, ModelKey.TEST)
 
             # Writing completed successfully; delete temporary back-up
             if self.previous_validation_outputs_dir.exists():
