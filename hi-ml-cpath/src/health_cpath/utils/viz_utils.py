@@ -27,7 +27,10 @@ from health_cpath.utils.tiles_selection_utils import SlideNode
 from health_cpath.datasets.panda_dataset import PandaDataset, LoadPandaROId
 
 
-def load_image_dict(sample: dict, level: int, margin: int, wsi_has_mask: bool = True) -> Dict[SlideKey, Any]:
+def load_image_dict(
+    sample: dict, level: int, margin: int, wsi_has_mask: bool = True,
+    wsi_reader_args: Dict[str, Any] = {"backend": "cuCIM"},
+) -> Dict[SlideKey, Any]:
     """
     Load image from metadata dictionary
     :param sample: dict describing image metadata. Example:
@@ -39,10 +42,11 @@ def load_image_dict(sample: dict, level: int, margin: int, wsi_has_mask: bool = 
          'gleason_score': ['0+0']}
     :param level: level of resolution to be loaded
     :param margin: margin to be included
+    :param wsi_reader_args: arguments to be passed to the WSIReader, e.g., backend... Cucim is the default.
     :return: a dict containing the image data and metadata
     """
     transform = LoadPandaROId if wsi_has_mask else LoadROId
-    loader = transform(WSIReader("cuCIM"), level=level, margin=margin)
+    loader = transform(WSIReader(**wsi_reader_args), level=level, margin=margin)
     img = loader(sample)
     return img
 
