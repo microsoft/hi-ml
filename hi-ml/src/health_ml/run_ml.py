@@ -20,7 +20,6 @@ from health_azure.utils import (create_run_recovery_id, ENV_OMPI_COMM_WORLD_RANK
                                 aggregate_hyperdrive_metrics, get_metrics_for_childless_run,
                                 ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK,
                                 is_local_rank_zero, is_global_rank_zero, create_aml_run_object)
-
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.model_trainer import create_lightning_trainer, write_experiment_summary_file
@@ -35,9 +34,25 @@ from health_ml.utils.common_utils import (
     df_to_json,
     seed_monai_if_available,
 )
-from health_ml.utils.lightning_loggers import StoringLogger
+from health_ml.utils.lightning_loggers import HimlMLFlowLogger, StoringLogger
 from health_ml.utils.regression_test_utils import REGRESSION_TEST_METRICS_FILENAME, compare_folders_and_run_outputs
 from health_ml.utils.type_annotations import PathOrString
+
+
+def get_mlflow_run_id_from_previous_loggers(trainer: Optional[Trainer]) -> Optional[str]:
+    """
+    If self.trainer has already been intialised with loggers, attempt to retrieve a HimlMLFLowLogger and
+    return the mlflow run_id associated with it, to allow continued logging to the same run. Otherwise, return None
+
+    :return: The mlflow run id from the existing HimlMLFlowLogger
+    """
+    if trainer is None:
+        return None
+    try:
+        mlflow_logger = [logger for logger in trainer.loggers if isinstance(logger, HimlMLFlowLogger)][0]
+        return mlflow_logger.run_id
+    except IndexError:
+        return None
 
 
 def check_dataset_folder_exists(local_dataset: PathOrString) -> Path:
@@ -80,6 +95,7 @@ class MLRunner:
                                                     run_context=RUN_CONTEXT)
         self.trainer: Optional[Trainer] = None
         self.azureml_run_for_logging: Optional[Run] = None
+        self.mlflow_run_for_logging: Optional[str] = None
 
     def set_run_tags_from_parent(self) -> None:
         """
@@ -117,6 +133,7 @@ class MLRunner:
             # the provided local datasets for VM runs, or the AzureML mount points when running in AML.
             # This must happen before container setup because that could already read datasets.
             input_datasets = azure_run_info.input_datasets
+            logging.info(f"Setting the following datasets as local datasets: {input_datasets}")
             if len(input_datasets) > 0:
                 local_datasets: List[Path] = []
                 for i, dataset in enumerate(input_datasets):
@@ -261,6 +278,7 @@ class MLRunner:
         # We run inference on a single device because distributed strategies such as DDP use DistributedSampler
         # internally, which replicates some samples to make sure all devices have the same batch size in case of
         # uneven inputs.
+        mlflow_run_id = get_mlflow_run_id_from_previous_loggers(self.trainer)
         self.container.max_num_gpus = 1
 
         if self.container.run_inference_only:
@@ -272,7 +290,8 @@ class MLRunner:
             container=self.container,
             resume_from_checkpoint=checkpoint_path,
             num_nodes=1,
-            azureml_run_for_logging=self.azureml_run_for_logging
+            azureml_run_for_logging=self.azureml_run_for_logging,
+            mlflow_run_for_logging=mlflow_run_id
         )
         return trainer
 
@@ -319,6 +338,12 @@ class MLRunner:
         if self.container.has_custom_test_step():
             # Run Lightning's built-in test procedure if the `test_step` method has been overridden
             logging.info("Running inference via the LightningModule.test_step method")
+            # We run inference on a single device because distributed strategies such as DDP use DistributedSampler
+            # internally, which replicates some samples to make sure all devices have some batch size in case of
+            # uneven inputs.
+
+            self.container.max_num_gpus = 1
+
             checkpoint_path = (
                 self.checkpoint_handler.get_checkpoint_to_test() if self.container.run_inference_only else None
             )
@@ -384,9 +409,6 @@ class MLRunner:
                 with logging_section("Model training"):
                     self.run_training()
 
-                # Kill all processes besides rank 0
-                self.after_ddp_cleanup(old_environ)
-
                 # load model checkpoint for custom inference or additional validation step
                 if self.container.has_custom_test_step() or self.container.run_extra_val_epoch:
                     self.load_model_checkpoint()
@@ -395,6 +417,9 @@ class MLRunner:
                 if self.container.run_extra_val_epoch:
                     with logging_section("Model Validation to save plots on validation set"):
                         self.run_validation()
+
+                # Kill all processes besides rank 0
+                self.after_ddp_cleanup(old_environ)
 
             # Run inference on a single device
             with logging_section("Model inference"):

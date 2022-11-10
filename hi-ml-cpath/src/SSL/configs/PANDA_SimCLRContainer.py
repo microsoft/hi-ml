@@ -2,10 +2,9 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from enum import Enum
 from typing import Any
 
-from SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
+from SSL.lightning_containers.ssl_container import EncoderName, SSLContainer
 from SSL.utils import SSLTrainingType
 from health_azure.utils import is_running_in_azure_ml
 from health_cpath.datasets.panda_tiles_dataset import PandaTilesDatasetWithReturnIndex
@@ -13,8 +12,7 @@ from health_cpath.datasets.default_paths import PANDA_5X_TILES_DATASET_ID
 from SSL.configs.HistoSimCLRContainer import HistoSSLContainer
 
 
-class SSLDatasetNameHiml(SSLDatasetName, Enum):  # type: ignore
-    PANDA = "PandaTilesDataset"
+SSL_Dataset_PANDA = "PandaTilesDataset"
 
 
 class PANDA_SimCLR(HistoSSLContainer):
@@ -24,11 +22,11 @@ class PANDA_SimCLR(HistoSSLContainer):
     in the _get_transforms method.
     It has been tested on a toy local dataset (2 slides) and on AML on (~25 slides).
     """
-    SSLContainer._SSLDataClassMappings.update({SSLDatasetNameHiml.PANDA.value: PandaTilesDatasetWithReturnIndex})
+    SSLContainer.DatasetToClassMapping.update({SSL_Dataset_PANDA: PandaTilesDatasetWithReturnIndex})
 
     def __init__(self, **kwargs: Any) -> None:
-        super().__init__(ssl_training_dataset_name=SSLDatasetNameHiml.PANDA,
-                         linear_head_dataset_name=SSLDatasetNameHiml.PANDA,
+        super().__init__(ssl_training_dataset_name=SSL_Dataset_PANDA,
+                         linear_head_dataset_name=SSL_Dataset_PANDA,
                          azure_datasets=[PANDA_5X_TILES_DATASET_ID],
                          random_seed=1,
                          num_workers=5,

@@ -1,0 +1,54 @@
+name: 'Hi-ml-cpath environment setup'
+description: 'Set up environment hi-ml-cpath workflows'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Create AzureML config.json file
+      shell: bash
+      run: ./create_config.sh
+
+    # Use a cache action to save the full conda environment, so that we don't have to reinstall it every time.
+    # Paths are tied to the location of the miniconda installation, and may need adjustment on a different OS.
+    - name: Retrieve cached Conda environment
+      id: cache-conda
+      uses: actions/cache@v3
+      with:
+        path: /usr/share/miniconda/envs/HimlHisto
+        key: hi-ml-cpath-conda-${{ hashFiles('hi-ml-cpath/environment.yml') }}
+
+    # If the cache action didn't find a cache, then install the conda environment afresh.
+    - name: Build Conda environment from scratch
+      uses: conda-incubator/setup-miniconda@v2
+      if: steps.cache-conda.outputs.cache-hit != 'true'
+      with:
+        environment-file: hi-ml-cpath/environment.yml
+        activate-environment: HimlHisto
+
+    # Modify the path to point to the new or cached Conda environment.
+    # This is effectively also what `conda activate` does.
+    - name: Activate environment
+      shell: bash
+      run: |
+        echo "Adding Conda bin folder to path"
+        echo "/usr/share/miniconda/envs/HimlHisto/bin" >> $GITHUB_PATH
+
+    - name: Conda info
+      shell: bash
+      run: conda info
+
+    - name: Show active Python path
+      shell: bash
+      run: which python
+
+    - name: Install hi-ml locally
+      shell: bash
+      run: |
+        cd hi-ml
+        make pip_local
+
+    - name: Install hi-ml-azure locally
+      shell: bash
+      run: |
+        cd hi-ml-azure
+        make pip_local

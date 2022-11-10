@@ -27,7 +27,7 @@ repos:
 # The structure of this was suggested by the author of pre-commit and maintainer of flake8
 # See https://stackoverflow.com/a/66485642/3956024
 - repo: https://github.com/PyCQA/flake8
-  rev: 4.0.1
+  rev: 5.0.2
   hooks:
   - id: flake8
     name: flake8 ./hi-ml/

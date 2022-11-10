@@ -21,6 +21,7 @@ from azureml.core import Run
 
 from health_azure import RUN_CONTEXT, create_aml_run_object
 from health_ml.utils import AzureMLLogger, AzureMLProgressBar, log_learning_rate, log_on_epoch
+from health_ml.utils.logging import _preprocess_hyperparams
 from testhiml.utils_testhiml import DEFAULT_WORKSPACE
 
 
@@ -240,8 +241,7 @@ def test_azureml_logger_hyperparams_processing() -> None:
     """
     hyperparams = {"A long list": ["foo", 1.0, "abc"],
                    "foo": 1.0}
-    logger = AzureMLLogger(enable_logging_outside_azure_ml=False)
-    actual = logger._preprocess_hyperparams(hyperparams)
+    actual = _preprocess_hyperparams(hyperparams)
     assert actual == {"A long list": "['foo', 1.0, 'abc']", "foo": "1.0"}
 
 

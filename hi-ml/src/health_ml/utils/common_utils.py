@@ -49,6 +49,7 @@ RUN_RECOVERY_FROM_ID_KEY_NAME = "recovered_from"
 
 # other
 EFFECTIVE_RANDOM_SEED_KEY_NAME = "effective_random_seed"
+DEFAULT_DOCKER_BASE_IMAGE = "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04"
 
 
 @unique

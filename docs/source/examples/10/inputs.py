@@ -5,6 +5,7 @@
 from pathlib import Path
 
 import numpy as np
+from azureml.core import Datastore
 from sklearn import datasets
 from sklearn.model_selection import KFold
 
@@ -40,8 +41,8 @@ def main() -> None:
     np.savetxt(str(target_splits_file), np.vstack(indices_test_splits), delimiter=",")
 
     ws = get_workspace()
-    datastore = get_datastore(workspace=ws,
-                              datastore_name="himldatasets")
+    datastore: Datastore = get_datastore(workspace=ws,
+                                         datastore_name="himldatasets")
 
     dataset_name = 'himl_kfold_split_iris'
     datastore.upload_files(

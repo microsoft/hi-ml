@@ -3,4 +3,4 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  -------------------------------------------------------------------------------------------
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
