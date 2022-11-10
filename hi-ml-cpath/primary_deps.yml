@@ -9,6 +9,8 @@ dependencies:
   - python=3.9.13
   - pytorch=1.10.0
   - torchvision=0.11.1
+  - openslide=3.4.1
+  - openslide-python=1.2.0
   - pip:
       # Run requirements for hi-ml
       - dataclasses-json==0.5.2
@@ -39,8 +41,9 @@ dependencies:
       - -r requirements_build.txt
       # Pinned secondary dependencies to prevent clashes
       - attrs==21.4.0
-      - azure-mgmt-core==1.3.0
+      - azure-mgmt-core==1.3.1
       - azure-mgmt-keyvault==10.0.0
+      - cryptography>=38.0.3
       - cloudpickle==1.6.0
       - importlib-metadata==4.2.0
       - markdown==2.6.8
