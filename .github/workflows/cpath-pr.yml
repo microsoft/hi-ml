@@ -83,7 +83,6 @@ jobs:
       - name: Run GPU tests
         # GPU tests should be run even if other tests fail
         if: always()
-        shell: bash -l {0}
         run: |
           branch_prefix="refs/heads/"
           full_branch_name=$GITHUB_REF
@@ -181,9 +180,8 @@ jobs:
         with:
           lfs: true
 
-      - name: Set up smoke test environment
-        id: setup-finetuning-smoke-test-environment
-        uses: ./.github/actions/prepare_smoke_test_environment
+      - name: Prepare Conda environment
+        uses: ./.github/actions/prepare_cpath_environment
 
       - name: smoke test
         run: |
@@ -197,9 +195,8 @@ jobs:
         with:
           lfs: true
 
-      - name: Set up smoke test environment
-        id: setup-finetuning-smoke-test-environment
-        uses: ./.github/actions/prepare_smoke_test_environment
+      - name: Prepare Conda environment
+        uses: ./.github/actions/prepare_cpath_environment
 
       - name: smoke test
         run: |
@@ -213,9 +210,8 @@ jobs:
         with:
           lfs: true
 
-      - name: Set up smoke test environment
-        id: setup-finetuning-smoke-test-environment
-        uses: ./.github/actions/prepare_smoke_test_environment
+      - name: Prepare Conda environment
+        uses: ./.github/actions/prepare_cpath_environment
 
       - name: smoke test
         run: |
