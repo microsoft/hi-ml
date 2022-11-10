@@ -71,7 +71,7 @@ class HistoSSLContainer(SSLContainer):
         self.online_eval = SslOnlineEvaluatorHiml(class_weights=self.data_module.class_weights,  # type: ignore
                                                   z_dim=self.encoder_output_dim,
                                                   num_classes=self.data_module.num_classes,  # type: ignore
-                                                  dataset=self.linear_head_dataset_name.value,  # type: ignore
+                                                  dataset=self.linear_head_dataset_name,  # type: ignore
                                                   drop_p=0.2,
                                                   learning_rate=self.learning_rate_linear_head_during_ssl_training)
 

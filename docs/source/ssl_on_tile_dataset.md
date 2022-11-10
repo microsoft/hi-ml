@@ -39,9 +39,9 @@ etc. Here, we need to define some important parameters:
 1. The dataset we want to use for training the image encoder and the linear model we only use for evaluation of the
    image encoder. In theory, they could be two different datasets.
 
-+ [```ssl_training_dataset_name=SSLDatasetNameHiml.TCGA_CRCK```](https://github.com/microsoft/hi-ml/blob/7f4baadaa8bc0d08a4895ca896ebc3f68ea6a4f8/hi-ml-histopathology/src/histopathology/configs/SSL/CRCK_SimCLRContainer.py#L40)
++ [```ssl_training_dataset_name=SSL_Dataset_TCGA_CRCK```](https://github.com/microsoft/hi-ml/blob/7f4baadaa8bc0d08a4895ca896ebc3f68ea6a4f8/hi-ml-histopathology/src/histopathology/configs/SSL/CRCK_SimCLRContainer.py#L40)
 
-+ [```linear_head_dataset_name=SSLDatasetNameHiml.TCGA_CRCK```](https://github.com/microsoft/hi-ml/blob/7f4baadaa8bc0d08a4895ca896ebc3f68ea6a4f8/hi-ml-histopathology/src/histopathology/configs/SSL/CRCK_SimCLRContainer.py#L41)
++ [```linear_head_dataset_name=SSL_Dataset_TCGA_CRCK```](https://github.com/microsoft/hi-ml/blob/7f4baadaa8bc0d08a4895ca896ebc3f68ea6a4f8/hi-ml-histopathology/src/histopathology/configs/SSL/CRCK_SimCLRContainer.py#L41)
 
 1. Model checkpointing: We use [PyTorch lightning
    checkpointing](https://pytorch-lightning.readthedocs.io/en/stable/common/checkpointing.html). Among others, we define

@@ -3,10 +3,14 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
-from typing import Any, Dict, Iterable, List, Optional
+from argparse import Namespace
+from typing import Any, Dict, Iterable, List, Optional, Union
 
-from pytorch_lightning.loggers import LightningLoggerBase
-from pytorch_lightning.utilities import rank_zero_only
+import mlflow
+from pytorch_lightning import Trainer
+from pytorch_lightning.loggers import LightningLoggerBase, MLFlowLogger
+from pytorch_lightning.utilities.logger import _convert_params, _flatten_dict
+from pytorch_lightning.utilities.rank_zero import rank_zero_only, rank_zero_warn
 
 from health_ml.utils.type_annotations import DictStrFloat, DictStrFloatOrFloatList
 
@@ -109,3 +113,49 @@ class StoringLogger(LightningLoggerBase):
         :return: A dictionary mapping from epoch number to metric name to metric value.
         """
         return {epoch: self.extract_by_prefix(epoch, prefix_filter) for epoch in self.epochs}
+
+
+class HimlMLFlowLogger(MLFlowLogger):
+    def __init__(self, **kwargs: Any):
+        super().__init__(**kwargs)
+
+    @rank_zero_only
+    def log_hyperparams(self, params: Union[Dict[str, Any], Namespace]) -> None:
+        """
+        Override underlying log_hyperparams message to avoid trying to log hyperparameters that have already
+        been logged, thus causing MLFlow to raise an Exception.
+
+        :param params: The original hyperparameters to be logged.
+        """
+        run = mlflow.get_run(self.run_id)
+        existing_hyperparams = run.data.params
+
+        params = _convert_params(params)
+        params = _flatten_dict(params)
+        for k, v in params.items():
+            if len(str(v)) > 250:
+                rank_zero_warn(
+                    f"Mlflow only allows parameters with up to 250 characters. Discard {k}={v}",
+                    category=RuntimeWarning
+                )
+                continue
+            if k in existing_hyperparams:
+                continue
+
+            self.experiment.log_param(self.run_id, k, v)
+
+
+def get_mlflow_run_id_from_trainer(trainer: Trainer) -> Optional[str]:
+    """
+    If trainer has already been intialised with loggers, attempt to retrieve one of the type HimlMLFlowLogger,
+    and return its run_id property in order to log to the same run. Otherwise, return None.
+
+    :return: The mlflow run id from an existing HimlMLFlowLogger if available, else None.
+    """
+    if trainer is None:
+        return None
+    try:
+        mlflow_logger = [logger for logger in trainer.loggers if isinstance(logger, HimlMLFlowLogger)][0]
+        return mlflow_logger.run_id
+    except IndexError:
+        return None

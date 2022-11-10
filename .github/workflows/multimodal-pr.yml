@@ -105,5 +105,9 @@ jobs:
         run: |
           cd ${{ env.folder }}
           ipython kernel install --name "python3" --user
-          echo "Current branch: ${BRANCH_NAME}"
-          papermill --parameters repo_branch ${BRANCH_NAME} notebooks/phrase_grounding.ipynb /tmp/phrase_grounding_output.ipynb
+          PIP_SOURCE="git+https://github.com/microsoft/hi-ml.git@${BRANCH_NAME}#subdirectory=hi-ml-multimodal"
+          echo "The package will be installed from: $PIP_SOURCE"
+          papermill \
+            --parameters pip_source $PIP_SOURCE \
+            notebooks/phrase_grounding.ipynb \
+            /tmp/phrase_grounding_output.ipynb

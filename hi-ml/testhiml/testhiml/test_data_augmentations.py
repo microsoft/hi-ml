@@ -48,7 +48,7 @@ def _test_data_augmentation(data_augmentation: Callable[[Tensor], Tensor],
     # After applying a stochastic augmentation a second time it should have a different output
     if stochastic:
         augmented_img = data_augmentation(input_img)  # type: ignore
-        assert not(torch.allclose(augmented_img, expected_output_img, atol=1e-04))
+        assert not torch.allclose(augmented_img, expected_output_img, atol=1e-04)
 
 
 def test_stain_normalization() -> None:

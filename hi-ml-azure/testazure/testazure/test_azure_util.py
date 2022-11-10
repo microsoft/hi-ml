@@ -15,7 +15,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import DEFAULT, MagicMock, patch
 from uuid import uuid4
 from xmlrpc.client import Boolean
 
@@ -26,15 +26,18 @@ import param
 import pytest
 from _pytest.capture import CaptureFixture
 from _pytest.logging import LogCaptureFixture
+from azure.identity import (ClientSecretCredential, DeviceCodeCredential, DefaultAzureCredential)
+from azure.storage.blob import ContainerClient
 from azureml.core import Experiment, Run, ScriptRunConfig, Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.environment import CondaDependencies
+from azure.core.exceptions import ClientAuthenticationError, ResourceNotFoundError
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
 import health_azure.utils as util
 from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore
 from health_azure.utils import (ENV_MASTER_ADDR, ENV_MASTER_PORT, MASTER_PORT_DEFAULT,
-                                PackageDependency, create_argparser)
+                                PackageDependency, create_argparser, get_credential)
 from testazure.test_himl import RunTarget, render_and_run_test_script
 from testazure.utils_testazure import (DEFAULT_IGNORE_FOLDERS, DEFAULT_WORKSPACE, MockRun, change_working_directory,
                                        himl_azure_root, repository_root)
@@ -67,7 +70,7 @@ def test_find_file_in_parent_folders(caplog: LogCaptureFixture) -> None:
         )
         last_caplog_msg = caplog.messages[-1]
         assert found_file_path == current_file_path
-        assert(f"Searching for file {current_file_path.name} in {himl_azure_test_root}" in last_caplog_msg)
+        assert f"Searching for file {current_file_path.name} in {himl_azure_test_root}" in last_caplog_msg
 
         # Now try to search for a nonexistent path in the same folder. This should return None
         nonexistent_path = himl_az_root / "idontexist.py"
@@ -652,6 +655,19 @@ def test_nonexisting_amlignore(random_folder: Path) -> None:
     os.chdir(cwd)
 
 
+def test_generate_unique_environment_name() -> None:
+    dummy_env_description_string_1 = "A pretend environment description\ncontaining information about pip "
+    "packages\netc etc"
+    env_name_1 = util.generate_unique_environment_name(dummy_env_description_string_1)
+    assert env_name_1.startswith("HealthML-")
+
+    dummy_env_description_string_2 = "A slightly differetpretend environment description\ncontaining "
+    "information about pip packages\netc etc"
+    env_name_2 = util.generate_unique_environment_name(dummy_env_description_string_2)
+    assert env_name_2.startswith("HealthML-")
+    assert env_name_1 != env_name_2
+
+
 @patch("health_azure.utils.Workspace")
 def test_create_python_environment(
         mock_workspace: mock.MagicMock,
@@ -698,6 +714,42 @@ dependencies:
     envs_pip_packages = list(env.python.conda_dependencies.pip_packages)
     assert "hi-ml-azure" in envs_pip_packages
     assert private_pip_wheel_url in envs_pip_packages
+
+
+@patch("health_azure.utils.Workspace")
+def test_create_python_environment_v2(
+        mock_workspace: mock.MagicMock,
+        random_folder: Path,
+) -> None:
+    conda_str = """name: simple-env
+dependencies:
+  - pip=20.1.1
+  - python=3.7.3
+  - pip:
+    - azureml-sdk==1.23.0
+    - something-else==0.1.5
+  - pip:
+    - --index-url https://test.pypi.org/simple/
+    - --extra-index-url https://pypi.org/simple
+    - hi-ml-azure
+"""
+    conda_environment_file = random_folder / "environment.yml"
+    conda_environment_file.write_text(conda_str)
+    env = util.create_python_environment_v2(conda_environment_file=conda_environment_file)
+
+    # Check that the environment has a reasonable name. Detailed checks for uniqueness of the name follow below.
+    assert env.name.startswith("HealthML")
+    assert env.name.endswith("-v2")
+    assert env._conda_file_path == conda_environment_file
+
+    pip_extra_index_url = "https://where.great.packages.live/"
+    docker_base_image = "viennaglobal.azurecr.io/azureml/azureml_a187a87cc7c31ac4d9f67496bc9c8239"
+    env = util.create_python_environment_v2(
+        conda_environment_file=conda_environment_file,
+        pip_extra_index_url=pip_extra_index_url,
+        docker_base_image=docker_base_image)
+
+    assert env.image == docker_base_image
 
 
 def test_create_environment_unique_name(random_folder: Path) -> None:
@@ -813,6 +865,33 @@ def test_register_environment(
                 mock_register.return_value = mock_environment
                 env = util.register_environment(mock_workspace, mock_environment)
                 assert env.version == util.ENVIRONMENT_VERSION
+
+
+@patch("azure.ai.ml.entities.Environment")
+@patch("azure.ai.ml.MLClient")
+def test_register_environment_v2(
+        mock_ml_client: MagicMock,
+        mock_environment_v2: MagicMock,
+        caplog: LogCaptureFixture,
+) -> None:
+    def _mock_cant_find_env(env_name: str, label_or_version: str) -> None:
+        raise ResourceNotFoundError("Does not exist")
+
+    env_name = "an environment"
+    env_version = "environment version"
+    mock_ml_client.environments.get.return_value = mock_environment_v2
+    mock_environment_v2.name = env_name
+    mock_environment_v2.version = env_version
+    with caplog.at_level(logging.INFO):  # type: ignore
+        _ = util.register_environment_v2(mock_environment_v2, mock_ml_client)
+        caplog_text = caplog.text
+        assert f"Found a registered environment with name {env_name}, returning that." in caplog_text
+
+        # test that log is correct when exception is triggered
+        mock_ml_client.environments.get.side_effect = _mock_cant_find_env
+        _ = util.register_environment_v2(mock_environment_v2, mock_ml_client)
+        caplog_text = caplog.text
+        assert "Didn't find existing environment. Registering a new one." in caplog_text
 
 
 def test_set_environment_variables_for_multi_node(caplog: LogCaptureFixture) -> None:
@@ -1267,16 +1346,19 @@ import sys
 from pathlib import Path
 from azureml.core import Run
 from health_azure.utils import download_files_from_run_id""",
-        "body": script_body
+        "body": script_body,
     }
     # Run the script locally first, then in the cloud. In local runs, the workspace should be picked up from the
     # config.json file, in AzureML runs it should be read off the run context.
-    render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options, extra_args=[], expected_pass=True)
+    render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options,
+                               extra_args=[], expected_pass=True)
     print("Local run finished")
-    render_and_run_test_script(tmp_path / "foo", RunTarget.AZUREML, extra_options, extra_args=[], expected_pass=True)
+    render_and_run_test_script(tmp_path / "foo", RunTarget.AZUREML, extra_options,
+                               extra_args=[], expected_pass=True)
 
 
 def test_replace_directory(tmp_path: Path) -> None:
+
     extra_options = {
         "imports": """
 import sys
@@ -1297,13 +1379,15 @@ from health_azure.utils import replace_directory
 
     assert not output_dir.exists()
     assert (new_output_dir / file_name).exists()
-"""
+""",
     }
 
-    render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options, extra_args=[], expected_pass=True)
+    render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options,
+                               extra_args=[], expected_pass=True)
     print("Local run finished")
 
-    render_and_run_test_script(tmp_path / "foo", RunTarget.AZUREML, extra_options, extra_args=[], expected_pass=True)
+    render_and_run_test_script(tmp_path / "foo", RunTarget.AZUREML, extra_options,
+                               extra_args=[], expected_pass=True)
 
 
 def test_is_global_rank_zero() -> None:
@@ -1346,17 +1430,32 @@ def test_get_run_source(dummy_recovery_id: str,
             assert isinstance(script_config.run, str)
 
 
-def delete_existing_blobs(datastore: AzureBlobDatastore, prefix: str) -> None:
+def get_container_client(datastore: AzureBlobDatastore) -> ContainerClient:
+    """Gets a ContainerClient to interact with the blobs in the given datastore.
+
+    param datastore: The datastore from which the files should be read.
+    """
+    return datastore.blob_service.get_container_client(datastore.container_name)
+
+
+def get_blobs_in_datastore(datastore: AzureBlobDatastore, prefix: str) -> List[Any]:
+    """Gets all blobs in the datastore where the name starts with the given prefix.
+
+    param datastore: The datastore from which the files should be read.
+    param prefix: The prefix string for the files that should be returned.
+    """
+    return list(get_container_client(datastore).list_blobs(name_starts_with=prefix))
+
+
+def delete_blobs_in_datastore(datastore: AzureBlobDatastore, prefix: str) -> None:
     """Deletes all existing files in blob storage at the location that the test uses.
 
     param datastore: The datastore from which the files should be deleted.
     param prefix: The prefix string for the files that should be deleted.
     """
-    container = datastore.container_name
-    existing_blobs = list(datastore.blob_service.list_blobs(prefix=prefix,
-                                                            container_name=container))
-    for existing_blob in existing_blobs:
-        datastore.blob_service.delete_blob(container_name=container, blob_name=existing_blob.name)
+    container_client = get_container_client(datastore)
+    for existing_blob in get_blobs_in_datastore(datastore, prefix):
+        container_client.delete_blob(existing_blob.name)
 
 
 @pytest.mark.parametrize("overwrite", [True, False])
@@ -1374,7 +1473,7 @@ def test_download_from_datastore(tmp_path: Path, overwrite: bool) -> None:
     local_data_path.mkdir()
     test_data_path_remote = "test_data/abc"
 
-    delete_existing_blobs(datastore=default_datastore, prefix=test_data_path_remote)
+    delete_blobs_in_datastore(datastore=default_datastore, prefix=test_data_path_remote)
     try:
         # Create dummy data files and upload to datastore (checking they are uploaded)
         dummy_filenames = []
@@ -1387,8 +1486,7 @@ def test_download_from_datastore(tmp_path: Path, overwrite: bool) -> None:
         default_datastore.upload(str(local_data_path), test_data_path_remote, overwrite=False)
         # Wait a bit because there seem to be spurious errors with files not yet existing at this point
         time.sleep(0.1)
-        existing = list(default_datastore.blob_service.list_blobs(prefix=test_data_path_remote,
-                                                                  container_name=default_datastore.container_name))
+        existing = get_blobs_in_datastore(default_datastore, prefix=test_data_path_remote)
         assert len(existing) == num_dummy_files
 
         # Check that the file doesn't currently exist at download location
@@ -1403,7 +1501,7 @@ def test_download_from_datastore(tmp_path: Path, overwrite: bool) -> None:
         expected_download_paths = [expected_local_download_dir / dummy_filename for dummy_filename in dummy_filenames]
         assert all([p.exists() for p in expected_download_paths])
     finally:
-        delete_existing_blobs(datastore=default_datastore, prefix=test_data_path_remote)
+        delete_blobs_in_datastore(datastore=default_datastore, prefix=test_data_path_remote)
 
 
 @pytest.mark.parametrize("overwrite", [True, False])
@@ -1416,14 +1514,13 @@ def test_upload_to_datastore(tmp_path: Path, overwrite: bool) -> None:
     """
     ws = DEFAULT_WORKSPACE.workspace
     default_datastore: AzureBlobDatastore = ws.get_default_datastore()
-    container = default_datastore.container_name
     dummy_file_content = "Hello world"
 
     remote_data_dir = "test_data"
     dummy_file_name = Path("abc/uploaded_file.txt")
     expected_remote_path = Path(remote_data_dir) / dummy_file_name.name
 
-    delete_existing_blobs(datastore=default_datastore, prefix=str(expected_remote_path.as_posix()))
+    delete_blobs_in_datastore(datastore=default_datastore, prefix=str(expected_remote_path.as_posix()))
 
     try:
         # Create a dummy data file and upload to datastore
@@ -1436,11 +1533,10 @@ def test_upload_to_datastore(tmp_path: Path, overwrite: bool) -> None:
         # Wait a bit because there seem to be spurious errors with files not yet existing at this point
         time.sleep(0.1)
 
-        existing_blobs = list(default_datastore.blob_service.list_blobs(prefix=str(expected_remote_path.as_posix()),
-                                                                        container_name=container))
+        existing_blobs = get_blobs_in_datastore(default_datastore, prefix=str(expected_remote_path.as_posix()))
         assert len(existing_blobs) == 1
     finally:
-        delete_existing_blobs(datastore=default_datastore, prefix=str(expected_remote_path.as_posix()))
+        delete_blobs_in_datastore(datastore=default_datastore, prefix=str(expected_remote_path.as_posix()))
 
 
 @pytest.mark.parametrize("arguments, run_id", [
@@ -2263,3 +2359,150 @@ def test_create_run() -> None:
     finally:
         if run is not None:
             run.complete()
+
+
+def test_get_credential() -> None:
+    def _mock_validation_error() -> None:
+        raise ClientAuthenticationError("")
+    # test the case where service principal credentials are set as environment variables
+    mock_env_vars = {
+        util.ENV_SERVICE_PRINCIPAL_ID: "foo",
+        util.ENV_TENANT_ID: "bar",
+        util.ENV_SERVICE_PRINCIPAL_PASSWORD: "baz"
+    }
+
+    with patch.object(os.environ, "get", return_value=mock_env_vars):
+        with patch.multiple(
+            "health_azure.utils",
+            is_running_in_azure_ml=DEFAULT,
+            is_running_on_azure_agent=DEFAULT,
+            _get_legitimate_service_principal_credential=DEFAULT,
+            _get_legitimate_device_code_credential=DEFAULT,
+            _get_legitimate_default_credential=DEFAULT,
+            _get_legitimate_interactive_browser_credential=DEFAULT
+        ) as mocks:
+            mocks["is_running_in_azure_ml"].return_value = False
+            mocks["is_running_on_azure_agent"].return_value = False
+            _ = get_credential()
+            mocks["_get_legitimate_service_principal_credential"].assert_called_once()
+            mocks["_get_legitimate_device_code_credential"].assert_not_called()
+            mocks["_get_legitimate_default_credential"].assert_not_called()
+            mocks["_get_legitimate_interactive_browser_credential"].assert_not_called()
+
+    # if the environment variables are not set and we are running on a local machine, a
+    # DefaultAzureCredential should be attempted first
+    with patch.object(os.environ, "get", return_value={}):
+        with patch.multiple(
+            "health_azure.utils",
+            is_running_in_azure_ml=DEFAULT,
+            is_running_on_azure_agent=DEFAULT,
+            _get_legitimate_service_principal_credential=DEFAULT,
+            _get_legitimate_device_code_credential=DEFAULT,
+            _get_legitimate_default_credential=DEFAULT,
+            _get_legitimate_interactive_browser_credential=DEFAULT
+        ) as mocks:
+            mock_get_sp_cred = mocks["_get_legitimate_service_principal_credential"]
+            mock_get_device_cred = mocks["_get_legitimate_device_code_credential"]
+            mock_get_default_cred = mocks["_get_legitimate_default_credential"]
+            mock_get_browser_cred = mocks["_get_legitimate_interactive_browser_credential"]
+
+            mocks["is_running_in_azure_ml"].return_value = False
+            mocks["is_running_on_azure_agent"].return_value = False
+            _ = get_credential()
+            mock_get_sp_cred.assert_not_called()
+            mock_get_device_cred.assert_not_called()
+            mock_get_default_cred.assert_called_once()
+            mock_get_browser_cred.assert_not_called()
+
+            # if that fails, a DeviceCode credential should be attempted
+            mock_get_default_cred.side_effect = _mock_validation_error
+            _ = get_credential()
+            mock_get_sp_cred.assert_not_called()
+            mock_get_device_cred.assert_called_once()
+            assert mock_get_default_cred.call_count == 2
+            mock_get_browser_cred.assert_not_called()
+
+            # if None of the previous credentials work, an InteractiveBrowser credential should be tried
+            mock_get_device_cred.return_value = None
+            _ = get_credential()
+            mock_get_sp_cred.assert_not_called()
+            assert mock_get_device_cred.call_count == 2
+            assert mock_get_default_cred.call_count == 3
+            mock_get_browser_cred.assert_called_once()
+
+            # finally, if none of the methods work, an Exception should be raised
+            mock_get_browser_cred.return_value = None
+            with pytest.raises(Exception) as e:
+                get_credential()
+                assert "Unable to generate and validate a credential. Please see Azure ML documentation"\
+                       "for instructions on different options to get a credential" in str(e)
+
+
+def test_get_legitimate_service_principal_credential() -> None:
+    # first attempt to create and valiadate a credential with non-existant service principal credentials
+    # and check it fails
+    mock_service_principal_id = "foo"
+    mock_service_principal_password = "bar"
+    mock_tenant_id = "baz"
+    expected_error_msg = f"Found environment variables for {util.ENV_SERVICE_PRINCIPAL_ID}, "
+    f"{util.ENV_SERVICE_PRINCIPAL_PASSWORD}, and {util.ENV_TENANT_ID} but was not able to authenticate"
+    with pytest.raises(Exception) as e:
+        util._get_legitimate_service_principal_credential(mock_tenant_id, mock_service_principal_id,
+                                                          mock_service_principal_password)
+        assert expected_error_msg in str(e)
+
+    # now mock the case where validating the credential succeeds and check the value of that
+    with patch("health_azure.utils._validate_credential"):
+        cred = util._get_legitimate_service_principal_credential(mock_tenant_id, mock_service_principal_id,
+                                                                 mock_service_principal_password)
+        assert isinstance(cred, ClientSecretCredential)
+
+
+def test_get_legitimate_device_code_credential() -> None:
+    def _mock_credential_fast_timeout(timeout: int) -> DeviceCodeCredential:
+        return DeviceCodeCredential(timeout=1)
+
+    with patch("health_azure.utils.DeviceCodeCredential", new=_mock_credential_fast_timeout):
+        cred = util._get_legitimate_device_code_credential()
+        assert cred is None
+
+    # now mock the case where validating the credential succeeds
+    with patch("health_azure.utils._validate_credential"):
+        cred = util._get_legitimate_device_code_credential()
+        assert isinstance(cred, DeviceCodeCredential)
+
+
+def test_get_legitimate_default_credential() -> None:
+    def _mock_credential_fast_timeout(timeout: int) -> DefaultAzureCredential:
+        return DefaultAzureCredential(timeout=1)
+
+    with patch("health_azure.utils.DefaultAzureCredential", new=_mock_credential_fast_timeout):
+        cred = util._get_legitimate_default_credential()
+        assert cred is None
+
+    with patch("health_azure.utils._validate_credential"):
+        cred = util._get_legitimate_default_credential()
+        assert isinstance(cred, DefaultAzureCredential)
+
+
+def test_filter_v2_input_output_args() -> None:
+    def _compare_args(expected: List[str], actual: List[str]) -> None:
+        assert len(actual) == len(expected)
+        for actual_entry in actual:
+            assert actual_entry in expected
+
+    args_to_filter = ["--a=foo", "--INPUT_0=input0", "--b=bar", "--INPUT_1=input1"]
+    expected_filtered = ["--a=foo", "--b=bar"]
+    actual_filtered = util.filter_v2_input_output_args(args_to_filter)
+    _compare_args(expected_filtered, actual_filtered)
+
+    # try passing empty list
+    empty_list: List[str] = []
+    actual_filtered = util.filter_v2_input_output_args(empty_list)
+    assert actual_filtered == empty_list
+
+    # pass args with similar but different input and output args
+    args_to_filter = ["--input_0=input0", "--a=foo"]
+    expected_filtered = ["--input_0=input0", "--a=foo"]
+    actual_filtered = util.filter_v2_input_output_args(args_to_filter)
+    _compare_args(expected_filtered, actual_filtered)

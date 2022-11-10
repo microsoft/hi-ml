@@ -63,7 +63,7 @@ class AttentionLayer(nn.Module):
         attention_weights = transpose(attention_weights, 1, 0)   # K x N
         attention_weights = F.softmax(attention_weights, dim=1)  # Softmax over N : K x N
         pooled_features = mm(attention_weights, features)        # Matrix multiplication : K x L
-        return(attention_weights, pooled_features)
+        return attention_weights, pooled_features
 
 
 class GatedAttentionLayer(nn.Module):
@@ -98,7 +98,7 @@ class GatedAttentionLayer(nn.Module):
         attention_weights = transpose(attention_weights, 1, 0)   # K x N
         attention_weights = F.softmax(attention_weights, dim=1)  # Softmax over N : K x N
         pooled_features = mm(attention_weights, features)        # Matrix multiplication : K x L
-        return(attention_weights, pooled_features)
+        return attention_weights, pooled_features
 
 
 class CustomTransformerEncoderLayer(TransformerEncoderLayer):

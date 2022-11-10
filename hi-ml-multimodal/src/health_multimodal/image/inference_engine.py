@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Callable, Tuple
 
 import torch
+import torch.nn.functional as F
 from torchvision.transforms import Compose
 
 from health_multimodal.image.data.io import load_image
@@ -55,8 +56,8 @@ class ImageInferenceEngine:
         return transformed_image, image.size
 
     @torch.no_grad()
-    def get_patch_embeddings_from_image(self, image_path: Path) -> Tuple[torch.Tensor, TypeShape2D]:
-        """Compute image embeddings in the joint latent space, preserving the image grid.
+    def get_projected_patch_embeddings(self, image_path: Path) -> Tuple[torch.Tensor, TypeShape2D]:
+        """Compute image patch embeddings in the joint latent space, preserving the image grid.
 
         :param image_path: Path to the image to compute embeddings for.
         :return: A tuple containing the image patch embeddings and
@@ -67,3 +68,20 @@ class ImageInferenceEngine:
         assert projected_img_emb.shape[0] == 1
 
         return projected_img_emb[0], img_shape
+
+    @torch.no_grad()
+    def get_projected_global_embedding(self, image_path: Path) -> torch.Tensor:
+        """Compute global image embedding in the joint latent space.
+
+        :param image_path: Path to the image to compute embeddings for.
+        :return: Torch tensor containing l2-normalised global image embedding [joint_feature_dim,]
+                 where joint_feature_dim is the dimensionality of the joint latent space.
+        """
+        input_image, _ = self.load_and_transform_input_image(image_path, self.transform)
+        projected_img_emb = self.model.forward(input_image).projected_global_embedding
+        projected_img_emb = F.normalize(projected_img_emb, dim=-1)
+
+        assert projected_img_emb.shape[0] == 1
+        assert projected_img_emb.ndim == 2
+
+        return projected_img_emb[0]
