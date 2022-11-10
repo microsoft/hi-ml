@@ -195,7 +195,4 @@ class ClassifierParams(param.Parameterized):
         set_module_gradients_enabled(classifier_layer, tuning_flag=self.tune_classifier)
         if self.dropout_rate is None:
             return classifier_layer
-        elif 0 <= self.dropout_rate < 1:
-            return nn.Sequential(nn.Dropout(self.dropout_rate), classifier_layer)
-        else:
-            raise ValueError(f"Dropout rate should be in [0, 1), got {self.dropout_rate}")
+        return nn.Sequential(nn.Dropout(self.dropout_rate), classifier_layer)
