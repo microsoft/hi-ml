@@ -408,6 +408,22 @@ def _generate_output_dataset_command(output_datasets_v2: Dict[str, Output]) -> s
     return output_cmd
 
 
+def get_display_name_v2(tags: Optional[Dict[str, Any]] = None) -> str:
+    """
+    If the command line argument 'tag' is provided, return its value to be set as the job's display name.
+    Empty spaces in the tag will be replaced with hyphens, otherwise AML treats it as multiple statements.
+    Otherwise return an empty string.
+
+    :param tags: An optional dictionary of tag names and values to be provided to the job.
+    :return: A string either containing the value of tag, or else empty.
+    """
+    if tags is None:
+        return ""
+    tag = tags.get("tag", "")
+    display_name = tag.replace(" ", "-")
+    return display_name
+
+
 def submit_run_v2(workspace: Optional[Workspace],
                   experiment_name: str,
                   environment: EnvironmentV2,
@@ -418,6 +434,7 @@ def submit_run_v2(workspace: Optional[Workspace],
                   script_params: Optional[List[str]] = None,
                   compute_target: Optional[str] = None,
                   tags: Optional[Dict[str, str]] = None,
+                  docker_shm_size: str = "",
                   wait_for_completion: bool = False,
                   wait_for_completion_show_output: bool = False,
                   workspace_config_path: Optional[PathOrString] = None,
@@ -440,6 +457,7 @@ def submit_run_v2(workspace: Optional[Workspace],
         locally.
     :param tags: A dictionary of string key/value pairs, that will be added as metadata to the run. If set to None,
         a default metadata field will be added that only contains the commandline arguments that started the run.
+    :param docker_shm_size: The Docker shared memory size that should be used when creating a new Docker image.
     :param wait_for_completion: If False (the default) return after the run is submitted to AzureML, otherwise wait for
         the completion of this run (if True).
     :param wait_for_completion_show_output: If wait_for_completion is True this parameter indicates whether to show the
@@ -484,6 +502,7 @@ def submit_run_v2(workspace: Optional[Workspace],
         output_datasets_v2 = {}
 
     job_to_submit: Union[Command, Sweep]
+    display_name = get_display_name_v2(tags)
 
     if hyperparam_args:
         param_sampling = hyperparam_args[PARAM_SAMPLING_ARG]
@@ -500,6 +519,9 @@ def submit_run_v2(workspace: Optional[Workspace],
             environment=environment.name + "@latest",
             compute=compute_target,
             experiment_name=experiment_name,
+            tags=tags or {},
+            shm_size=docker_shm_size,
+            display_name=display_name,
             environment_variables={
                 "JOB_EXECUTION_MODE": "Basic",
             }
@@ -530,6 +552,9 @@ def submit_run_v2(workspace: Optional[Workspace],
             environment=environment.name + "@latest",
             compute=compute_target,
             experiment_name=experiment_name,
+            tags=tags or {},
+            shm_size=docker_shm_size,
+            display_name=display_name,
             environment_variables={
                 "JOB_EXECUTION_MODE": "Basic",
             }
@@ -890,6 +915,7 @@ def submit_to_azure_if_needed(  # type: ignore
                                 script_params=script_params,
                                 compute_target=compute_cluster_name,
                                 tags=tags,
+                                docker_shm_size=docker_shm_size,
                                 wait_for_completion=wait_for_completion,
                                 wait_for_completion_show_output=wait_for_completion_show_output,
                                 hyperparam_args=hyperparam_args

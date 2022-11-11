@@ -25,7 +25,7 @@ from uuid import uuid4
 import pytest
 from _pytest.capture import CaptureFixture
 from azure.ai.ml import Input, Output, MLClient
-from azure.ai.ml.constants import AssetTypes
+from azure.ai.ml.constants import AssetTypes, InputOutputModes
 from azure.ai.ml.entities import Data
 from azure.ai.ml.sweep import Choice
 from azureml._restclient.constants import RunStatus
@@ -739,6 +739,152 @@ def test_submit_run(mock_workspace: mock.MagicMock,
         out, err = capsys.readouterr()
         assert "runs failed" in error_msg
         assert "AzureML completed" not in out
+
+
+def test_submit_run_v2(tmp_path: Path) -> None:
+    def _mock_sweep(*args: Any, **kwargs: Any) -> MagicMock:
+        assert kwargs.get("compute") == dummy_compute_target
+        assert kwargs.get("max_total_trials") == len(values)
+        assert kwargs.get("sampling_algorithm") == "grid"
+        assert kwargs.get("primary_metric") == "val/loss"
+        assert kwargs.get("goal") == "Minimize"
+        return mock_command
+
+    dummy_experiment_name = "my_experiment"
+
+    dummy_environment_name = "my_environment"
+    dummy_environment = MagicMock()
+    dummy_environment.name = dummy_environment_name
+
+    dummy_input_data_name = "my_input_dataset"
+    dummy_input_path = "path_to_my_input_data"
+    dummy_inputs = {
+        dummy_input_data_name: Input(type=AssetTypes.URI_FOLDER, path=dummy_input_path, mode=InputOutputModes.MOUNT)
+    }
+
+    dummy_output_data_name = "my_output_dataset"
+    dummy_output_path = "path_to_my_output_data"
+    dummy_outputs = {
+        dummy_output_data_name: Output(type=AssetTypes.URI_FOLDER, path=dummy_output_path, mode=InputOutputModes.DIRECT)
+    }
+
+    dummy_root_directory = tmp_path
+    dummy_entry_script = dummy_root_directory / "my_entry_script"
+    dummy_entry_script.touch()
+
+    dummy_script_params = ["--arg1=val1", "--arg2=val2", "--conda_env=some_path"]
+    dummy_compute_target = "my_compute_target"
+    dummy_display_name = "job_display_name"
+    dummy_tags = {"tag": dummy_display_name}
+    dummy_docker_shm_size = '1g'
+
+    # job without hyperparameter sampling
+    with patch("azure.ai.ml.MLClient") as mock_ml_client:
+        with patch("health_azure.himl.command") as mock_command:
+            himl.submit_run_v2(
+                workspace=None,
+                experiment_name=dummy_experiment_name,
+                environment=dummy_environment,
+                input_datasets_v2=dummy_inputs,
+                output_datasets_v2=dummy_outputs,
+                snapshot_root_directory=dummy_root_directory,
+                entry_script=dummy_entry_script,
+                script_params=dummy_script_params,
+                compute_target=dummy_compute_target,
+                tags=dummy_tags,
+                docker_shm_size=dummy_docker_shm_size,
+                workspace_config_path=None,
+                ml_client=mock_ml_client,
+                hyperparam_args=None
+            )
+
+            expected_arg_str = " ".join([p for p in dummy_script_params if "conda_env" not in p])
+            expected_inputs_str = "--INPUT_0=${{inputs.INPUT_0}}"
+            expected_outputs_str = "--OUTPUT_0=${{outputs.OUTPUT_0}}"
+            relative_entry_script = dummy_entry_script.relative_to(dummy_root_directory)
+            expected_command = f"python {relative_entry_script} {expected_arg_str} {expected_inputs_str} "\
+                f"{expected_outputs_str}"
+
+            mock_command.assert_called_once_with(
+                code=str(dummy_root_directory),
+                command=expected_command,
+                inputs=dummy_inputs,
+                outputs=dummy_outputs,
+                environment=dummy_environment_name + "@latest",
+                compute=dummy_compute_target,
+                experiment_name=dummy_experiment_name,
+                tags=dummy_tags,
+                shm_size=dummy_docker_shm_size,
+                display_name=dummy_display_name,
+                environment_variables={
+                    "JOB_EXECUTION_MODE": "Basic",
+                }
+            )
+
+            # job with hyperparameter sampling:
+            mock_command.reset_mock()
+            # when setting parameter sampling we update the value of mock_command
+            mock_command.return_value = mock_command
+            # we then update the value of mock_command again when calling sweep
+            mock_command.sweep.side_effect = _mock_sweep
+
+            values = [0.1, 0.5, 0.9]
+            argument_name = "learning_rate"
+            param_sampling = {argument_name: Choice(values)}  # type: ignore
+            metric_name = "val/loss"
+
+            dummy_hyperparam_args = {
+                himl.MAX_TOTAL_TRIALS_ARG: len(values),
+                himl.PARAM_SAMPLING_ARG: param_sampling,
+                himl.SAMPLING_ALGORITHM_ARG: "grid",
+                himl.PRIMARY_METRIC_ARG: metric_name,
+                himl.GOAL_ARG: "Minimize"
+            }
+
+            # The hyperparameter to be altered should have been added to the command
+            expected_command += " --learning_rate=${{inputs.learning_rate}}"
+
+            himl.submit_run_v2(
+                workspace=None,
+                experiment_name=dummy_experiment_name,
+                environment=dummy_environment,
+                input_datasets_v2=dummy_inputs,
+                output_datasets_v2=dummy_outputs,
+                snapshot_root_directory=dummy_root_directory,
+                entry_script=dummy_entry_script,
+                script_params=dummy_script_params,
+                compute_target=dummy_compute_target,
+                tags=dummy_tags,
+                docker_shm_size=dummy_docker_shm_size,
+                workspace_config_path=None,
+                ml_client=mock_ml_client,
+                hyperparam_args=dummy_hyperparam_args
+            )
+
+            # 'command' should be called with the same args
+            print(mock_command.call)
+            # command should be called once when initialising the command job and once when updating the param sampling
+            mock_command.call_count == 2
+
+            mock_command.assert_any_call(
+                code=str(dummy_root_directory),
+                command=expected_command,
+                inputs=dummy_inputs,
+                outputs=dummy_outputs,
+                environment=dummy_environment_name + "@latest",
+                compute=dummy_compute_target,
+                experiment_name=dummy_experiment_name,
+                tags=dummy_tags,
+                shm_size=dummy_docker_shm_size,
+                display_name=dummy_display_name,
+                environment_variables={
+                    "JOB_EXECUTION_MODE": "Basic",
+                }
+            )
+
+            mock_command.assert_any_call(**param_sampling)
+            mock_command.sweep.assert_called_once()
+            assert mock_command.experiment_name == dummy_experiment_name
 
 
 @pytest.mark.fast
@@ -1509,3 +1655,24 @@ def test_extract_v2_inputs_outputs_from_args() -> None:
         input_datasets, output_datasets = himl._extract_v2_inputs_outputs_from_args()
         assert len(input_datasets) == 0
         assert len(output_datasets) == 0
+
+
+def test_get_display_name_v2() -> None:
+    dummy_display_name = "job display name"
+    expected_display_name = "job-display-name"
+    dummy_tags = {
+        "tag": dummy_display_name
+    }
+    display_name = himl.get_display_name_v2(dummy_tags)
+    assert display_name == expected_display_name
+
+    # if tag named 'tag' is missing, display name should be empty
+    dummy_tags_missing = {
+        "some_tag": dummy_display_name
+    }
+    display_name = himl.get_display_name_v2(dummy_tags_missing)
+    assert display_name == ""
+
+    # if no tags provided, display name should be empty
+    display_name = himl.get_display_name_v2()
+    assert display_name == ""
