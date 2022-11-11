@@ -68,7 +68,7 @@ def save_pr_curve(results: ResultsType, figures_dir: Path, stage: str = '') -> N
         format_pr_or_roc_axes(plot_type='pr', ax=ax)
         save_figure(fig=fig, figpath=figures_dir / f"pr_curve_{stage}.png")
     else:
-        raise Warning("The PR curve plot implementation works only for binary cases, this plot will be skipped.")
+        logging.warning("The PR curve plot implementation works only for binary cases, this plot will be skipped.")
 
 
 def save_confusion_matrix(results: ResultsType, class_names: Sequence[str], figures_dir: Path, stage: str = '') -> None:
@@ -184,7 +184,7 @@ class DeepMILPlotsHandler:
         class_names: Optional[Sequence[str]] = None,
         wsi_has_mask: bool = True,
     ) -> None:
-        """_summary_
+        """Class that handles the plotting of DeepMIL results.
 
         :param plot_options: A set of plot options to produce the desired plot outputs.
         :param level: Magnification at which tiles are available (e.g. PANDA levels are 0 for original,

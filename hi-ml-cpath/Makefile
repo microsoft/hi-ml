@@ -31,7 +31,7 @@ pip_from_conda:
 
 # Lock the current Conda environment secondary dependencies versions
 lock_env:
-	./create_and_lock_environment.sh
+	../create_and_lock_environment.sh
 
 # clean build artifacts
 clean:
@@ -111,7 +111,7 @@ define CRCKSIMCLR_ARGS
 endef
 
 define REGRESSION_TEST_ARGS
---cluster dedicated-nc24s-v2 --regression_test_csv_tolerance=0.5
+--cluster dedicated-nc24s-v2 --regression_test_csv_tolerance=0.5 --strictly_aml_v1=True
 endef
 
 define PANDA_REGRESSION_METRICS

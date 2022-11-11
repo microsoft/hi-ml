@@ -144,7 +144,7 @@ def test_save_conf_matrix_integration(tmp_path: Path) -> None:
             assert actual_conf_matrix.shape == expected_conf_matrix_shape
 
 
-def test_pr_curve_integration(tmp_path: Path) -> None:
+def test_pr_curve_integration(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     results = {
         ResultsKey.TRUE_LABEL: [0, 1, 0, 1, 0, 1],
         ResultsKey.PROB: [0.1, 0.8, 0.6, 0.3, 0.5, 0.4]
@@ -156,9 +156,11 @@ def test_pr_curve_integration(tmp_path: Path) -> None:
     assert file.exists()
     os.remove(file)
 
-    # check warning is raised and plot is not produced if NOT a binary case
+    # check warning is logged and plot is not produced if NOT a binary case
     results[ResultsKey.TRUE_LABEL] = [0, 1, 0, 2, 0, 1]
-    with pytest.raises(Warning) as w:
-        save_pr_curve(results, tmp_path, stage='foo')  # type: ignore
-    assert "The PR curve plot implementation works only for binary cases, this plot will be skipped." in str(w)
+
+    save_pr_curve(results, tmp_path, stage='foo')  # type: ignore
+    warning_message = "The PR curve plot implementation works only for binary cases, this plot will be skipped."
+    assert warning_message in caplog.records[-1].getMessage()
+
     assert not file.exists()

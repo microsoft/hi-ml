@@ -148,6 +148,7 @@ class LossAnalysisCallback(Callback):
         return self.outputs_folder / f"{stage}/loss_anomalies"
 
     def create_outputs_folders(self) -> None:
+        """Creates the output folders if they don't exist."""
         folders = [
             self.get_cache_folder,
             self.get_scatter_folder,
@@ -161,12 +162,14 @@ class LossAnalysisCallback(Callback):
                 os.makedirs(folder(stage), exist_ok=True)
 
     def get_empty_loss_cache(self) -> LossCacheDictType:
+        """Returns an empty loss cache dictionary for keys: slide_id, loss, entropy and tile_ids if save_tile_ids."""
         keys = [ResultsKey.SLIDE_ID, ResultsKey.LOSS, ResultsKey.ENTROPY]
         if self.save_tile_ids:
             keys.append(ResultsKey.TILE_ID)
         return {key: [] for key in keys}
 
     def _format_epoch(self, epoch: int) -> str:
+        """Formats the epoch number to a string with 3 digits."""
         return str(epoch).zfill(len(str(self.max_epochs)))
 
     def get_loss_cache_file(self, epoch: int, stage: ModelKey) -> Path:
@@ -201,6 +204,7 @@ class LossAnalysisCallback(Callback):
         return pd.read_csv(self.get_loss_cache_file(epoch, stage), index_col=idx_col, usecols=columns)
 
     def should_cache_loss_values(self, current_epoch: int) -> bool:
+        """Returns True if the current epoch is a multiple of the epochs_interval."""
         if current_epoch >= self.max_epochs:
             return False  # Don't cache loss values for the extra validation epoch
         current_epoch = current_epoch + 1
@@ -244,7 +248,15 @@ class LossAnalysisCallback(Callback):
         high: Optional[bool] = None,
         num_values: Optional[int] = None
     ) -> List[np.ndarray]:
-        """Selects the values corresponding to keys from a dataframe for the given epoch and stage"""
+        """Selects the values corresponding to keys from a dataframe for the given epoch and stage.
+
+        :param keys: The keys to select.
+        :param epoch: The epoch to select.
+        :param stage: The model's stage e.g. train, val, test.
+        :param high: If True, selects the highest values, if False, selects the lowest values, if None, selects all
+            values.
+        :param num_values: The number of values to select.
+        """
         loss_cache = self.read_loss_cache(epoch, stage)
         return_values = []
         for key in keys:
@@ -319,7 +331,11 @@ class LossAnalysisCallback(Callback):
         return np.array(slides).T, np.array(slides_entropy).T
 
     def save_slide_ids(self, slide_ids: List[str], path: Path) -> None:
-        """Dumps the slides ids in a txt file."""
+        """Dumps the slides ids in a txt file.
+
+        :param slide_ids: The slides ids to save.
+        :param path: The path to save the slides ids to.
+        """
         if slide_ids:
             with open(path, "w") as f:
                 for slide_id in slide_ids:
@@ -481,7 +497,7 @@ class LossAnalysisCallback(Callback):
         self.loss_cache[stage] = self.get_empty_loss_cache()  # reset loss cache
 
     def handle_loss_exceptions(self, stage: ModelKey, exception: Exception) -> None:
-        """Handles the loss exceptions."""
+        """Handles the loss exceptions. If log_exceptions is True, logs the exception as warnings, else raises it."""
         if self.log_exceptions:
             # If something goes wrong, we don't want to crash the training. We just log the error and carry on
             # validation.

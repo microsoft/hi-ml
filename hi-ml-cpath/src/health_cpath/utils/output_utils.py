@@ -57,6 +57,11 @@ def validate_class_names(class_names: Optional[Sequence[str]], n_classes: int) -
 def validate_slide_datasets_for_plot_options(
     plot_options: Collection[PlotOption], slides_dataset: Optional[SlidesDataset]
 ) -> None:
+    """Validate that the specified plot options are compatible with the specified slides dataset.
+
+    :param plot_options: Plot options to validate.
+    :param slides_dataset: Slides dataset to validate against.
+    """
 
     def _validate_slide_plot_option(plot_option: PlotOption) -> None:
         if plot_option in plot_options and not slides_dataset:

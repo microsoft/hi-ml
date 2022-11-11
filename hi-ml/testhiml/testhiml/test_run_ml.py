@@ -14,9 +14,6 @@ from pytorch_lightning import LightningModule
 import mlflow
 from pytorch_lightning import Trainer
 
-import mlflow
-from pytorch_lightning import Trainer
-
 from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer

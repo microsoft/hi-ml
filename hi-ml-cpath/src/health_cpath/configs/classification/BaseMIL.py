@@ -133,9 +133,10 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams
             options.add(PlotOption.TOP_BOTTOM_TILES)
         return options
 
-    # overwrite this method if you want to produce validation plots at each epoch. By default, at the end of the
-    # training an extra validation epoch is run where val_plot_options = test_plot_options
     def get_val_plot_options(self) -> Set[PlotOption]:
+        """ Override this method if you want to produce validation plots at each epoch. By default, at the end of the
+        training an extra validation epoch is run where val_plot_options = test_plot_options
+        """
         return set()
 
     def get_outputs_handler(self) -> DeepMILOutputsHandler:

@@ -137,7 +137,11 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
 
 
 class TilesDataModule(HistoDataModule[TilesDataset]):
-    """Base class to load the tiles of a dataset as train, val, test sets"""
+    """Base class to load the tiles of a dataset as train, val, test sets. Note that tiles are always shuffled by
+    default. This means that we sample a random subset of tiles from each bag at each epoch. This is different from
+    slides shuffling that is switched on during training time only. This is done to avoid overfitting to the order of
+    the tiles in each bag.
+    """
 
     def __init__(
         self,
