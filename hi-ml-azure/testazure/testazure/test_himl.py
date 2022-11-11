@@ -741,8 +741,8 @@ def test_submit_run(mock_workspace: mock.MagicMock,
         assert "AzureML completed" not in out
 
 
-def test_submit_run_v2(tmp_path: Path):
-    def _mock_sweep(*args: Any, **kwargs: Any) -> None:
+def test_submit_run_v2(tmp_path: Path) -> None:
+    def _mock_sweep(*args: Any, **kwargs: Any) -> MagicMock:
         assert kwargs.get("compute") == dummy_compute_target
         assert kwargs.get("max_total_trials") == len(values)
         assert kwargs.get("sampling_algorithm") == "grid"
@@ -830,7 +830,7 @@ def test_submit_run_v2(tmp_path: Path):
 
             values = [0.1, 0.5, 0.9]
             argument_name = "learning_rate"
-            param_sampling = {argument_name: Choice(values)}
+            param_sampling = {argument_name: Choice(values)}  # type: ignore
             metric_name = "val/loss"
 
             dummy_hyperparam_args = {
