@@ -26,22 +26,22 @@ from health_cpath.datamodules.base_module import CacheLocation, CacheMode, Histo
 from health_cpath.datasets.base_dataset import SlidesDataset
 from health_cpath.models.deepmil import TilesDeepMILModule, SlidesDeepMILModule, BaseDeepMILModule
 from health_cpath.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
-from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams
+from health_cpath.utils.deepmil_utils import ClassifierParams, EncoderParams, PoolingParams
 from health_cpath.utils.output_utils import DeepMILOutputsHandler
 from health_cpath.utils.naming import MetricsKey, PlotOption, SlideKey, ModelKey
 from health_cpath.utils.tiles_selection_utils import TilesSelector
 
 
-class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackParams):
+class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams, LossCallbackParams):
     """BaseMIL is an abstract container defining basic functionality for running MIL experiments in both slides and
     tiles settings. It is responsible for instantiating the encoder and pooling layer. Subclasses should define the
     full DeepMIL model depending on the type of dataset (tiles/slides based).
     """
-    dropout_rate: Optional[float] = param.Number(None, bounds=(0, 1), doc="Pre-classifier dropout rate.")
     class_names: Optional[Sequence[str]] = param.List(None, item_type=str, doc="List of class names. If `None`, "
                                                                                "defaults to `('0', '1', ...)`.")
     # Data module parameters:
     batch_size: int = param.Integer(16, bounds=(1, None), doc="Number of slides to load per batch.")
+    batch_size_inf: int = param.Integer(16, bounds=(1, None), doc="Number of slides per batch during inference.")
     max_bag_size: int = param.Integer(1000, bounds=(0, None),
                                       doc="Upper bound on number of tiles in each loaded bag during training stage. "
                                           "If 0 (default), will return all samples in each bag. "
@@ -72,13 +72,6 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
                                                              "generating outputs.")
     maximise_primary_metric: bool = param.Boolean(True, doc="Whether the primary validation metric should be "
                                                             "maximised (otherwise minimised).")
-    tune_classifier: bool = param.Boolean(
-        default=True,
-        doc="If True (default), fine-tune the classifier during training. If False, keep the classifier frozen.")
-    pretrained_classifier: bool = param.Boolean(
-        default=False,
-        doc="If True, will use classifier weights from pretrained model specified in src_checkpoint. If False, will "
-            "initiliaze classifier with random weights.")
     max_num_workers: int = param.Integer(10, bounds=(0, None),
                                          doc="The maximum number of worker processes for dataloaders. Dataloaders use"
                                              "a heuristic num_cpus/num_gpus to set the number of workers, which can be"
@@ -94,6 +87,10 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
         self.best_checkpoint_filename = f"checkpoint_{metric_optim}_val_{self.primary_val_metric.value}"
         self.best_checkpoint_filename_with_suffix = self.best_checkpoint_filename + ".ckpt"
         self.validate()
+        if not self.pl_replace_sampler_ddp and self.max_num_gpus > 1:
+            logging.info(
+                "Replacing sampler with `DistributedSampler` is disabled. Make sure to set your own DDP sampler"
+            )
 
     def validate(self) -> None:
         super().validate()
@@ -154,6 +151,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
             val_plot_options=self.get_val_plot_options(),
             test_plot_options=self.get_test_plot_options(),
             wsi_has_mask=self.wsi_has_mask,
+            val_set_is_dist=self.pl_replace_sampler_ddp and self.max_num_gpus > 1,
         )
         if self.num_top_slides > 0:
             outputs_handler.tiles_selector = TilesSelector(
@@ -176,7 +174,11 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, LossCallbackPara
                                                   num_slides_scatter=self.num_slides_scatter,
                                                   num_slides_heatmap=self.num_slides_heatmap,
                                                   save_tile_ids=self.save_tile_ids,
-                                                  log_exceptions=self.log_exceptions))
+                                                  log_exceptions=self.log_exceptions,
+                                                  val_set_is_dist=(
+                                                      self.pl_replace_sampler_ddp and self.max_num_gpus > 1),
+                                                  )
+                             )
         return callbacks
 
     def get_checkpoint_to_test(self) -> Path:
@@ -288,15 +290,14 @@ class BaseMILTiles(BaseMIL):
                                             n_classes=self.data_module.train_dataset.n_classes,
                                             class_names=self.class_names,
                                             class_weights=self.data_module.class_weights,
-                                            tune_classifier=self.tune_classifier,
-                                            pretrained_classifier=self.pretrained_classifier,
-                                            dropout_rate=self.dropout_rate,
-                                            outputs_folder=self.outputs_folder,
                                             encoder_params=create_from_matching_params(self, EncoderParams),
                                             pooling_params=create_from_matching_params(self, PoolingParams),
+                                            classifier_params=create_from_matching_params(self, ClassifierParams),
                                             optimizer_params=create_from_matching_params(self, OptimizerParams),
+                                            outputs_folder=self.outputs_folder,
                                             outputs_handler=outputs_handler,
-                                            analyse_loss=self.analyse_loss)
+                                            analyse_loss=self.analyse_loss,
+                                            )
         deepmil_module.transfer_weights(self.trained_weights_path)
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
         return deepmil_module
@@ -331,15 +332,14 @@ class BaseMILSlides(BaseMIL):
                                              n_classes=self.data_module.train_dataset.n_classes,
                                              class_names=self.class_names,
                                              class_weights=self.data_module.class_weights,
-                                             tune_classifier=self.tune_classifier,
-                                             pretrained_classifier=self.pretrained_classifier,
-                                             dropout_rate=self.dropout_rate,
                                              outputs_folder=self.outputs_folder,
                                              encoder_params=create_from_matching_params(self, EncoderParams),
                                              pooling_params=create_from_matching_params(self, PoolingParams),
+                                             classifier_params=create_from_matching_params(self, ClassifierParams),
                                              optimizer_params=create_from_matching_params(self, OptimizerParams),
                                              outputs_handler=outputs_handler,
-                                             analyse_loss=self.analyse_loss)
+                                             analyse_loss=self.analyse_loss,
+                                             )
         deepmil_module.transfer_weights(self.trained_weights_path)
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
         return deepmil_module

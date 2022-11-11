@@ -3,15 +3,13 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from copy import deepcopy
-import logging
 import os
-import shutil
 from pytorch_lightning import Trainer
 import torch
 import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, Type
+from typing import Any, Callable, Dict, Iterable, List, Optional, Type
 
 from torch import Tensor, argmax, nn, rand, randint, randn, round, stack, allclose
 from torch.utils.data._utils.collate import default_collate
@@ -30,10 +28,9 @@ from health_cpath.datasets.base_dataset import DEFAULT_LABEL_COLUMN, TilesDatase
 from health_cpath.datasets.default_paths import PANDA_5X_TILES_DATASET_ID, TCGA_CRCK_DATASET_DIR
 from health_cpath.models.deepmil import BaseDeepMILModule, TilesDeepMILModule
 from health_cpath.models.encoders import IdentityEncoder, ImageNetEncoder, Resnet18, TileEncoder
-from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams
+from health_cpath.utils.deepmil_utils import ClassifierParams, EncoderParams, PoolingParams
 from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey
 from testhisto.mocks.base_data_generator import MockHistoDataType
-from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPositioningType
 from testhisto.mocks.tiles_generator import MockPandaTilesGenerator
 from testhisto.mocks.container import MockDeepSMILETilesPanda, MockDeepSMILESlidesPanda
 from health_ml.utils.common_utils import is_gpu_available
@@ -75,7 +72,7 @@ def _test_lightningmodule(
     module = TilesDeepMILModule(
         label_column=DEFAULT_LABEL_COLUMN,
         n_classes=n_classes,
-        dropout_rate=dropout_rate,
+        classifier_params=ClassifierParams(dropout_rate=dropout_rate),
         encoder_params=get_supervised_imagenet_encoder_params(),
         pooling_params=get_attention_pooling_layer_params(pool_out_dim)
     )
@@ -139,29 +136,6 @@ def _test_lightningmodule(
         else:
             assert torch.all(score >= 0)
             assert torch.all(score <= 1)
-
-
-@pytest.fixture(scope="session")
-def mock_panda_slides_root_dir(
-    tmp_path_factory: pytest.TempPathFactory, tmp_path_to_pathmnist_dataset: Path
-) -> Generator:
-    tmp_root_dir = tmp_path_factory.mktemp("mock_slides")
-    wsi_generator = MockPandaSlidesGenerator(
-        dest_data_path=tmp_root_dir,
-        src_data_path=tmp_path_to_pathmnist_dataset,
-        mock_type=MockHistoDataType.PATHMNIST,
-        n_tiles=4,
-        n_slides=10,
-        n_channels=3,
-        n_levels=3,
-        tile_size=28,
-        background_val=255,
-        tiles_pos_type=TilesPositioningType.RANDOM
-    )
-    logging.info("Generating temporary mock slides that will be deleted at the end of the session.")
-    wsi_generator.generate_mock_histo_data()
-    yield tmp_root_dir
-    shutil.rmtree(tmp_root_dir)
 
 
 @pytest.mark.parametrize("n_classes", [1, 3])
@@ -326,9 +300,10 @@ def test_container(container_type: Type[BaseMILTiles], use_gpu: bool) -> None:
         container = container_type()
 
     container.setup()
+    container.batch_size = 10
+    container.batch_size_inf = 10
 
     data_module: TilesDataModule = container.get_data_module()  # type: ignore
-    data_module.max_bag_size = 10
 
     module = container.create_model()
     module.outputs_handler = MagicMock()
@@ -461,12 +436,12 @@ def test_finetuning_options(
         label_column=DEFAULT_LABEL_COLUMN,
         encoder_params=get_supervised_imagenet_encoder_params(tune_encoder=tune_encoder),
         pooling_params=get_attention_pooling_layer_params(pool_out_dim=1, tune_pooling=tune_pooling),
-        tune_classifier=tune_classifier,
+        classifier_params=ClassifierParams(tune_classifier=tune_classifier),
     )
 
     assert module.encoder_params.tune_encoder == tune_encoder
     assert module.pooling_params.tune_pooling == tune_pooling
-    assert module.tune_classifier == tune_classifier
+    assert module.classifier_params.tune_classifier == tune_classifier
 
     for params in module.encoder.parameters():
         assert params.requires_grad == tune_encoder
@@ -513,7 +488,7 @@ def test_training_with_different_finetuning_options(
             label_column=MockPandaTilesGenerator.ISUP_GRADE,
             encoder_params=get_supervised_imagenet_encoder_params(tune_encoder=tune_encoder),
             pooling_params=get_attention_pooling_layer_params(pool_out_dim=1, tune_pooling=tune_pooling),
-            tune_classifier=tune_classifier,
+            classifier_params=ClassifierParams(tune_classifier=tune_classifier),
         )
 
         def _assert_existing_gradients(module: nn.Module, tuning_flag: bool) -> None:
@@ -550,7 +525,7 @@ def test_init_weights_options(pretrained_encoder: bool, pretrained_pooling: bool
     )
     module.encoder_params.pretrained_encoder = pretrained_encoder
     module.pooling_params.pretrained_pooling = pretrained_pooling
-    module.pretrained_classifier = pretrained_classifier
+    module.classifier_params.pretrained_classifier = pretrained_classifier
 
     with patch.object(module, "load_from_checkpoint") as mock_load_from_checkpoint:
         with patch.object(module, "copy_weights") as mock_copy_weights:
@@ -576,10 +551,11 @@ def _get_tiles_deepmil_module(
         label_column=MockPandaTilesGenerator.ISUP_GRADE,
         encoder_params=get_supervised_imagenet_encoder_params(),
         pooling_params=get_transformer_pooling_layer_params(num_layers, num_heads, hidden_dim, transformer_dropout),
+        classifier_params=ClassifierParams(pretrained_classifier=pretrained_classifier),
     )
     module.encoder_params.pretrained_encoder = pretrained_encoder
     module.pooling_params.pretrained_pooling = pretrained_pooling
-    module.pretrained_classifier = pretrained_classifier
+    module.classifier_params.pretrained_classifier = pretrained_classifier
     return module
 
 
@@ -711,13 +687,13 @@ def test_on_run_extra_val_epoch(mock_panda_tiles_root_dir: Path) -> None:
     container.setup()
     container.data_module = MagicMock()
     container.create_lightning_module_and_store()
-    assert not container.model._run_extra_val_epoch
+    assert not container.model._on_extra_val_epoch
     assert (
         container.model.outputs_handler.test_plots_handler.plot_options  # type: ignore
         != container.model.outputs_handler.val_plots_handler.plot_options  # type: ignore
     )
     container.on_run_extra_validation_epoch()
-    assert container.model._run_extra_val_epoch
+    assert container.model._on_extra_val_epoch
     assert (
         container.model.outputs_handler.test_plots_handler.plot_options  # type: ignore
         == container.model.outputs_handler.val_plots_handler.plot_options  # type: ignore

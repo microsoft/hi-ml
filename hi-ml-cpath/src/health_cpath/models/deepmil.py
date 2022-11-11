@@ -6,23 +6,20 @@ import torch
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 from pytorch_lightning.utilities.rank_zero import rank_zero_warn
 from pathlib import Path
-
 from pytorch_lightning import LightningModule
-
 from torch import Tensor, argmax, mode, nn, optim, round
 from torchmetrics import (AUROC, F1, Accuracy, ConfusionMatrix, Precision,
                           Recall, CohenKappa, AveragePrecision, Specificity)
 
-
 from health_ml.utils import log_on_epoch
 from health_ml.deep_learning_config import OptimizerParams
 from health_cpath.models.encoders import IdentityEncoder
-from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams, set_module_gradients_enabled
-
+from health_cpath.utils.deepmil_utils import ClassifierParams, EncoderParams, PoolingParams
 from health_cpath.datasets.base_dataset import TilesDataset
 from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
 from health_cpath.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
-                                             validate_class_names)
+                                             validate_class_names, EXTRA_PREFIX)
+
 
 RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
                 ResultsKey.CLASS_PROBS, ResultsKey.PRED_LABEL, ResultsKey.TRUE_LABEL, ResultsKey.BAG_ATTN]
@@ -42,34 +39,31 @@ class BaseDeepMILModule(LightningModule):
                  n_classes: int,
                  class_weights: Optional[Tensor] = None,
                  class_names: Optional[Sequence[str]] = None,
-                 tune_classifier: bool = True,
-                 pretrained_classifier: bool = False,
-                 dropout_rate: Optional[float] = None,
-                 verbose: bool = False,
-                 outputs_folder: Optional[Path] = None,
                  encoder_params: EncoderParams = EncoderParams(),
                  pooling_params: PoolingParams = PoolingParams(),
+                 classifier_params: ClassifierParams = ClassifierParams(),
                  optimizer_params: OptimizerParams = OptimizerParams(),
+                 outputs_folder: Optional[Path] = None,
                  outputs_handler: Optional[DeepMILOutputsHandler] = None,
-                 analyse_loss: Optional[bool] = False) -> None:
+                 analyse_loss: Optional[bool] = False,
+                 verbose: bool = False,
+                 ) -> None:
         """
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be
          set to 1.
         :param class_weights: Tensor containing class weights (default=None).
         :param class_names: The names of the classes if available (default=None).
-        :param tune_classifier: Whether to tune the classifier (default=True).
-        :param pretrained_classifier: Whether to use pretrained classifier (default=False for random init).
-        :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
-        :param verbose: if True statements about memory usage are output at each step.
-        :param outputs_folder: Path to output folder where encoder checkpoint is downloaded.
         :param encoder_params: Encoder parameters that specify all encoder specific attributes.
         :param pooling_params: Pooling layer parameters that specify all encoder specific attributes.
+        :param classifier_params: Classifier parameters that specify all classifier specific attributes.
         :param optimizer_params: Optimizer parameters that specify all specific attributes to be used for oprimization.
+        :param outputs_folder: Path to output folder where encoder checkpoint is downloaded.
         :param outputs_handler: A configured :py:class:`DeepMILOutputsHandler` object to save outputs for the best
             validation epoch and test stage. If omitted (default), no outputs will be saved to disk (aside from usual
             metrics logging).
         :param analyse_loss: If True, the loss is analysed per sample and analysed with LossAnalysisCallback.
+        :param verbose: if True statements about memory usage are output at each step.
         """
         super().__init__()
 
@@ -79,29 +73,29 @@ class BaseDeepMILModule(LightningModule):
         self.class_weights = class_weights
         self.class_names = validate_class_names(class_names, self.n_classes)
 
-        self.dropout_rate = dropout_rate
         self.encoder_params = encoder_params
         self.pooling_params = pooling_params
+        self.classifier_params = classifier_params
         self.optimizer_params = optimizer_params
 
         self.save_hyperparameters()
         self.verbose = verbose
         self.outputs_handler = outputs_handler
-        self.pretrained_classifier = pretrained_classifier
 
         # This flag can be switched on before invoking trainer.validate() to enable saving additional time/memory
         # consuming validation outputs via calling self.on_run_extra_validation_epoch()
-        self._run_extra_val_epoch = False
-        self.tune_classifier = tune_classifier
+        self._on_extra_val_epoch = False
 
         # Model components
         self.encoder = encoder_params.get_encoder(outputs_folder)
         self.aggregation_fn, self.num_pooling = pooling_params.get_pooling_layer(self.encoder.num_encoding)
-        self.classifier_fn = self.get_classifier()
+        self.classifier_fn = classifier_params.get_classifier(self.num_pooling, self.n_classes)
         self.activation_fn = self.get_activation()
-        self.analyse_loss = analyse_loss
+
+        # Loss function
         self.loss_fn = self.get_loss(reduction="mean")
         self.loss_fn_no_reduction = self.get_loss(reduction="none")
+        self.analyse_loss = analyse_loss
 
         # Metrics Objects
         self.train_metrics = self.get_metrics()
@@ -149,22 +143,11 @@ class BaseDeepMILModule(LightningModule):
             if self.pooling_params.pretrained_pooling:
                 self.copy_weights(self.aggregation_fn, pretrained_model.aggregation_fn, DeepMILSubmodules.POOLING)
 
-            if self.pretrained_classifier:
+            if self.classifier_params.pretrained_classifier:
                 if pretrained_model.n_classes != self.n_classes:
                     raise ValueError(f"Number of classes in pretrained model {pretrained_model.n_classes} "
                                      f"does not match number of classes in current model {self.n_classes}.")
                 self.copy_weights(self.classifier_fn, pretrained_model.classifier_fn, DeepMILSubmodules.CLASSIFIER)
-
-    def get_classifier(self) -> nn.Module:
-        classifier_layer = nn.Linear(in_features=self.num_pooling,
-                                     out_features=self.n_classes)
-        set_module_gradients_enabled(classifier_layer, self.tune_classifier)
-        if self.dropout_rate is None:
-            return classifier_layer
-        elif 0 <= self.dropout_rate < 1:
-            return nn.Sequential(nn.Dropout(self.dropout_rate), classifier_layer)
-        else:
-            raise ValueError(f"Dropout rate should be in [0, 1), got {self.dropout_rate}")
 
     def get_loss(self, reduction: str = "mean") -> Callable:
         if self.n_classes > 1:
@@ -217,8 +200,12 @@ class BaseDeepMILModule(LightningModule):
                 MetricsKey.RECALL: Recall(),
                 MetricsKey.SPECIFICITY: Specificity()})
 
-    def log_metrics(self, stage: str) -> None:
-        valid_stages = [stage for stage in ModelKey]
+    def get_extra_prefix(self) -> str:
+        """Get extra prefix for the metrics name to avoir overriding best validation metrics."""
+        return EXTRA_PREFIX if self._on_extra_val_epoch else ""
+
+    def log_metrics(self, stage: str, prefix: str = '') -> None:
+        valid_stages = set([stage for stage in ModelKey])
         if stage not in valid_stages:
             raise Exception(f"Invalid stage. Chose one of {valid_stages}")
         for metric_name, metric_object in self.get_metrics_dict(stage).items():
@@ -226,9 +213,9 @@ class BaseDeepMILModule(LightningModule):
                 metric_value = metric_object.compute()
                 metric_value_n = metric_value / metric_value.sum(axis=1, keepdims=True)
                 for i in range(metric_value_n.shape[0]):
-                    log_on_epoch(self, f'{stage}/{self.class_names[i]}', metric_value_n[i, i])
+                    log_on_epoch(self, f'{prefix}{stage}/{self.class_names[i]}', metric_value_n[i, i])
             else:
-                log_on_epoch(self, f'{stage}/{metric_name}', metric_object)
+                log_on_epoch(self, f'{prefix}{stage}/{metric_name}', metric_object)
 
     def get_instance_features(self, instances: Tensor) -> Tensor:
         if not self.encoder_params.tune_encoder:
@@ -252,7 +239,7 @@ class BaseDeepMILModule(LightningModule):
         return attentions, bag_features
 
     def get_bag_logit(self, bag_features: Tensor) -> Tensor:
-        if not self.tune_classifier:
+        if not self.classifier_params.tune_classifier:
             self.classifier_fn.eval()
         bag_logit = self.classifier_fn(bag_features)
         return bag_logit
@@ -295,6 +282,14 @@ class BaseDeepMILModule(LightningModule):
         """Update training results with data specific info. This can be either tiles or slides related metadata."""
         raise NotImplementedError
 
+    def update_slides_selection(self, stage: str, batch: Dict, results: Dict) -> None:
+        if (
+            (stage == ModelKey.TEST or (stage == ModelKey.VAL and self._on_extra_val_epoch))
+            and self.outputs_handler
+            and self.outputs_handler.tiles_selector
+        ):
+            self.outputs_handler.tiles_selector.update_slides_selection(batch, results)
+
     def _compute_loss(self, loss_fn: Callable, bag_logits: Tensor, bag_labels: Tensor) -> Tensor:
         if self.n_classes > 1:
             return loss_fn(bag_logits, bag_labels.long())
@@ -324,6 +319,7 @@ class BaseDeepMILModule(LightningModule):
             predicted_probs = predicted_probs.squeeze(dim=1)
 
         results = dict()
+
         if self.analyse_loss and stage in [ModelKey.TRAIN, ModelKey.VAL]:
             loss_per_sample = self._compute_loss(self.loss_fn_no_reduction, bag_logits, bag_labels)
             results[ResultsKey.LOSS_PER_SAMPLE] = loss_per_sample.detach().cpu().numpy()
@@ -340,18 +336,12 @@ class BaseDeepMILModule(LightningModule):
                         ResultsKey.BAG_ATTN: bag_attn_list
                         })
         self.update_results_with_data_specific_info(batch=batch, results=results)
-        if (
-            (stage == ModelKey.TEST or (stage == ModelKey.VAL and self._run_extra_val_epoch))
-            and self.outputs_handler
-            and self.outputs_handler.tiles_selector
-        ):
-            self.outputs_handler.tiles_selector.update_slides_selection(batch, results)
+        self.update_slides_selection(stage=stage, batch=batch, results=results)
         return results
 
     def training_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
         train_result = self._shared_step(batch, batch_idx, ModelKey.TRAIN)
-        self.log('train/loss', train_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
-                 sync_dist=True)
+        self.log('train/loss', train_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True, sync_dist=True)
         if self.verbose:
             print(f"After loading images batch {batch_idx} -", _format_cuda_memory_stats())
         results = {ResultsKey.LOSS: train_result[ResultsKey.LOSS]}
@@ -363,33 +353,28 @@ class BaseDeepMILModule(LightningModule):
 
     def validation_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
         val_result = self._shared_step(batch, batch_idx, ModelKey.VAL)
-        self.log('val/loss', val_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
-                 sync_dist=True)
+        name = f'{self.get_extra_prefix()}val/loss'
+        self.log(name, val_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True, sync_dist=True)
         return val_result
 
     def test_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
         test_result = self._shared_step(batch, batch_idx, ModelKey.TEST)
-        self.log('test/loss', test_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True,
-                 sync_dist=True)
+        self.log('test/loss', test_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True, sync_dist=True)
         return test_result
 
     def training_epoch_end(self, outputs: EpochResultsType) -> None:  # type: ignore
         self.log_metrics(ModelKey.TRAIN)
 
     def validation_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
-        self.log_metrics(ModelKey.VAL)
+        self.log_metrics(stage=ModelKey.VAL, prefix=self.get_extra_prefix())
         if self.outputs_handler:
             self.outputs_handler.save_validation_outputs(
                 epoch_results=epoch_results,
                 metrics_dict=self.get_metrics_dict(ModelKey.VAL),  # type: ignore
                 epoch=self.current_epoch,
                 is_global_rank_zero=self.global_rank == 0,
-                run_extra_val_epoch=self._run_extra_val_epoch
+                on_extra_val=self._on_extra_val_epoch
             )
-
-            # Reset the top and bottom slides heaps
-            if self.outputs_handler.tiles_selector is not None:
-                self.outputs_handler.tiles_selector._clear_cached_slides_heaps()
 
     def test_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
         self.log_metrics(ModelKey.TEST)
@@ -402,7 +387,7 @@ class BaseDeepMILModule(LightningModule):
     def on_run_extra_validation_epoch(self) -> None:
         """Hook to be called at the beginning of an extra validation epoch to set validation plots options to the same
         as the test plots options."""
-        self._run_extra_val_epoch = True
+        self._on_extra_val_epoch = True
         if self.outputs_handler:
             self.outputs_handler.val_plots_handler.plot_options = self.outputs_handler.test_plots_handler.plot_options
 

@@ -122,7 +122,7 @@ class HelloRegression(LightningModule):
         self.model = torch.nn.Linear(in_features=1, out_features=1, bias=True)  # type: ignore
         self.test_mse: List[torch.Tensor] = []
         self.test_mae = MeanAbsoluteError()
-        self._run_extra_val_epoch = False
+        self._on_extra_val_epoch = False
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
         """
@@ -233,7 +233,7 @@ class HelloRegression(LightningModule):
         self.log("test_mse", average_mse, on_epoch=True, on_step=False)
 
     def on_run_extra_validation_epoch(self) -> None:
-        self._run_extra_val_epoch = True
+        self._on_extra_val_epoch = True
 
 
 class HelloWorld(LightningContainer):

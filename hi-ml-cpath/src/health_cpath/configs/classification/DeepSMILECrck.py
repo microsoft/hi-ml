@@ -63,6 +63,7 @@ class DeepSMILECrck(BaseMILTiles):
             root_path=self.local_datasets[0],
             max_bag_size=self.max_bag_size,
             batch_size=self.batch_size,
+            batch_size_inf=self.batch_size_inf,
             max_bag_size_inf=self.max_bag_size_inf,
             transforms_dict=self.get_transforms_dict(TcgaCrck_TilesDataset.IMAGE_COLUMN),
             cache_mode=self.cache_mode,
@@ -72,6 +73,7 @@ class DeepSMILECrck(BaseMILTiles):
             crossval_index=self.crossval_index,
             dataloader_kwargs=self.get_dataloader_kwargs(),
             seed=self.get_effective_random_seed(),
+            pl_replace_sampler_ddp=self.pl_replace_sampler_ddp,
         )
 
     def get_test_plot_options(self) -> Set[PlotOption]:

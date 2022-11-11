@@ -8,10 +8,9 @@ import logging
 import shutil
 import sys
 import uuid
+import pytest
 from pathlib import Path
 from typing import Generator
-
-import pytest
 
 # temporary workaround until these hi-ml package release
 testhisto_root_dir = Path(__file__).parent
@@ -31,6 +30,7 @@ for package, subpackages in packages.items():
 from health_ml.utils.fixed_paths import OutputFolderForTests  # noqa: E402
 from testhisto.mocks.base_data_generator import MockHistoDataType  # noqa: E402
 from testhisto.mocks.tiles_generator import MockPandaTilesGenerator  # noqa: E402
+from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPositioningType  # noqa: E402
 
 
 def remove_and_create_folder(folder: Path) -> None:
@@ -94,5 +94,28 @@ def mock_panda_tiles_root_dir(
     )
     logging.info("Generating temporary mock tiles that will be deleted at the end of the session.")
     tiles_generator.generate_mock_histo_data()
+    yield tmp_root_dir
+    shutil.rmtree(tmp_root_dir)
+
+
+@pytest.fixture(scope="session")
+def mock_panda_slides_root_dir(
+    tmp_path_factory: pytest.TempPathFactory, tmp_path_to_pathmnist_dataset: Path
+) -> Generator:
+    tmp_root_dir = tmp_path_factory.mktemp("mock_slides")
+    wsi_generator = MockPandaSlidesGenerator(
+        dest_data_path=tmp_root_dir,
+        src_data_path=tmp_path_to_pathmnist_dataset,
+        mock_type=MockHistoDataType.PATHMNIST,
+        n_tiles=4,
+        n_slides=15,
+        n_channels=3,
+        n_levels=3,
+        tile_size=28,
+        background_val=255,
+        tiles_pos_type=TilesPositioningType.RANDOM
+    )
+    logging.info("Generating temporary mock slides that will be deleted at the end of the session.")
+    wsi_generator.generate_mock_histo_data()
     yield tmp_root_dir
     shutil.rmtree(tmp_root_dir)
