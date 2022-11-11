@@ -2477,7 +2477,7 @@ def test_get_legitimate_default_credential() -> None:
         return DefaultAzureCredential(timeout=1)
 
     with patch("health_azure.utils.DefaultAzureCredential", new=_mock_credential_fast_timeout):
-        with pytest.raises(Exception, match=r"DefaultAzureCredential failed to authenticate:"):
+        with pytest.raises(ClientAuthenticationError, match=r"DefaultAzureCredential failed to authenticate:"):
             cred = util._get_legitimate_default_credential()
 
     with patch("health_azure.utils._validate_credential"):
