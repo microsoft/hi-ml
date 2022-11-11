@@ -10,6 +10,7 @@ import pandas as pd
 from monai.config import KeysCollection
 from monai.data.image_reader import ImageReader, WSIReader
 from monai.transforms import MapTransform
+from health_cpath.utils.naming import SlideKey
 
 from health_ml.utils import box_utils
 
@@ -42,9 +43,10 @@ class PandaDataset(SlidesDataset):
                  dataset_csv: Optional[Union[str, Path]] = None,
                  dataset_df: Optional[pd.DataFrame] = None,
                  label_column: str = "isup_grade",
-                 n_classes: int = 6) -> None:
+                 n_classes: int = 6,
+                 dataframe_kwargs: Dict[str, Any] = {}) -> None:
         super().__init__(root, dataset_csv, dataset_df, validate_columns=False, label_column=label_column,
-                         n_classes=n_classes)
+                         n_classes=n_classes, dataframe_kwargs=dataframe_kwargs)
         # PANDA CSV does not come with paths for image and mask files
         slide_ids = self.dataset_df.index
         self.dataset_df[self.IMAGE_COLUMN] = "train_images/" + slide_ids + ".tiff"
@@ -120,8 +122,9 @@ class LoadPandaROId(MapTransform):
         # but relative region size in pixels at the chosen level
         scale = mask_obj.resolutions['level_downsamples'][self.level]
         scaled_bbox = level0_bbox / scale
+        origin = (level0_bbox.y, level0_bbox.x)
         get_data_kwargs = dict(
-            location=(level0_bbox.y, level0_bbox.x),
+            location=origin,
             size=(scaled_bbox.h, scaled_bbox.w),
             level=self.level,
         )
@@ -129,7 +132,8 @@ class LoadPandaROId(MapTransform):
         data[self.mask_key] = mask[:1]  # PANDA segmentation mask is in 'R' channel
         data[self.image_key], _ = self.reader.get_data(image_obj, **get_data_kwargs)  # type: ignore
         data.update(get_data_kwargs)
-        data['scale'] = scale
+        data[SlideKey.SCALE] = scale
+        data[SlideKey.ORIGIN] = origin
 
         mask_obj.close()
         image_obj.close()

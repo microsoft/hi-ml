@@ -120,32 +120,32 @@ def plot_histogram(data: List[Any], title: str = "") -> None:
     plt.gca().set(title=title, xlabel='Values', ylabel='Frequency')
 
 
-def plot_roc_curve(labels: Sequence, scores: Sequence, label: str, ax: Axes) -> None:
+def plot_roc_curve(labels: Sequence, scores: Sequence, legend_label: str, ax: Axes) -> None:
     """Plot ROC curve for the given labels and scores, with AUROC in the line legend.
 
     :param labels: The true binary labels.
     :param scores: Scores predicted by the model.
-    :param label: An line identifier to be displayed in the legend.
+    :param legend_label: An line identifier to be displayed in the legend.
     :param ax: `Axes` object onto which to plot.
     """
     fpr, tpr, _ = roc_curve(labels, scores)
     auroc = auc(fpr, tpr)
-    label = f"{label} (AUROC: {auroc:.3f})"
-    ax.plot(fpr, tpr, label=label)
+    legend_label = f"{legend_label} (AUROC: {auroc:.3f})"
+    ax.plot(fpr, tpr, label=legend_label)
 
 
-def plot_pr_curve(labels: Sequence, scores: Sequence, label: str, ax: Axes) -> None:
-    """Plot precision-recall curve for the given labels and scores, with AUROC in the line legend.
+def plot_pr_curve(labels: Sequence, scores: Sequence, legend_label: str, ax: Axes) -> None:
+    """Plot precision-recall curve for the given labels and scores, with AUPR in the line legend.
 
     :param labels: The true binary labels.
     :param scores: Scores predicted by the model.
-    :param label: An line identifier to be displayed in the legend.
+    :param legend_label: A line identifier to be displayed in the legend.
     :param ax: `Axes` object onto which to plot.
     """
     precision, recall, _ = precision_recall_curve(labels, scores)
     aupr = auc(recall, precision)
-    label = f"{label} (AUPR: {aupr:.3f})"
-    ax.plot(recall, precision, label=label)
+    legend_label = f"{legend_label} (AUPR: {aupr:.3f})"
+    ax.plot(recall, precision, label=legend_label)
 
 
 def format_pr_or_roc_axes(plot_type: str, ax: Axes) -> None:
@@ -168,18 +168,18 @@ def format_pr_or_roc_axes(plot_type: str, ax: Axes) -> None:
     ax.grid(color='0.9')
 
 
-def _plot_crossval_roc_and_pr_curves(crossval_dfs: Dict[int, pd.DataFrame], roc_ax: Axes, pr_ax: Axes,
-                                     scores_column: str = ResultsKey.PROB) -> None:
-    """Plot ROC and precision-recall curves for multiple cross-validation runs onto provided axes.
+def _plot_hyperdrive_roc_and_pr_curves(hyperdrive_dfs: Dict[int, pd.DataFrame], roc_ax: Axes, pr_ax: Axes,
+                                       scores_column: str = ResultsKey.PROB) -> None:
+    """Plot ROC and precision-recall curves for multiple hyperdrive runs onto provided axes.
 
-    This is called by :py:func:`plot_crossval_roc_and_pr_curves()`, which additionally creates a figure and the axes.
+    This is called by :py:func:`plot_hyperdrive_roc_and_pr_curves()`, which additionally creates a figure and the axes.
 
-    :param crossval_dfs: Dictionary of dataframes with cross-validation indices as keys,
-        as returned by :py:func:`collect_crossval_outputs()`.
+    :param hyperdrive_dfs: Dictionary of dataframes with hyperdrive child runs indices as keys,
+        as returned by :py:func:`collect_hyperdrive_outputs()`.
     :param roc_ax: `Axes` object onto which to plot ROC curves.
     :param pr_ax: `Axes` object onto which to plot precision-recall curves.
     """
-    for k, tiles_df in crossval_dfs.items():
+    for k, tiles_df in hyperdrive_dfs.items():
         slides_groupby = tiles_df.groupby(ResultsKey.SLIDE_ID)
 
         tile_labels = slides_groupby[ResultsKey.TRUE_LABEL]
@@ -197,8 +197,8 @@ def _plot_crossval_roc_and_pr_curves(crossval_dfs: Dict[int, pd.DataFrame], roc_
         # assert len(non_unique_slides) == 0
         scores = tile_scores.first()
 
-        plot_roc_curve(labels, scores, label=f"Fold {k}", ax=roc_ax)
-        plot_pr_curve(labels, scores, label=f"Fold {k}", ax=pr_ax)
+        plot_roc_curve(labels, scores, legend_label=f"Child {k}", ax=roc_ax)
+        plot_pr_curve(labels, scores, legend_label=f"Child {k}", ax=pr_ax)
     legend_kwargs = dict(edgecolor='none', fontsize='small')
     roc_ax.legend(**legend_kwargs)
     pr_ax.legend(**legend_kwargs)
@@ -206,26 +206,26 @@ def _plot_crossval_roc_and_pr_curves(crossval_dfs: Dict[int, pd.DataFrame], roc_
     format_pr_or_roc_axes('pr', pr_ax)
 
 
-def plot_crossval_roc_and_pr_curves(crossval_dfs: Dict[int, pd.DataFrame],
-                                    scores_column: str = ResultsKey.PROB) -> Figure:
-    """Plot ROC and precision-recall curves for multiple cross-validation runs.
+def plot_hyperdrive_roc_and_pr_curves(hyperdrive_dfs: Dict[int, pd.DataFrame],
+                                      scores_column: str = ResultsKey.PROB) -> Figure:
+    """Plot ROC and precision-recall curves for multiple hyperdrive child runs.
 
     This will create a new figure with two subplots (left: ROC, right: PR).
 
-    :param crossval_dfs: Dictionary of dataframes with cross-validation indices as keys,
-        as returned by :py:func:`collect_crossval_outputs()`.
+    :param hyperdrive_dfs: Dictionary of dataframes with hyperdrive child indices as keys,
+        as returned by :py:func:`collect_hyperdrive_outputs()`.
     :return: The created `Figure` object.
     """
     fig, axs = plt.subplots(1, 2, figsize=(8, 4))
-    _plot_crossval_roc_and_pr_curves(crossval_dfs, scores_column=scores_column, roc_ax=axs[0], pr_ax=axs[1])
+    _plot_hyperdrive_roc_and_pr_curves(hyperdrive_dfs, scores_column=scores_column, roc_ax=axs[0], pr_ax=axs[1])
     return fig
 
 
-def plot_crossval_training_curves(metrics_df: pd.DataFrame, train_metric: str, val_metric: str, ax: Axes,
-                                  best_epochs: Optional[Dict[int, int]] = None, ylabel: Optional[str] = None) -> None:
-    """Plot paired training and validation metrics for every training epoch of cross-validation runs.
+def plot_hyperdrive_training_curves(metrics_df: pd.DataFrame, train_metric: str, val_metric: str, ax: Axes,
+                                    best_epochs: Optional[Dict[int, int]] = None, ylabel: Optional[str] = None) -> None:
+    """Plot paired training and validation metrics for every training epoch of hyperdrive child runs.
 
-    :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_crossval_metrics()` and
+    :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_hyperdrive_metrics()` and
         :py:func:`~health_azure.aggregate_hyperdrive_metrics()`.
     :param train_metric: Name of the training metric to plot.
     :param val_metric: Name of the validation metric to plot.
@@ -236,14 +236,17 @@ def plot_crossval_training_curves(metrics_df: pd.DataFrame, train_metric: str, v
     for k in sorted(metrics_df.columns):
         train_values = metrics_df.loc[train_metric, k]
         val_values = metrics_df.loc[val_metric, k]
-        line, = ax.plot(train_values, **TRAIN_STYLE, label=f"Fold {k}")
-        color = line.get_color()
-        ax.plot(val_values, color=color, **VAL_STYLE)
+        if train_values is not None:
+            line, = ax.plot(train_values, **TRAIN_STYLE, label=f"Child {k}")
+            color = line.get_color()
+        if val_values is not None:
+            ax.plot(val_values, color=color, **VAL_STYLE)
         if best_epochs is not None:
             best_epoch = best_epochs[k]
-            ax.plot(best_epoch, train_values[best_epoch], color=color, zorder=1000, **BEST_TRAIN_MARKER_STYLE)
-            ax.plot(best_epoch, val_values[best_epoch], color=color, zorder=1000, **BEST_VAL_MARKER_STYLE)
-            ax.axvline(best_epoch, color=color, **BEST_EPOCH_LINE_STYLE)
+            if best_epoch is not None:
+                ax.plot(best_epoch, train_values[best_epoch], color=color, zorder=1000, **BEST_TRAIN_MARKER_STYLE)
+                ax.plot(best_epoch, val_values[best_epoch], color=color, zorder=1000, **BEST_VAL_MARKER_STYLE)
+                ax.axvline(best_epoch, color=color, **BEST_EPOCH_LINE_STYLE)
     ax.grid(color='0.9')
     ax.set_xlabel("Epoch")
     if ylabel:
@@ -251,15 +254,15 @@ def plot_crossval_training_curves(metrics_df: pd.DataFrame, train_metric: str, v
 
 
 def add_training_curves_legend(fig: Figure, include_best_epoch: bool = False) -> None:
-    """Add a legend to a training curves figure, indicating cross-validation indices and train/val.
+    """Add a legend to a training curves figure, indicating hyperdrive child indices and train/val.
 
     :param fig: `Figure` object onto which to add the legend.
     :param include_best_epoch: If `True`, adds legend items for the best epoch indicators from
-        :py:func:`plot_crossval_training_curves()`.
+        :py:func:`plot_hyperdrive_training_curves()`.
     """
     legend_kwargs = dict(edgecolor='none', fontsize='small', borderpad=.2)
 
-    # Add primary legend for main lines (crossval folds)
+    # Add primary legend for main lines (hyperdrive runs)
     handles, labels = plt.gca().get_legend_handles_labels()
     by_label = dict(zip(labels, handles))
     fig.legend(by_label.values(), by_label.keys(), **legend_kwargs, loc='lower center',
@@ -277,17 +280,18 @@ def add_training_curves_legend(fig: Figure, include_best_epoch: bool = False) ->
                bbox_to_anchor=(0.5, -0.1), ncol=len(legend_handles))
 
 
-def plot_confusion_matrices(crossval_dfs: Dict[int, pd.DataFrame], class_names: List[str]) -> Figure:
+def plot_confusion_matrices(hyperdrive_dfs: Dict[int, pd.DataFrame], class_names: List[str]) -> Figure:
     """
     Plot normalized confusion matrices from HyperDrive child runs.
-    :param crossval_dfs: Dictionary of dataframes with cross-validation indices as keys,
-        as returned by :py:func:`collect_crossval_outputs()`.
+    :param hyperdrive_dfs: Dictionary of dataframes with hyperdrive indices as keys,
+        as returned by :py:func:`collect_hyperdrive_outputs()`.
     :param class_names: Names of classes.
     :return: The created `Figure` object.
     """
-    crossval_count = len(crossval_dfs)
-    fig, axs = plt.subplots(1, crossval_count, figsize=(crossval_count * 6, 5))
-    for k, tiles_df in crossval_dfs.items():
+    hyperdrive_count = len(hyperdrive_dfs)
+    fig, axs = plt.subplots(1, hyperdrive_count, figsize=(hyperdrive_count * 6, 5))
+    ax_index = 0
+    for k, tiles_df in hyperdrive_dfs.items():
         slides_groupby = tiles_df.groupby(ResultsKey.SLIDE_ID)
         tile_labels_true = slides_groupby[ResultsKey.TRUE_LABEL]
         # True slide label is guaranteed unique
@@ -303,9 +307,10 @@ def plot_confusion_matrices(crossval_dfs: Dict[int, pd.DataFrame], class_names: 
         labels_pred = tile_labels_pred.first()
 
         cf_matrix_n = confusion_matrix(y_true=labels_true, y_pred=labels_pred, normalize='true')
-        sns.heatmap(cf_matrix_n, annot=True, cmap='Blues', fmt=".2%", ax=axs[k],
+        sns.heatmap(cf_matrix_n, annot=True, cmap='Blues', fmt=".2%", ax=axs[ax_index],
                     xticklabels=class_names, yticklabels=class_names)
-        axs[k].set_xlabel('Predicted')
-        axs[k].set_ylabel('True')
-        axs[k].set_title(f'Fold {k}')
+        axs[ax_index].set_xlabel('Predicted')
+        axs[ax_index].set_ylabel('True')
+        axs[ax_index].set_title(f'Child {k}')
+        ax_index += 1
     return fig

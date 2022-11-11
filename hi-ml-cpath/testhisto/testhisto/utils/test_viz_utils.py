@@ -8,6 +8,7 @@ import math
 import random
 from pathlib import Path
 from typing import List, Optional
+from unittest.mock import MagicMock, patch
 
 import matplotlib
 import numpy as np
@@ -24,9 +25,8 @@ from health_cpath.utils.viz_utils import plot_attention_tiles, plot_scores_hist,
 from health_cpath.utils.naming import ResultsKey
 from health_cpath.utils.heatmap_utils import location_selected_tiles
 from health_cpath.utils.tiles_selection_utils import SlideNode, TileNode
-from health_cpath.utils.viz_utils import save_figure
+from health_cpath.utils.viz_utils import save_figure, load_image_dict
 from testhisto.utils.utils_testhisto import assert_binary_files_match, full_ml_test_data_path
-# import testhisto
 
 
 def set_random_seed(random_seed: int, caller_name: Optional[str] = None) -> None:
@@ -124,7 +124,7 @@ def slide_node() -> SlideNode:
     set_random_seed(0)
     tile_size = (3, 224, 224)
     num_top_tiles = 12
-    slide_node = SlideNode(slide_id="slide_0", prob_score=0.5, true_label=1, pred_label=1)
+    slide_node = SlideNode(slide_id="slide_0", gt_prob_score=0.04, pred_prob_score=0.96, true_label=1, pred_label=0)
     top_attn_scores = [0.99, 0.98, 0.97, 0.96, 0.95, 0.94, 0.93, 0.92, 0.91, 0.90, 0.89, 0.88]
     slide_node.top_tiles = [
         TileNode(attn=top_attn_scores[i], data=torch.randint(0, 255, tile_size)) for i in range(num_top_tiles)
@@ -150,11 +150,11 @@ def assert_plot_tiles_figure(tiles_fig: plt.Figure, fig_name: str, test_output_d
 @pytest.mark.skipif(is_windows(), reason="Rendering is different on Windows")
 def test_plot_top_bottom_tiles(slide_node: SlideNode, test_output_dirs: OutputFolderForTests) -> None:
     top_tiles_fig = plot_attention_tiles(
-        case="TP", slide_node=slide_node, top=True, num_columns=4, figsize=(10, 10)
+        case="FN", slide_node=slide_node, top=True, num_columns=4, figsize=(10, 10)
     )
     assert top_tiles_fig is not None
     bottom_tiles_fig = plot_attention_tiles(
-        case="TP", slide_node=slide_node, top=False, num_columns=4, figsize=(10, 10)
+        case="FN", slide_node=slide_node, top=False, num_columns=4, figsize=(10, 10)
     )
     assert bottom_tiles_fig is not None
     assert_plot_tiles_figure(top_tiles_fig, "slide_0_top.png", test_output_dirs)
@@ -167,7 +167,7 @@ def test_plot_attention_tiles_below_min_rows(slide_node: SlideNode, caplog: LogC
     slide_node.bottom_tiles = []
     with caplog.at_level(logging.WARNING):
         bottom_tiles_fig = plot_attention_tiles(
-            case="TP", slide_node=slide_node, top=False, num_columns=4, figsize=(10, 10)
+            case="FN", slide_node=slide_node, top=False, num_columns=4, figsize=(10, 10)
         )
         assert bottom_tiles_fig is None
         assert expected_warning in caplog.text
@@ -175,25 +175,43 @@ def test_plot_attention_tiles_below_min_rows(slide_node: SlideNode, caplog: LogC
     slide_node.top_tiles = []
     with caplog.at_level(logging.WARNING):
         top_tiles_fig = plot_attention_tiles(
-            case="TP", slide_node=slide_node, top=True, num_columns=4, figsize=(10, 10)
+            case="FN", slide_node=slide_node, top=True, num_columns=4, figsize=(10, 10)
         )
         assert top_tiles_fig is None
         assert expected_warning in caplog.text
 
 
-@pytest.mark.parametrize("scale", [0.1, 1.2, 2.4, 3.6])
-def test_plot_slide(test_output_dirs: OutputFolderForTests, scale: int) -> None:
+@pytest.mark.parametrize(
+    "scale, gt_prob, pred_prob, gt_label, pred_label, case",
+    [
+        (0.1, 0.99, 0.99, 1, 1, "TP"),
+        (1.2, 0.95, 0.95, 0, 0, "TN"),
+        (2.4, 0.04, 0.96, 0, 1, "FP"),
+        (3.6, 0.03, 0.97, 1, 0, "FN"),
+    ],
+)
+def test_plot_slide(
+    test_output_dirs: OutputFolderForTests,
+    scale: int,
+    gt_prob: float,
+    pred_prob: float,
+    case: str,
+    gt_label: int,
+    pred_label: int,
+) -> None:
     set_random_seed(0)
     slide_image = np.random.rand(3, 1000, 2000)
-    slide_node = SlideNode(slide_id="slide_0", prob_score=0.5, true_label=1, pred_label=1)
-    fig = plot_slide(case="TP", slide_node=slide_node, slide_image=slide_image, scale=scale)
+    slide_node = SlideNode(
+        slide_id="slide_0", gt_prob_score=gt_prob, pred_prob_score=pred_prob, true_label=gt_label, pred_label=pred_label
+    )
+    fig = plot_slide(case=case, slide_node=slide_node, slide_image=slide_image, scale=scale)
     assert isinstance(fig, matplotlib.figure.Figure)
     file = Path(test_output_dirs.root_dir) / "plot_slide.png"
     resize_and_save(5, 5, file)
     assert file.exists()
-    expected = full_ml_test_data_path("histo_heatmaps") / f"slide_{scale}.png"
+    expected = full_ml_test_data_path("histo_heatmaps") / f"slide_{scale}_{case}.png"
     # To update the stored results, uncomment this line:
-    # expected.write_bytes(file.read_bytes())
+    expected.write_bytes(file.read_bytes())
     assert_binary_files_match(file, expected)
 
 
@@ -201,11 +219,13 @@ def test_plot_slide(test_output_dirs: OutputFolderForTests, scale: int) -> None:
 def test_plot_heatmap_overlay(test_output_dirs: OutputFolderForTests) -> None:
     set_random_seed(0)
     slide_image = np.random.rand(3, 1000, 2000)
-    slide_node = SlideNode(slide_id=1, prob_score=0.5, true_label=1, pred_label=1)  # type: ignore
+    slide_node = SlideNode(
+        slide_id=1, gt_prob_score=0.04, pred_prob_score=0.96, true_label=1, pred_label=0  # type: ignore
+    )
     location_bbox = [100, 100]
     tile_size = 224
     level = 0
-    fig = plot_heatmap_overlay(case="TP",
+    fig = plot_heatmap_overlay(case="FN",
                                slide_node=slide_node,
                                slide_image=slide_image,
                                results=test_dict,  # type: ignore
@@ -275,3 +295,12 @@ def test_location_selected_tiles(level: int) -> None:
     assert max(tile_xs) <= slide_image.shape[2] // factor
     assert min(tile_ys) >= 0
     assert max(tile_ys) <= slide_image.shape[1] // factor
+
+
+@pytest.mark.parametrize("wsi_has_mask", [True, False])
+def test_load_image_dict(wsi_has_mask: bool) -> None:
+    with patch("health_cpath.utils.viz_utils.LoadPandaROId") as mock_load_panda_roi:
+        with patch("health_cpath.utils.viz_utils.LoadROId") as mock_load_roi:
+            _ = load_image_dict(sample=MagicMock(), level=0, margin=0, wsi_has_mask=wsi_has_mask)  # type: ignore
+            assert mock_load_panda_roi.called == wsi_has_mask
+            assert mock_load_roi.called == (not wsi_has_mask)

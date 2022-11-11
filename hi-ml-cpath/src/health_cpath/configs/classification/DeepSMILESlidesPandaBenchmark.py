@@ -7,24 +7,25 @@
 from typing import Any, Dict, Callable, Union
 from torch import optim
 from monai.transforms import Compose, ScaleIntensityRanged, RandRotate90d, RandFlipd
-
+from health_cpath.configs.run_ids import innereye_ssl_checkpoint_binary
 from health_azure.utils import create_from_matching_params
 from health_ml.networks.layers.attention_layers import (
     TransformerPooling,
     TransformerPoolingBenchmark
 )
+from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_ml.deep_learning_config import OptimizerParams
 from health_cpath.datasets.panda_dataset import PandaDataset
 from health_cpath.datamodules.panda_module_benchmark import PandaSlidesDataModuleBenchmark
 from health_cpath.models.encoders import (
     HistoSSLEncoder,
-    ImageNetEncoder_Resnet50,
     ImageNetSimCLREncoder,
+    Resnet50_NoPreproc,
     SSLEncoder,
 )
 from health_cpath.configs.classification.DeepSMILEPanda import DeepSMILESlidesPanda
 from health_cpath.models.deepmil import SlidesDeepMILModule
-from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams
+from health_cpath.utils.deepmil_utils import ClassifierParams, EncoderParams, PoolingParams
 from health_cpath.utils.naming import MetricsKey, ModelKey, SlideKey
 
 
@@ -50,9 +51,8 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
     """
     Configuration for PANDA experiments from Myronenko et al. 2021:
     (https://link.springer.com/chapter/10.1007/978-3-030-87237-3_32)
-    `is_finetune` sets the fine-tuning mode. For fine-tuning,
-    batch_size = 2 runs on 8 GPUs with
-    ~ 6:24 min/epoch (train) and ~ 00:50 min/epoch (validation).
+    `tune_encoder` sets the fine-tuning mode of the encoder. For fine-tuning, batch_size = 2 runs on 8 GPUs
+    with ~ 6:24 min/epoch (train) and ~ 00:50 min/epoch (validation).
     """
 
     def __init__(self, **kwargs: Any) -> None:
@@ -64,6 +64,7 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             encoding_chunk_size=60,
             max_bag_size=56,
             batch_size=8,  # effective batch size = batch_size * num_GPUs
+            batch_size_inf=8,
             max_epochs=50,
             l_rate=3e-4,
             weight_decay=0,
@@ -77,8 +78,9 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             self.l_rate = 3e-5
             self.weight_decay = 0.1
         # Params specific to fine-tuning
-        if self.is_finetune:
+        if self.tune_encoder:
             self.batch_size = 2
+            self.batch_size_inf = 2
         super().setup()
 
     def get_transforms_dict(self, image_key: str) -> Dict[ModelKey, Union[Callable, None]]:
@@ -100,8 +102,9 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
         # Hence, inherited `PandaSlidesDataModuleBenchmark` from `SlidesDataModule`
         return PandaSlidesDataModuleBenchmark(
             root_path=self.local_datasets[0],
-            max_bag_size=self.max_bag_size,
             batch_size=self.batch_size,
+            batch_size_inf=self.batch_size_inf,
+            max_bag_size=self.max_bag_size,
             max_bag_size_inf=self.max_bag_size_inf,
             level=self.level,
             tile_size=self.tile_size,
@@ -115,6 +118,7 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
             dataloader_kwargs=self.get_dataloader_kwargs(),
+            pl_replace_sampler_ddp=self.pl_replace_sampler_ddp,
         )
 
     def create_model(self) -> SlidesDeepMILModule:
@@ -126,13 +130,13 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             n_classes=self.data_module.train_dataset.n_classes,
             class_names=self.class_names,
             class_weights=self.data_module.class_weights,
-            dropout_rate=self.dropout_rate,
             outputs_folder=self.outputs_folder,
-            ssl_ckpt_run_id=self.ssl_checkpoint_run_id,
             encoder_params=create_from_matching_params(self, EncoderParams),
             pooling_params=create_from_matching_params(self, PoolingParams),
+            classifier_params=create_from_matching_params(self, ClassifierParams),
             optimizer_params=create_from_matching_params(self, OptimizerParams),
             outputs_handler=outputs_handler,
+            analyse_loss=self.analyse_loss,
         )
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
         return deepmil_module
@@ -140,7 +144,7 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
 
 class SlidesPandaImageNetMILBenchmark(DeepSMILESlidesPandaBenchmark):
     def __init__(self, **kwargs: Any) -> None:
-        super().__init__(encoder_type=ImageNetEncoder_Resnet50.__name__, **kwargs)
+        super().__init__(encoder_type=Resnet50_NoPreproc.__name__, **kwargs)
 
 
 class SlidesPandaImageNetSimCLRMILBenchmark(DeepSMILESlidesPandaBenchmark):
@@ -150,6 +154,8 @@ class SlidesPandaImageNetSimCLRMILBenchmark(DeepSMILESlidesPandaBenchmark):
 
 class SlidesPandaSSLMILBenchmark(DeepSMILESlidesPandaBenchmark):
     def __init__(self, **kwargs: Any) -> None:
+        # If no SSL checkpoint is provided, use the default one
+        self.ssl_checkpoint = self.ssl_checkpoint or CheckpointParser(innereye_ssl_checkpoint_binary)
         super().__init__(encoder_type=SSLEncoder.__name__, **kwargs)
 
 

@@ -14,33 +14,34 @@ from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 
 from health_azure.utils import create_from_matching_params
+from health_cpath.utils.callbacks import LossAnalysisCallback, LossCallbackParams
 
 from health_ml.utils import fixed_paths
 from health_ml.deep_learning_config import OptimizerParams
 from health_ml.lightning_container import LightningContainer
-from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
+from health_ml.utils.checkpoint_utils import get_best_checkpoint_path, CheckpointParser
 from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
 
 from health_cpath.datamodules.base_module import CacheLocation, CacheMode, HistoDataModule
 from health_cpath.datasets.base_dataset import SlidesDataset
 from health_cpath.models.deepmil import TilesDeepMILModule, SlidesDeepMILModule, BaseDeepMILModule
 from health_cpath.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
-from health_cpath.utils.deepmil_utils import EncoderParams, PoolingParams
+from health_cpath.utils.deepmil_utils import ClassifierParams, EncoderParams, PoolingParams
 from health_cpath.utils.output_utils import DeepMILOutputsHandler
 from health_cpath.utils.naming import MetricsKey, PlotOption, SlideKey, ModelKey
 from health_cpath.utils.tiles_selection_utils import TilesSelector
 
 
-class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
+class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams, LossCallbackParams):
     """BaseMIL is an abstract container defining basic functionality for running MIL experiments in both slides and
     tiles settings. It is responsible for instantiating the encoder and pooling layer. Subclasses should define the
     full DeepMIL model depending on the type of dataset (tiles/slides based).
     """
-    dropout_rate: Optional[float] = param.Number(None, bounds=(0, 1), doc="Pre-classifier dropout rate.")
     class_names: Optional[Sequence[str]] = param.List(None, item_type=str, doc="List of class names. If `None`, "
                                                                                "defaults to `('0', '1', ...)`.")
     # Data module parameters:
     batch_size: int = param.Integer(16, bounds=(1, None), doc="Number of slides to load per batch.")
+    batch_size_inf: int = param.Integer(16, bounds=(1, None), doc="Number of slides per batch during inference.")
     max_bag_size: int = param.Integer(1000, bounds=(0, None),
                                       doc="Upper bound on number of tiles in each loaded bag during training stage. "
                                           "If 0 (default), will return all samples in each bag. "
@@ -71,12 +72,13 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
                                                              "generating outputs.")
     maximise_primary_metric: bool = param.Boolean(True, doc="Whether the primary validation metric should be "
                                                             "maximised (otherwise minimised).")
-    ssl_checkpoint_run_id: str = param.String(default="", doc="Optional run id from which to load checkpoint if "
-                                              "using SSLEncoder")
     max_num_workers: int = param.Integer(10, bounds=(0, None),
                                          doc="The maximum number of worker processes for dataloaders. Dataloaders use"
                                              "a heuristic num_cpus/num_gpus to set the number of workers, which can be"
                                              "very high for small num_gpus. This parameters sets an upper bound.")
+    wsi_has_mask: bool = param.Boolean(default=True,
+                                       doc="Whether the WSI has a mask. If True, will use the mask to load a specific"
+                                           "region of the WSI. If False, will load the whole WSI.")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -84,6 +86,42 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
         metric_optim = "max" if self.maximise_primary_metric else "min"
         self.best_checkpoint_filename = f"checkpoint_{metric_optim}_val_{self.primary_val_metric.value}"
         self.best_checkpoint_filename_with_suffix = self.best_checkpoint_filename + ".ckpt"
+        self.validate()
+        if not self.pl_replace_sampler_ddp and self.max_num_gpus > 1:
+            logging.info(
+                "Replacing sampler with `DistributedSampler` is disabled. Make sure to set your own DDP sampler"
+            )
+
+    def validate(self) -> None:
+        super().validate()
+        EncoderParams.validate(self)
+        if not any([self.tune_encoder, self.tune_pooling, self.tune_classifier]) and not self.run_inference_only:
+            raise ValueError(
+                "At least one of the encoder, pooling or classifier should be fine tuned. Turn on one of the tune "
+                "arguments `tune_encoder`, `tune_pooling`, `tune_classifier`. Otherwise, activate inference only "
+                "mode via `run_inference_only` flag."
+            )
+        if (
+            any([self.pretrained_encoder, self.pretrained_pooling, self.pretrained_classifier])
+            and not self.src_checkpoint
+        ):
+            raise ValueError(
+                "You need to specify a source checkpoint, to use a pretrained encoder, pooling or classifier."
+                f" {CheckpointParser.INFO_MESSAGE}"
+            )
+        if (
+            self.tune_encoder and self.encoding_chunk_size < self.max_bag_size
+            and self.pl_sync_batchnorm and self.max_num_gpus > 1
+        ):
+            raise ValueError(
+                "The encoding chunk size should be at least as large as the maximum bag size when fine tuning the "
+                "encoder. You might encounter Batch Norm synchronization issues if the chunk size is smaller than "
+                "the maximum bag size causing the processes to hang silently. This is due to the encoder being called "
+                "different number of times on each device, which cause Batch Norm running statistics to be updated "
+                "inconsistently across processes. In case you can't increase the `encoding_chunk_size` any further, set"
+                " `pl_sync_batchnorm=False` to simply skip Batch Norm synchronization across devices. Note that this "
+                "might come with some performance penalty."
+            )
 
     @property
     def cache_dir(self) -> Path:
@@ -95,6 +133,8 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
             options.add(PlotOption.TOP_BOTTOM_TILES)
         return options
 
+    # overwrite this method if you want to produce validation plots at each epoch. By default, at the end of the
+    # training an extra validation epoch is run where val_plot_options = test_plot_options
     def get_val_plot_options(self) -> Set[PlotOption]:
         return set()
 
@@ -110,6 +150,8 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
             maximise=self.maximise_primary_metric,
             val_plot_options=self.get_val_plot_options(),
             test_plot_options=self.get_test_plot_options(),
+            wsi_has_mask=self.wsi_has_mask,
+            val_set_is_dist=self.pl_replace_sampler_ddp and self.max_num_gpus > 1,
         )
         if self.num_top_slides > 0:
             outputs_handler.tiles_selector = TilesSelector(
@@ -118,12 +160,26 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
         return outputs_handler
 
     def get_callbacks(self) -> List[Callback]:
-        return [*super().get_callbacks(),
-                ModelCheckpoint(dirpath=self.checkpoint_folder,
-                                monitor=f"{ModelKey.VAL}/{self.primary_val_metric}",
-                                filename=self.best_checkpoint_filename,
-                                auto_insert_metric_name=False,
-                                mode="max" if self.maximise_primary_metric else "min")]
+        callbacks = [*super().get_callbacks(),
+                     ModelCheckpoint(dirpath=self.checkpoint_folder,
+                                     monitor=f"{ModelKey.VAL}/{self.primary_val_metric}",
+                                     filename=self.best_checkpoint_filename,
+                                     auto_insert_metric_name=False,
+                                     mode="max" if self.maximise_primary_metric else "min")]
+        if self.analyse_loss:
+            callbacks.append(LossAnalysisCallback(outputs_folder=self.outputs_folder,
+                                                  max_epochs=self.max_epochs,
+                                                  patience=self.loss_analysis_patience,
+                                                  epochs_interval=self.loss_analysis_epochs_interval,
+                                                  num_slides_scatter=self.num_slides_scatter,
+                                                  num_slides_heatmap=self.num_slides_heatmap,
+                                                  save_tile_ids=self.save_tile_ids,
+                                                  log_exceptions=self.log_exceptions,
+                                                  val_set_is_dist=(
+                                                      self.pl_replace_sampler_ddp and self.max_num_gpus > 1),
+                                                  )
+                             )
+        return callbacks
 
     def get_checkpoint_to_test(self) -> Path:
         """
@@ -143,6 +199,10 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams):
                                                self.best_checkpoint_filename_with_suffix)
         if absolute_checkpoint_path_parent.is_file():
             return absolute_checkpoint_path_parent
+
+        checkpoint_path = Path(self.checkpoint_folder, self.best_checkpoint_filename_with_suffix)
+        if checkpoint_path.is_file():
+            return checkpoint_path
 
         checkpoint_path = get_best_checkpoint_path(self.checkpoint_folder)
         if checkpoint_path.is_file():
@@ -197,8 +257,8 @@ class BaseMILTiles(BaseMIL):
     def setup(self) -> None:
         super().setup()
         # Fine-tuning requires tiles to be loaded on-the-fly, hence, caching is disabled by default.
-        # When is_finetune and is_caching are both set, below lines should disable caching automatically.
-        if self.is_finetune:
+        # When tune_encoder and is_caching are both set, below lines should disable caching automatically.
+        if self.tune_encoder:
             self.is_caching = False
         if not self.is_caching:
             self.cache_mode = CacheMode.NONE
@@ -213,8 +273,7 @@ class BaseMILTiles(BaseMIL):
 
     def get_transforms_dict(self, image_key: str) -> Dict[ModelKey, Union[Callable, None]]:
         if self.is_caching:
-            encoder = create_from_matching_params(self, EncoderParams).get_encoder(self.ssl_checkpoint_run_id,
-                                                                                   self.outputs_folder)
+            encoder = create_from_matching_params(self, EncoderParams).get_encoder(self.outputs_folder)
             transform = Compose([
                 LoadTilesBatchd(image_key, progress=True),
                 EncodeTilesBatchd(image_key, encoder, chunk_size=self.encoding_chunk_size)  # type: ignore
@@ -231,13 +290,15 @@ class BaseMILTiles(BaseMIL):
                                             n_classes=self.data_module.train_dataset.n_classes,
                                             class_names=self.class_names,
                                             class_weights=self.data_module.class_weights,
-                                            dropout_rate=self.dropout_rate,
-                                            outputs_folder=self.outputs_folder,
-                                            ssl_ckpt_run_id=self.ssl_checkpoint_run_id,
                                             encoder_params=create_from_matching_params(self, EncoderParams),
                                             pooling_params=create_from_matching_params(self, PoolingParams),
+                                            classifier_params=create_from_matching_params(self, ClassifierParams),
                                             optimizer_params=create_from_matching_params(self, OptimizerParams),
-                                            outputs_handler=outputs_handler)
+                                            outputs_folder=self.outputs_folder,
+                                            outputs_handler=outputs_handler,
+                                            analyse_loss=self.analyse_loss,
+                                            )
+        deepmil_module.transfer_weights(self.trained_weights_path)
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
         return deepmil_module
 
@@ -271,12 +332,14 @@ class BaseMILSlides(BaseMIL):
                                              n_classes=self.data_module.train_dataset.n_classes,
                                              class_names=self.class_names,
                                              class_weights=self.data_module.class_weights,
-                                             dropout_rate=self.dropout_rate,
                                              outputs_folder=self.outputs_folder,
-                                             ssl_ckpt_run_id=self.ssl_checkpoint_run_id,
                                              encoder_params=create_from_matching_params(self, EncoderParams),
                                              pooling_params=create_from_matching_params(self, PoolingParams),
+                                             classifier_params=create_from_matching_params(self, ClassifierParams),
                                              optimizer_params=create_from_matching_params(self, OptimizerParams),
-                                             outputs_handler=outputs_handler)
+                                             outputs_handler=outputs_handler,
+                                             analyse_loss=self.analyse_loss,
+                                             )
+        deepmil_module.transfer_weights(self.trained_weights_path)
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
         return deepmil_module

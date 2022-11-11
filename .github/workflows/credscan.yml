@@ -2,9 +2,9 @@ name: CredScan
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, transfer_main ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, transfer_main ]
 
 jobs:
   CredScan:
