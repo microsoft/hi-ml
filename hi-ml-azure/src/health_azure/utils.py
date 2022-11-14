@@ -2164,17 +2164,13 @@ def _get_legitimate_device_code_credential() -> Optional[TokenCredential]:
 
 def _get_legitimate_default_credential() -> Optional[TokenCredential]:
     """
-    Create a DefaultAzure credential for interacting with Azure resources. If the credential can't be
-    validated, return None.
+    Create a DefaultAzure credential for interacting with Azure resources and validates it.
 
     :return: A valid Azure credential.
     """
     cred = DefaultAzureCredential(timeout=60)
-    try:
-        _validate_credential(cred)
-        return cred
-    except ClientAuthenticationError:
-        return None
+    _validate_credential(cred)
+    return cred
 
 
 def _get_legitimate_interactive_browser_credential() -> Optional[TokenCredential]:

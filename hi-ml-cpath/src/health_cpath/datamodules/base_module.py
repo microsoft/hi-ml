@@ -21,6 +21,7 @@ from health_cpath.utils.naming import ModelKey
 
 from monai.data.dataset import CacheDataset, Dataset, PersistentDataset
 from monai.transforms import RandGridPatchd, GridPatchd, Compose, LoadImaged
+from monai.data.image_reader import WSIReader
 
 
 _SlidesOrTilesDataset = TypeVar('_SlidesOrTilesDataset', SlidesDataset, TilesDataset)
@@ -328,7 +329,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
             [
                 LoadImaged(
                     keys=slides_dataset.IMAGE_COLUMN,
-                    reader="WSIReader",
+                    reader=WSIReader,
                     dtype=np.uint8,
                     image_only=True,
                     level=self.level,
