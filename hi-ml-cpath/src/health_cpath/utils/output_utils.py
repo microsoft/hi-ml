@@ -270,8 +270,8 @@ class DeepMILOutputsHandler:
         :param maximise: Whether higher is better for `primary_val_metric`.
         :param val_plot_options: The desired plot options for validation time.
         :param test_plot_options: The desired plot options for test time.
-        :param backend: The backend to use for reading the tiles. Default is "cuCIM".
         :param wsi_has_mask: Whether the whole slides have a mask to crop specific ROIs.
+        :param backend: The backend to use for reading the tiles. Default is "cuCIM".
         :param val_set_is_dist: If True, the validation set is distributed across processes. Otherwise, the validation
             set is replicated on each process. This shouldn't affect the results, as we take the mean of the validation
             set metrics across processes. This is only relevant for the outputs_handler, which needs to know whether to
