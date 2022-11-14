@@ -336,17 +336,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                     backend=self.backend,
                     **self.wsi_reader_args,
                 ),
-                TileOnGridd(
-                    keys=slides_dataset.IMAGE_COLUMN,
-                    tile_count=self.bag_sizes[stage],
-                    tile_size=self.tile_size,
-                    step=self.step,
-                    random_offset=self.random_offset if stage == ModelKey.TRAIN else False,
-                    pad_full=self.pad_full,
-                    background_val=self.background_val,
-                    filter_mode=self.filter_mode,
-                    return_list_of_dicts=True,
-                ),
+                self._get_tile_on_the_fly_transform(stage=stage, image_key=slides_dataset.IMAGE_COLUMN),
             ]
         )
         if self.transforms_dict and self.transforms_dict[stage]:
@@ -378,8 +368,21 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
     def _get_tile_on_the_fly_transform(self, stage: ModelKey, image_key: str) -> Callable:
         if stage == ModelKey.TRAIN:
             return RandGridPatchd(
-                keys=image_key,
+                keys=[image_key],
+                patch_size=(self.tile_size, self.tile_size),
+                num_patches=self.bag_sizes[stage],
+                sort_fn=self.filter_mode,
+                pad_mode=self.pad_mode,  # type: ignore
+                constant_values=self.background_val,
+                overlap=self.overlap,  # type: ignore
+                threshold=self.intensity_threshold,
+                max_offset=max_offset,
+            )
+        else:
+            return GridPatchd(
+                keys=[image_key],
                 tile_count=self.bag_sizes[stage],
+                patch_size=self.tile_size,
                 tile_size=self.tile_size,
                 step=self.step,
                 random_offset=self.random_offset if stage == ModelKey.TRAIN else False,
