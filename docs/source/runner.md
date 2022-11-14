@@ -226,6 +226,8 @@ the model weights by setting `--src_checkpoint` argument that supports three typ
   checkpoints folder `outputs/checkpoints`. If no filename is provided (e.g., `--src_checkpoint=AzureML_run_id`),
   the last epoch checkpoint `outputs/checkpoints/last.ckpt` will be loaded.
 
+Refer to [Checkpoints Utils](checkpoints.md) for more details on how checkpoints are parsed.
+
 Running the following command line will run inference using `MyContainer` model with weights from the checkpoint saved
 in the AzureMl run `MyContainer_XXXX_yyyy` at the best validation loss epoch `/outputs/checkpoints/best_val_loss.ckpt`.
 
@@ -235,12 +237,12 @@ himl-runner --model=Mycontainer --run_inference_only --src_checkpoint=MyContaine
 
 ## Resume training from a given checkpoint
 
-Analogously, one can resume training by setting `--src_checkpoint` to either continue training or transfer learning.
+Analogously, one can resume training by setting `--src_checkpoint` and `--resume_training` to train a model longer.
 The pytorch lightning trainer will initialize the lightning module from the given checkpoint corresponding to the best
 validation loss epoch as set in the following comandline.
 
 ```bash
-himl-runner --model=Mycontainer --cluster=my_cluster_name --src_checkpoint=MyContainer_XXXX_yyyy:best_val_loss.ckpt
+himl-runner --model=Mycontainer --cluster=my_cluster_name --src_checkpoint=MyContainer_XXXX_yyyy:best_val_loss.ckpt --resume_training
 ```
 
 Warning: When resuming training, one should make sure to set `container.max_epochs` greater than the last epoch of the

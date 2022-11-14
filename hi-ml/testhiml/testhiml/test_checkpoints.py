@@ -8,52 +8,73 @@ from unittest import mock
 import pytest
 
 from health_ml.configs.hello_world import HelloWorld
+from health_ml.deep_learning_config import WorkflowParams
 from health_ml.lightning_container import LightningContainer
-from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.checkpoint_utils import (
-    LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
+    LAST_CHECKPOINT_FILE_NAME,
     MODEL_WEIGHTS_DIR_NAME,
     CheckpointDownloader,
-)
+    CheckpointParser,)
+from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
 from testhiml.utils.fixed_paths_for_tests import full_test_data_path, mock_run_id
 from testhiml.utils_testhiml import DEFAULT_WORKSPACE
 
 
 def test_checkpoint_downloader_run_id() -> None:
-    with mock.patch("health_ml.utils.checkpoint_utils.CheckpointDownloader.download_checkpoint_if_necessary"):
-        checkpoint_downloader = CheckpointDownloader(run_id="dummy_run_id")
-        assert checkpoint_downloader.run_id == "dummy_run_id"
-        assert checkpoint_downloader.checkpoint_filename == LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
-        assert checkpoint_downloader.remote_checkpoint_dir == Path(DEFAULT_AML_CHECKPOINT_DIR)
+    checkpoint_downloader = CheckpointDownloader(run_id="dummy_run_id")
+    assert checkpoint_downloader.run_id == "dummy_run_id"
+    assert checkpoint_downloader.checkpoint_filename == LAST_CHECKPOINT_FILE_NAME
+    assert checkpoint_downloader.remote_checkpoint_dir == Path(DEFAULT_AML_CHECKPOINT_DIR)
 
-        checkpoint_downloader = CheckpointDownloader(run_id="dummy_run_id:best.ckpt")
-        assert checkpoint_downloader.run_id == "dummy_run_id"
-        assert checkpoint_downloader.checkpoint_filename == "best.ckpt"
-        assert checkpoint_downloader.remote_checkpoint_dir == Path(DEFAULT_AML_CHECKPOINT_DIR)
+    checkpoint_downloader = CheckpointDownloader(run_id="dummy_run_id:best.ckpt")
+    assert checkpoint_downloader.run_id == "dummy_run_id"
+    assert checkpoint_downloader.checkpoint_filename == "best.ckpt"
+    assert checkpoint_downloader.remote_checkpoint_dir == Path(DEFAULT_AML_CHECKPOINT_DIR)
 
-        checkpoint_downloader = CheckpointDownloader(run_id="dummy_run_id:custom/path/best.ckpt")
-        assert checkpoint_downloader.run_id == "dummy_run_id"
-        assert checkpoint_downloader.checkpoint_filename == "best.ckpt"
-        assert checkpoint_downloader.remote_checkpoint_dir == Path("custom/path")
+    checkpoint_downloader = CheckpointDownloader(run_id="dummy_run_id:custom/path/best.ckpt")
+    assert checkpoint_downloader.run_id == "dummy_run_id"
+    assert checkpoint_downloader.checkpoint_filename == "best.ckpt"
+    assert checkpoint_downloader.remote_checkpoint_dir == Path("custom/path")
+
+
+def _test_invalid_checkpoint(checkpoint: str) -> None:
+    with pytest.raises(ValueError, match=r"Invalid checkpoint "):
+        CheckpointParser(checkpoint=checkpoint)
+        WorkflowParams(local_datasets=Path("foo"), src_checkpoint=checkpoint).validate()
+
+
+def test_validate_checkpoint_parser() -> None:
+
+    _test_invalid_checkpoint(checkpoint="dummy/local/path/model.ckpt")
+    _test_invalid_checkpoint(checkpoint="INV@lid%RUN*id")
+    _test_invalid_checkpoint(checkpoint="http/dummy_url-com")
+
+    # The following should be okay
+    checkpoint = str(full_test_data_path(suffix="hello_world_checkpoint.ckpt"))
+    CheckpointParser(checkpoint=checkpoint)
+    WorkflowParams(local_datasets=Path("foo"), src_checkpoint=CheckpointParser(checkpoint)).validate()
+    checkpoint = mock_run_id(id=0)
+    CheckpointParser(checkpoint=checkpoint)
+    WorkflowParams(local_datasets=Path("foo"), src_checkpoint=CheckpointParser(checkpoint)).validate()
 
 
 def get_checkpoint_handler(tmp_path: Path, src_checkpoint: str) -> Tuple[LightningContainer, CheckpointHandler]:
     container = LightningContainer()
     container.set_output_to(tmp_path)
     container.checkpoint_folder.mkdir(parents=True)
-    container.src_checkpoint = src_checkpoint
+    container.src_checkpoint = CheckpointParser(src_checkpoint)
     return container, CheckpointHandler(container=container, project_root=tmp_path)
 
 
-def test_load_model_chcekpoints_from_url(tmp_path: Path) -> None:
+def test_load_model_checkpoints_from_url(tmp_path: Path) -> None:
     WEIGHTS_URL = (
         "https://pl-bolts-weights.s3.us-east-2.amazonaws.com/" "simclr/bolts_simclr_imagenet/simclr_imagenet.ckpt"
     )
 
     container, checkpoint_handler = get_checkpoint_handler(tmp_path, WEIGHTS_URL)
     download_folder = container.checkpoint_folder / MODEL_WEIGHTS_DIR_NAME
-    assert container.src_checkpoint_is_url
+    assert container.src_checkpoint.is_url
     checkpoint_handler.download_recovery_checkpoints_or_weights()
     assert checkpoint_handler.trained_weights_path
     assert checkpoint_handler.trained_weights_path.exists()
@@ -64,7 +85,7 @@ def test_load_model_checkpoints_from_local_file(tmp_path: Path) -> None:
     local_checkpoint_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
 
     container, checkpoint_handler = get_checkpoint_handler(tmp_path, str(local_checkpoint_path))
-    assert container.src_checkpoint_is_local_file
+    assert container.src_checkpoint.is_local_file
     checkpoint_handler.download_recovery_checkpoints_or_weights()
     assert checkpoint_handler.trained_weights_path
     assert checkpoint_handler.trained_weights_path.exists()
@@ -82,10 +103,10 @@ def test_load_model_checkpoints_from_aml_run_id(src_chekpoint_filename: str, tmp
         src_checkpoint_filename = (
             src_chekpoint_filename.split("/")[-1]
             if src_chekpoint_filename
-            else LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+            else LAST_CHECKPOINT_FILE_NAME
         )
-        expected_weights_path = container.outputs_folder / run_id / checkpoint_path / src_checkpoint_filename
-        assert container.src_checkpoint_is_aml_run_id
+        expected_weights_path = container.checkpoint_folder / run_id / checkpoint_path / src_checkpoint_filename
+        assert container.src_checkpoint.is_aml_run_id
         checkpoint_handler.download_recovery_checkpoints_or_weights()
         assert checkpoint_handler.trained_weights_path
         assert checkpoint_handler.trained_weights_path.exists()
@@ -99,7 +120,7 @@ def test_custom_checkpoint_for_test(tmp_path: Path) -> None:
     container = HelloWorld()
     container.set_output_to(tmp_path)
     container.checkpoint_folder.mkdir(parents=True)
-    last_checkpoint = container.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    last_checkpoint = container.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME
     last_checkpoint.touch()
     checkpoint_handler = CheckpointHandler(container=container, project_root=tmp_path)
     checkpoint_handler.additional_training_done()

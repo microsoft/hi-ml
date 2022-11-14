@@ -63,7 +63,7 @@ jobs:
 - name: HelloWorld
   sku: G1
   command:
-  - python hi-ml/src/health_ml/runner.py --model=health_cpath.TilesPandaImageNetMIL --is_finetune --batch_size=2
+  - python hi-ml/src/health_ml/runner.py --model=health_cpath.TilesPandaImageNetMIL --tune_encoder --batch_size=2
 ```
 
 Note that SKU here refers to the number of GPUs/CPUs to reserve, and its memory. In this case we have specified 1 GPU.

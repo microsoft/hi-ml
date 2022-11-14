@@ -8,6 +8,8 @@ import pytest
 from pathlib import Path
 from typing import Generator
 from unittest.mock import DEFAULT, MagicMock, Mock, patch
+from _pytest.logging import LogCaptureFixture
+from pytorch_lightning import LightningModule
 
 import mlflow
 from pytorch_lightning import Trainer
@@ -16,6 +18,7 @@ from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.run_ml import MLRunner, get_mlflow_run_id_from_previous_loggers
+from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_ml.utils.common_utils import is_gpu_available
 from health_ml.utils.lightning_loggers import HimlMLFlowLogger, StoringLogger
 from health_azure.utils import is_global_rank_zero
@@ -62,7 +65,7 @@ def ml_runner_with_run_id() -> Generator:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     container.save_checkpoint = True
-    container.src_checkpoint = mock_run_id(id=0)
+    container.src_checkpoint = CheckpointParser(mock_run_id(id=0))
     with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace:
         mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
         runner = MLRunner(experiment_config=experiment_config, container=container)
@@ -164,26 +167,79 @@ def test_run_validation(run_extra_val_epoch: bool) -> None:
     container = HelloWorld()
     container.create_lightning_module_and_store()
     container.run_extra_val_epoch = run_extra_val_epoch
-    container.model.run_extra_val_epoch = run_extra_val_epoch  # type: ignore
     runner = MLRunner(experiment_config=experiment_config, container=container)
 
     with patch.object(container, "get_data_module"):
-        with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
-            runner.setup()
-            mock_trainer = MagicMock()
-            mock_storing_logger = MagicMock()
-            mock_create_trainer.return_value = mock_trainer, mock_storing_logger
-            runner.init_training()
+        with patch.object(container, "on_run_extra_validation_epoch") as mock_on_run_extra_validation_epoch:
+            with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+                runner.setup()
+                mock_trainer = MagicMock()
+                mock_storing_logger = MagicMock()
+                mock_create_trainer.return_value = mock_trainer, mock_storing_logger
+                runner.init_training()
 
-            assert runner.trainer == mock_trainer
-            assert runner.storing_logger == mock_storing_logger
+                assert runner.trainer == mock_trainer
+                assert runner.storing_logger == mock_storing_logger
 
-            mock_trainer.validate = Mock()
+                mock_trainer.validate = Mock()
 
-            if run_extra_val_epoch:
-                runner.run_validation()
+                if run_extra_val_epoch:
+                    with patch.object(runner, "validate_model_weights") as mock_validate_model_weights:
+                        runner.run_validation()
+                        mock_validate_model_weights.assert_called_once()
 
-            assert mock_trainer.validate.called == run_extra_val_epoch
+                assert mock_on_run_extra_validation_epoch.called == run_extra_val_epoch
+                assert hasattr(container.model, "on_run_extra_validation_epoch")
+                assert mock_trainer.validate.called == run_extra_val_epoch
+
+
+@pytest.mark.parametrize("run_extra_val_epoch", [True, False])
+def test_model_extra_val_epoch(run_extra_val_epoch: bool) -> None:
+    experiment_config = ExperimentConfig(model="HelloWorld")
+    with patch(
+        "health_ml.configs.hello_world.HelloRegression.on_run_extra_validation_epoch"
+    ) as mock_on_run_extra_validation_epoch:
+        container = HelloWorld()
+        container.run_extra_val_epoch = run_extra_val_epoch
+        container.create_lightning_module_and_store()
+        runner = MLRunner(experiment_config=experiment_config, container=container)
+        with patch.object(container, "get_data_module"):
+            with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+                runner.setup()
+                mock_trainer = MagicMock()
+                mock_create_trainer.return_value = mock_trainer, MagicMock()
+                runner.init_training()
+                mock_trainer.validate = Mock()
+
+                if run_extra_val_epoch:
+                    with patch.object(runner, "validate_model_weights") as mock_validate_model_weights:
+                        runner.run_validation()
+                        mock_validate_model_weights.assert_called_once()
+                assert mock_on_run_extra_validation_epoch.called == run_extra_val_epoch
+                assert mock_trainer.validate.called == run_extra_val_epoch
+
+
+def test_model_extra_val_epoch_missing_hook(caplog: LogCaptureFixture) -> None:
+    experiment_config = ExperimentConfig(model="HelloWorld")
+
+    def _create_model(self) -> LightningModule:  # type: ignore
+        return LightningModule()
+
+    with patch("health_ml.configs.hello_world.HelloWorld.create_model", _create_model):
+        container = HelloWorld()
+        container.create_lightning_module_and_store()
+        container.run_extra_val_epoch = True
+        runner = MLRunner(experiment_config=experiment_config, container=container)
+        with patch.object(container, "get_data_module"):
+            with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+                runner.setup()
+                mock_create_trainer.return_value = MagicMock(), MagicMock()
+                runner.init_training()
+                with patch.object(runner, "validate_model_weights") as mock_validate_model_weights:
+                    runner.run_validation()
+                    mock_validate_model_weights.assert_called_once()
+                latest_message = caplog.records[-1].getMessage()
+                assert "Hook `on_run_extra_validation_epoch` is not implemented by lightning module." in latest_message
 
 
 def test_run_inference(ml_runner_with_container: MLRunner, tmp_path: Path) -> None:
@@ -218,7 +274,9 @@ def test_run_inference(ml_runner_with_container: MLRunner, tmp_path: Path) -> No
 
     actual_train_ckpt_path = ml_runner_with_container.checkpoint_handler.get_recovery_or_checkpoint_path_train()
     assert actual_train_ckpt_path is None
-    ml_runner_with_container.run()
+    with patch.object(ml_runner_with_container, "validate_model_weights") as mock_validate_model_weights:
+        ml_runner_with_container.run()
+        mock_validate_model_weights.assert_called_once()
     actual_train_ckpt_path = ml_runner_with_container.checkpoint_handler.get_recovery_or_checkpoint_path_train()
     assert actual_train_ckpt_path == expected_ckpt_path
 
@@ -268,7 +326,10 @@ def test_run_inference_only(ml_runner_with_run_id: MLRunner) -> None:
     assert ml_runner_with_run_id.checkpoint_handler.trained_weights_path
     with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
         with patch.multiple(
-            ml_runner_with_run_id, run_training=DEFAULT, run_validation=DEFAULT
+            ml_runner_with_run_id,
+            run_training=DEFAULT,
+            run_validation=DEFAULT,
+            validate_model_weights=DEFAULT
         ) as mocks:
             mock_trainer = MagicMock()
             mock_create_trainer.return_value = mock_trainer, MagicMock()
@@ -278,6 +339,7 @@ def test_run_inference_only(ml_runner_with_run_id: MLRunner) -> None:
             assert recovery_checkpoint == ml_runner_with_run_id.checkpoint_handler.trained_weights_path
             mocks["run_training"].assert_not_called()
             mocks["run_validation"].assert_not_called()
+            mocks["validate_model_weights"].assert_not_called()
             mock_trainer.test.assert_called_once()
 
 
@@ -297,7 +359,8 @@ def test_model_weights_when_resume_training() -> None:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     container.max_num_gpus = 0
-    container.src_checkpoint = mock_run_id(id=0)
+    container.src_checkpoint = CheckpointParser(mock_run_id(id=0))
+    container.resume_training = True
     with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace:
         mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
         runner = MLRunner(experiment_config=experiment_config, container=container)
@@ -315,7 +378,7 @@ def test_runner_end_to_end() -> None:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     container.max_num_gpus = 0
-    container.src_checkpoint = mock_run_id(id=0)
+    container.src_checkpoint = CheckpointParser(mock_run_id(id=0))
     with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace:
         mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
         runner = MLRunner(experiment_config=experiment_config, container=container)

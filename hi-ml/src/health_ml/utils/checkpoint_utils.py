@@ -2,27 +2,29 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import re
+import os
+import uuid
+import torch
 import logging
 import tempfile
+import requests
+
 from pathlib import Path
 from typing import Optional
-
-import torch
+from urllib.parse import urlparse
 from azureml.core import Run, Workspace
 from health_azure import download_checkpoints_from_run_id, get_workspace
-
 from health_azure.utils import (RUN_CONTEXT, download_files_from_run_id, get_run_file_names, is_running_in_azure_ml)
-from health_ml.utils.common_utils import (AUTOSAVE_CHECKPOINT_CANDIDATES, DEFAULT_AML_CHECKPOINT_DIR)
+from health_ml.utils.common_utils import (AUTOSAVE_CHECKPOINT_CANDIDATES, DEFAULT_AML_CHECKPOINT_DIR, CHECKPOINT_SUFFIX)
 from health_ml.utils.type_annotations import PathOrString
 
-CHECKPOINT_SUFFIX = ".ckpt"
 # This is a constant that must match a filename defined in pytorch_lightning.ModelCheckpoint, but we don't want
 # to import that here.
-LAST_CHECKPOINT_FILE_NAME = "last"
-LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX = LAST_CHECKPOINT_FILE_NAME + CHECKPOINT_SUFFIX
+LAST_CHECKPOINT_FILE_NAME = f"last{CHECKPOINT_SUFFIX}"
 LEGACY_RECOVERY_CHECKPOINT_FILE_NAME = "recovery"
 MODEL_INFERENCE_JSON_FILE_NAME = "model_inference_config.json"
-MODEL_WEIGHTS_DIR_NAME = "trained_models"
+MODEL_WEIGHTS_DIR_NAME = "pretrained_models"
 
 
 def get_best_checkpoint_path(path: Path) -> Path:
@@ -31,7 +33,7 @@ def get_best_checkpoint_path(path: Path) -> Path:
 
     :param path to checkpoint folder
     """
-    return path / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    return path / LAST_CHECKPOINT_FILE_NAME
 
 
 def download_folder_from_run_to_temp_folder(folder: str,
@@ -120,7 +122,7 @@ def find_recovery_checkpoint(path: Path) -> Optional[Path]:
         logging.warning(f"Found these legacy checkpoint files: {legacy_recovery_checkpoints}")
         raise ValueError("The legacy recovery checkpoint setup is no longer supported. As a workaround, you can take "
                          f"one of the legacy checkpoints and upload as '{AUTOSAVE_CHECKPOINT_CANDIDATES[0]}'")
-    candidates = [*AUTOSAVE_CHECKPOINT_CANDIDATES, LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX]
+    candidates = [*AUTOSAVE_CHECKPOINT_CANDIDATES, LAST_CHECKPOINT_FILE_NAME]
     highest_epoch: Optional[int] = None
     file_with_highest_epoch: Optional[Path] = None
     for f in candidates:
@@ -147,10 +149,10 @@ def cleanup_checkpoints(ckpt_folder: Path) -> None:
     if len(files_in_checkpoint_folder) == 0:
         return
     logging.info(f"Files in checkpoint folder: {' '.join(files_in_checkpoint_folder)}")
-    last_ckpt = ckpt_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    last_ckpt = ckpt_folder / LAST_CHECKPOINT_FILE_NAME
     all_files = f"Existing files: {' '.join(p.name for p in ckpt_folder.glob('*'))}"
     if not last_ckpt.is_file():
-        raise FileNotFoundError(f"Checkpoint file {LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX} not found. {all_files}")
+        raise FileNotFoundError(f"Checkpoint file {LAST_CHECKPOINT_FILE_NAME} not found. {all_files}")
     # Training is finished now. To save storage, remove the autosave checkpoint which is now obsolete.
     # Lightning does not overwrite checkpoints in-place. Rather, it writes "autosave.ckpt",
     # then "autosave-1.ckpt" and deletes "autosave.ckpt", then "autosave.ckpt" and deletes "autosave-v1.ckpt"
@@ -183,7 +185,6 @@ class CheckpointDownloader:
         self.remote_checkpoint_dir = (
             remote_checkpoint_dir or self.extract_remote_checkpoint_dir_from_checkpoint_filename()
         )
-        self.download_checkpoint_if_necessary()
 
     def extract_checkpoint_filename_from_run_id(self) -> str:
         """
@@ -192,7 +193,7 @@ class CheckpointDownloader:
         """
         run_id_split = self.run_id.split(":")
         self.run_id = run_id_split[0]
-        return run_id_split[-1] if len(run_id_split) > 1 else LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+        return run_id_split[-1] if len(run_id_split) > 1 else LAST_CHECKPOINT_FILE_NAME
 
     def extract_remote_checkpoint_dir_from_checkpoint_filename(self) -> Path:
         """
@@ -232,3 +233,111 @@ class CheckpointDownloader:
                 self.run_id, str(self.remote_checkpoint_path), self.local_checkpoint_dir, aml_workspace=workspace
             )
             assert self.local_checkpoint_path.exists(), f"Couln't download checkpoint from run {self.run_id}."
+
+
+class CheckpointParser:
+    """Wrapper class for parsing checkpoint arguments. A checkpoint can be specified in one of the following ways:
+        1. A local checkpoint file path
+        2. A remote checkpoint file path
+        3. A run ID from which to download the checkpoint file
+    """
+    AML_RUN_ID_FORMAT = (f"<AzureML_run_id>:<optional/custom/path/to/checkpoints/><filename{CHECKPOINT_SUFFIX}>"
+                         f"If no custom path is provided (e.g., <AzureML_run_id>:<filename{CHECKPOINT_SUFFIX}>)"
+                         "the checkpoint will be downloaded from the default checkpoint folder "
+                         f"(e.g., '{DEFAULT_AML_CHECKPOINT_DIR}') If no filename is provided, "
+                         "(e.g., `src_checkpoint=<AzureML_run_id>`) the latest checkpoint "
+                         f"({LAST_CHECKPOINT_FILE_NAME}) will be downloaded.")
+    INFO_MESSAGE = ("Please provide a valid checkpoint path, URL or AzureML run ID. For custom checkpoint paths "
+                    f"within an azureml run, provide a checkpoint in the format {AML_RUN_ID_FORMAT}.")
+    DOC = ("We currently support three types of checkpoints: "
+           "    a. A local checkpoint folder that contains a checkpoint file."
+           "    b. A URL to a remote checkpoint to be downloaded."
+           "    c. A previous azureml run id where the checkpoint is supposed to be "
+           "       saved ('outputs/checkpoints/' folder by default.)"
+           f"For the latter case 'c' : src_checkpoint should be in the format of {AML_RUN_ID_FORMAT}")
+
+    def __init__(self, checkpoint: str = "") -> None:
+        self.checkpoint = checkpoint
+        self.validate()
+
+    @property
+    def is_url(self) -> bool:
+        try:
+            result = urlparse(self.checkpoint)
+            return all([result.scheme, result.netloc])
+        except ValueError:
+            return False
+
+    @property
+    def is_local_file(self) -> bool:
+        return Path(self.checkpoint).is_file()
+
+    @property
+    def is_aml_run_id(self) -> bool:
+        match = re.match(r"[_\w-]*$", self.checkpoint.split(":")[0])
+        return match is not None and not self.is_url and not self.is_local_file
+
+    @property
+    def is_valid(self) -> bool:
+        if self.checkpoint:
+            return self.is_local_file or self.is_url or self.is_aml_run_id
+        return True
+
+    def validate(self) -> None:
+        if not self.is_valid:
+            raise ValueError(f"Invalid checkpoint '{self.checkpoint}'. {self.INFO_MESSAGE}")
+
+    @staticmethod
+    def download_from_url(url: str, download_folder: Path) -> Path:
+        """
+        Download a checkpoint from checkpoint_url to the download folder. The file name is determined from
+        from the file name in the URL. If that can't be determined, use a random file name.
+
+        :param url: The URL from which to download.
+        :param download_folder: The target folder for the download.
+        :return: A path to the downloaded file.
+        """
+        # assign the same filename as in the download url if possible, so that we can check for duplicates
+        # If that fails, map to a random uuid
+        file_name = os.path.basename(urlparse(url).path) or str(uuid.uuid4().hex)
+        checkpoint_path = download_folder / file_name
+        # only download if hasn't already been downloaded
+        if checkpoint_path.is_file():
+            logging.info(f"File already exists, skipping download: {checkpoint_path}")
+        else:
+            logging.info(f"Downloading from URL {url}")
+
+            response = requests.get(url, stream=True)
+            response.raise_for_status()
+            with open(checkpoint_path, "wb") as file:
+                for chunk in response.iter_content(chunk_size=1024):
+                    file.write(chunk)
+        return checkpoint_path
+
+    def get_path(self, download_dir: Path) -> Path:
+        """Returns the path to the checkpoint file. If the checkpoint is a URL, it will be downloaded to the checkpoints
+        folder. If the checkpoint is an AzureML run ID, it will be downloaded from the run to the checkpoints folder.
+        If the checkpoint is a local file, it will be returned as is.
+
+        :param download_dir: The checkpoints folder to which the checkpoint should be downloaded if it is a URL or
+            AzureML run ID.
+        :raises ValueError: If the checkpoint is not a local file, URL or AzureML run ID.
+        :raises FileNotFoundError: If the checkpoint is a URL or AzureML run ID and the download fails.
+        :return: The path to the checkpoint file.
+        """
+        if self.is_local_file:
+            checkpoint_path = Path(self.checkpoint)
+        elif self.is_url:
+            download_folder = download_dir / MODEL_WEIGHTS_DIR_NAME
+            download_folder.mkdir(exist_ok=True, parents=True)
+            checkpoint_path = self.download_from_url(url=self.checkpoint, download_folder=download_folder)
+        elif self.is_aml_run_id:
+            downloader = CheckpointDownloader(run_id=self.checkpoint, download_dir=download_dir)
+            downloader.download_checkpoint_if_necessary()
+            checkpoint_path = downloader.local_checkpoint_path
+        else:
+            raise ValueError("Unable to determine how to get the checkpoint path.")
+
+        if checkpoint_path is None or not checkpoint_path.is_file():
+            raise FileNotFoundError(f"Could not find the file at {checkpoint_path}")
+        return checkpoint_path

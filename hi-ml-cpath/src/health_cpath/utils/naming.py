@@ -50,6 +50,7 @@ class ResultsKey(str, Enum):
     FEATURES = 'features'
     IMAGE_PATH = 'image_path'
     LOSS = 'loss'
+    LOSS_PER_SAMPLE = 'loss_per_sample'
     PROB = 'prob'
     CLASS_PROBS = 'prob_class'
     PRED_LABEL = 'pred_label'
@@ -59,6 +60,7 @@ class ResultsKey(str, Enum):
     TILE_TOP = 'top'
     TILE_RIGHT = 'right'
     TILE_BOTTOM = 'bottom'
+    ENTROPY = 'entropy'
 
 
 class MetricsKey(str, Enum):
@@ -71,6 +73,8 @@ class MetricsKey(str, Enum):
     RECALL = 'recall'
     F1 = 'f1score'
     COHENKAPPA = 'cohenkappa'
+    AVERAGE_PRECISION = 'average_precision'
+    SPECIFICITY = 'specificity'
 
 
 class ModelKey(str, Enum):
@@ -85,10 +89,19 @@ class AMLMetricsJsonKey(str, Enum):
     VALUE = 'value'
     N_CLASSES = 'n_classes'
     CLASS_NAMES = 'class_names'
+    MAX_EPOCHS = 'max_epochs'
 
 
 class PlotOption(Enum):
     TOP_BOTTOM_TILES = "top_bottom_tiles"
-    SLIDE_THUMBNAIL_HEATMAP = "slide_thumbnail_heatmap"
+    SLIDE_THUMBNAIL = "slide_thumbnail"
+    ATTENTION_HEATMAP = "attention_heatmap"
     CONFUSION_MATRIX = "confusion_matrix"
     HISTOGRAM = "histogram"
+    PR_CURVE = "pr_curve"
+
+
+class DeepMILSubmodules(str, Enum):
+    ENCODER = 'encoder'
+    POOLING = 'aggregation_fn'
+    CLASSIFIER = 'classifier_fn'

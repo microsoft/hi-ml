@@ -11,7 +11,7 @@ Reference:
 - Schirris (2021). DeepSMILE: Self-supervised heterogeneity-aware multiple instance learning for DNA
 damage response defect classification directly from H&E whole-slide images. arXiv:2107.09405
 """
-from typing import Any
+from typing import Any, Set
 
 from health_ml.networks.layers.attention_layers import AttentionLayer
 from health_cpath.configs.run_ids import innereye_ssl_checkpoint_crck_4ws
@@ -20,12 +20,14 @@ from health_cpath.datamodules.tcga_crck_module import TcgaCrckTilesDataModule
 from health_cpath.datasets.default_paths import TCGA_CRCK_DATASET_ID
 from health_cpath.models.encoders import (
     HistoSSLEncoder,
-    ImageNetEncoder,
     ImageNetSimCLREncoder,
+    Resnet18,
     SSLEncoder,
 )
 from health_cpath.configs.classification.BaseMIL import BaseMILTiles
 from health_cpath.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
+from health_cpath.utils.naming import PlotOption
+from health_ml.utils.checkpoint_utils import CheckpointParser
 
 
 class DeepSMILECrck(BaseMILTiles):
@@ -37,7 +39,7 @@ class DeepSMILECrck(BaseMILTiles):
             num_transformer_pool_layers=4,
             num_transformer_pool_heads=4,
             encoding_chunk_size=60,
-            is_finetune=False,
+            tune_encoder=False,
             is_caching=True,
             num_top_slides=0,
             azure_datasets=[TCGA_CRCK_DATASET_ID],
@@ -55,14 +57,13 @@ class DeepSMILECrck(BaseMILTiles):
 
     def setup(self) -> None:
         super().setup()
-        # If no SSL checkpoint is provided, use the default one
-        self.ssl_checkpoint_run_id = self.ssl_checkpoint_run_id or innereye_ssl_checkpoint_crck_4ws
 
     def get_data_module(self) -> TilesDataModule:
         return TcgaCrckTilesDataModule(
             root_path=self.local_datasets[0],
             max_bag_size=self.max_bag_size,
             batch_size=self.batch_size,
+            batch_size_inf=self.batch_size_inf,
             max_bag_size_inf=self.max_bag_size_inf,
             transforms_dict=self.get_transforms_dict(TcgaCrck_TilesDataset.IMAGE_COLUMN),
             cache_mode=self.cache_mode,
@@ -72,12 +73,18 @@ class DeepSMILECrck(BaseMILTiles):
             crossval_index=self.crossval_index,
             dataloader_kwargs=self.get_dataloader_kwargs(),
             seed=self.get_effective_random_seed(),
+            pl_replace_sampler_ddp=self.pl_replace_sampler_ddp,
         )
+
+    def get_test_plot_options(self) -> Set[PlotOption]:
+        plot_options = super().get_test_plot_options()
+        plot_options.add(PlotOption.PR_CURVE)
+        return plot_options
 
 
 class TcgaCrckImageNetMIL(DeepSMILECrck):
     def __init__(self, **kwargs: Any) -> None:
-        super().__init__(encoder_type=ImageNetEncoder.__name__, **kwargs)
+        super().__init__(encoder_type=Resnet18.__name__, **kwargs)
 
 
 class TcgaCrckImageNetSimCLRMIL(DeepSMILECrck):
@@ -87,6 +94,8 @@ class TcgaCrckImageNetSimCLRMIL(DeepSMILECrck):
 
 class TcgaCrckSSLMIL(DeepSMILECrck):
     def __init__(self, **kwargs: Any) -> None:
+        # If no SSL checkpoint is provided, use the default one
+        self.ssl_checkpoint = self.ssl_checkpoint or CheckpointParser(innereye_ssl_checkpoint_crck_4ws)
         super().__init__(encoder_type=SSLEncoder.__name__, **kwargs)
 
 

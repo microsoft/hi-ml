@@ -10,8 +10,8 @@ import numpy as np
 import torch
 from pl_bolts.models.self_supervised import SimCLR
 from torch import Tensor as T, nn
-from torchvision.models import resnet18
-from torchvision.transforms import Compose
+from torchvision.models import resnet18, resnet50
+from monai.transforms import Compose
 
 from health_cpath.utils.layer_utils import (get_imagenet_preprocessing,
                                             load_weights_to_model,
@@ -62,22 +62,47 @@ class ImageNetEncoder(TileEncoder):
     """Feature extractor pretrained for classification on ImageNet"""
 
     def __init__(self, feature_extraction_model: Callable[..., nn.Module],
-                 tile_size: int, n_channels: int = 3) -> None:
+                 tile_size: int, n_channels: int = 3, apply_imagenet_preprocessing: bool = True) -> None:
         """
         :param feature_extraction_model: A function accepting a `pretrained` keyword argument that
         returns a classifier pretrained on ImageNet, such as the ones from `torchvision.models.*`.
         :param tile_size: Tile width/height, in pixels.
         :param n_channels: Number of channels in the tile (default=3).
+        :param apply_imagenet_preprocessing: Whether to apply ImageNet preprocessing to the input.
         """
         self.create_feature_extractor_fn = feature_extraction_model
+        self.apply_imagenet_preprocessing = apply_imagenet_preprocessing
         super().__init__(tile_size=tile_size, n_channels=n_channels)
 
     def _get_preprocessing(self) -> Callable:
-        return get_imagenet_preprocessing()
+        base_preprocessing = super()._get_preprocessing()
+        if self.apply_imagenet_preprocessing:
+            return Compose([get_imagenet_preprocessing(), base_preprocessing]).flatten()
+        return base_preprocessing
 
     def _get_encoder(self) -> Tuple[torch.nn.Module, int]:
         pretrained_model = self.create_feature_extractor_fn(pretrained=True)
         return setup_feature_extractor(pretrained_model, self.input_dim)
+
+
+class Resnet18(ImageNetEncoder):
+    def __init__(self, tile_size: int, n_channels: int = 3) -> None:
+        super().__init__(resnet18, tile_size, n_channels, apply_imagenet_preprocessing=True)
+
+
+class Resnet18_NoPreproc(ImageNetEncoder):
+    def __init__(self, tile_size: int, n_channels: int = 3) -> None:
+        super().__init__(resnet18, tile_size, n_channels, apply_imagenet_preprocessing=False)
+
+
+class Resnet50(ImageNetEncoder):
+    def __init__(self, tile_size: int, n_channels: int = 3) -> None:
+        super().__init__(resnet50, tile_size, n_channels, apply_imagenet_preprocessing=True)
+
+
+class Resnet50_NoPreproc(ImageNetEncoder):
+    def __init__(self, tile_size: int, n_channels: int = 3) -> None:
+        super().__init__(resnet50, tile_size, n_channels, apply_imagenet_preprocessing=False)
 
 
 class ImageNetSimCLREncoder(TileEncoder):
@@ -143,23 +168,3 @@ class HistoSSLEncoder(TileEncoder):
         resnet18_model = resnet18(pretrained=False)
         histossl_encoder = load_weights_to_model(self.WEIGHTS_URL, resnet18_model)
         return setup_feature_extractor(histossl_encoder, self.input_dim)
-
-
-class ImageNetEncoder_Resnet50(TileEncoder):
-    # Myronenko et al. 2021 uses intensity scaling (0-255)-->(0-1), and no ImageNet preprocessing is used.
-    # ResNet50 CNN encoder without ImageNet preprocessing is defined below.
-
-    def __init__(self, feature_extraction_model: Callable[..., nn.Module],
-                 tile_size: int, n_channels: int = 3) -> None:
-        """
-        :param feature_extraction_model: A function accepting a `pretrained` keyword argument that
-        returns a classifier pretrained on ImageNet, such as the ones from `torchvision.models.*`.
-        :param tile_size: Tile width/height, in pixels.
-        :param n_channels: Number of channels in the tile (default=3).
-        """
-        self.create_feature_extractor_fn = feature_extraction_model
-        super().__init__(tile_size=tile_size, n_channels=n_channels)
-
-    def _get_encoder(self) -> Tuple[nn.Module, int]:
-        pretrained_model = self.create_feature_extractor_fn(pretrained=True)
-        return setup_feature_extractor(pretrained_model, self.input_dim)
