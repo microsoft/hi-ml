@@ -275,11 +275,10 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         self,
         level: int = 1,
         tile_size: int = 224,
-        step: Optional[int] = None,
-        random_offset: bool = True,
-        pad_full: bool = False,
-        background_val: int = 255,
-        filter_mode: str = 'min',
+        tiles_overlap: float = 0.0,
+        tiles_sort_fn: Optional[str] = None,
+        pad_mode: str = 'constant',
+        threshold: Optional[float] = None,
         backend: str = 'cuCIM',
         wsi_reader_args: Dict[str, Any] = {},
         **kwargs: Any,
@@ -288,32 +287,25 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         :param level: the whole slide image level at which the image is extracted, defaults to 1
         this param is passed to the LoadImaged monai transform that loads a WSI with cucim backend by default
         :param tile_size: size of the square tile, defaults to 224
-        this param is passed to TileOnGridd monai transform for tiling on the fly.
-        :param step: step size to create overlapping tiles, defaults to None (same as tile_size)
-        Use a step < tile_size to create overlapping tiles, analogousely a step > tile_size will skip some chunks in
-        the wsi. This param is passed to TileOnGridd monai transform for tiling on the fly.
-        :param random_offset: randomize position of the grid, instead of starting from the top-left corner,
-        defaults to True. This param is passed to TileOnGridd monai transform for tiling on the fly.
-        :param pad_full: pad image to the size evenly divisible by tile_size, defaults to False
-        This param is passed to TileOnGridd monai transform for tiling on the fly.
-        :param background_val: the background constant to ignore background tiles (e.g. 255 for white background),
-        defaults to 255. This param is passed to TileOnGridd monai transform for tiling on the fly.
-        :param filter_mode: mode must be in ["min", "max", "random"]. If total number of tiles is greater than
+        :param overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
+            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
+        :param tiles_sort_fn: when bag_sizes are fixed, it determines if keep tiles with highest intensity values
+        (`"max"`), lowest values (`"min"`), or in their default order (`None`). Default to None.
+        mode must be in ["min", "max"]. If total number of tiles is greater than
         tile_count, then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for
-        random) subset, defaults to "min" (which assumes background is high value). This param is passed to TileOnGridd
-        monai transform for tiling on the fly.
-        :param backend: the WSI reader backend, defaults to "cuCIM". This param is passed to LoadImaged monai transform
+        random) subset, defaults to "min" (which assumes background is high value).
+        :param pad_mode: mode of padding, defaults to "constant". Refer to NumpyPadMode and PytorchPadMode. If None, no
+        padding will be applied.
+        :param backend: the WSI reader backend, defaults to "cuCIM".
         :param wsi_reader_args: additional arguments to pass to the WSIReader, defaults to {}. Multi processing is
         enabled since monai 1.0.0 by specifying num_workers > 0 with CuCIM backend only.
         """
         super().__init__(**kwargs)
         # Tiling on the fly params
         self.tile_size = tile_size
-        self.step = step
-        self.random_offset = random_offset
-        self.pad_full = pad_full
         self.background_val = background_val
-        self.filter_mode = filter_mode
+
+        self.pad_mode = pad_mode
         # WSIReader params
         self.level = level
         self.backend = backend
@@ -364,30 +356,3 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
             generator=generator,
             **dataloader_kwargs,
         )
-
-    def _get_tile_on_the_fly_transform(self, stage: ModelKey, image_key: str) -> Callable:
-        if stage == ModelKey.TRAIN:
-            return RandGridPatchd(
-                keys=[image_key],
-                patch_size=(self.tile_size, self.tile_size),
-                num_patches=self.bag_sizes[stage],
-                sort_fn=self.filter_mode,
-                pad_mode=self.pad_mode,  # type: ignore
-                constant_values=self.background_val,
-                overlap=self.overlap,  # type: ignore
-                threshold=self.intensity_threshold,
-                max_offset=max_offset,
-            )
-        else:
-            return GridPatchd(
-                keys=[image_key],
-                tile_count=self.bag_sizes[stage],
-                patch_size=self.tile_size,
-                tile_size=self.tile_size,
-                step=self.step,
-                random_offset=self.random_offset if stage == ModelKey.TRAIN else False,
-                pad_full=self.pad_full,
-                background_val=self.background_val,
-                filter_mode=self.filter_mode,
-                return_list_of_dicts=True,
-            )
