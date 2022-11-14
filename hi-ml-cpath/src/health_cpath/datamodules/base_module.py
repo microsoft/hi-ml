@@ -23,7 +23,7 @@ from health_cpath.utils.naming import ModelKey
 from monai.transforms.compose import Compose
 from monai.transforms.io.dictionary import LoadImaged
 from monai.apps.pathology.transforms import TileOnGridd
-from monai.data.image_reader import WSIReader
+
 
 _SlidesOrTilesDataset = TypeVar('_SlidesOrTilesDataset', SlidesDataset, TilesDataset)
 
