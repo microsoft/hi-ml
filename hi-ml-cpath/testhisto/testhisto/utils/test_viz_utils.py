@@ -303,6 +303,6 @@ def test_load_image_dict(wsi_has_mask: bool, backend: str) -> None:
     with patch("health_cpath.utils.viz_utils.LoadPandaROId") as mock_load_panda_roi:
         with patch("health_cpath.utils.viz_utils.LoadROId") as mock_load_roi:
             _ = load_image_dict(sample=MagicMock(), level=0, margin=0, wsi_has_mask=wsi_has_mask,
-                                wsi_reader_kwargs={"backend": backend})  # type: ignore
+                                wsi_reader_args={"backend": backend})  # type: ignore
             assert mock_load_panda_roi.called == wsi_has_mask
             assert mock_load_roi.called == (not wsi_has_mask)

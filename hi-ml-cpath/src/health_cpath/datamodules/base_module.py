@@ -281,7 +281,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         pad_full: bool = False,
         background_val: int = 255,
         filter_mode: str = "min",
-        wsi_reader_kwargs: Dict[str, Any] = {"backend": "cuCIM"},
+        wsi_reader_args: Dict[str, Any] = {"backend": "cuCIM"},
         **kwargs: Any,
     ) -> None:
         """
@@ -302,7 +302,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         tile_count, then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for
         random) subset, defaults to "min" (which assumes background is high value). This param is passed to TileOnGridd
         monai transform for tiling on the fly.
-        :param wsi_reader_kwargs: additional arguments to pass to the WSIReader, defaults to {"backend": "cuCIM"}
+        :param wsi_reader_args: additional arguments to pass to the WSIReader, defaults to {"backend": "cuCIM"}
         """
         super().__init__(**kwargs)
         self.level = level
@@ -312,7 +312,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         self.pad_full = pad_full
         self.background_val = background_val
         self.filter_mode = filter_mode
-        self.wsi_reader_kwargs = wsi_reader_kwargs
+        self.wsi_reader_args = wsi_reader_args
         # TileOnGridd transform expects None to select all foreground tile so we hardcode max_bag_size and
         # max_bag_size_inf to None if set to 0
         for stage_key, max_bag_size in self.bag_sizes.items():
@@ -324,7 +324,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
             [
                 LoadImaged(
                     keys=slides_dataset.IMAGE_COLUMN,
-                    reader=WSIReader(**self.wsi_reader_kwargs),
+                    reader=WSIReader(**self.wsi_reader_args),
                     dtype=np.uint8,
                     level=self.level,
                     image_only=True,
