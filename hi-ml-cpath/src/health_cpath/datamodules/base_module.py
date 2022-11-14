@@ -305,7 +305,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         random) subset, defaults to "min" (which assumes background is high value). This param is passed to TileOnGridd
         monai transform for tiling on the fly.
         :param backend: the WSI reader backend, defaults to "cuCIM". This param is passed to LoadImaged monai transform
-        :param wsi_reader_args: additional arguments to pass to the WSIReader, defaults to {}. Multi processing is
+        :param wsi_reader_args: Additional arguments to pass to the WSIReader, defaults to {}. Multi processing is
         enabled since monai 1.0.0 by specifying num_workers > 0 with CuCIM backend only.
         """
         super().__init__(**kwargs)
