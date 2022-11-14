@@ -8,7 +8,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, Generic, Optional, Sequence, Tuple, TypeVar, Union
 
-from monai.data.dataset import CacheDataset, Dataset, PersistentDataset
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, DistributedSampler
 
@@ -20,9 +19,8 @@ from health_cpath.models.transforms import LoadTilesBatchd
 from health_cpath.datasets.base_dataset import SlidesDataset, TilesDataset
 from health_cpath.utils.naming import ModelKey
 
-from monai.transforms.compose import Compose
-from monai.transforms.io.dictionary import LoadImaged
-from monai.apps.pathology.transforms import TileOnGridd
+from monai.data.dataset import CacheDataset, Dataset, PersistentDataset
+from monai.transforms import RandGridPatchd, GridPatchd, Compose, LoadImaged
 
 
 _SlidesOrTilesDataset = TypeVar('_SlidesOrTilesDataset', SlidesDataset, TilesDataset)
@@ -375,3 +373,17 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
             generator=generator,
             **dataloader_kwargs,
         )
+
+    def _get_tile_on_the_fly_transform(self, stage: ModelKey, image_key: str) -> Callable:
+        if stage == ModelKey.TRAIN:
+            return RandGridPatchd(
+                keys=image_key,
+                tile_count=self.bag_sizes[stage],
+                tile_size=self.tile_size,
+                step=self.step,
+                random_offset=self.random_offset if stage == ModelKey.TRAIN else False,
+                pad_full=self.pad_full,
+                background_val=self.background_val,
+                filter_mode=self.filter_mode,
+                return_list_of_dicts=True,
+            )
