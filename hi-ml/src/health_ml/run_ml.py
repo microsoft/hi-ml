@@ -5,7 +5,7 @@
 import os
 import sys
 import logging
-import torch.multiprocessing
+import torch
 
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -20,14 +20,12 @@ from health_azure.utils import (create_run_recovery_id, ENV_OMPI_COMM_WORLD_RANK
                                 aggregate_hyperdrive_metrics, get_metrics_for_childless_run,
                                 ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK,
                                 is_local_rank_zero, is_global_rank_zero, create_aml_run_object)
-
-
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.model_trainer import create_lightning_trainer, write_experiment_summary_file
 from health_ml.utils import fixed_paths
-from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.checkpoint_utils import cleanup_checkpoints
+from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.common_utils import (
     EFFECTIVE_RANDOM_SEED_KEY_NAME,
     change_working_directory,
@@ -214,7 +212,7 @@ class MLRunner:
         if not self.container.run_inference_only:
 
             checkpoint_path_for_recovery = self.checkpoint_handler.get_recovery_or_checkpoint_path_train()
-            if not checkpoint_path_for_recovery and self.container.src_checkpoint:
+            if not checkpoint_path_for_recovery and self.container.resume_training:
                 # If there is no recovery checkpoint (e.g job hasn't been resubmitted) and a source checkpoint is given,
                 # use it to resume training.
                 checkpoint_path_for_recovery = self.checkpoint_handler.trained_weights_path
@@ -236,6 +234,8 @@ class MLRunner:
             self.checkpoint_handler.additional_training_done()
         checkpoint_path_for_inference = self.checkpoint_handler.get_checkpoint_to_test()
         self.container.load_model_checkpoint(checkpoint_path_for_inference)
+        best_epoch = torch.load(checkpoint_path_for_inference).get("epoch", -1)
+        logging.info(f"Checkpoint saved at epoch: {best_epoch}")
 
     def after_ddp_cleanup(self, old_environ: Dict) -> None:
         """
@@ -274,6 +274,27 @@ class MLRunner:
             return self.container.crossval_index == 0
         return True
 
+    def get_trainer_for_inference(self, checkpoint_path: Optional[Path] = None) -> Trainer:
+        # We run inference on a single device because distributed strategies such as DDP use DistributedSampler
+        # internally, which replicates some samples to make sure all devices have the same batch size in case of
+        # uneven inputs.
+        mlflow_run_id = get_mlflow_run_id_from_previous_loggers(self.trainer)
+        self.container.max_num_gpus = 1
+
+        if self.container.run_inference_only:
+            assert checkpoint_path is not None
+        else:
+            self.validate_model_weights()
+
+        trainer, _ = create_lightning_trainer(
+            container=self.container,
+            resume_from_checkpoint=checkpoint_path,
+            num_nodes=1,
+            azureml_run_for_logging=self.azureml_run_for_logging,
+            mlflow_run_for_logging=mlflow_run_id
+        )
+        return trainer
+
     def run_training(self) -> None:
         """
         The main training loop. It creates the Pytorch model based on the configuration options passed in,
@@ -294,12 +315,20 @@ class MLRunner:
         """
         Run validation on the validation set for all models to save time/memory consuming outputs.
         """
-        assert hasattr(self.container.model, "run_extra_val_epoch"), "Model does not have run_extra_val_epoch flag."
-        "This is required for running an additional validation epoch to save plots."
-        self.container.model.run_extra_val_epoch = True  # type: ignore
+        self.container.on_run_extra_validation_epoch()
+        trainer = self.get_trainer_for_inference(checkpoint_path=None)
         with change_working_directory(self.container.outputs_folder):
-            assert self.trainer, "Trainer should be initialized before validation. Call self.init_training() first."
-            self.trainer.validate(self.container.model, datamodule=self.data_module)
+            trainer.validate(self.container.model, datamodule=self.data_module)
+
+    def validate_model_weights(self) -> None:
+        logging.info("Validating model weights.")
+        weights = torch.load(self.checkpoint_handler.get_checkpoint_to_test())["state_dict"]
+        number_mismatch = 0
+        for name, param in self.container.model.named_parameters():
+            if not torch.allclose(weights[name].cpu(), param):
+                logging.warning(f"Parameter {name} does not match between model and checkpoint.")
+                number_mismatch += 1
+        logging.info(f"Number of mismatched parameters: {number_mismatch}")
 
     def run_inference(self) -> None:
         """
@@ -312,20 +341,12 @@ class MLRunner:
             # We run inference on a single device because distributed strategies such as DDP use DistributedSampler
             # internally, which replicates some samples to make sure all devices have some batch size in case of
             # uneven inputs.
-            mlflow_run_id = get_mlflow_run_id_from_previous_loggers(self.trainer)
             self.container.max_num_gpus = 1
 
             checkpoint_path = (
-                self.checkpoint_handler.get_checkpoint_to_test() if self.container.src_checkpoint else None
+                self.checkpoint_handler.get_checkpoint_to_test() if self.container.run_inference_only else None
             )
-            trainer, _ = create_lightning_trainer(
-                container=self.container,
-                resume_from_checkpoint=checkpoint_path,
-                num_nodes=1,
-                azureml_run_for_logging=self.azureml_run_for_logging,
-                mlflow_run_for_logging=mlflow_run_id
-            )
-
+            trainer = self.get_trainer_for_inference(checkpoint_path)
             # Change to the outputs folder so that the model can write to current working directory, and still
             # everything is put into the right place in AzureML (there, only the contents of the "outputs" folder
             # retained)

@@ -28,13 +28,13 @@ from health_azure import AzureRunInfo, submit_to_azure_if_needed  # noqa: E402
 from health_azure.datasets import create_dataset_configs  # noqa: E402
 from health_azure.logging import logging_to_stdout   # noqa: E402
 from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
-from health_azure.amulet import prepare_amulet_job  # noqa: E402
+from health_azure.amulet import prepare_amulet_job, is_amulet_job  # noqa: E402
 from health_azure.utils import (get_workspace, get_ml_client, is_local_rank_zero,  # noqa: E402
                                 is_running_in_azure_ml, set_environment_variables_for_multi_node,
                                 create_argparser, parse_arguments, ParserResult, apply_overrides,
                                 filter_v2_input_output_args)
 
-from health_ml.experiment_config import ExperimentConfig  # noqa: E402
+from health_ml.experiment_config import DEBUG_DDP_ENV_VAR, ExperimentConfig  # noqa: E402
 from health_ml.lightning_container import LightningContainer  # noqa: E402
 from health_ml.run_ml import MLRunner  # noqa: E402
 from health_ml.utils import fixed_paths  # noqa: E402
@@ -164,7 +164,7 @@ class Runner:
             if self.lightning_container.hyperdrive:
                 raise ValueError("HyperDrive for hyperparameters tuning is only supported when submitting the job to "
                                  "AzureML. You need to specify a compute cluster with the argument --cluster.")
-            if self.lightning_container.is_crossvalidation_enabled:
+            if self.lightning_container.is_crossvalidation_enabled and not is_amulet_job():
                 raise ValueError("Cross-validation is only supported when submitting the job to AzureML."
                                  "You need to specify a compute cluster with the argument --cluster.")
 
@@ -176,7 +176,8 @@ class Runner:
         """
         return {
             "commandline_args": " ".join(script_params),
-            "tag": self.lightning_container.tag
+            "tag": self.lightning_container.tag,
+            **self.lightning_container.get_additional_aml_run_tags()
         }
 
     def run(self) -> Tuple[LightningContainer, AzureRunInfo]:
@@ -222,6 +223,7 @@ class Runner:
 
         # TODO: Update environment variables
         environment_variables: Dict[str, Any] = {}
+        environment_variables[DEBUG_DDP_ENV_VAR] = self.experiment_config.debug_ddp.value
 
         # Get default datastore from the provided workspace. Authentication can take a few seconds, hence only do
         # that if we are really submitting to AzureML.
@@ -252,14 +254,13 @@ class Runner:
                                    datastore=datastore,
                                    use_mounting=use_mounting)
 
-        if self.experiment_config.strictly_aml_v1:
-            hyperdrive_config = self.lightning_container.get_hyperdrive_config()
-            hyperparam_args = None
-        else:
-            hyperparam_args = self.lightning_container.get_hyperparam_args()
-            hyperdrive_config = None
-
         if self.experiment_config.cluster and not is_running_in_azure_ml():
+            if self.experiment_config.strictly_aml_v1:
+                hyperdrive_config = self.lightning_container.get_hyperdrive_config()
+                hyperparam_args = None
+            else:
+                hyperparam_args = self.lightning_container.get_hyperparam_args()
+                hyperdrive_config = None
             ml_client = get_ml_client()
 
             env_file = choose_conda_env_file(env_file=self.experiment_config.conda_env)
@@ -295,6 +296,7 @@ class Runner:
             azure_run_info = submit_to_azure_if_needed(
                 input_datasets=input_datasets,  # type: ignore
                 submit_to_azureml=False,
+                environment_variables=environment_variables,
                 strictly_aml_v1=self.experiment_config.strictly_aml_v1,
             )
         if azure_run_info.run:
@@ -308,7 +310,6 @@ class Runner:
             if suffix:
                 current_name = self.lightning_container.tag or azure_run_info.run.display_name
                 azure_run_info.run.display_name = f"{current_name} {suffix}"
-
         # submit_to_azure_if_needed calls sys.exit after submitting to AzureML. We only reach this when running
         # the script locally or in AzureML.
         return azure_run_info
@@ -326,6 +327,11 @@ class Runner:
         logging_to_stdout("INFO" if is_local_rank_zero() else "ERROR")
         package_setup_and_hacks()
         prepare_amulet_job()
+
+        # Add tags and arguments to Amulet runs
+        if is_amulet_job():
+            assert azure_run_info.run is not None
+            azure_run_info.run.set_tags(self.additional_run_tags(sys.argv[1:]))
 
         # Set environment variables for multi-node training if needed. This function will terminate early
         # if it detects that it is not in a multi-node environment.

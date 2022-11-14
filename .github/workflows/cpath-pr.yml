@@ -128,7 +128,22 @@ jobs:
           cd ${{ env.folder }}
           make smoke_test_tilespandaimagenetmil_aml
 
-  smoke_test_tcgacrcksslmil_aml:
+  smoke_test_tcgacrckimagenetmil:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Prepare Conda environment
+        uses: ./.github/actions/prepare_cpath_environment
+
+      - name: smoke test
+        run: |
+          cd ${{ env.folder }}
+          make smoke_test_tcgacrckimagenetmil_aml
+
+  smoke_test_tcgacrcksslmil:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -143,7 +158,7 @@ jobs:
           cd ${{ env.folder }}
           make smoke_test_tcgacrcksslmil_aml
 
-  smoke_test_crck_simclr_aml:
+  smoke_test_crck_simclr:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -158,6 +173,81 @@ jobs:
           cd ${{ env.folder }}
           make smoke_test_crck_simclr_aml
 
+  smoke_test_crck_flexible_finetuning:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Prepare Conda environment
+        uses: ./.github/actions/prepare_cpath_environment
+
+      - name: smoke test
+        run: |
+          cd ${{ env.folder }}
+          make smoke_test_crck_flexible_finetuning_aml
+
+  smoke_test_crck_loss_analysis:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Prepare Conda environment
+        uses: ./.github/actions/prepare_cpath_environment
+
+      - name: smoke test
+        run: |
+          cd ${{ env.folder }}
+          make smoke_test_crck_loss_analysis_aml
+
+  smoke_test_slides_panda_loss_analysis:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Prepare Conda environment
+        uses: ./.github/actions/prepare_cpath_environment
+
+      - name: smoke test
+        run: |
+          cd ${{ env.folder }}
+          make smoke_test_slides_panda_loss_analysis_aml
+
+  smoke_test_slides_panda_no_ddp_sampler:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Prepare Conda environment
+        uses: ./.github/actions/prepare_cpath_environment
+
+      - name: smoke test
+        run: |
+          cd ${{ env.folder }}
+          make smoke_test_slides_panda_no_ddp_sampler_aml
+
+  smoke_test_tiles_panda_no_ddp_sampler:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Prepare Conda environment
+        uses: ./.github/actions/prepare_cpath_environment
+
+      - name: smoke test
+        run: |
+          cd ${{ env.folder }}
+          make smoke_test_tiles_panda_no_ddp_sampler_aml
+
   publish:
     runs-on: ubuntu-20.04
     needs: [
@@ -166,7 +256,14 @@ jobs:
       pytest,
       smoke_test_slidespandaimagenetmil,
       smoke_test_tilespandaimagenetmil,
-      smoke_test_crck_simclr_aml
+      smoke_test_tcgacrckimagenetmil,
+      smoke_test_tcgacrcksslmil,
+      smoke_test_crck_simclr,
+      smoke_test_crck_flexible_finetuning,
+      smoke_test_crck_loss_analysis,
+      smoke_test_slides_panda_loss_analysis,
+      smoke_test_slides_panda_no_ddp_sampler,
+      smoke_test_tiles_panda_no_ddp_sampler,
       ]
     steps:
       - uses: actions/checkout@v3

@@ -18,6 +18,7 @@ from typing import Sequence, List, Any, Dict, Optional, Union, Tuple
 from monai.data.dataset import Dataset
 from monai.data.image_reader import WSIReader
 from torch.utils.data import DataLoader
+from health_cpath.preprocessing.loading import LoadROId
 
 from health_cpath.utils.naming import SlideKey
 from health_cpath.utils.naming import ResultsKey
@@ -26,7 +27,7 @@ from health_cpath.utils.tiles_selection_utils import SlideNode
 from health_cpath.datasets.panda_dataset import PandaDataset, LoadPandaROId
 
 
-def load_image_dict(sample: dict, level: int, margin: int) -> Dict[SlideKey, Any]:
+def load_image_dict(sample: dict, level: int, margin: int, wsi_has_mask: bool = True) -> Dict[SlideKey, Any]:
     """
     Load image from metadata dictionary
     :param sample: dict describing image metadata. Example:
@@ -40,7 +41,8 @@ def load_image_dict(sample: dict, level: int, margin: int) -> Dict[SlideKey, Any
     :param margin: margin to be included
     :return: a dict containing the image data and metadata
     """
-    loader = LoadPandaROId(WSIReader("cuCIM"), level=level, margin=margin)
+    transform = LoadPandaROId if wsi_has_mask else LoadROId
+    loader = transform(WSIReader("cuCIM"), level=level, margin=margin)
     img = loader(sample)
     return img
 
@@ -76,7 +78,7 @@ def plot_panda_data_sample(
 def plot_scores_hist(
     results: Dict, prob_col: str = ResultsKey.CLASS_PROBS, gt_col: str = ResultsKey.TRUE_LABEL
 ) -> plt.Figure:
-    """Plot scores as a historgram.
+    """Plot scores as a histogram.
 
     :param results: List that contains slide_level dicts
     :param prob_col: column name that contains the scores
@@ -93,6 +95,18 @@ def plot_scores_hist(
     ax.set_xlabel("Predicted Score")
     ax.legend()
     return fig
+
+
+def _get_histo_plot_title(case: str, slide_node: SlideNode) -> str:
+    """Return the standard title for histopathology plots.
+
+    :param case: case id e.g., TP, FN, FP, TN
+    :param slide_node: SlideNode object that encapsulates the slide information
+    """
+    return (
+        f"{case}: {slide_node.slide_id} P={slide_node.pred_prob_score:.2f} \n Predicted label: {slide_node.pred_label} "
+        f"True label: {slide_node.true_label}"
+    )
 
 
 def plot_attention_tiles(
@@ -116,11 +130,7 @@ def plot_attention_tiles(
         return None
 
     fig, axs = plt.subplots(nrows=num_rows, ncols=num_columns, figsize=figsize)
-    fig.suptitle(
-        f"{case}: {slide_node.slide_id} P={abs(slide_node.prob_score):.2f} \n Predicted label: {slide_node.pred_label} "
-        f"True label: {slide_node.true_label}"
-    )
-
+    fig.suptitle(_get_histo_plot_title(case, slide_node))
     for ax, tile_node in zip(axs.flat, tile_nodes):
         ax.imshow(np.transpose(tile_node.data.numpy(), (1, 2, 0)), clim=(0, 255), cmap="gray")
         ax.set_title("%.6f" % tile_node.attn)
@@ -141,10 +151,7 @@ def plot_slide(case: str, slide_node: SlideNode, slide_image: np.ndarray, scale:
     fig, ax = plt.subplots()
     slide_image = slide_image.transpose(1, 2, 0)
     ax.imshow(slide_image)
-    fig.suptitle(
-        f"{case}: {slide_node.slide_id} P={abs(slide_node.prob_score):.2f} \n Predicted label: {slide_node.pred_label} "
-        f"True label: {slide_node.true_label}"
-    )
+    fig.suptitle(_get_histo_plot_title(case, slide_node))
     ax.set_axis_off()
     original_size = fig.get_size_inches()
     fig.set_size_inches((original_size[0] * scale, original_size[1] * scale))
@@ -173,10 +180,8 @@ def plot_heatmap_overlay(
     :return: matplotlib figure of the heatmap of the given tiles on slide.
     """
     fig, ax = plt.subplots()
-    fig.suptitle(
-        f"{case}: {slide_node.slide_id} P={abs(slide_node.prob_score):.2f} \n Predicted label: {slide_node.pred_label} "
-        f"True label: {slide_node.true_label}"
-    )
+    fig.suptitle(_get_histo_plot_title(case, slide_node))
+
     slide_image = slide_image.transpose(1, 2, 0)
     ax.imshow(slide_image)
     ax.set_xlim(0, slide_image.shape[1])

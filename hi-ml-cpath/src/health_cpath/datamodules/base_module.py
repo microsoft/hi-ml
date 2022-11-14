@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, Generic, Optional, Sequence, Tuple, Type
 
 from monai.data.dataset import CacheDataset, Dataset, PersistentDataset
 from pytorch_lightning import LightningDataModule
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, DistributedSampler
 
 from health_ml.utils.bag_utils import BagDataset, multibag_collate
 from health_ml.utils.common_utils import _create_generator
@@ -47,17 +47,21 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         self,
         root_path: Path,
         batch_size: int = 1,
+        batch_size_inf: Optional[int] = None,
         max_bag_size: int = 0,
         max_bag_size_inf: int = 0,
         seed: Optional[int] = None,
         transforms_dict: Optional[Dict[ModelKey, Union[Callable, None]]] = None,
         crossval_count: int = 0,
         crossval_index: int = 0,
+        pl_replace_sampler_ddp: bool = True,
         dataloader_kwargs: Optional[Dict[str, Any]] = None,
+        dataframe_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
         :param root_path: Root directory of the source dataset.
         :param batch_size: Number of slides to load per batch.
+        :param batch_size_inf: Number of slides to load per batch during inference. If None, use batch_size.
         :param max_bag_size: Upper bound on number of tiles in each loaded bag during training stage. If 0 (default),
         will return all samples in each bag. If > 0 , bags larger than `max_bag_size` will yield
         random subsets of instances. For SlideDataModule, this parameter is used in TileOnGridd Transform to set the
@@ -73,21 +77,25 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         By default (`None`).
         :param crossval_count: Number of folds to perform.
         :param crossval_index: Index of the cross validation split to be performed.
+        :param pl_replace_sampler_ddp: If True, replace the sampler with a DistributedSampler when using DDP.
         :param dataloader_kwargs: Additional keyword arguments for the training, validation, and test dataloaders.
+        :param dataframe_kwargs: Keyword arguments to pass to `pd.read_csv()` when loading the dataset CSV.
         """
 
+        batch_size_inf = batch_size_inf or batch_size
         super().__init__()
 
         self.root_path = root_path
         self.transforms_dict = transforms_dict
-        self.batch_size = batch_size
-        self.max_bag_size = max_bag_size
-        self.max_bag_size_inf = max_bag_size_inf
+        self.batch_sizes = {ModelKey.TRAIN: batch_size, ModelKey.VAL: batch_size_inf, ModelKey.TEST: batch_size_inf}
+        self.bag_sizes = {ModelKey.TRAIN: max_bag_size, ModelKey.VAL: max_bag_size_inf, ModelKey.TEST: max_bag_size_inf}
         self.crossval_count = crossval_count
         self.crossval_index = crossval_index
+        self.pl_replace_sampler_ddp = pl_replace_sampler_ddp
         self.train_dataset: _SlidesOrTilesDataset
         self.val_dataset: _SlidesOrTilesDataset
         self.test_dataset: _SlidesOrTilesDataset
+        self.dataframe_kwargs = dataframe_kwargs or {}
         self.train_dataset, self.val_dataset, self.test_dataset = self.get_splits()
         self.class_weights = self.train_dataset.get_class_weights()
         self.seed = seed
@@ -96,6 +104,18 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
     def get_splits(self) -> Tuple[_SlidesOrTilesDataset, _SlidesOrTilesDataset, _SlidesOrTilesDataset]:
         """Create the training, validation, and test datasets"""
         raise NotImplementedError
+
+    def _get_dataloader(
+        self, dataset: _SlidesOrTilesDataset, stage: ModelKey, shuffle: bool, **dataloader_kwargs: Any
+    ) -> DataLoader:
+        raise NotImplementedError
+
+    def _get_ddp_sampler(self, dataset: Dataset, stage: ModelKey) -> Optional[DistributedSampler]:
+        is_distributed = torch.distributed.is_initialized() and torch.distributed.get_world_size() > 1
+        if is_distributed and not self.pl_replace_sampler_ddp and stage == ModelKey.TRAIN:
+            assert self.seed is not None, "seed must be set when using distributed training for reproducibility"
+            return DistributedSampler(dataset, shuffle=True, seed=self.seed)
+        return None
 
     def train_dataloader(self) -> DataLoader:
         return self._get_dataloader(self.train_dataset,  # type: ignore
@@ -117,7 +137,11 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
 
 
 class TilesDataModule(HistoDataModule[TilesDataset]):
-    """Base class to load the tiles of a dataset as train, val, test sets"""
+    """Base class to load the tiles of a dataset as train, val, test sets. Note that tiles are always shuffled by
+    default. This means that we sample a random subset of tiles from each bag at each epoch. This is different from
+    slides shuffling that is switched on during training time only. This is done to avoid overfitting to the order of
+    the tiles in each bag.
+    """
 
     def __init__(
         self,
@@ -198,16 +222,11 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
 
         generator = _create_generator(self.seed)
 
-        if stage in [ModelKey.VAL, ModelKey.TEST]:
-            eff_max_bag_size = self.max_bag_size_inf
-        else:
-            eff_max_bag_size = self.max_bag_size
-
         bag_dataset = BagDataset(
             tiles_dataset,  # type: ignore
             bag_ids=tiles_dataset.slide_ids,
-            max_bag_size=eff_max_bag_size,
-            shuffle_samples=shuffle,
+            max_bag_size=self.bag_sizes[stage],
+            shuffle_samples=True,
             generator=generator,
         )
         if self.transforms_dict and self.transforms_dict[stage]:
@@ -233,11 +252,14 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
         transformed_bag_dataset = self._load_dataset(dataset, stage=stage, shuffle=shuffle)
         bag_dataset: BagDataset = transformed_bag_dataset.data  # type: ignore
         generator = bag_dataset.bag_sampler.generator
+        sampler = self._get_ddp_sampler(transformed_bag_dataset, stage)
         return DataLoader(
             transformed_bag_dataset,
-            batch_size=self.batch_size,
+            batch_size=self.batch_sizes[stage],
             collate_fn=multibag_collate,
-            shuffle=shuffle,
+            sampler=sampler,
+            # sampler option is mutually exclusive with shuffle
+            shuffle=shuffle if sampler is None else None,  # type: ignore
             generator=generator,
             **dataloader_kwargs,
         )
@@ -252,13 +274,13 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
 
     def __init__(
         self,
-        level: Optional[int] = 1,
-        tile_size: Optional[int] = 224,
+        level: int = 1,
+        tile_size: int = 224,
         step: Optional[int] = None,
-        random_offset: Optional[bool] = True,
-        pad_full: Optional[bool] = False,
-        background_val: Optional[int] = 255,
-        filter_mode: Optional[str] = "min",
+        random_offset: bool = True,
+        pad_full: bool = False,
+        background_val: int = 255,
+        filter_mode: str = "min",
         **kwargs: Any,
     ) -> None:
         """
@@ -290,8 +312,9 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         self.filter_mode = filter_mode
         # TileOnGridd transform expects None to select all foreground tile so we hardcode max_bag_size and
         # max_bag_size_inf to None if set to 0
-        self.max_bag_size = None if self.max_bag_size == 0 else self.max_bag_size  # type: ignore
-        self.max_bag_size_inf = None if self.max_bag_size_inf == 0 else self.max_bag_size_inf  # type: ignore
+        for stage_key, max_bag_size in self.bag_sizes.items():
+            if max_bag_size == 0:
+                self.bag_sizes[stage_key] = None  # type: ignore
 
     def _load_dataset(self, slides_dataset: SlidesDataset, stage: ModelKey) -> Dataset:
         base_transform = Compose(
@@ -306,7 +329,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                 ),
                 TileOnGridd(
                     keys=slides_dataset.IMAGE_COLUMN,
-                    tile_count=self.max_bag_size if stage == ModelKey.TRAIN else self.max_bag_size_inf,
+                    tile_count=self.bag_sizes[stage],
                     tile_size=self.tile_size,
                     step=self.step,
                     random_offset=self.random_offset if stage == ModelKey.TRAIN else False,
@@ -331,11 +354,14 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                         **dataloader_kwargs: Any) -> DataLoader:
         transformed_slides_dataset = self._load_dataset(dataset, stage)
         generator = _create_generator(self.seed)
+        sampler = self._get_ddp_sampler(transformed_slides_dataset, stage)
         return DataLoader(
             transformed_slides_dataset,
-            batch_size=self.batch_size,
+            batch_size=self.batch_sizes[stage],
             collate_fn=image_collate,
-            shuffle=shuffle,
+            sampler=sampler,
+            # sampler option is mutually exclusive with shuffle
+            shuffle=shuffle if not sampler else None,  # type: ignore
             generator=generator,
             **dataloader_kwargs,
         )

@@ -41,6 +41,7 @@ def test_create_lightning_trainer() -> None:
     assert trainer.default_root_dir == str(container.outputs_folder)
     assert trainer.limit_train_batches == 1.0
     assert trainer._detect_anomaly == container.detect_anomaly
+    assert trainer.accumulate_grad_batches == 1
 
     assert isinstance(trainer.callbacks[0], TQDMProgressBar)
     assert isinstance(trainer.callbacks[1], ModelSummary)
@@ -192,3 +193,11 @@ def test_create_lightning_trainer_limit_batches() -> None:
     assert trainer3.num_training_batches == int(limit_train_batches_float * original_num_train_batches)
     assert trainer3.num_val_batches[0] == int(limit_val_batches_float * original_num_val_batches)
     assert trainer3.num_test_batches[0] == int(limit_test_batches_float * original_num_test_batches)
+
+
+def test_flag_grad_accum() -> None:
+    num_batches = 4
+    container = LightningContainer()
+    container.pl_accumulate_grad_batches = num_batches
+    trainer, _ = create_lightning_trainer(container)
+    assert trainer.accumulate_grad_batches == num_batches
