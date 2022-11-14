@@ -2,9 +2,11 @@ import torch
 import param
 import numpy as np
 
-from typing import Any, List, Optional
-from health_cpath.utils.naming import SlideKey
+from typing import Any, Callable, List, Optional
+from health_cpath.utils.naming import ModelKey, SlideKey
 from health_ml.utils.bag_utils import multibag_collate
+
+from monai.transforms import RandGridPatchd, GridPatchd
 
 
 def image_collate(batch: List) -> Any:
@@ -26,48 +28,61 @@ def image_collate(batch: List) -> Any:
     return multibag_collate(batch)
 
 
-class TileOnTheFlyParams(param.Parameterized):
-    """
-        Parameters for the TileOnTheFly transform.
-    """
+class TilingParams(param.Parameterized):
+    """Parameters for Tiling On the Fly a WSI using RandGridPatchd and GridPatchd monai transforms"""
 
     tile_size: int = param.Integer(default=224, bounds=(1, None), doc="The size of the tile, Default: 224")
-    overlap: int = param.Number(default=0, bounds=(0.0, 1.0),
-                                doc="The amount of overlap of neighboring patches in each dimension (a value between "
-                                   "0.0 and 1.0). Defaults to 0.0.")
-    sort_fn: Optional[str] = param.String(default=None,
-                                          doc="When bag_size is fixed, it determines whether to keep tiles with "
-                                              "highest intensity values (`'max'`), lowest values (`'min'`) that assumes"
-                                              "background is high values, or in their default order (`None`). "
-                                              "Default to None.")
-    pad_mode: Optional[str] = param.String(default='constant',
-                                           doc="The mode of padding, defaults to 'constant'. Refer to NumpyPadMode and "
-                                               "PytorchPadMode. If None, no padding will be applied.")
-    intensity_threshold: Optional[float] = param.Number(default=None,
+    tile_overlap: int = param.Number(
+        default=0,
+        bounds=(0.0, 1.0),
+        doc="The amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).")
+    tile_sort_fn: Optional[str] = param.String(
+        default='min',
+        doc="When bag_size is fixed, it determines whether to keep tiles with highest intensity values (`'max'`), "
+            "lowest values (`'min'`) that assumes background is high values, or in their default order (`None`). ")
+    tile_pad_mode: Optional[str] = param.String(
+        default=None,
+        doc="The mode of padding, defaults. Refer to NumpyPadMode and PytorchPadMode. "
+            "Defaults to None, no padding will be applied.")
+    intensity_threshold: Optional[float] = param.Number(
+        default=None,
+        doc="The intensity threshold to filter out tiles based on intensity values. Default to None.")
+    background_intensity: int = param.Integer(
+        default=255,
+        doc="The intensity value of background. Default to 255.")
+    rand_min_offset: int = param.Integer(
+        default=0,
+        bounds=(0, None),
+        doc="The minimum range of sarting position to be selected randomly. This parameter is passed to RandGridPatchd."
+            "the random version of GridPatchd used at training time. Default to 0.")
+    rand_max_offset: int = param.Integer(
+        default=None,
+        bounds=(0, None),
+        doc="The maximum range of sarting position to be selected randomly. This parameter is passed to RandGridPatchd."
+            "the random version of GridPatchd used at training time. Default to None.")
 
-
-    def _get_tile_on_the_fly_transform(self, stage: ModelKey, image_key: str, num_tiles: int) -> Callable:
+    def get_tiling_transform(self, stage: ModelKey, image_key: str, bag_size: int) -> Callable:
         if stage == ModelKey.TRAIN:
             return RandGridPatchd(
                 keys=[image_key],
                 patch_size=(self.tile_size, self.tile_size),
-                num_patches=num_tiles,
-                sort_fn=self.filter_mode,
-                pad_mode=self.pad_mode,  # type: ignore
-                constant_values=self.background_val,
-                overlap=self.overlap,  # type: ignore
-                threshold=self.background_val,
+                min_offset=self.rand_min_offset,
+                max_offset=self.rand_max_offset,
+                num_patches=bag_size,
+                overlap=self.tile_overlap,
+                sort_fn=self.tile_sort_fn,
+                threshold=self.intensity_threshold,
+                tiling_pad_mode=self.tile_pad_mode,
+                constant_values=self.background_intensity,  # arg passed to np.pad or torch.pad
             )
         else:
             return GridPatchd(
                 keys=[image_key],
-                tile_count=self.bag_sizes[stage],
-                patch_size=self.tile_size,
-                tile_size=self.tile_size,
-                step=self.step,
-                random_offset=self.random_offset if stage == ModelKey.TRAIN else False,
-                pad_full=self.pad_full,
-                background_val=self.background_val,
-                filter_mode=self.filter_mode,
-                return_list_of_dicts=True,
+                patch_size=(self.tile_size, self.tile_size),
+                num_patches=bag_size,
+                overlap=self.tile_overlap,
+                sort_fn=self.tile_sort_fn,
+                threshold=self.intensity_threshold,
+                tiling_pad_mode=self.tile_pad_mode,
+                constant_values=self.background_intensity,  # arg passed to np.pad or torch.pad
             )

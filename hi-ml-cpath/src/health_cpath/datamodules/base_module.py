@@ -14,13 +14,13 @@ from torch.utils.data import DataLoader, DistributedSampler
 from health_ml.utils.bag_utils import BagDataset, multibag_collate
 from health_ml.utils.common_utils import _create_generator
 
-from health_cpath.utils.wsi_utils import image_collate
+from health_cpath.utils.wsi_utils import TilingParams, image_collate
 from health_cpath.models.transforms import LoadTilesBatchd
 from health_cpath.datasets.base_dataset import SlidesDataset, TilesDataset
 from health_cpath.utils.naming import ModelKey
 
 from monai.data.dataset import CacheDataset, Dataset, PersistentDataset
-from monai.transforms import RandGridPatchd, GridPatchd, Compose, LoadImaged
+from monai.transforms import Compose, LoadImaged
 from monai.data.image_reader import WSIReader
 
 
@@ -274,47 +274,25 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
     def __init__(
         self,
         level: int = 1,
-        tile_size: int = 224,
-        tiles_overlap: float = 0.0,
-        tiles_sort_fn: Optional[str] = None,
-        pad_mode: str = 'constant',
-        threshold: Optional[float] = None,
         backend: str = 'cuCIM',
         wsi_reader_args: Dict[str, Any] = {},
+        tiling_params: TilingParams = TilingParams(),
         **kwargs: Any,
     ) -> None:
         """
         :param level: the whole slide image level at which the image is extracted, defaults to 1
         this param is passed to the LoadImaged monai transform that loads a WSI with cucim backend by default
-        :param tile_size: size of the square tile, defaults to 224
-        :param overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
-            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
-        :param tiles_sort_fn: when bag_sizes are fixed, it determines if keep tiles with highest intensity values
-        (`"max"`), lowest values (`"min"`), or in their default order (`None`). Default to None.
-        mode must be in ["min", "max"]. If total number of tiles is greater than
-        tile_count, then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for
-        random) subset, defaults to "min" (which assumes background is high value).
-        :param pad_mode: mode of padding, defaults to "constant". Refer to NumpyPadMode and PytorchPadMode. If None, no
-        padding will be applied.
         :param backend: the WSI reader backend, defaults to "cuCIM".
         :param wsi_reader_args: additional arguments to pass to the WSIReader, defaults to {}. Multi processing is
         enabled since monai 1.0.0 by specifying num_workers > 0 with CuCIM backend only.
+        :param tiling_params: the tiling on the fly parameters, defaults to TileOnTheFlyParams()
         """
         super().__init__(**kwargs)
-        # Tiling on the fly params
-        self.tile_size = tile_size
-        self.background_val = background_val
-
-        self.pad_mode = pad_mode
+        self.tiling_params = tiling_params
         # WSIReader params
         self.level = level
         self.backend = backend
         self.wsi_reader_args = wsi_reader_args
-        # TileOnGridd transform expects None to select all foreground tile so we hardcode max_bag_size and
-        # max_bag_size_inf to None if set to 0
-        for stage_key, max_bag_size in self.bag_sizes.items():
-            if max_bag_size == 0:
-                self.bag_sizes[stage_key] = None  # type: ignore
 
     def _load_dataset(self, slides_dataset: SlidesDataset, stage: ModelKey) -> Dataset:
         base_transform = Compose(
@@ -328,7 +306,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                     backend=self.backend,
                     **self.wsi_reader_args,
                 ),
-                self._get_tile_on_the_fly_transform(stage=stage, image_key=slides_dataset.IMAGE_COLUMN),
+                self.tiling_params.get_tiling_transform(stage, slides_dataset.IMAGE_COLUMN, self.bag_sizes[stage]),
             ]
         )
         if self.transforms_dict and self.transforms_dict[stage]:
