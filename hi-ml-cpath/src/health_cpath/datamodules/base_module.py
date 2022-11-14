@@ -302,7 +302,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         tile_count, then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for
         random) subset, defaults to "min" (which assumes background is high value). This param is passed to TileOnGridd
         monai transform for tiling on the fly.
-        :param wsireader_kwargs: additional arguments to pass to the WSIReader, defaults to {"backend": "cuCIM"}
+        :param wsi_reader_kwargs: additional arguments to pass to the WSIReader, defaults to {"backend": "cuCIM"}
         """
         super().__init__(**kwargs)
         self.level = level
