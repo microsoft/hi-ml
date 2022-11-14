@@ -281,7 +281,8 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         pad_full: bool = False,
         background_val: int = 255,
         filter_mode: str = "min",
-        wsi_reader_args: Dict[str, Any] = {"backend": "cuCIM"},
+        backend: str = "cuCIM",
+        wsi_reader_args: Dict[str, Any] = {},
         **kwargs: Any,
     ) -> None:
         """
@@ -302,16 +303,21 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         tile_count, then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for
         random) subset, defaults to "min" (which assumes background is high value). This param is passed to TileOnGridd
         monai transform for tiling on the fly.
-        :param wsi_reader_args: additional arguments to pass to the WSIReader, defaults to {"backend": "cuCIM"}
+        :param backend: the WSI reader backend, defaults to "cuCIM". This param is passed to LoadImaged monai transform
+        :param wsi_reader_args: additional arguments to pass to the WSIReader, defaults to {}. Multi processing is
+        enabled since monai 1.0.0 by specifying num_workers > 0 with CuCIM backend only.
         """
         super().__init__(**kwargs)
-        self.level = level
+        # Tiling on the fly params
         self.tile_size = tile_size
         self.step = step
         self.random_offset = random_offset
         self.pad_full = pad_full
         self.background_val = background_val
         self.filter_mode = filter_mode
+        # WSIReader params
+        self.level = level
+        self.backend = backend
         self.wsi_reader_args = wsi_reader_args
         # TileOnGridd transform expects None to select all foreground tile so we hardcode max_bag_size and
         # max_bag_size_inf to None if set to 0
@@ -324,10 +330,12 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
             [
                 LoadImaged(
                     keys=slides_dataset.IMAGE_COLUMN,
-                    reader=WSIReader(**self.wsi_reader_args),
+                    reader="WSIReader",
                     dtype=np.uint8,
-                    level=self.level,
                     image_only=True,
+                    level=self.level,
+                    backend=self.backend,
+                    **self.wsi_reader_args,
                 ),
                 TileOnGridd(
                     keys=slides_dataset.IMAGE_COLUMN,

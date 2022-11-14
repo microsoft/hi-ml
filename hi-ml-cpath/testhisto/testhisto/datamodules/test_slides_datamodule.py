@@ -26,7 +26,6 @@ from testhisto.mocks.slides_generator import (
 )
 
 no_gpu = not is_gpu_available()
-DEFAULT_BACKEND = "CuCIM"
 
 
 @pytest.fixture(scope="session")
@@ -97,7 +96,6 @@ def test_tiling_on_the_fly(mock_panda_slides_root_dir_diagonal: Path) -> None:
         max_bag_size=tile_count,
         tile_size=tile_size,
         level=level,
-        wsi_reader_args={"backend": DEFAULT_BACKEND},
     )
     dataloader = datamodule.train_dataloader()
     for sample in dataloader:
@@ -127,7 +125,6 @@ def test_tiling_without_fixed_tile_count(mock_panda_slides_root_dir_diagonal: Pa
         max_bag_size=tile_count,
         tile_size=tile_size,
         level=level,
-        wsi_reader_args={"backend": DEFAULT_BACKEND},
     )
     dataloader = datamodule.train_dataloader()
     for sample in dataloader:
@@ -150,7 +147,6 @@ def test_multi_resolution_tiling(level: int, mock_panda_slides_root_dir_diagonal
         max_bag_size=tile_count,
         tile_size=tile_size,
         level=level,
-        wsi_reader_args={"backend": DEFAULT_BACKEND},
     )
     dataloader = datamodule.train_dataloader()
     for sample in dataloader:
@@ -182,7 +178,6 @@ def test_overlapping_tiles(batch_size: int, mock_panda_slides_root_dir_diagonal:
         tile_size=tile_size,
         step=step,
         level=level,
-        wsi_reader_args={"backend": DEFAULT_BACKEND},
     )
     dataloader = datamodule.train_dataloader()
     for sample in dataloader:
@@ -223,7 +218,6 @@ def test_train_test_transforms(mock_panda_slides_root_dir_diagonal: Path) -> Non
         tile_size=tile_size,
         level=level,
         transforms_dict=get_transforms_dict(),
-        wsi_reader_args={"backend": DEFAULT_BACKEND},
     )
     flip_train_tiles = retrieve_tiles(flipdatamodule.train_dataloader())
     flip_val_tiles = retrieve_tiles(flipdatamodule.val_dataloader())
@@ -277,7 +271,6 @@ def test_whole_slide_inference(batch_size: int, mock_panda_slides_root_with_diff
         max_bag_size_inf=0,
         tile_size=tile_size,
         level=level,
-        wsi_reader_args={"backend": DEFAULT_BACKEND},
     )
     train_dataloader = datamodule.train_dataloader()
     for sample in train_dataloader:
