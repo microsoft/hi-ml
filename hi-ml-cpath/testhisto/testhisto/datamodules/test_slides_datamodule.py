@@ -177,7 +177,7 @@ def test_overlapping_tiles(batch_size: int, mock_panda_slides_root_dir_diagonal:
         batch_size=batch_size,
         tile_size=tile_size,
         step=step,
-        level=level,
+        level=level
     )
     dataloader = datamodule.train_dataloader()
     for sample in dataloader:

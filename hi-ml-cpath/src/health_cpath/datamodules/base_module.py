@@ -280,8 +280,8 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         random_offset: bool = True,
         pad_full: bool = False,
         background_val: int = 255,
-        filter_mode: str = "min",
-        backend: str = "cuCIM",
+        filter_mode: str = 'min',
+        backend: str = 'cuCIM',
         wsi_reader_args: Dict[str, Any] = {},
         **kwargs: Any,
     ) -> None:
