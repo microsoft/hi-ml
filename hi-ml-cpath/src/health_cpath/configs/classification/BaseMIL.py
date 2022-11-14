@@ -15,6 +15,7 @@ from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 
 from health_azure.utils import create_from_matching_params
 from health_cpath.utils.callbacks import LossAnalysisCallback, LossCallbackParams
+from health_cpath.utils.wsi_utils import TilingParams
 
 from health_ml.utils import fixed_paths
 from health_ml.deep_learning_config import OptimizerParams
@@ -304,27 +305,11 @@ class BaseMILTiles(BaseMIL):
         return deepmil_module
 
 
-class BaseMILSlides(BaseMIL):
+class BaseMILSlides(BaseMIL, TilingParams):
     """BaseSlidesMIL is an abstract subclass of BaseMIL for running MIL experiments on slides datasets. It is
     responsible for instantiating the full DeepMIL model in slides settings. Subclasses should define their datamodules
     and configure experiment-specific parameters.
     """
-    # Slides Data module parameters:
-    tile_size: int = param.Integer(224, bounds=(0, None), doc="Size of the square tile, defaults to 224.")
-    step: int = param.Integer(None, bounds=(0, None),
-                              doc="Step size to define the offset between tiles."
-                              "If None (default), it takes the same value as tile_size."
-                              "If step < tile_size, it creates overlapping tiles."
-                              "If step > tile_size, it skips some chunks in the wsi.")
-    random_offset: bool = param.Boolean(False, doc="If True, randomize position of the grid, instead of starting at"
-                                                   "the top-left corner,")
-    pad_full: bool = param.Boolean(False, doc="If True, pad image to the size evenly divisible by tile_size")
-    background_val: int = param.Integer(255, bounds=(0, None),
-                                        doc="Threshold to estimate the foreground in a whole slide image.")
-    filter_mode: str = param.String("min", doc="mode must be in ['min', 'max', 'random']. If total number of tiles is"
-                                               "greater than tile_count, then sort by intensity sum, and take the "
-                                               "smallest (for min), largest (for max) or random (for random) subset, "
-                                               "defaults to 'min' (which assumes background is high value).")
 
     def create_model(self) -> SlidesDeepMILModule:
         self.data_module = self.get_data_module()

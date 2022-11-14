@@ -72,7 +72,7 @@ class TilingParams(param.Parameterized):
                 overlap=self.tile_overlap,
                 sort_fn=self.tile_sort_fn,
                 threshold=self.intensity_threshold,
-                tiling_pad_mode=self.tile_pad_mode,
+                pad_mode=self.tile_pad_mode,
                 constant_values=self.background_intensity,  # arg passed to np.pad or torch.pad
             )
         else:
@@ -83,6 +83,6 @@ class TilingParams(param.Parameterized):
                 overlap=self.tile_overlap,
                 sort_fn=self.tile_sort_fn,
                 threshold=self.intensity_threshold,
-                tiling_pad_mode=self.tile_pad_mode,
+                pad_mode=self.tile_pad_mode,
                 constant_values=self.background_intensity,  # arg passed to np.pad or torch.pad
             )

@@ -20,7 +20,7 @@ from health_cpath.datasets.base_dataset import SlidesDataset, TilesDataset
 from health_cpath.utils.naming import ModelKey
 
 from monai.data.dataset import CacheDataset, Dataset, PersistentDataset
-from monai.transforms import Compose, LoadImaged
+from monai.transforms import Compose, LoadImaged, SplitDimd
 from monai.data.image_reader import WSIReader
 
 
@@ -307,6 +307,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                     **self.wsi_reader_args,
                 ),
                 self.tiling_params.get_tiling_transform(stage, slides_dataset.IMAGE_COLUMN, self.bag_sizes[stage]),
+                SplitDimd(keys=slides_dataset.IMAGE_COLUMN, dim=0, keepdim=False, list_output=True),
             ]
         )
         if self.transforms_dict and self.transforms_dict[stage]:

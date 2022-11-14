@@ -3,25 +3,17 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from typing import Any, Optional, Set
-
-from health_azure.utils import is_running_in_azure_ml
-from health_ml.networks.layers.attention_layers import AttentionLayer
+from health_azure.utils import is_running_in_azure_ml, create_from_matching_params
+from health_cpath.configs.classification.BaseMIL import BaseMIL, BaseMILSlides, BaseMILTiles
 from health_cpath.configs.run_ids import innereye_ssl_checkpoint_binary
-from health_cpath.datamodules.panda_module import (
-    PandaSlidesDataModule,
-    PandaTilesDataModule)
-from health_cpath.datasets.panda_tiles_dataset import PandaTilesDataset
-from health_cpath.models.encoders import (
-    HistoSSLEncoder,
-    ImageNetSimCLREncoder,
-    Resnet18,
-    SSLEncoder)
-from health_cpath.configs.classification.BaseMIL import BaseMILSlides, BaseMILTiles, BaseMIL
+from health_cpath.datamodules.panda_module import PandaSlidesDataModule, PandaTilesDataModule
+from health_cpath.datasets.default_paths import PANDA_5X_TILES_DATASET_ID, PANDA_DATASET_ID
 from health_cpath.datasets.panda_dataset import PandaDataset
-from health_cpath.datasets.default_paths import (
-    PANDA_DATASET_ID,
-    PANDA_5X_TILES_DATASET_ID)
+from health_cpath.datasets.panda_tiles_dataset import PandaTilesDataset
+from health_cpath.models.encoders import HistoSSLEncoder, ImageNetSimCLREncoder, Resnet18, SSLEncoder
 from health_cpath.utils.naming import PlotOption
+from health_cpath.utils.wsi_utils import TilingParams
+from health_ml.networks.layers.attention_layers import AttentionLayer
 from health_ml.utils.checkpoint_utils import CheckpointParser
 
 
@@ -155,13 +147,8 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             level=self.level,
             max_bag_size=self.max_bag_size,
             max_bag_size_inf=self.max_bag_size_inf,
-            tile_size=self.tile_size,
-            step=self.step,
-            random_offset=self.random_offset,
+            tiling_params=create_from_matching_params(self, TilingParams),
             seed=self.get_effective_random_seed(),
-            pad_full=self.pad_full,
-            background_val=self.background_val,
-            filter_mode=self.filter_mode,
             transforms_dict=self.get_transforms_dict(PandaDataset.IMAGE_COLUMN),
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
