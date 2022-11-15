@@ -61,10 +61,10 @@ class TilingParams(param.Parameterized):
         doc="The maximum range of sarting position to be selected randomly. This parameter is passed to RandGridPatchd."
             "the random version of GridPatchd used at training time. Default to None.")
 
-    def get_tiling_transform(self, stage: ModelKey, image_key: str, bag_size: int) -> Callable:
+    def get_tiling_transform(self, bag_size: int, stage: ModelKey,) -> Callable:
         if stage == ModelKey.TRAIN:
             return RandGridPatchd(
-                keys=[image_key],
+                keys=[SlideKey.IMAGE],
                 patch_size=(self.tile_size, self.tile_size),
                 min_offset=self.rand_min_offset,
                 max_offset=self.rand_max_offset,
@@ -77,7 +77,7 @@ class TilingParams(param.Parameterized):
             )
         else:
             return GridPatchd(
-                keys=[image_key],
+                keys=[SlideKey.IMAGE],
                 patch_size=(self.tile_size, self.tile_size),
                 num_patches=bag_size,
                 overlap=self.tile_overlap,

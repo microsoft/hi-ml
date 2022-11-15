@@ -17,7 +17,7 @@ from health_ml.utils.common_utils import _create_generator
 from health_cpath.utils.wsi_utils import TilingParams, image_collate
 from health_cpath.models.transforms import LoadTilesBatchd
 from health_cpath.datasets.base_dataset import SlidesDataset, TilesDataset
-from health_cpath.utils.naming import ModelKey
+from health_cpath.utils.naming import ModelKey, SlideKey
 
 from monai.data.dataset import CacheDataset, Dataset, PersistentDataset
 from monai.transforms import Compose, LoadImaged, SplitDimd
@@ -298,7 +298,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         base_transform = Compose(
             [
                 LoadImaged(
-                    keys=slides_dataset.IMAGE_COLUMN,
+                    keys=SlideKey.IMAGE,
                     reader=WSIReader,
                     dtype=np.uint8,
                     image_only=True,
@@ -306,8 +306,8 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                     backend=self.backend,
                     **self.wsi_reader_args,
                 ),
-                self.tiling_params.get_tiling_transform(stage, slides_dataset.IMAGE_COLUMN, self.bag_sizes[stage]),
-                SplitDimd(keys=slides_dataset.IMAGE_COLUMN, dim=0, keepdim=False, list_output=True),
+                self.tiling_params.get_tiling_transform(bag_size=self.bag_sizes[stage], stage=stage),
+                SplitDimd(keys=SlideKey.IMAGE, dim=0, keepdim=False, list_output=True),
             ]
         )
         if self.transforms_dict and self.transforms_dict[stage]:
