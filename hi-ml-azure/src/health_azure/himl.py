@@ -843,7 +843,6 @@ def submit_to_azure_if_needed(  # type: ignore
         snapshot_root_directory = Path.cwd()
 
     workspace = get_workspace(aml_workspace, workspace_config_path)
-    ml_client = get_ml_client(ml_client=ml_client, aml_workspace=workspace)
     print(f"Loaded AzureML workspace {workspace.name}")
 
     if conda_environment_file is None:
@@ -901,6 +900,7 @@ def submit_to_azure_if_needed(  # type: ignore
             script_params = script_params or sys.argv[1:]
             effective_experiment_name = experiment_name or Path(entry_script).stem
 
+            ml_client = get_ml_client(ml_client=ml_client, aml_workspace=workspace)
             registered_env = register_environment_v2(environment, ml_client)
             input_datasets_v2 = create_v2_inputs(ml_client, cleaned_input_datasets)
             output_datasets_v2 = create_v2_outputs(cleaned_output_datasets)
