@@ -5,7 +5,7 @@ import numpy as np
 from typing import Any, Callable, List, Optional
 from health_cpath.utils.naming import ModelKey, SlideKey
 from health_ml.utils.bag_utils import multibag_collate
-
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import RandGridPatchd, GridPatchd
 
 
@@ -19,7 +19,11 @@ def image_collate(batch: List) -> Any:
 
     for i, item in enumerate(batch):
         data = item[0]
-        if isinstance(data[SlideKey.IMAGE], torch.Tensor):
+        if isinstance(data[SlideKey.IMAGE], MetaTensor):
+            # MetaTensor is a monai class that is used to store metadata along with the image
+            # We need to convert it to torch tensor to avoid adding the metadata to the batch
+            data[SlideKey.IMAGE] = torch.stack([ix[SlideKey.IMAGE].as_tensor() for ix in item], dim=0)
+        elif isinstance(data[SlideKey.IMAGE], torch.Tensor):
             data[SlideKey.IMAGE] = torch.stack([ix[SlideKey.IMAGE] for ix in item], dim=0)
         else:
             data[SlideKey.IMAGE] = torch.tensor(np.array([ix[SlideKey.IMAGE] for ix in item]))
