@@ -297,10 +297,11 @@ def test_location_selected_tiles(level: int) -> None:
     assert max(tile_ys) <= slide_image.shape[1] // factor
 
 
+@pytest.mark.parametrize("backend", ["cuCIM", "OpenSlide"])
 @pytest.mark.parametrize("wsi_has_mask", [True, False])
-def test_load_image_dict(wsi_has_mask: bool) -> None:
+def test_load_image_dict(wsi_has_mask: bool, backend: str) -> None:
     with patch("health_cpath.utils.viz_utils.LoadPandaROId") as mock_load_panda_roi:
         with patch("health_cpath.utils.viz_utils.LoadROId") as mock_load_roi:
-            _ = load_image_dict(sample=MagicMock(), level=0, margin=0, wsi_has_mask=wsi_has_mask)  # type: ignore
+            _ = load_image_dict(sample=MagicMock(), level=0, margin=0, wsi_has_mask=wsi_has_mask, backend=backend)
             assert mock_load_panda_roi.called == wsi_has_mask
             assert mock_load_roi.called == (not wsi_has_mask)

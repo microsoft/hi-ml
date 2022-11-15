@@ -25,6 +25,7 @@ from monai.transforms.io.dictionary import LoadImaged
 from monai.apps.pathology.transforms import TileOnGridd
 from monai.data.image_reader import WSIReader
 
+
 _SlidesOrTilesDataset = TypeVar('_SlidesOrTilesDataset', SlidesDataset, TilesDataset)
 
 
@@ -280,12 +281,14 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         random_offset: bool = True,
         pad_full: bool = False,
         background_val: int = 255,
-        filter_mode: str = "min",
+        filter_mode: str = 'min',
+        backend: str = 'cuCIM',
+        wsi_reader_args: Dict[str, Any] = {},
         **kwargs: Any,
     ) -> None:
         """
         :param level: the whole slide image level at which the image is extracted, defaults to 1
-        this param is passed to the LoadImaged monai transform that loads a WSI with cucim backend
+        this param is passed to the LoadImaged monai transform that loads a WSI with cucim backend by default
         :param tile_size: size of the square tile, defaults to 224
         this param is passed to TileOnGridd monai transform for tiling on the fly.
         :param step: step size to create overlapping tiles, defaults to None (same as tile_size)
@@ -301,15 +304,22 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         tile_count, then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for
         random) subset, defaults to "min" (which assumes background is high value). This param is passed to TileOnGridd
         monai transform for tiling on the fly.
+        :param backend: the WSI reader backend, defaults to "cuCIM". This param is passed to LoadImaged monai transform
+        :param wsi_reader_args: Additional arguments to pass to the WSIReader, defaults to {}. Multi processing is
+        enabled since monai 1.0.0 by specifying num_workers > 0 with CuCIM backend only.
         """
         super().__init__(**kwargs)
-        self.level = level
+        # Tiling on the fly params
         self.tile_size = tile_size
         self.step = step
         self.random_offset = random_offset
         self.pad_full = pad_full
         self.background_val = background_val
         self.filter_mode = filter_mode
+        # WSIReader params
+        self.level = level
+        self.backend = backend
+        self.wsi_reader_args = wsi_reader_args
         # TileOnGridd transform expects None to select all foreground tile so we hardcode max_bag_size and
         # max_bag_size_inf to None if set to 0
         for stage_key, max_bag_size in self.bag_sizes.items():
@@ -322,10 +332,11 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                 LoadImaged(
                     keys=slides_dataset.IMAGE_COLUMN,
                     reader=WSIReader,
-                    backend="cuCIM",
                     dtype=np.uint8,
-                    level=self.level,
                     image_only=True,
+                    level=self.level,
+                    backend=self.backend,
+                    **self.wsi_reader_args,
                 ),
                 TileOnGridd(
                     keys=slides_dataset.IMAGE_COLUMN,

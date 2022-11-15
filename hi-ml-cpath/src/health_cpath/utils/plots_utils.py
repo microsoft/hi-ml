@@ -183,6 +183,7 @@ class DeepMILPlotsHandler:
         stage: str = '',
         class_names: Optional[Sequence[str]] = None,
         wsi_has_mask: bool = True,
+        backend: str = "cuCIM",
     ) -> None:
         """Class that handles the plotting of DeepMIL results.
 
@@ -195,6 +196,8 @@ class DeepMILPlotsHandler:
         :param stage: Test or Validation, used to name the plots
         :param class_names: List of class names, defaults to None
         :param slides_dataset: The slides dataset from where to load the whole slide images, defaults to None
+        :param wsi_has_mask: Whether the whole slide images have a mask, defaults to True
+        :param backend: The backend to use for loading the whole slide images, defaults to "cuCIM"
         """
         self.plot_options = plot_options
         self.class_names = validate_class_names_for_plot_options(class_names, plot_options)
@@ -204,6 +207,7 @@ class DeepMILPlotsHandler:
         self.figsize = figsize
         self.stage = stage
         self.wsi_has_mask = wsi_has_mask
+        self.backend = backend
         self.slides_dataset: Optional[SlidesDataset] = None
 
     def get_slide_dict(self, slide_node: SlideNode) -> SlideDictType:
@@ -212,7 +216,8 @@ class DeepMILPlotsHandler:
         slide_index = self.slides_dataset.dataset_df.index.get_loc(slide_node.slide_id)
         assert isinstance(slide_index, int), f"Got non-unique slide ID: {slide_node.slide_id}"
         slide_dict = self.slides_dataset[slide_index]
-        slide_dict = load_image_dict(slide_dict, level=self.level, margin=0, wsi_has_mask=self.wsi_has_mask)
+        slide_dict = load_image_dict(slide_dict, level=self.level, margin=0, wsi_has_mask=self.wsi_has_mask,
+                                     backend=self.backend)
         return slide_dict
 
     def save_slide_node_figures(
