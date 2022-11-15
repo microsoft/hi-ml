@@ -124,7 +124,6 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             # declared in BaseMILSlides:
             level=1,
             tile_size=224,
-            random_offset=True,
             background_val=255,
             azure_datasets=[PANDA_DATASET_ID],)
         default_kwargs.update(kwargs)
@@ -144,9 +143,9 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             root_path=self.local_datasets[0],
             batch_size=self.batch_size,
             batch_size_inf=self.batch_size_inf,
-            level=self.level,
             max_bag_size=self.max_bag_size,
             max_bag_size_inf=self.max_bag_size_inf,
+            level=self.level,
             tiling_params=create_from_matching_params(self, TilingParams),
             seed=self.get_effective_random_seed(),
             transforms_dict=self.get_transforms_dict(PandaDataset.IMAGE_COLUMN),

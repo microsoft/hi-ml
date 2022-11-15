@@ -9,6 +9,7 @@ from torch import optim
 from monai.transforms import Compose, ScaleIntensityRanged, RandRotate90d, RandFlipd
 from health_cpath.configs.run_ids import innereye_ssl_checkpoint_binary
 from health_azure.utils import create_from_matching_params
+from health_cpath.utils.wsi_utils import TilingParams
 from health_ml.networks.layers.attention_layers import (
     TransformerPooling,
     TransformerPoolingBenchmark
@@ -107,13 +108,8 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             max_bag_size=self.max_bag_size,
             max_bag_size_inf=self.max_bag_size_inf,
             level=self.level,
-            tile_size=self.tile_size,
-            step=self.step,
-            random_offset=self.random_offset,
+            tiling_params=create_from_matching_params(self, TilingParams),
             seed=self.get_effective_random_seed(),
-            pad_full=self.pad_full,
-            background_val=self.background_val,
-            filter_mode=self.filter_mode,
             transforms_dict=self.get_transforms_dict(PandaDataset.IMAGE_COLUMN),
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,

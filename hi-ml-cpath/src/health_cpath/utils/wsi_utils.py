@@ -46,12 +46,11 @@ class TilingParams(param.Parameterized):
             "lowest values (`'min'`) that assumes background is high values, or in their default order (`None`). ")
     tile_pad_mode: Optional[str] = param.String(
         default=None,
-        doc="The mode of padding, defaults. Refer to NumpyPadMode and PytorchPadMode. "
-            "Defaults to None, no padding will be applied.")
+        doc="The mode of padding, refer to NumpyPadMode and PytorchPadMode. Defaults to None, for no padding.")
     intensity_threshold: Optional[float] = param.Number(
         default=None,
         doc="The intensity threshold to filter out tiles based on intensity values. Default to None.")
-    background_intensity: int = param.Integer(
+    background_val: int = param.Integer(
         default=255,
         doc="The intensity value of background. Default to 255.")
     rand_min_offset: int = param.Integer(
@@ -76,8 +75,8 @@ class TilingParams(param.Parameterized):
                 overlap=self.tile_overlap,
                 sort_fn=self.tile_sort_fn,
                 threshold=self.intensity_threshold,
-                pad_mode=self.tile_pad_mode,
-                constant_values=self.background_intensity,  # arg passed to np.pad or torch.pad
+                pad_mode=self.tile_pad_mode,  # type: ignore
+                constant_values=self.background_val,  # this arg is passed to np.pad or torch.pad
             )
         else:
             return GridPatchd(
@@ -87,6 +86,6 @@ class TilingParams(param.Parameterized):
                 overlap=self.tile_overlap,
                 sort_fn=self.tile_sort_fn,
                 threshold=self.intensity_threshold,
-                pad_mode=self.tile_pad_mode,
-                constant_values=self.background_intensity,  # arg passed to np.pad or torch.pad
+                pad_mode=self.tile_pad_mode,  # type: ignore
+                constant_values=self.background_val,  # this arg is passed to np.pad or torch.pad
             )
