@@ -6,12 +6,10 @@ import logging
 from argparse import Namespace
 from typing import Any, Dict, Iterable, List, Optional, Union
 
-import mlflow
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import LightningLoggerBase, MLFlowLogger
 from pytorch_lightning.utilities.logger import _convert_params, _flatten_dict
 from pytorch_lightning.utilities.rank_zero import rank_zero_only, rank_zero_warn
-
 from health_ml.utils.type_annotations import DictStrFloat, DictStrFloatOrFloatList
 
 
@@ -127,7 +125,7 @@ class HimlMLFlowLogger(MLFlowLogger):
 
         :param params: The original hyperparameters to be logged.
         """
-        run = mlflow.get_run(self.run_id)
+        run = self._mlflow_client.get_run(self.run_id)
         existing_hyperparams = run.data.params
 
         params = _convert_params(params)
