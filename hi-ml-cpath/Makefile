@@ -164,7 +164,7 @@ define AML_ONE_DEVICE_ARGS
 endef
 
 define AML_MULTIPLE_DEVICE_ARGS
---cluster=dedicated-nc24s-v2 --wait_for_completion --strictly_aml_v1=True
+--cluster=dedicated-nc24s-v2 --wait_for_completion
 endef
 
 define DEEPSMILEDEFAULT_SMOKE_TEST_ARGS
