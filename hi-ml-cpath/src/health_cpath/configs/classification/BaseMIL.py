@@ -80,6 +80,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams
     wsi_has_mask: bool = param.Boolean(default=True,
                                        doc="Whether the WSI has a mask. If True, will use the mask to load a specific"
                                            "region of the WSI. If False, will load the whole WSI.")
+    wsi_backend: str = param.String(default="cuCIM", doc="The backend to use for loading WSI. ")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -153,6 +154,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams
             val_plot_options=self.get_val_plot_options(),
             test_plot_options=self.get_test_plot_options(),
             wsi_has_mask=self.wsi_has_mask,
+            backend=self.wsi_backend,
             val_set_is_dist=self.pl_replace_sampler_ddp and self.max_num_gpus > 1,
         )
         if self.num_top_slides > 0:
