@@ -278,11 +278,11 @@ class BaseMILTiles(BaseMIL):
         if self.is_caching:
             encoder = create_from_matching_params(self, EncoderParams).get_encoder(self.outputs_folder)
             transform = Compose([
-                LoadTilesBatchd(image_key, progress=True),
+                LoadTilesBatchd(image_key, progress=False),
                 EncodeTilesBatchd(image_key, encoder, chunk_size=self.encoding_chunk_size)  # type: ignore
             ])
         else:
-            transform = LoadTilesBatchd(image_key, progress=True)  # type: ignore
+            transform = LoadTilesBatchd(image_key, progress=False)  # type: ignore
         # in case the transformations for training contain augmentations, val and test transform will be different
         return {ModelKey.TRAIN: transform, ModelKey.VAL: transform, ModelKey.TEST: transform}
 
