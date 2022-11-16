@@ -222,7 +222,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams
         # to avoid division by zero error when computing `workers_per_gpu`
         workers_per_gpu = num_cpus // (num_devices or 1)
         workers_per_gpu = min(self.max_num_workers, workers_per_gpu)
-        print(f"Using {workers_per_gpu} data loader worker processes per GPU")
+        logging.info(f"Using {workers_per_gpu} data loader worker processes per GPU")
         dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
         return dataloader_kwargs
 

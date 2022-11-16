@@ -132,9 +132,9 @@ class ExperimentFolderHandler(Parameterized):
                 outputs_folder = snapshot_dir / DEFAULT_AML_UPLOAD_DIR
                 logs_folder = snapshot_dir / DEFAULT_LOGS_DIR_NAME
 
-        print(f"Run outputs folder: {outputs_folder}")
-        print(f"Logs folder: {logs_folder}")
-        print(f"Run root directory: {run_folder}")
+        logging.info(f"Run outputs folder: {outputs_folder}")
+        logging.info(f"Logs folder: {logs_folder}")
+        logging.info(f"Run root directory: {run_folder}")
         return ExperimentFolderHandler(
             outputs_folder=outputs_folder,
             logs_folder=logs_folder,
