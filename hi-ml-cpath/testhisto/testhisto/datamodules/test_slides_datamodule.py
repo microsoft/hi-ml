@@ -12,6 +12,7 @@ from pathlib import Path
 from monai.transforms import RandFlipd
 from typing import Generator, Dict, Callable, Union, Tuple
 from torch.utils.data import DataLoader
+from health_cpath.utils.wsi_utils import TilingParams
 
 from health_ml.utils.common_utils import is_gpu_available
 from health_cpath.datamodules.base_module import SlidesDataModule
@@ -94,7 +95,7 @@ def test_tiling_on_the_fly(mock_panda_slides_root_dir_diagonal: Path) -> None:
         root_path=mock_panda_slides_root_dir_diagonal,
         batch_size=batch_size,
         max_bag_size=tile_count,
-        tile_size=tile_size,
+        tiling_params=TilingParams(tile_size=28),
         level=level,
     )
     dataloader = datamodule.train_dataloader()
@@ -115,7 +116,6 @@ def test_tiling_on_the_fly(mock_panda_slides_root_dir_diagonal: Path) -> None:
 def test_tiling_without_fixed_tile_count(mock_panda_slides_root_dir_diagonal: Path) -> None:
     batch_size = 1
     tile_count = None
-    tile_size = 28
     level = 0
     assert_batch_index = 0
     min_expected_tile_count = 16
@@ -123,7 +123,7 @@ def test_tiling_without_fixed_tile_count(mock_panda_slides_root_dir_diagonal: Pa
         root_path=mock_panda_slides_root_dir_diagonal,
         batch_size=batch_size,
         max_bag_size=tile_count,
-        tile_size=tile_size,
+        tiling_params=TilingParams(tile_size=28),
         level=level,
     )
     dataloader = datamodule.train_dataloader()
@@ -145,7 +145,7 @@ def test_multi_resolution_tiling(level: int, mock_panda_slides_root_dir_diagonal
         root_path=mock_panda_slides_root_dir_diagonal,
         batch_size=batch_size,
         max_bag_size=tile_count,
-        tile_size=tile_size,
+        tiling_params=TilingParams(tile_size=28),
         level=level,
     )
     dataloader = datamodule.train_dataloader()
@@ -165,7 +165,6 @@ def test_multi_resolution_tiling(level: int, mock_panda_slides_root_dir_diagonal
 @pytest.mark.gpu
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_overlapping_tiles(batch_size: int, mock_panda_slides_root_dir_diagonal: Path) -> None:
-    tile_size = 28
     level = 0
     step = 14
     expected_tile_matches = 16
@@ -175,7 +174,7 @@ def test_overlapping_tiles(batch_size: int, mock_panda_slides_root_dir_diagonal:
         root_path=mock_panda_slides_root_dir_diagonal,
         max_bag_size=None,
         batch_size=batch_size,
-        tile_size=tile_size,
+        tiling_params=TilingParams(tile_size=28),
         step=step,
         level=level
     )
@@ -208,14 +207,13 @@ def test_train_test_transforms(mock_panda_slides_root_dir_diagonal: Path) -> Non
 
     batch_size = 1
     tile_count = 4
-    tile_size = 28
     level = 0
     flipdatamodule = PandaSlidesDataModule(
         root_path=mock_panda_slides_root_dir_diagonal,
         batch_size=batch_size,
         max_bag_size=tile_count,
         max_bag_size_inf=0,
-        tile_size=tile_size,
+        tiling_params=TilingParams(tile_size=28),
         level=level,
         transforms_dict=get_transforms_dict(),
     )
@@ -259,7 +257,6 @@ class MockPandaSlidesDataModule(SlidesDataModule):
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_whole_slide_inference(batch_size: int, mock_panda_slides_root_with_different_n_tiles: Path) -> None:
     tile_count = 2
-    tile_size = 28
     level = 0
     assert_batch_index = 0
     n_tiles_list = [4, 5, 6, 7, 8, 9]
@@ -269,7 +266,7 @@ def test_whole_slide_inference(batch_size: int, mock_panda_slides_root_with_diff
         batch_size=batch_size,
         max_bag_size=tile_count,
         max_bag_size_inf=0,
-        tile_size=tile_size,
+        tiling_params=TilingParams(tile_size=28),
         level=level,
     )
     train_dataloader = datamodule.train_dataloader()

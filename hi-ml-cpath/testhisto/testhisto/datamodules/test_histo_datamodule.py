@@ -12,6 +12,7 @@ from torch.utils.data import DataLoader, DistributedSampler, RandomSampler, Sequ
 from health_cpath.datamodules.base_module import HistoDataModule
 from health_cpath.datamodules.panda_module import PandaSlidesDataModule, PandaTilesDataModule
 from health_cpath.utils.naming import ModelKey, SlideKey
+from health_cpath.utils.wsi_utils import TilingParams
 from health_ml.utils.common_utils import is_gpu_available
 from testhisto.utils.utils_testhisto import run_distributed
 
@@ -62,7 +63,7 @@ def test_slides_datamodule_different_bag_sizes(
         batch_size=2,
         max_bag_size=max_bag_size,
         max_bag_size_inf=max_bag_size_inf,
-        tile_size=28,
+        tiling_params=TilingParams(tile_size=28),
         level=0,
     )
     # To account for the fact that slides datamodule fomats 0 to None so that it's compatible with TileOnGrid transform
@@ -98,7 +99,7 @@ def test_slides_datamodule_different_batch_sizes(
         batch_size_inf=batch_size_inf,
         max_bag_size=16,
         max_bag_size_inf=16,
-        tile_size=28,
+        tiling_params=TilingParams(tile_size=28),
         level=0,
     )
     _assert_correct_batch_sizes(datamodule, batch_size, batch_size_inf)
