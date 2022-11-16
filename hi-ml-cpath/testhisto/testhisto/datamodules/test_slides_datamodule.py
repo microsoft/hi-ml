@@ -145,7 +145,7 @@ def test_multi_resolution_tiling(level: int, mock_panda_slides_root_dir_diagonal
         root_path=mock_panda_slides_root_dir_diagonal,
         batch_size=batch_size,
         max_bag_size=tile_count,
-        tiling_params=TilingParams(tile_size=28),
+        tiling_params=TilingParams(tile_size=tile_size),
         level=level,
     )
     dataloader = datamodule.train_dataloader()
@@ -166,7 +166,7 @@ def test_multi_resolution_tiling(level: int, mock_panda_slides_root_dir_diagonal
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_overlapping_tiles(batch_size: int, mock_panda_slides_root_dir_diagonal: Path) -> None:
     level = 0
-    step = 14
+    overlap = .5
     expected_tile_matches = 16
     min_expected_tile_count = 32
     assert_batch_index = 0
@@ -174,8 +174,7 @@ def test_overlapping_tiles(batch_size: int, mock_panda_slides_root_dir_diagonal:
         root_path=mock_panda_slides_root_dir_diagonal,
         max_bag_size=None,
         batch_size=batch_size,
-        tiling_params=TilingParams(tile_size=28),
-        step=step,
+        tiling_params=TilingParams(tile_size=28, tile_overlap=overlap),
         level=level
     )
     dataloader = datamodule.train_dataloader()

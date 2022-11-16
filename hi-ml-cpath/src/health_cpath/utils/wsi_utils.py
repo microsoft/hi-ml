@@ -14,7 +14,7 @@ def image_collate(batch: List) -> Any:
         Combine instances from a list of dicts into a single dict, by stacking them along first dim
         [{'image' : 3xHxW}, {'image' : 3xHxW}, {'image' : 3xHxW}...] - > {'image' : Nx3xHxW}
         followed by the default collate which will form a batch BxNx3xHxW.
-        The list of dicts refers to the the list of tiles produced by the TileOnGridd transform applied on a WSI.
+        The list of dicts refers to the the list of tiles produced by the Rand/GridPatchd transform applied on a WSI.
     """
 
     for i, item in enumerate(batch):
@@ -47,8 +47,8 @@ class TilingParams(param.Parameterized):
     tile_pad_mode: Optional[str] = param.String(
         default=None,
         doc="The mode of padding, refer to NumpyPadMode and PytorchPadMode. Defaults to None, for no padding.")
-    intensity_threshold: Optional[float] = param.Number(
-        default=None,
+    intensity_threshold: float = param.Number(
+        default=255.,
         doc="The intensity threshold to filter out tiles based on intensity values. Default to None.")
     background_val: int = param.Integer(
         default=255,
@@ -57,12 +57,21 @@ class TilingParams(param.Parameterized):
         default=0,
         bounds=(0, None),
         doc="The minimum range of sarting position to be selected randomly. This parameter is passed to RandGridPatchd."
-            "the random version of GridPatchd used at training time. Default to 0.")
+            "the random version of RandGridPatchd used at training time. Default to 0.")
     rand_max_offset: int = param.Integer(
         default=None,
         bounds=(0, None),
         doc="The maximum range of sarting position to be selected randomly. This parameter is passed to RandGridPatchd."
-            "the random version of GridPatchd used at training time. Default to None.")
+            "the random version of RandGridPatchd used at training time. Default to None.")
+    inf_offset: Optional[int] = param.Integer(
+        default=None,
+        doc="The offset to be used for inference sampling. This parameter is passed to GridPatchd. Default to None.")
+
+    @property
+    def scaled_threshold(self) -> float:
+        """Returns the threshold to be used for filtering out tiles based on intensity values. We need to multiply
+        the threshold by the tile size to account for the fact that the intensity is computed on the entire tile"""
+        return 0.999 * 3 * self.intensity_threshold * self.tile_size * self.tile_size
 
     def get_tiling_transform(self, bag_size: int, stage: ModelKey,) -> Callable:
         if stage == ModelKey.TRAIN:
@@ -74,7 +83,7 @@ class TilingParams(param.Parameterized):
                 num_patches=bag_size,
                 overlap=self.tile_overlap,
                 sort_fn=self.tile_sort_fn,
-                threshold=self.intensity_threshold,
+                threshold=self.scaled_threshold,
                 pad_mode=self.tile_pad_mode,  # type: ignore
                 constant_values=self.background_val,  # this arg is passed to np.pad or torch.pad
             )
@@ -82,10 +91,11 @@ class TilingParams(param.Parameterized):
             return GridPatchd(
                 keys=[SlideKey.IMAGE],
                 patch_size=(self.tile_size, self.tile_size),
+                offset=self.inf_offset,  # type: ignore
                 num_patches=bag_size,
                 overlap=self.tile_overlap,
                 sort_fn=self.tile_sort_fn,
-                threshold=self.intensity_threshold,
+                threshold=self.scaled_threshold,
                 pad_mode=self.tile_pad_mode,  # type: ignore
                 constant_values=self.background_val,  # this arg is passed to np.pad or torch.pad
             )

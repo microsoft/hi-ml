@@ -63,12 +63,12 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         :param batch_size_inf: Number of slides to load per batch during inference. If None, use batch_size.
         :param max_bag_size: Upper bound on number of tiles in each loaded bag during training stage. If 0 (default),
         will return all samples in each bag. If > 0 , bags larger than `max_bag_size` will yield
-        random subsets of instances. For SlideDataModule, this parameter is used in TileOnGridd Transform to set the
-        tile_count used for tiling on the fly at training time.
+        random subsets of instances. For SlideDataModule, this parameter is used in Rand/GridPatchd Transform to set the
+        num_patches used for tiling on the fly at training time.
         :param max_bag_size_inf: Upper bound on number of tiles in each loaded bag during validation and test stages.
         If 0 (default), will return all samples in each bag. If > 0 , bags larger than `max_bag_size_inf` will yield
-        random subsets of instances. For SlideDataModule, this parameter is used in TileOnGridd Transform to set the
-        tile_count used for tiling on the fly at validation and test time.
+        random subsets of instances. For SlideDataModule, this parameter is used in Rand/GridPatchd Transform to set the
+        num_patches used for tiling on the fly at validation and test time.
         :param seed: pseudorandom number generator seed to use for shuffling instances and bags. Note that randomness in
         train/val/test splits is handled independently in `get_splits()`. (default: `None`)
         :param transforms_dict: A dictionary that contains transform, or a composition of transforms using
