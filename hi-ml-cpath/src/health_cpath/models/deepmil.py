@@ -102,7 +102,6 @@ class BaseDeepMILModule(LightningModule):
         self.train_metrics = self.get_metrics()
         self.val_metrics = self.get_metrics()
         self.test_metrics = self.get_metrics()
-        self.extra_val_metrics = self.get_metrics()
 
     @staticmethod
     def copy_weights(
@@ -202,9 +201,9 @@ class BaseDeepMILModule(LightningModule):
                 MetricsKey.RECALL: BinaryRecall(),
                 MetricsKey.SPECIFICITY: BinarySpecificity()})
 
-    def get_extra_prefix(self, stage: str = ModelKey.VAL) -> str:
+    def get_extra_prefix(self) -> str:
         """Get extra prefix for the metrics name to avoir overriding best validation metrics."""
-        return EXTRA_PREFIX if self._on_extra_val_epoch and stage == ModelKey.VAL else ""
+        return EXTRA_PREFIX if self._on_extra_val_epoch else ""
 
     def log_metrics(self, stage: str, prefix: str = '') -> None:
         valid_stages = set([stage for stage in ModelKey])
@@ -259,7 +258,7 @@ class BaseDeepMILModule(LightningModule):
                           betas=self.optimizer_params.adam_betas)
 
     def get_metrics_dict(self, stage: str) -> nn.ModuleDict:
-        return getattr(self, f'{self.get_extra_prefix(stage)}{stage}_metrics')
+        return getattr(self, f'{stage}_metrics')
 
     def compute_bag_labels_logits_and_attn_maps(self, batch: Dict) -> Tuple[Tensor, Tensor, List]:
         # The batch dict contains lists of tensors of different sizes, for all bags in the batch.
