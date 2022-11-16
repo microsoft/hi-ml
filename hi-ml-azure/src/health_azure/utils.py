@@ -13,6 +13,7 @@ import re
 import shutil
 import sys
 import tempfile
+import time
 from argparse import (_UNRECOGNIZED_ARGS_ATTR, OPTIONAL, SUPPRESS, ArgumentDefaultsHelpFormatter, ArgumentError,
                       ArgumentParser, Namespace)
 from collections import defaultdict
@@ -110,6 +111,15 @@ V2_INPUT_DATASET_PATTERN = r"--INPUT_\d[=| ]"
 V2_OUTPUT_DATASET_PATTERN = r"--OUTPUT_\d[=| ]"
 
 PathOrString = Union[Path, str]
+# An AML v1 Run or an AML v2 Job
+RunOrJob = Union[Run, Job]
+
+
+class RunStatusV2:
+    """String constants for the status of an AML v2 Job"""
+    Completed = "Completed"
+    Failed = "Failed"
+    Canceled = "Canceled"
 
 
 class IntTuple(param.NumericTuple):
@@ -1313,6 +1323,27 @@ def is_run_and_child_runs_completed(run: Run) -> bool:
     runs = list(run.get_children())
     runs.append(run)
     return all(is_completed(run) for run in runs)
+
+
+def is_job_completed(job: Job) -> bool:
+    """Checks if the given AzureML v2 Job completed successfully.
+
+    :return: True if the job completed successfully, False for failures, job still running, etc."""
+    return job.status == "Completed"
+
+
+def wait_for_job_completion(job: Job) -> None:
+    """Wait until the job is completed or failed with an error. If the job did not complete successfully, a
+    ValueError is raised.
+
+    :param job: The job to wait for.
+    :raises ValueError: If the job did not complete successfully (any status other than Completed)
+    """
+    completed_states = {RunStatusV2.Completed, RunStatusV2.Failed, RunStatusV2.Canceled}
+    while job.status not in completed_states:
+        time.sleep(30)
+    if not is_job_completed(job):
+        raise ValueError(f"Job {job.name} jobs failed with status {job.status}.")
 
 
 def get_most_recent_run_id(run_recovery_file: Path) -> str:

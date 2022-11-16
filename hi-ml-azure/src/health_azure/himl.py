@@ -40,7 +40,7 @@ from health_azure.utils import (create_python_environment, create_run_recovery_i
                                 run_duration_string_to_seconds, to_azure_friendly_string, RUN_CONTEXT, get_workspace,
                                 PathOrString, DEFAULT_ENVIRONMENT_VARIABLES, get_ml_client,
                                 create_python_environment_v2, register_environment_v2, V2_INPUT_DATASET_PATTERN,
-                                V2_OUTPUT_DATASET_PATTERN)
+                                V2_OUTPUT_DATASET_PATTERN, wait_for_job_completion)
 from health_azure.datasets import (DatasetConfig, StrOrDatasetConfig, setup_local_datasets,
                                    _input_dataset_key, _output_dataset_key, _replace_string_datasets)
 
@@ -56,6 +56,9 @@ OUTPUT_FOLDER = "outputs"
 RUN_RECOVERY_FILE = "most_recent_run.txt"
 SDK_NAME = "innereye"
 SDK_VERSION = "2.0"
+
+DEFAULT_DOCKER_BASE_IMAGE = "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04"
+DEFAULT_DOCKER_SHM_SIZE = "100g"
 
 # hyperparameter search args
 PARAM_SAMPLING_ARG = "parameter_sampling"
@@ -562,6 +565,10 @@ def submit_run_v2(workspace: Optional[Workspace],
 
     returned_job = ml_client.jobs.create_or_update(job_to_submit)
     logging.info(f"URL to job: {returned_job.services['Studio'].endpoint}")  # type: ignore
+    if wait_for_completion:
+        print("Waiting for the completion of the AzureML job.")
+        wait_for_job_completion(returned_job)
+        print("AzureML job completed.")
     return returned_job
 
 
@@ -712,8 +719,8 @@ def submit_to_azure_if_needed(  # type: ignore
         environment_variables: Optional[Dict[str, str]] = None,
         pip_extra_index_url: str = "",
         private_pip_wheel_path: Optional[PathOrString] = None,
-        docker_base_image: str = "",
-        docker_shm_size: str = "",
+        docker_base_image: str = DEFAULT_DOCKER_BASE_IMAGE,
+        docker_shm_size: str = DEFAULT_DOCKER_SHM_SIZE,
         ignored_folders: Optional[List[PathOrString]] = None,
         default_datastore: str = "",
         input_datasets: Optional[List[StrOrDatasetConfig]] = None,
@@ -762,7 +769,10 @@ def submit_to_azure_if_needed(  # type: ignore
         default) these will be copied over from sys.argv, omitting the --azureml flag.
     :param environment_variables: The environment variables that should be set when running in AzureML.
     :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
+        The list of available images can be found here: https://github.com/Azure/AzureML-Containers
+        The default image is `mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04`
     :param docker_shm_size: The Docker shared memory size that should be used when creating a new Docker image.
+        Default value is '100g'.
     :param pip_extra_index_url: If provided, use this PIP package index to find additional packages when building
         the Docker image.
     :param private_pip_wheel_path: If provided, add this wheel as a private package to the AzureML workspace.
@@ -848,6 +858,9 @@ def submit_to_azure_if_needed(  # type: ignore
 
     if conda_environment_file is None:
         conda_environment_file = find_file_in_parent_to_pythonpath(CONDA_ENVIRONMENT_FILE)
+        if conda_environment_file is None:
+            raise ValueError(f"No conda environment file {CONDA_ENVIRONMENT_FILE} found in {Path.cwd()} "
+                             "or any parent directory.")
         print(f"Using the Conda environment from this file: {conda_environment_file}")
     conda_environment_file = _str_to_path(conda_environment_file)
 
@@ -921,7 +934,7 @@ def submit_to_azure_if_needed(  # type: ignore
                                 hyperparam_args=hyperparam_args
                                 )
 
-    if after_submission is not None and strictly_aml_v1:
+    if after_submission is not None:
         after_submission(run)
     exit(0)
 

@@ -31,7 +31,7 @@ for folder in folders_to_add:
     add_to_sys_path(folder)
 
 from health_azure import submit_to_azure_if_needed  # noqa: E402
-from health_azure.himl import OUTPUT_FOLDER  # noqa: E402
+from health_azure.himl import DEFAULT_DOCKER_BASE_IMAGE, OUTPUT_FOLDER  # noqa: E402
 from health_azure.logging import logging_to_stdout  # noqa: E402
 from health_azure.paths import git_repo_root_folder  # noqa: E402
 from health_azure.utils import (  # noqa: E402
@@ -41,7 +41,7 @@ from health_azure.utils import (  # noqa: E402
     is_running_in_azure_ml,
     parse_arguments,
 )
-from health_ml.utils.common_utils import DEFAULT_AML_UPLOAD_DIR, DEFAULT_DOCKER_BASE_IMAGE  # noqa: E402
+from health_ml.utils.common_utils import DEFAULT_AML_UPLOAD_DIR  # noqa: E402
 
 PYTEST_RESULTS_FILE = "pytest_results.xml"
 PYTEST_GPU_COVERAGE_FILE = "pytest_gpu_coverage.xml"
