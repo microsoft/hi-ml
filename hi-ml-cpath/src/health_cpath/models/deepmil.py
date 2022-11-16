@@ -8,9 +8,10 @@ from pytorch_lightning.utilities.rank_zero import rank_zero_warn
 from pathlib import Path
 from pytorch_lightning import LightningModule
 from torch import Tensor, argmax, mode, nn, optim, round
-from torchmetrics import (AUROC, F1Score, Accuracy, ConfusionMatrix, Precision,
-                          Recall, CohenKappa, AveragePrecision, Specificity)
-
+from torchmetrics.classification import (MulticlassAUROC, MulticlassAccuracy, MulticlassConfusionMatrix,
+                                         MulticlassCohenKappa, MulticlassAveragePrecision, BinaryConfusionMatrix,
+                                         BinaryAccuracy, BinaryPrecision, BinaryRecall, BinaryF1Score, BinaryCohenKappa,
+                                         BinaryAUROC, BinarySpecificity, BinaryAveragePrecision)
 from health_ml.utils import log_on_epoch
 from health_ml.deep_learning_config import OptimizerParams
 from health_cpath.models.encoders import IdentityEncoder
@@ -98,9 +99,11 @@ class BaseDeepMILModule(LightningModule):
         self.analyse_loss = analyse_loss
 
         # Metrics Objects
-        self.train_metrics = self.get_metrics()
-        self.val_metrics = self.get_metrics()
-        self.test_metrics = self.get_metrics()
+        self.train_metrics = self.get_metrics(sync_on_compute=True)
+        self.val_metrics = self.get_metrics(sync_on_compute=True)
+        # Extra validation epoch and test run on a single GPU
+        self.test_metrics = self.get_metrics(sync_on_compute=False)
+        self.extra_val_metrics = self.get_metrics(sync_on_compute=False)
 
     @staticmethod
     def copy_weights(
@@ -172,37 +175,47 @@ class BaseDeepMILModule(LightningModule):
     def get_bag_label(labels: Tensor) -> Tensor:
         raise NotImplementedError
 
-    def get_metrics(self) -> nn.ModuleDict:
+    def get_metrics(self, sync_on_compute: bool = True) -> nn.ModuleDict:
+        """Get metrics for training, validation and test stages.
+
+        :param sync_on_compute: _description_, defaults to True
+        :return:
+        """
         if self.n_classes > 1:
             return nn.ModuleDict({
-                MetricsKey.ACC: Accuracy(num_classes=self.n_classes),
-                MetricsKey.AUROC: AUROC(num_classes=self.n_classes),
-                MetricsKey.AVERAGE_PRECISION: AveragePrecision(num_classes=self.n_classes),
+                MetricsKey.ACC: MulticlassAccuracy(num_classes=self.n_classes, sync_on_compute=sync_on_compute),
+                MetricsKey.AUROC: MulticlassAUROC(num_classes=self.n_classes, sync_on_compute=sync_on_compute),
+                MetricsKey.AVERAGE_PRECISION: MulticlassAveragePrecision(num_classes=self.n_classes,
+                                                                         sync_on_compute=sync_on_compute),
                 # Quadratic Weighted Kappa (QWK) used in PANDA challenge
                 # is calculated using Cohen's Kappa with quadratic weights
                 # https://www.kaggle.com/code/reighns/understanding-the-quadratic-weighted-kappa/
-                MetricsKey.COHENKAPPA: CohenKappa(num_classes=self.n_classes, weights='quadratic'),
-                MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=self.n_classes),
+                MetricsKey.COHENKAPPA: MulticlassCohenKappa(num_classes=self.n_classes, weights='quadratic',
+                                                            sync_on_compute=sync_on_compute),
+                MetricsKey.CONF_MATRIX: MulticlassConfusionMatrix(num_classes=self.n_classes,
+                                                                  sync_on_compute=sync_on_compute),
                 # Metrics below are computed for multi-class case only
-                MetricsKey.ACC_MACRO: Accuracy(num_classes=self.n_classes, average='macro'),
-                MetricsKey.ACC_WEIGHTED: Accuracy(num_classes=self.n_classes, average='weighted')})
+                MetricsKey.ACC_MACRO: MulticlassAccuracy(num_classes=self.n_classes, average='macro',
+                                                         sync_on_compute=sync_on_compute),
+                MetricsKey.ACC_WEIGHTED: MulticlassAccuracy(num_classes=self.n_classes, average='weighted',
+                                                            sync_on_compute=sync_on_compute)})
         else:
             return nn.ModuleDict({
-                MetricsKey.ACC: Accuracy(),
-                MetricsKey.AUROC: AUROC(num_classes=None),
+                MetricsKey.ACC: BinaryAccuracy(sync_on_compute=sync_on_compute),
+                MetricsKey.AUROC: BinaryAUROC(sync_on_compute=sync_on_compute),
                 # Average precision is a measure of area under the PR curve
-                MetricsKey.AVERAGE_PRECISION: AveragePrecision(),
-                MetricsKey.COHENKAPPA: CohenKappa(num_classes=2, weights='quadratic'),
-                MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=2),
+                MetricsKey.AVERAGE_PRECISION: BinaryAveragePrecision(sync_on_compute=sync_on_compute),
+                MetricsKey.COHENKAPPA: BinaryCohenKappa(weights='quadratic', sync_on_compute=sync_on_compute),
+                MetricsKey.CONF_MATRIX: BinaryConfusionMatrix(sync_on_compute=sync_on_compute),
                 # Metrics below are computed for binary case only
-                MetricsKey.F1: F1Score(),
-                MetricsKey.PRECISION: Precision(),
-                MetricsKey.RECALL: Recall(),
-                MetricsKey.SPECIFICITY: Specificity()})
+                MetricsKey.F1: BinaryF1Score(sync_on_compute=sync_on_compute),
+                MetricsKey.PRECISION: BinaryPrecision(sync_on_compute=sync_on_compute),
+                MetricsKey.RECALL: BinaryRecall(sync_on_compute=sync_on_compute),
+                MetricsKey.SPECIFICITY: BinarySpecificity(sync_on_compute=sync_on_compute)})
 
-    def get_extra_prefix(self) -> str:
+    def get_extra_prefix(self, stage: str = ModelKey.VAL) -> str:
         """Get extra prefix for the metrics name to avoir overriding best validation metrics."""
-        return EXTRA_PREFIX if self._on_extra_val_epoch else ""
+        return EXTRA_PREFIX if self._on_extra_val_epoch and stage == ModelKey.VAL else ""
 
     def log_metrics(self, stage: str, prefix: str = '') -> None:
         valid_stages = set([stage for stage in ModelKey])
@@ -257,7 +270,7 @@ class BaseDeepMILModule(LightningModule):
                           betas=self.optimizer_params.adam_betas)
 
     def get_metrics_dict(self, stage: str) -> nn.ModuleDict:
-        return getattr(self, f'{stage}_metrics')
+        return getattr(self, f'{self.get_extra_prefix(stage)}_{stage}_metrics')
 
     def compute_bag_labels_logits_and_attn_maps(self, batch: Dict) -> Tuple[Tensor, Tensor, List]:
         # The batch dict contains lists of tensors of different sizes, for all bags in the batch.
