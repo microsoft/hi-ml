@@ -15,8 +15,6 @@ from azureml.core.run import _OfflineRun
 HIML_ROOT = Path(__file__).parent.parent.parent.parent.parent.absolute()
 health_ml_root = HIML_ROOT / "hi-ml" / "src"
 health_azure_root = HIML_ROOT / "hi-ml-azure" / "src"
-print(f"Inserting into sys path: {health_ml_root}")
-print(f"Inserting into sys path: {health_azure_root}")
 sys.path.insert(0, str(health_ml_root))
 sys.path.insert(0, str(health_azure_root))
 

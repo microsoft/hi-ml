@@ -374,19 +374,6 @@ def test_model_weights_when_resume_training() -> None:
             assert recovery_checkpoint == runner.checkpoint_handler.trained_weights_path
 
 
-def test_runner_end_to_end() -> None:
-    experiment_config = ExperimentConfig(model="HelloWorld")
-    container = HelloWorld()
-    container.max_num_gpus = 0
-    container.src_checkpoint = CheckpointParser(mock_run_id(id=0))
-    with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace:
-        mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
-        runner = MLRunner(experiment_config=experiment_config, container=container)
-        runner.setup()
-        runner.init_training()
-        runner.run_training()
-
-
 @pytest.mark.parametrize("log_from_vm", [True, False])
 def test_log_on_vm(log_from_vm: bool) -> None:
     """Test if the AzureML logger is called when the experiment is run outside AzureML."""
