@@ -43,7 +43,7 @@ dependencies:
   - libtasn1=4.16.0=h27cfd23_0
   - libtiff=4.4.0=hecacb30_1
   - libunistring=0.9.10=h27cfd23_0
-  - libuuid=1.0.3=h7f8727e_2
+  - libuuid=1.41.5=h5eee18b_0
   - libuv=1.40.0=h7b6447c_0
   - libvpx=1.7.0=h439df22_0
   - libwebp=1.2.4=h11a3e52_0
@@ -99,23 +99,23 @@ dependencies:
     - azure-identity==1.7.0
     - azure-mgmt-authorization==2.0.0
     - azure-mgmt-containerregistry==10.0.0
-    - azure-mgmt-core==1.3.1
-    - azure-mgmt-keyvault==10.0.0
+    - azure-mgmt-core==1.3.2
+    - azure-mgmt-keyvault==10.1.0
     - azure-mgmt-resource==21.2.1
-    - azure-mgmt-storage==20.0.0
+    - azure-mgmt-storage==20.1.0
     - azure-storage-blob==12.10.0
     - azure-storage-file-datalake==12.9.1
     - azure-storage-file-share==12.10.1
-    - azureml-core==1.43.0
-    - azureml-dataprep==4.0.4
+    - azureml-core==1.47.0
+    - azureml-dataprep==4.5.7
     - azureml-dataprep-native==38.0.0
-    - azureml-dataprep-rslex==2.6.3
-    - azureml-dataset-runtime==1.43.0
+    - azureml-dataprep-rslex==2.11.4
+    - azureml-dataset-runtime==1.47.0
     - azureml-mlflow==1.47.0
-    - azureml-telemetry==1.43.0
-    - azureml-tensorboard==1.43.0
-    - azureml-train-core==1.43.0
-    - azureml-train-restclients-hyperdrive==1.43.0
+    - azureml-telemetry==1.47.0
+    - azureml-tensorboard==1.47.0
+    - azureml-train-core==1.47.0
+    - azureml-train-restclients-hyperdrive==1.47.0
     - babel==2.11.0
     - backports-tempfile==1.0
     - backports-weakref==1.0.post1
@@ -142,7 +142,7 @@ dependencies:
     - diskcache==5.4.0
     - distlib==0.3.6
     - distro==1.8.0
-    - docker==5.0.3
+    - docker==6.0.1
     - docutils==0.16
     - dotnetcore2==3.1.23
     - entrypoints==0.4
@@ -150,7 +150,7 @@ dependencies:
     - flake8==4.0.1
     - flask==2.2.2
     - frozenlist==1.3.3
-    - fsspec==2022.10.0
+    - fsspec==2022.11.0
     - fusepy==3.0.1
     - girder-client==3.1.14
     - gitdb==4.0.9
@@ -177,33 +177,33 @@ dependencies:
     - jaraco-classes==3.2.3
     - jeepney==0.8.0
     - jinja2==3.0.2
-    - jmespath==1.0.0
+    - jmespath==1.0.1
     - joblib==1.2.0
     - jsonpickle==2.2.0
     - jsonschema==4.17.0
     - keyring==23.11.0
     - kiwisolver==1.4.4
-    - knack==0.9.0
+    - knack==0.10.0
     - lazy-object-proxy==1.8.0
     - lightning-bolts==0.4.0
     - llvmlite==0.39.1
     - lxml==4.9.1
-    - mako==1.2.3
+    - mako==1.2.4
     - markdown==2.6.8
     - markdown-it-py==1.1.0
     - markupsafe==2.1.1
-    - marshmallow==3.18.0
+    - marshmallow==3.19.0
     - marshmallow-enum==1.5.1
     - matplotlib==3.4.3
     - mccabe==0.6.1
     - mdit-py-plugins==0.2.8
-    - mlflow==1.30.0
-    - mlflow-skinny==1.30.0
+    - mlflow==2.0.1
+    - mlflow-skinny==2.0.1
     - monai==0.8.0
     - more-itertools==8.10.0
     - msal==1.20.0
     - msal-extensions==0.3.1
-    - msrest==0.6.21
+    - msrest==0.7.1
     - msrestazure==0.6.4
     - multidict==6.0.2
     - mypy==0.961
@@ -223,20 +223,18 @@ dependencies:
     - pandas==1.3.4
     - param==1.12.0
     - paramiko==2.12.0
-    - pathspec==0.10.1
+    - pathspec==0.10.2
     - pillow==9.0.1
     - pipdeptree==2.2.1
     - pkginfo==1.8.3
-    - platformdirs==2.5.3
+    - platformdirs==2.5.4
     - pluggy==0.13.1
     - portalocker==2.6.0
     - pre-commit==2.19.0
-    - prometheus-client==0.15.0
-    - prometheus-flask-exporter==0.20.3
     - protobuf==3.20.1
     - psutil==5.9.4
     - py==1.11.0
-    - pyarrow==3.0.0
+    - pyarrow==9.0.0
     - pyasn1==0.4.8
     - pyasn1-modules==0.2.8
     - pycobertura==2.0.1
@@ -279,7 +277,9 @@ dependencies:
     - seaborn==0.10.1
     - secretstorage==3.3.3
     - setuptools==59.5.0
+    - shap==0.41.0
     - simpleitk==2.1.1.2
+    - slicer==0.0.7
     - smmap==5.0.0
     - snowballstemmer==2.2.0
     - sphinx==4.1.2
@@ -292,7 +292,7 @@ dependencies:
     - sphinxcontrib-jsmath==1.0.1
     - sphinxcontrib-qthelp==1.0.3
     - sphinxcontrib-serializinghtml==1.1.5
-    - sqlalchemy==1.4.43
+    - sqlalchemy==1.4.44
     - sqlparse==0.4.3
     - strictyaml==1.6.2
     - stringcase==1.2.0
@@ -310,8 +310,8 @@ dependencies:
     - twine==3.3.0
     - typing-inspect==0.8.0
     - umap-learn==0.5.2
-    - urllib3==1.26.9
-    - virtualenv==20.16.6
+    - urllib3==1.26.12
+    - virtualenv==20.16.7
     - webencodings==0.5.1
     - websocket-client==1.4.2
     - werkzeug==2.2.2

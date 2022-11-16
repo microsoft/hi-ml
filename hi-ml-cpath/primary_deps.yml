@@ -24,10 +24,10 @@ dependencies:
       - rpdb==0.1.6
       - setuptools==59.5.0
       # Run requirements for hi-ml-azure
-      - azureml-core==1.43.0
-      - azureml-dataset-runtime[fuse]==1.43.0
-      - azureml-tensorboard==1.43.0
-      - azureml-train-core==1.43.0
+      - azureml-core==1.47.0
+      - azureml-dataset-runtime[fuse]==1.47.0
+      - azureml-tensorboard==1.47.0
+      - azureml-train-core==1.47.0
       - conda-merge==0.1.5
       - msal-extensions==0.3.1
       - param==1.12
@@ -41,8 +41,8 @@ dependencies:
       - -r requirements_build.txt
       # Pinned secondary dependencies to prevent clashes
       - attrs==21.4.0
-      - azure-mgmt-core==1.3.1
-      - azure-mgmt-keyvault==10.0.0
+      - azure-mgmt-core==1.3.2
+      - azure-mgmt-keyvault==10.1.0
       - cryptography>=38.0.3
       - cloudpickle==1.6.0
       - importlib-metadata==4.2.0
