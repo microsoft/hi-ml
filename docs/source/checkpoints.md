@@ -2,7 +2,7 @@
 
 Hi-ml toolbox offers different utilities to parse and download pretrained checkpoints that help you abstract checkpoint
 downloading from different sources. Refer to
-[CheckpointParser](https://github.com/microsoft/hi-ml/blob/main/hi-ml/src/health_ml/utils/checkpoint_utils.py#L238) for
+[CheckpointParser](https://github.com/microsoft/hi-ml/blob/c4e25b8a797cfee3822bda1e1c05e399667bf68e/hi-ml/src/health_ml/utils/checkpoint_utils.py#L238) for
 more details on the supported checkpoints format. Here's how you can use the checkpoint parser depending on the source:
 
 - For a local path, simply pass it as shown below. The parser will further check if the provided path exists:
@@ -54,8 +54,8 @@ N.B: config.json should correspond to the original workspace where the AML run l
 ## Use cases
 
 CheckpointParser is used to specify a `src_checkpoint` to [resume training from a given
-checkpoint](https://github.com/microsoft/hi-ml/blob/main/docs/source/runner.md#L238),
-or [run inference with a pretrained model](https://github.com/microsoft/hi-ml/blob/main/docs/source/runner.md#L215),
+checkpoint](https://github.com/microsoft/hi-ml/blob/c4e25b8a797cfee3822bda1e1c05e399667bf68e/docs/source/runner.md#L238),
+or [run inference with a pretrained model](https://github.com/microsoft/hi-ml/blob/c4e25b8a797cfee3822bda1e1c05e399667bf68e/docs/source/runner.md#L215),
 as well as
-[ssl_checkpoint](https://github.com/microsoft/hi-ml/blob/main/hi-ml-cpath/src/health_cpath/utils/deepmil_utils.py#L62)
+[ssl_checkpoint](https://github.com/microsoft/hi-ml/blob/c4e25b8a797cfee3822bda1e1c05e399667bf68e/hi-ml-cpath/src/health_cpath/utils/deepmil_utils.py#L62)
 for computation pathology self supervised pretrained encoders.
