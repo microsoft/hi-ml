@@ -2,10 +2,12 @@ import torch
 import pytest
 import numpy as np
 
+from health_cpath.utils.naming import ModelKey, SlideKey
+from health_cpath.utils.wsi_utils import TilingParams, image_collate
+from monai.data import MetaTensor
+from monai.transforms import RandGridPatchd, GridPatchd
 from typing import Any, Dict, List, Union
 from typing import Sequence
-from health_cpath.utils.naming import SlideKey
-from health_cpath.utils.wsi_utils import image_collate
 from torch.utils.data import Dataset
 
 
@@ -35,8 +37,10 @@ class MockTiledWSIDataset(Dataset):
         img: Union[np.ndarray, torch.Tensor]
         if self.img_type == "np":
             img = np.random.randint(0, 255, size=(tile_count, *self.tile_size))
-        else:
+        elif self.img_type == "torch":
             img = torch.randint(0, 255, size=(tile_count, *self.tile_size))
+        elif self.img_type == "metatensor":
+            img = MetaTensor(torch.randint(0, 255, size=(tile_count, *self.tile_size)))
         return [{SlideKey.SLIDE_ID: self.slide_ids[index],
                  SlideKey.IMAGE: img,
                  SlideKey.IMAGE_PATH: f"slide_{self.slide_ids[index]}.tiff",
@@ -45,7 +49,7 @@ class MockTiledWSIDataset(Dataset):
                 ]
 
 
-@pytest.mark.parametrize("img_type", ["np", "torch"])
+@pytest.mark.parametrize("img_type", ["np", "torch", "metatensor"])
 @pytest.mark.parametrize("random_n_tiles", [False, True])
 def test_image_collate(random_n_tiles: bool, img_type: str) -> None:
     # random_n_tiles accounts for both train and inference settings where the number of tiles is fixed (during
@@ -72,3 +76,11 @@ def test_image_collate(random_n_tiles: bool, img_type: str) -> None:
             assert all((value_list[idx] == samples_list[idx][key]) for idx in range(batch_size))
         else:
             assert all(torch.equal(value_list[idx], samples_list[idx][key]) for idx in range(batch_size))
+
+
+@pytest.mark.parametrize("stage", [m for m in ModelKey])
+def test_tiling_params(stage: ModelKey) -> None:
+    params = TilingParams()
+    expected_transform_type = RandGridPatchd if stage == ModelKey.TRAIN else GridPatchd
+    transform = params.get_tiling_transform(stage=stage, bag_size=10)
+    assert isinstance(transform, expected_transform_type)
