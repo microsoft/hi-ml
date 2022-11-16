@@ -33,14 +33,6 @@ from health_cpath.utils.naming import MetricsKey, PlotOption, SlideKey, ModelKey
 from health_cpath.utils.tiles_selection_utils import TilesSelector
 
 
-# Pytorch Lightning prints a warning if the batch size is not consistent across all batches. The way PL infers
-# the batch size is not compatible with our data loaders. It searches for the first item in the batch that is a
-# tensor and uses its size[0] as the batch size. However, in our case, the batch is a list of tensors, so it
-# thinks that the batch size is the bag_size which can be different for each WSI in the batch. This is why we
-# ignore this warning to avoid noisy logs.
-warnings.filterwarnings("ignore", ".*Trying to infer the `batch_size` from an ambiguous collection.*")
-
-
 class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams, LossCallbackParams):
     """BaseMIL is an abstract container defining basic functionality for running MIL experiments in both slides and
     tiles settings. It is responsible for instantiating the encoder and pooling layer. Subclasses should define the
@@ -101,6 +93,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams
             logging.info(
                 "Replacing sampler with `DistributedSampler` is disabled. Make sure to set your own DDP sampler"
             )
+        self.ignore_pl_warnings()
 
     def validate(self) -> None:
         super().validate()
@@ -250,6 +243,14 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams
 
     def get_slides_dataset(self) -> Optional[SlidesDataset]:
         return None
+
+    def ignore_pl_warnings(self) -> None:
+        # Pytorch Lightning prints a warning if the batch size is not consistent across all batches. The way PL infers
+        # the batch size is not compatible with our data loaders. It searches for the first item in the batch that is a
+        # tensor and uses its size[0] as the batch size. However, in our case, the batch is a list of tensors, so it
+        # thinks that the batch size is the bag_size which can be different for each WSI in the batch. This is why we
+        # ignore this warning to avoid noisy logs.
+        warnings.filterwarnings("ignore", ".*Trying to infer the `batch_size` from an ambiguous collection.*")
 
 
 class BaseMILTiles(BaseMIL):

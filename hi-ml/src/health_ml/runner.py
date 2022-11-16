@@ -32,7 +32,7 @@ from health_azure.amulet import prepare_amulet_job, is_amulet_job  # noqa: E402
 from health_azure.utils import (get_workspace, get_ml_client, is_local_rank_zero,  # noqa: E402
                                 is_running_in_azure_ml, set_environment_variables_for_multi_node,
                                 create_argparser, parse_arguments, ParserResult, apply_overrides,
-                                filter_v2_input_output_args)
+                                filter_v2_input_output_args, is_global_rank_zero)
 
 from health_ml.experiment_config import DEBUG_DDP_ENV_VAR, ExperimentConfig  # noqa: E402
 from health_ml.lightning_container import LightningContainer  # noqa: E402
@@ -354,7 +354,8 @@ def run(project_root: Path) -> Tuple[LightningContainer, AzureRunInfo]:
     :return: If submitting to AzureML, returns the model configuration that was used for training,
     including commandline overrides applied (if any). For details on the arguments, see the constructor of Runner.
     """
-    logging.info(f"project root: {project_root}")
+    if is_global_rank_zero():
+        print(f"project root: {project_root}")
     runner = Runner(project_root)
     return runner.run()
 

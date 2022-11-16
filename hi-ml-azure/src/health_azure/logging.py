@@ -8,7 +8,7 @@ import time
 from contextlib import contextmanager
 from typing import Generator, Optional, Union
 
-from health_azure.utils import check_is_any_of
+from health_azure.utils import check_is_any_of, is_global_rank_zero
 
 logging_stdout_handler: Optional[logging.StreamHandler] = None
 logging_to_file_handler: Optional[logging.StreamHandler] = None
@@ -29,14 +29,16 @@ def logging_to_stdout(log_level: Union[int, str] = logging.INFO) -> None:
     # logging lines.
     global logging_stdout_handler
     if not logging_stdout_handler:
-        logging.info("Setting up logging to stdout.")
+        if is_global_rank_zero():
+            print("Setting up logging to stdout.")
         # At startup, logging has one handler set, that writes to stderr, with a log level of 0 (logging.NOTSET)
         if len(logger.handlers) == 1:
             logger.removeHandler(logger.handlers[0])
         logging_stdout_handler = logging.StreamHandler(stream=sys.stdout)
         _add_formatter(logging_stdout_handler)
         logger.addHandler(logging_stdout_handler)
-    logging.info(f"Setting logging level to {log_level}")
+    if is_global_rank_zero():
+        print(f"Setting logging level to {log_level}")
     logging_stdout_handler.setLevel(log_level)
     logger.setLevel(log_level)
 
