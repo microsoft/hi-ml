@@ -4,8 +4,9 @@
 #  ------------------------------------------------------------------------------------------
 
 import os
-import logging
 import param
+import logging
+import warnings
 from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Union
 
 from pathlib import Path
@@ -92,6 +93,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams
             logging.info(
                 "Replacing sampler with `DistributedSampler` is disabled. Make sure to set your own DDP sampler"
             )
+        self.ignore_pl_warnings()
 
     def validate(self) -> None:
         super().validate()
@@ -222,7 +224,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams
         # to avoid division by zero error when computing `workers_per_gpu`
         workers_per_gpu = num_cpus // (num_devices or 1)
         workers_per_gpu = min(self.max_num_workers, workers_per_gpu)
-        print(f"Using {workers_per_gpu} data loader worker processes per GPU")
+        logging.info(f"Using {workers_per_gpu} data loader worker processes per GPU")
         dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
         return dataloader_kwargs
 
@@ -241,6 +243,14 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams
 
     def get_slides_dataset(self) -> Optional[SlidesDataset]:
         return None
+
+    def ignore_pl_warnings(self) -> None:
+        # Pytorch Lightning prints a warning if the batch size is not consistent across all batches. The way PL infers
+        # the batch size is not compatible with our data loaders. It searches for the first item in the batch that is a
+        # tensor and uses its size[0] as the batch size. However, in our case, the batch is a list of tensors, so it
+        # thinks that the batch size is the bag_size which can be different for each WSI in the batch. This is why we
+        # ignore this warning to avoid noisy logs.
+        warnings.filterwarnings("ignore", ".*Trying to infer the `batch_size` from an ambiguous collection.*")
 
 
 class BaseMILTiles(BaseMIL):
@@ -278,11 +288,11 @@ class BaseMILTiles(BaseMIL):
         if self.is_caching:
             encoder = create_from_matching_params(self, EncoderParams).get_encoder(self.outputs_folder)
             transform = Compose([
-                LoadTilesBatchd(image_key, progress=True),
+                LoadTilesBatchd(image_key, progress=False),
                 EncodeTilesBatchd(image_key, encoder, chunk_size=self.encoding_chunk_size)  # type: ignore
             ])
         else:
-            transform = LoadTilesBatchd(image_key, progress=True)  # type: ignore
+            transform = LoadTilesBatchd(image_key, progress=False)  # type: ignore
         # in case the transformations for training contain augmentations, val and test transform will be different
         return {ModelKey.TRAIN: transform, ModelKey.VAL: transform, ModelKey.TEST: transform}
 
