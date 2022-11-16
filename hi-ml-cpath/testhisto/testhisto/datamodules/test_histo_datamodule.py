@@ -66,8 +66,6 @@ def test_slides_datamodule_different_bag_sizes(
         tiling_params=TilingParams(tile_size=28),
         level=0,
     )
-    # To account for the fact that slides datamodule fomats 0 to None so that it's compatible with TileOnGrid transform
-    max_bag_size_inf = max_bag_size_inf if max_bag_size_inf != 0 else None  # type: ignore
     # For slides datamodule, the true bag sizes [4, 4] are the same as requested to TileOnGrid transform
     _assert_correct_bag_sizes(datamodule, max_bag_size, max_bag_size_inf, true_bag_sizes=[4, 4])
 
