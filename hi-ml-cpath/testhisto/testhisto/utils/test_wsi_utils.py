@@ -4,7 +4,7 @@ import numpy as np
 
 from health_cpath.utils.naming import ModelKey, SlideKey
 from health_cpath.utils.wsi_utils import TilingParams, image_collate
-from monai.data import MetaTensor
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import RandGridPatchd, GridPatchd
 from typing import Any, Dict, List, Union
 from typing import Sequence
