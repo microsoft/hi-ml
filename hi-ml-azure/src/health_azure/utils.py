@@ -115,7 +115,7 @@ PathOrString = Union[Path, str]
 RunOrJob = Union[Run, Job]
 
 
-class RunStatusV2:
+class JobStatus:
     """String constants for the status of an AML v2 Job"""
     Completed = "Completed"
     Failed = "Failed"
@@ -1332,18 +1332,24 @@ def is_job_completed(job: Job) -> bool:
     return job.status == "Completed"
 
 
-def wait_for_job_completion(job: Job) -> None:
-    """Wait until the job is completed or failed with an error. If the job did not complete successfully, a
-    ValueError is raised.
+def wait_for_job_completion(ml_client: MLClient, job_name: str) -> None:
+    """Wait until the job of the given ID is completed or failed with an error. If the job did not complete
+    successfully, a ValueError is raised.
 
-    :param job: The job to wait for.
+    :param ml_client: An MLClient object for the workspace where the job lives.
+    :param job_name: The name (id) of the job to wait for.
     :raises ValueError: If the job did not complete successfully (any status other than Completed)
     """
-    completed_states = {RunStatusV2.Completed, RunStatusV2.Failed, RunStatusV2.Canceled}
-    while job.status not in completed_states:
+    completed_states = {JobStatus.Completed, JobStatus.Failed, JobStatus.Canceled}
+    while True:
+        # Get the latest job status by reading the whole job info again via the MLClient
+        updated_job = ml_client.jobs.get(name=job_name)
+        job_status = updated_job.status
+        if job_status in completed_states:
+            break
         time.sleep(30)
-    if not is_job_completed(job):
-        raise ValueError(f"Job {job.name} jobs failed with status {job.status}.")
+    if not is_job_completed(updated_job):
+        raise ValueError(f"Job {updated_job.name} jobs failed with status {job_status}.")
 
 
 def get_most_recent_run_id(run_recovery_file: Path) -> str:

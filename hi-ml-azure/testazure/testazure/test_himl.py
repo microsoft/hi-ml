@@ -26,7 +26,7 @@ import pytest
 from _pytest.capture import CaptureFixture
 from azure.ai.ml import Input, Output, MLClient
 from azure.ai.ml.constants import AssetTypes, InputOutputModes
-from azure.ai.ml.entities import Data
+from azure.ai.ml.entities import Data, Job
 from azure.ai.ml.sweep import Choice
 from azureml._restclient.constants import RunStatus
 from azureml.core import ComputeTarget, Environment, RunConfiguration, ScriptRunConfig, Workspace
@@ -49,6 +49,7 @@ from health_azure.utils import (
     EXPERIMENT_RUN_SEPARATOR,
     WORKSPACE_CONFIG_JSON,
     VALID_LOG_FILE_PATHS,
+    JobStatus,
     check_config_json,
     get_most_recent_run,
     get_workspace,
@@ -1676,3 +1677,61 @@ def test_get_display_name_v2() -> None:
     # if no tags provided, display name should be empty
     display_name = himl.get_display_name_v2()
     assert display_name == ""
+
+
+def test_submitting_script_with_sdk_v2(tmp_path: Path) -> None:
+    """
+    Test that submitting a simple script can be run on AzureML when using the v2 SDK.
+    It also tests the "wait_for_completion" parameter.
+    """
+    # Create a minimal script in a temp folder. Script
+    test_script = tmp_path / "test_script.py"
+    test_script.write_text("print('hello world')")
+    shared_config_json = get_shared_config_json()
+
+    after_submission_called = False
+
+    def after_submission(job: Job, ml_client: MLClient) -> None:
+        global after_submission_called
+        after_submission_called = True
+        assert isinstance(job, Job)
+        assert isinstance(ml_client, MLClient)
+        # We waited for completion of the job, so it's status should now be "Completed"
+        assert job.status == JobStatus.Completed
+
+    with check_config_json(tmp_path, shared_config_json=shared_config_json),\
+        pytest.raises(SystemExit):
+            himl.submit_to_azure_if_needed(
+                aml_workspace=None,
+                experiment_name="test_submitting_script_with_sdk_v2",
+                entry_script=test_script,
+                compute_cluster_name=INEXPENSIVE_TESTING_CLUSTER_NAME,
+                snapshot_root_directory=tmp_path,
+                submit_to_azureml=True,
+                after_submission=after_submission,
+                strictly_aml_v1=False,
+                wait_for_completion=True,
+            )
+    assert after_submission_called, "after_submission callback was not called"
+
+
+def test_conda_env_missing(tmp_path: Path) -> None:
+    """
+    Test that submission fails if no Conda environment file is found.
+    """
+    # Create a minimal script in a temp folder. Script
+    test_script = tmp_path / "test_script.py"
+    test_script.write_text("print('hello world')")
+    shared_config_json = get_shared_config_json()
+
+    with check_config_json(tmp_path, shared_config_json=shared_config_json), \
+        change_working_directory(tmp_path), \
+        pytest.raises(ValueError, match="No conda environment file"):
+            himl.submit_to_azure_if_needed(
+                aml_workspace=None,
+                experiment_name="test_conda_env_missing",
+                entry_script=test_script,
+                compute_cluster_name=INEXPENSIVE_TESTING_CLUSTER_NAME,
+                snapshot_root_directory=tmp_path,
+                submit_to_azureml=True,
+            )

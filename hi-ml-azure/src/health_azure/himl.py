@@ -567,8 +567,10 @@ def submit_run_v2(workspace: Optional[Workspace],
     logging.info(f"URL to job: {returned_job.services['Studio'].endpoint}")  # type: ignore
     if wait_for_completion:
         print("Waiting for the completion of the AzureML job.")
-        wait_for_job_completion(returned_job)
+        wait_for_job_completion(ml_client, job_name=returned_job.name)
         print("AzureML job completed.")
+        # After waiting, ensure that the caller gets the latest version job object
+        returned_job = ml_client.jobs.get(returned_job.name)
     return returned_job
 
 
@@ -731,7 +733,7 @@ def submit_to_azure_if_needed(  # type: ignore
         max_run_duration: str = "",
         submit_to_azureml: Optional[bool] = None,
         tags: Optional[Dict[str, str]] = None,
-        after_submission: Optional[Callable[[Run], None]] = None,
+        after_submission: Optional[Union[Callable[[Run], None], Callable[[Job, MLClient], None]]] = None,
         hyperdrive_config: Optional[HyperDriveConfig] = None,
         hyperparam_args: Optional[Dict[str, Any]] = None,
         create_output_folders: bool = True,
@@ -741,9 +743,10 @@ def submit_to_azure_if_needed(  # type: ignore
     Submit a folder to Azure, if needed and run it.
     Use the commandline flag --azureml to submit to AzureML, and leave it out to run locally.
 
-    :param after_submission: A function that will be called directly after submitting the job to AzureML. The only
-        argument to this function is the run that was just submitted. Use this to, for example, add additional tags
-        or print information about the run.
+    :param after_submission: A function that will be called directly after submitting the job to AzureML.
+        Use this to, for example, add additional tags or print information about the run.
+        When using AzureML SDK V1, the only argument to this function is the Run object that was just submitted.
+        When using AzureML SDK V2, the arguments are (Job, MLClient).
     :param tags: A dictionary of string key/value pairs, that will be added as metadata to the run. If set to None,
         a default metadata field will be added that only contains the commandline arguments that started the run.
     :param aml_environment_name: The name of an AzureML environment that should be used to submit the script. If not
@@ -902,6 +905,8 @@ def submit_to_azure_if_needed(  # type: ignore
                              tags=tags,
                              wait_for_completion=wait_for_completion,
                              wait_for_completion_show_output=wait_for_completion_show_output)
+            if after_submission is not None:
+                after_submission(run)
         else:
 
             assert conda_environment_file is not None
@@ -918,7 +923,7 @@ def submit_to_azure_if_needed(  # type: ignore
             input_datasets_v2 = create_v2_inputs(ml_client, cleaned_input_datasets)
             output_datasets_v2 = create_v2_outputs(cleaned_output_datasets)
 
-            run = submit_run_v2(workspace=workspace,
+            job = submit_run_v2(workspace=workspace,
                                 input_datasets_v2=input_datasets_v2,
                                 output_datasets_v2=output_datasets_v2,
                                 experiment_name=effective_experiment_name,
@@ -933,9 +938,9 @@ def submit_to_azure_if_needed(  # type: ignore
                                 wait_for_completion_show_output=wait_for_completion_show_output,
                                 hyperparam_args=hyperparam_args
                                 )
+            if after_submission is not None:
+                after_submission(job, ml_client)
 
-    if after_submission is not None:
-        after_submission(run)
     exit(0)
 
 
