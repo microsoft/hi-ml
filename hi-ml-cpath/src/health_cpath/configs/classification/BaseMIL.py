@@ -4,8 +4,9 @@
 #  ------------------------------------------------------------------------------------------
 
 import os
-import logging
 import param
+import logging
+import warnings
 from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Union
 
 from pathlib import Path
@@ -30,6 +31,14 @@ from health_cpath.utils.deepmil_utils import ClassifierParams, EncoderParams, Po
 from health_cpath.utils.output_utils import DeepMILOutputsHandler
 from health_cpath.utils.naming import MetricsKey, PlotOption, SlideKey, ModelKey
 from health_cpath.utils.tiles_selection_utils import TilesSelector
+
+
+# Pytorch Lightning prints a warning if the batch size is not consistent across all batches. The way PL infers
+# the batch size is not compatible with our data loaders. It searches for the first item in the batch that is a
+# tensor and uses its size[0] as the batch size. However, in our case, the batch is a list of tensors, so it
+# thinks that the batch size is the bag_size which can be different for each WSI in the batch. This is why we
+# ignore this warning to avoid noisy logs.
+warnings.filterwarnings("ignore", ".*Trying to infer the `batch_size` from an ambiguous collection.*")
 
 
 class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams, LossCallbackParams):
