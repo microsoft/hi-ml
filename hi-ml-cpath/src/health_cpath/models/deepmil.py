@@ -270,7 +270,7 @@ class BaseDeepMILModule(LightningModule):
                           betas=self.optimizer_params.adam_betas)
 
     def get_metrics_dict(self, stage: str) -> nn.ModuleDict:
-        return getattr(self, f'{self.get_extra_prefix(stage)}_{stage}_metrics')
+        return getattr(self, f'{self.get_extra_prefix(stage)}{stage}_metrics')
 
     def compute_bag_labels_logits_and_attn_maps(self, batch: Dict) -> Tuple[Tensor, Tensor, List]:
         # The batch dict contains lists of tensors of different sizes, for all bags in the batch.
