@@ -1347,7 +1347,7 @@ def wait_for_job_completion(ml_client: MLClient, job_name: str) -> None:
         job_status = updated_job.status
         if job_status in completed_states:
             break
-        time.sleep(30)
+        time.sleep(10)
     if not is_job_completed(updated_job):
         raise ValueError(f"Job {updated_job.name} jobs failed with status {job_status}.")
 

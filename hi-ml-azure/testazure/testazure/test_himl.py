@@ -1692,7 +1692,7 @@ def test_submitting_script_with_sdk_v2(tmp_path: Path) -> None:
     after_submission_called = False
 
     def after_submission(job: Job, ml_client: MLClient) -> None:
-        global after_submission_called
+        nonlocal after_submission_called
         after_submission_called = True
         assert isinstance(job, Job)
         assert isinstance(ml_client, MLClient)
@@ -1712,6 +1712,7 @@ def test_submitting_script_with_sdk_v2(tmp_path: Path) -> None:
                 strictly_aml_v1=False,
                 wait_for_completion=True,
             )
+
     assert after_submission_called, "after_submission callback was not called"
 
 
