@@ -1700,18 +1700,18 @@ def test_submitting_script_with_sdk_v2(tmp_path: Path) -> None:
         assert job.status == JobStatus.Completed
 
     with check_config_json(tmp_path, shared_config_json=shared_config_json),\
-        pytest.raises(SystemExit):
-            himl.submit_to_azure_if_needed(
-                aml_workspace=None,
-                experiment_name="test_submitting_script_with_sdk_v2",
-                entry_script=test_script,
-                compute_cluster_name=INEXPENSIVE_TESTING_CLUSTER_NAME,
-                snapshot_root_directory=tmp_path,
-                submit_to_azureml=True,
-                after_submission=after_submission,
-                strictly_aml_v1=False,
-                wait_for_completion=True,
-            )
+            pytest.raises(SystemExit):
+        himl.submit_to_azure_if_needed(
+            aml_workspace=None,
+            experiment_name="test_submitting_script_with_sdk_v2",
+            entry_script=test_script,
+            compute_cluster_name=INEXPENSIVE_TESTING_CLUSTER_NAME,
+            snapshot_root_directory=tmp_path,
+            submit_to_azureml=True,
+            after_submission=after_submission,
+            strictly_aml_v1=False,
+            wait_for_completion=True,
+        )
 
     assert after_submission_called, "after_submission callback was not called"
 
@@ -1726,13 +1726,13 @@ def test_conda_env_missing(tmp_path: Path) -> None:
     shared_config_json = get_shared_config_json()
 
     with check_config_json(tmp_path, shared_config_json=shared_config_json), \
-        change_working_directory(tmp_path), \
-        pytest.raises(ValueError, match="No conda environment file"):
-            himl.submit_to_azure_if_needed(
-                aml_workspace=None,
-                experiment_name="test_conda_env_missing",
-                entry_script=test_script,
-                compute_cluster_name=INEXPENSIVE_TESTING_CLUSTER_NAME,
-                snapshot_root_directory=tmp_path,
-                submit_to_azureml=True,
-            )
+            change_working_directory(tmp_path), \
+            pytest.raises(ValueError, match="No conda environment file"):
+        himl.submit_to_azure_if_needed(
+            aml_workspace=None,
+            experiment_name="test_conda_env_missing",
+            entry_script=test_script,
+            compute_cluster_name=INEXPENSIVE_TESTING_CLUSTER_NAME,
+            snapshot_root_directory=tmp_path,
+            submit_to_azureml=True,
+        )
