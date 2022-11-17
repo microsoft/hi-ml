@@ -4,7 +4,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from health_azure.himl import DEFAULT_DOCKER_BASE_IMAGE
 import argparse
 import logging
 import os
@@ -26,10 +25,11 @@ for folder in folders_to_add:
         sys.path.insert(0, str(folder))
 
 from health_azure import AzureRunInfo, submit_to_azure_if_needed  # noqa: E402
+from health_azure.amulet import prepare_amulet_job, is_amulet_job  # noqa: E402
 from health_azure.datasets import create_dataset_configs  # noqa: E402
+from health_azure.himl import DEFAULT_DOCKER_BASE_IMAGE  # noqa: E402
 from health_azure.logging import logging_to_stdout   # noqa: E402
 from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
-from health_azure.amulet import prepare_amulet_job, is_amulet_job  # noqa: E402
 from health_azure.utils import (get_workspace, get_ml_client, is_local_rank_zero,  # noqa: E402
                                 is_running_in_azure_ml, set_environment_variables_for_multi_node,
                                 create_argparser, parse_arguments, ParserResult, apply_overrides,
