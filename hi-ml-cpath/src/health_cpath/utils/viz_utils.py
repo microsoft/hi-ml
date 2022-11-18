@@ -200,7 +200,7 @@ def plot_heatmap_overlay(
     attentions = results[ResultsKey.BAG_ATTN][slide_idx]
 
     # for each tile in the bag
-    for tile_idx in range(len(results[ResultsKey.IMAGE_PATH][slide_idx])):
+    for tile_idx in range(len(results[ResultsKey.TILE_ID][slide_idx])):
         tile_coords = np.transpose(
             np.array(
                 [

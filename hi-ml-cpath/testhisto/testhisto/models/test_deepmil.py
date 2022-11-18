@@ -26,7 +26,7 @@ from health_cpath.configs.classification.DeepSMILEPanda import (
 from health_cpath.datamodules.base_module import HistoDataModule, TilesDataModule
 from health_cpath.datasets.base_dataset import DEFAULT_LABEL_COLUMN, TilesDataset
 from health_cpath.datasets.default_paths import PANDA_5X_TILES_DATASET_ID, TCGA_CRCK_DATASET_DIR
-from health_cpath.models.deepmil import BaseDeepMILModule, TilesDeepMILModule
+from health_cpath.models.deepmil import DeepMILModule
 from health_cpath.models.encoders import IdentityEncoder, ImageNetEncoder, Resnet18, TileEncoder
 from health_cpath.utils.deepmil_utils import ClassifierParams, EncoderParams, PoolingParams
 from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey
@@ -69,7 +69,7 @@ def _test_lightningmodule(
 
     assert n_classes > 0
 
-    module = TilesDeepMILModule(
+    module = DeepMILModule(
         label_column=DEFAULT_LABEL_COLUMN,
         n_classes=n_classes,
         classifier_params=ClassifierParams(dropout_rate=dropout_rate),
@@ -182,9 +182,9 @@ def test_metrics(n_classes: int) -> None:
         return IdentityEncoder(input_dim=input_dim)
 
     with patch("health_cpath.models.deepmil.EncoderParams.get_encoder", new=_mock_get_encoder):
-        module = TilesDeepMILModule(label_column=DEFAULT_LABEL_COLUMN,
-                                    n_classes=n_classes,
-                                    pooling_params=get_attention_pooling_layer_params(pool_out_dim=1))
+        module = DeepMILModule(label_column=DEFAULT_LABEL_COLUMN,
+                               n_classes=n_classes,
+                               pooling_params=get_attention_pooling_layer_params(pool_out_dim=1))
 
         # Patching to enable running the module without a Trainer object
         module.trainer = MagicMock(world_size=1)  # type: ignore
@@ -243,7 +243,7 @@ def move_batch_to_expected_device(batch: Dict[str, List], use_gpu: bool) -> Dict
     }
 
 
-def assert_train_step(module: BaseDeepMILModule, data_module: HistoDataModule, use_gpu: bool) -> None:
+def assert_train_step(module: DeepMILModule, data_module: HistoDataModule, use_gpu: bool) -> None:
     train_data_loader = data_module.train_dataloader()
     for batch_idx, batch in enumerate(train_data_loader):
         batch = move_batch_to_expected_device(batch, use_gpu)
@@ -256,7 +256,7 @@ def assert_train_step(module: BaseDeepMILModule, data_module: HistoDataModule, u
         break
 
 
-def assert_validation_step(module: BaseDeepMILModule, data_module: HistoDataModule, use_gpu: bool) -> None:
+def assert_validation_step(module: DeepMILModule, data_module: HistoDataModule, use_gpu: bool) -> None:
     val_data_loader = data_module.val_dataloader()
     for batch_idx, batch in enumerate(val_data_loader):
         batch = move_batch_to_expected_device(batch, use_gpu)
@@ -267,7 +267,7 @@ def assert_validation_step(module: BaseDeepMILModule, data_module: HistoDataModu
         break
 
 
-def assert_test_step(module: BaseDeepMILModule, data_module: HistoDataModule, use_gpu: bool) -> None:
+def assert_test_step(module: DeepMILModule, data_module: HistoDataModule, use_gpu: bool) -> None:
     test_data_loader = data_module.test_dataloader()
     for batch_idx, batch in enumerate(test_data_loader):
         batch = move_batch_to_expected_device(batch, use_gpu)
@@ -353,7 +353,7 @@ def test_class_weights_binary() -> None:
     class_weights = Tensor([0.5, 3.5])
     n_classes = 1
 
-    module = TilesDeepMILModule(
+    module = DeepMILModule(
         label_column=DEFAULT_LABEL_COLUMN,
         n_classes=n_classes,
         class_weights=class_weights,
@@ -378,7 +378,7 @@ def test_class_weights_multiclass() -> None:
     class_weights = Tensor([0.33, 0.33, 0.33])
     n_classes = 3
 
-    module = TilesDeepMILModule(
+    module = DeepMILModule(
         label_column=DEFAULT_LABEL_COLUMN,
         n_classes=n_classes,
         class_weights=class_weights,
@@ -431,7 +431,7 @@ def _get_datamodule(tmp_path: Path) -> PandaTilesDataModule:
 def test_finetuning_options(
     tune_encoder: bool, tune_pooling: bool, tune_classifier: bool, tmp_path: Path
 ) -> None:
-    module = TilesDeepMILModule(
+    module = DeepMILModule(
         n_classes=1,
         label_column=DEFAULT_LABEL_COLUMN,
         encoder_params=get_supervised_imagenet_encoder_params(tune_encoder=tune_encoder),
@@ -483,7 +483,7 @@ def test_training_with_different_finetuning_options(
     tune_encoder: bool, tune_pooling: bool, tune_classifier: bool, tmp_path: Path
 ) -> None:
     if any([tune_encoder, tune_pooling, tune_classifier]):
-        module = TilesDeepMILModule(
+        module = DeepMILModule(
             n_classes=6,
             label_column=MockPandaTilesGenerator.ISUP_GRADE,
             encoder_params=get_supervised_imagenet_encoder_params(tune_encoder=tune_encoder),
@@ -517,7 +517,7 @@ def test_missing_src_checkpoint_with_pretraining_flags() -> None:
 @pytest.mark.parametrize("pretrained_encoder", [False, True])
 def test_init_weights_options(pretrained_encoder: bool, pretrained_pooling: bool, pretrained_classifier: bool) -> None:
     n_classes = 1
-    module = BaseDeepMILModule(
+    module = DeepMILModule(
         n_classes=n_classes,
         label_column=DEFAULT_LABEL_COLUMN,
         encoder_params=get_supervised_imagenet_encoder_params(),
@@ -545,8 +545,8 @@ def _get_tiles_deepmil_module(
     num_heads: int = 1,
     hidden_dim: int = 8,
     transformer_dropout: float = 0.1
-) -> TilesDeepMILModule:
-    module = TilesDeepMILModule(
+) -> DeepMILModule:
+    module = DeepMILModule(
         n_classes=n_classes,
         label_column=MockPandaTilesGenerator.ISUP_GRADE,
         encoder_params=get_supervised_imagenet_encoder_params(),

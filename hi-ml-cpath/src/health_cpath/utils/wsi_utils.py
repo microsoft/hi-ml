@@ -2,11 +2,14 @@ import torch
 import param
 import numpy as np
 
-from typing import Any, Callable, List, Optional
-from health_cpath.utils.naming import ModelKey, SlideKey
+from typing import Any, Callable, List, Optional, Dict
+from health_cpath.preprocessing.create_tiles_dataset import get_tile_id
+from health_cpath.utils.naming import ModelKey, SlideKey, TileKey
 from health_ml.utils.bag_utils import multibag_collate
+from health_ml.utils.box_utils import Box
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import RandGridPatchd, GridPatchd
+from monai.utils.enums import WSIPatchKeys
 
 
 def image_collate(batch: List) -> Any:
@@ -20,6 +23,7 @@ def image_collate(batch: List) -> Any:
     for i, item in enumerate(batch):
         data = item[0]
         if isinstance(data[SlideKey.IMAGE], MetaTensor):
+            extract_tiles_coordinates_from_metatensor(data)
             # MetaTensor is a monai class that is used to store metadata along with the image
             # We need to convert it to torch tensor to avoid adding the metadata to the batch
             data[SlideKey.IMAGE] = torch.stack([ix[SlideKey.IMAGE].as_tensor() for ix in item], dim=0)
@@ -30,6 +34,20 @@ def image_collate(batch: List) -> Any:
         data[SlideKey.LABEL] = torch.tensor(data[SlideKey.LABEL])
         batch[i] = data
     return multibag_collate(batch)
+
+
+def extract_tiles_coordinates_from_metatensor(data: Dict[str, Any]) -> None:
+    """Format the coordinates of the tiles returned as meta data by monai transforms to hi-ml-cpath format where the
+    coordinates are represented as TileKey.TILE_LEFT, TileKey.TILE_TOP, TileKey.TILE_RIGHT, TileKey.TILE_BOTTOM.
+    """
+    h, w = data[SlideKey.IMAGE].shape[1:]
+    xs, ys = data[SlideKey.IMAGE].meta[WSIPatchKeys.LOCATION]
+    data[TileKey.TILE_LEFT] = torch.tensor(xs)
+    data[TileKey.TILE_RIGHT] = torch.tensor(xs + w)
+    data[TileKey.TILE_TOP] = torch.tensor(ys)
+    data[TileKey.TILE_BOTTOM] = torch.tensor(ys + h)
+    data[TileKey.TILE_ID] = [get_tile_id(data[SlideKey.SLIDE_ID], Box(x=x, y=y, w=w, h=h)) for x, y in zip(xs, ys)]
+    data[SlideKey.SLIDE_ID] = [data[SlideKey.SLIDE_ID]] * data[SlideKey.IMAGE].meta[WSIPatchKeys.COUNT]
 
 
 class TilingParams(param.Parameterized):

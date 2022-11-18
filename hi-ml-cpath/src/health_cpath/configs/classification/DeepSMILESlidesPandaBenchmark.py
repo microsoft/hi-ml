@@ -25,15 +25,15 @@ from health_cpath.models.encoders import (
     SSLEncoder,
 )
 from health_cpath.configs.classification.DeepSMILEPanda import DeepSMILESlidesPanda
-from health_cpath.models.deepmil import SlidesDeepMILModule
+from health_cpath.models.deepmil import DeepMILModule
 from health_cpath.utils.deepmil_utils import ClassifierParams, EncoderParams, PoolingParams
 from health_cpath.utils.naming import MetricsKey, ModelKey, SlideKey
 
 
-class PandaSlidesDeepMILModuleBenchmark(SlidesDeepMILModule):
+class PandaSlidesDeepMILModuleBenchmark(DeepMILModule):
     """
     Myronenko et al. 2021 uses a cosine LR scheduler which needs to be defined in the PL module
-    Hence, inherited `PandaSlidesDeepMILModuleBenchmark` from `SlidesDeepMILModule`
+    Hence, inherited `PandaSlidesDeepMILModuleBenchmark` from `DeepMILModule`
     """
 
     def __init__(self, n_epochs: int, **kwargs: Any) -> None:
@@ -117,7 +117,7 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             pl_replace_sampler_ddp=self.pl_replace_sampler_ddp,
         )
 
-    def create_model(self) -> SlidesDeepMILModule:
+    def create_model(self) -> DeepMILModule:
         self.data_module = self.get_data_module()
         outputs_handler = self.get_outputs_handler()
         deepmil_module = PandaSlidesDeepMILModuleBenchmark(
