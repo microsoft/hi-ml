@@ -41,7 +41,7 @@ def extract_tiles_coordinates_from_metatensor(data: Dict[str, Any]) -> None:
     coordinates are represented as TileKey.TILE_LEFT, TileKey.TILE_TOP, TileKey.TILE_RIGHT, TileKey.TILE_BOTTOM.
     """
     h, w = data[SlideKey.IMAGE].shape[1:]
-    xs, ys = data[SlideKey.IMAGE].meta[WSIPatchKeys.LOCATION]
+    ys, xs = data[SlideKey.IMAGE].meta[WSIPatchKeys.LOCATION]
     data[TileKey.TILE_LEFT] = torch.tensor(xs)
     data[TileKey.TILE_RIGHT] = torch.tensor(xs + w)
     data[TileKey.TILE_TOP] = torch.tensor(ys)
