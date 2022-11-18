@@ -176,7 +176,7 @@ class BaseDeepMILModule(LightningModule):
     def get_metrics(self) -> nn.ModuleDict:
         if self.n_classes > 1:
             return nn.ModuleDict({
-                MetricsKey.ACC: MulticlassAccuracy(num_classes=self.n_classes),
+                MetricsKey.ACC: MulticlassAccuracy(num_classes=self.n_classes, average='micro'),
                 MetricsKey.AUROC: MulticlassAUROC(num_classes=self.n_classes),
                 MetricsKey.AVERAGE_PRECISION: MulticlassAveragePrecision(num_classes=self.n_classes),
                 # Quadratic Weighted Kappa (QWK) used in PANDA challenge
