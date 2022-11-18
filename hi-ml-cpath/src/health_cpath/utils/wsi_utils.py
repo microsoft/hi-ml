@@ -22,15 +22,10 @@ def image_collate(batch: List) -> Any:
 
     for i, item in enumerate(batch):
         data = item[0]
-        if isinstance(data[SlideKey.IMAGE], MetaTensor):
-            extract_tiles_coordinates_from_metatensor(data)
-            # MetaTensor is a monai class that is used to store metadata along with the image
-            # We need to convert it to torch tensor to avoid adding the metadata to the batch
-            data[SlideKey.IMAGE] = torch.stack([ix[SlideKey.IMAGE].as_tensor() for ix in item], dim=0)
-        elif isinstance(data[SlideKey.IMAGE], torch.Tensor):
-            data[SlideKey.IMAGE] = torch.stack([ix[SlideKey.IMAGE] for ix in item], dim=0)
-        else:
-            data[SlideKey.IMAGE] = torch.tensor(np.array([ix[SlideKey.IMAGE] for ix in item]))
+        extract_tiles_coordinates_from_metatensor(data)
+        # MetaTensor is a monai class that is used to store metadata along with the image
+        # We need to convert it to torch tensor to avoid adding the metadata to the batch
+        data[SlideKey.IMAGE] = torch.stack([ix[SlideKey.IMAGE].as_tensor() for ix in item], dim=0)
         data[SlideKey.LABEL] = torch.tensor(data[SlideKey.LABEL])
         batch[i] = data
     return multibag_collate(batch)
