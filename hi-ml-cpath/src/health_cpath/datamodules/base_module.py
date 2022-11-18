@@ -307,6 +307,8 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                     **self.wsi_reader_args,
                 ),
                 self.tiling_params.get_tiling_transform(bag_size=self.bag_sizes[stage], stage=stage),
+                # GridPatchd returns stacked tiles (bag_size, C, H, W), however we need to split them into separate
+                # tiles to be able to apply augmentations on each tile independently
                 SplitDimd(keys=SlideKey.IMAGE, dim=0, keepdim=False, list_output=True),
             ]
         )
