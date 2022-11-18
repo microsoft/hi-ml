@@ -42,10 +42,11 @@ def extract_tiles_coordinates_from_metatensor(data: Dict[str, Any]) -> None:
     """
     h, w = data[SlideKey.IMAGE].shape[1:]
     ys, xs = data[SlideKey.IMAGE].meta[WSIPatchKeys.LOCATION]
-    data[TileKey.TILE_LEFT] = torch.tensor(xs)
-    data[TileKey.TILE_RIGHT] = torch.tensor(xs + w)
-    data[TileKey.TILE_TOP] = torch.tensor(ys)
-    data[TileKey.TILE_BOTTOM] = torch.tensor(ys + h)
+    scale_factor = 4
+    data[TileKey.TILE_LEFT] = torch.tensor(xs * scale_factor)
+    data[TileKey.TILE_RIGHT] = torch.tensor((xs + w) * scale_factor)
+    data[TileKey.TILE_TOP] = torch.tensor(ys * scale_factor)
+    data[TileKey.TILE_BOTTOM] = torch.tensor((ys + h) * scale_factor)
     data[TileKey.TILE_ID] = [get_tile_id(data[SlideKey.SLIDE_ID], Box(x=x, y=y, w=w, h=h)) for x, y in zip(xs, ys)]
     data[SlideKey.SLIDE_ID] = [data[SlideKey.SLIDE_ID]] * data[SlideKey.IMAGE].meta[WSIPatchKeys.COUNT]
 
