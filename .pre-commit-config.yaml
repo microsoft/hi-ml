@@ -17,7 +17,6 @@ repos:
   - id: check-added-large-files    # Prevent giant files from being committed
   - id: check-docstring-first      # Checks a common error of defining a docstring after code
   - id: check-merge-conflict       # Check for files that contain merge conflict strings
-  - id: check-vcs-permalinks       # Ensures that links to vcs websites are permalinks
   - id: detect-private-key         # Detects the presence of private keys
   - id: end-of-file-fixer          # Ensures that a file is either empty, or ends with one newline
   - id: trailing-whitespace        # This hook trims trailing whitespace
