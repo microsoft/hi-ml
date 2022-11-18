@@ -41,7 +41,7 @@ dependencies:
   - libpng=1.6.37=hbc83047_0
   - libstdcxx-ng=11.2.0=h1234567_1
   - libtasn1=4.16.0=h27cfd23_0
-  - libtiff=4.4.0=hecacb30_1
+  - libtiff=4.4.0=hecacb30_2
   - libunistring=0.9.10=h27cfd23_0
   - libuuid=1.41.5=h5eee18b_0
   - libuv=1.40.0=h7b6447c_0
@@ -92,7 +92,7 @@ dependencies:
     - astroid==2.12.12
     - async-timeout==4.0.2
     - attrs==21.4.0
-    - azure-ai-ml==1.1.0
+    - azure-ai-ml==1.1.1
     - azure-common==1.1.28
     - azure-core==1.26.1
     - azure-graphrbac==0.61.1
@@ -158,7 +158,7 @@ dependencies:
     - google-api-core==2.10.2
     - google-auth==1.35.0
     - google-auth-oauthlib==0.4.6
-    - googleapis-common-protos==1.56.4
+    - googleapis-common-protos==1.57.0
     - greenlet==2.0.1
     - grpcio==1.50.0
     - gunicorn==20.1.0
@@ -199,7 +199,7 @@ dependencies:
     - mdit-py-plugins==0.2.8
     - mlflow==2.0.1
     - mlflow-skinny==2.0.1
-    - monai==0.8.0
+    - monai==1.0.1
     - more-itertools==8.10.0
     - msal==1.20.0
     - msal-extensions==0.3.1

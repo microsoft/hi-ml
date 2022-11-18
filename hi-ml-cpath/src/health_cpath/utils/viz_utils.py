@@ -15,6 +15,7 @@ from math import ceil
 from pathlib import Path
 from typing import Sequence, List, Any, Dict, Optional, Union, Tuple
 
+from monai.data.meta_tensor import MetaTensor
 from monai.data.dataset import Dataset
 from monai.data.image_reader import WSIReader
 from torch.utils.data import DataLoader
@@ -47,6 +48,9 @@ def load_image_dict(
     transform = LoadPandaROId if wsi_has_mask else LoadROId
     loader = transform(WSIReader(backend=backend), level=level, margin=margin)
     img = loader(sample)
+    if isinstance(img[SlideKey.IMAGE], MetaTensor):
+        # New monai transforms return a MetaTensor, we need to convert it to a numpy array for backward compatibility
+        img[SlideKey.IMAGE] = img[SlideKey.IMAGE].numpy()
     return img
 
 
