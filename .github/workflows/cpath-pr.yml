@@ -98,7 +98,7 @@ jobs:
         with:
             flags: ${{ env.folder }}
 
-  smoke_test_slidespandaimagenetmil:
+  smoke_test_cucim_slidespandaimagenetmil:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -111,7 +111,22 @@ jobs:
       - name: smoke test
         run: |
           cd ${{ env.folder }}
-          make smoke_test_slidespandaimagenetmil_aml
+          make smoke_test_cucim_slidespandaimagenetmil_aml
+
+  smoke_test_openslide_slidespandaimagenetmil:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Prepare Conda environment
+        uses: ./.github/actions/prepare_cpath_environment
+
+      - name: smoke test
+        run: |
+          cd ${{ env.folder }}
+          make smoke_test_openslide_slidespandaimagenetmil_aml
 
   smoke_test_tilespandaimagenetmil:
     runs-on: ubuntu-20.04
@@ -254,7 +269,8 @@ jobs:
       flake8,
       mypy,
       pytest,
-      smoke_test_slidespandaimagenetmil,
+      smoke_test_cucim_slidespandaimagenetmil,
+      smoke_test_openslide_slidespandaimagenetmil,
       smoke_test_tilespandaimagenetmil,
       smoke_test_tcgacrckimagenetmil,
       smoke_test_tcgacrcksslmil,
