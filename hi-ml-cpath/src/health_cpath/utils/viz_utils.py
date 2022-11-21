@@ -19,16 +19,14 @@ from monai.data.meta_tensor import MetaTensor
 from monai.data.dataset import Dataset
 from torch.utils.data import DataLoader
 from health_cpath.datasets.panda_dataset import PandaDataset
-from health_cpath.preprocessing.loading import LoadRoidTransformsDict
+from health_cpath.preprocessing.loading import LoadingParams, ROIType, WSIBackend
 from health_cpath.utils.naming import SlideKey
 from health_cpath.utils.naming import ResultsKey
 from health_cpath.utils.heatmap_utils import location_selected_tiles
 from health_cpath.utils.tiles_selection_utils import SlideNode
 
 
-def load_image_dict(
-    sample: dict, level: int, margin: int, wsi_has_mask: bool = True, backend: str = "cuCIM"
-) -> Dict[SlideKey, Any]:
+def load_image_dict(sample: dict, loading_params: LoadingParams = LoadingParams()) -> Dict[SlideKey, Any]:
     """
     Load image from metadata dictionary
     :param sample: dict describing image metadata. Example:
@@ -38,12 +36,9 @@ def load_image_dict(
          'data_provider': ['karolinska'],
          'isup_grade': tensor([0]),
          'gleason_score': ['0+0']}
-    :param level: level of resolution to be loaded
-    :param margin: margin to be included
-    :param wsi_has_mask: whether the WSI has a mask
-    :param backend: backend to be used to load the image (cuCIM or OpenSlide)
+    :param loading_params: LoadingParams object that contains the parameters to load the image.
     """
-    loader = LoadRoidTransformsDict[(backend, wsi_has_mask)](level=level, margin=margin)
+    loader = loading_params.get_load_roid_transform()
     img = loader(sample)
     if isinstance(img[SlideKey.IMAGE], MetaTensor):
         # New monai transforms return a MetaTensor, we need to convert it to a numpy array for backward compatibility
@@ -73,7 +68,8 @@ def plot_panda_data_sample(
         slide_id = dict_images[SlideKey.SLIDE_ID]
         title = dict_images[SlideKey.METADATA][title_key]
         print(f">>> Slide {slide_id}")
-        img = load_image_dict(dict_images, level=level, margin=margin)
+        loading_params = LoadingParams(level=level, margin=margin, backend=WSIBackend.CUCIM, roi_type=ROIType.MASK)
+        img = load_image_dict(dict_images, loading_params)
         ax.imshow(img[SlideKey.IMAGE].transpose(1, 2, 0))
         ax.set_title(title)
     fig.tight_layout()

@@ -11,6 +11,7 @@ from health_cpath.datasets.default_paths import PANDA_5X_TILES_DATASET_ID, PANDA
 from health_cpath.datasets.panda_dataset import PandaDataset
 from health_cpath.datasets.panda_tiles_dataset import PandaTilesDataset
 from health_cpath.models.encoders import HistoSSLEncoder, ImageNetSimCLREncoder, Resnet18, SSLEncoder
+from health_cpath.preprocessing.loading import LoadingParams, ROIType, WSIBackend
 from health_cpath.utils.naming import PlotOption
 from health_cpath.utils.wsi_utils import TilingParams
 from health_ml.networks.layers.attention_layers import AttentionLayer
@@ -121,8 +122,10 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
 
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
-            # declared in BaseMILSlides:
             level=1,
+            backend=WSIBackend.CUCIM,
+            roi_type=ROIType.MASK,
+            margin=0,
             tile_size=224,
             background_val=255,
             azure_datasets=[PANDA_DATASET_ID],)
@@ -145,8 +148,8 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             batch_size_inf=self.batch_size_inf,
             max_bag_size=self.max_bag_size,
             max_bag_size_inf=self.max_bag_size_inf,
-            level=self.level,
             tiling_params=create_from_matching_params(self, TilingParams),
+            loading_params=create_from_matching_params(self, LoadingParams),
             seed=self.get_effective_random_seed(),
             transforms_dict=self.get_transforms_dict(PandaDataset.IMAGE_COLUMN),
             crossval_count=self.crossval_count,

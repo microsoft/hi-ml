@@ -3,14 +3,13 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import torch
-import numpy as np
 from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, Generic, Optional, Sequence, Tuple, TypeVar, Union
 
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, DistributedSampler
-from health_cpath.preprocessing.loading import LoadRoidTransformsDict
+from health_cpath.preprocessing.loading import LoadingParams
 
 from health_ml.utils.bag_utils import BagDataset, multibag_collate
 from health_ml.utils.common_utils import _create_generator
@@ -18,11 +17,10 @@ from health_ml.utils.common_utils import _create_generator
 from health_cpath.utils.wsi_utils import TilingParams, image_collate
 from health_cpath.models.transforms import LoadTilesBatchd
 from health_cpath.datasets.base_dataset import SlidesDataset, TilesDataset
-from health_cpath.utils.naming import ModelKey, SlideKey
+from health_cpath.utils.naming import ModelKey
 
 from monai.data.dataset import CacheDataset, Dataset, PersistentDataset
-from monai.transforms import Compose, LoadImaged, SplitDimd
-from monai.data.image_reader import WSIReader
+from monai.transforms import Compose
 
 
 _SlidesOrTilesDataset = TypeVar('_SlidesOrTilesDataset', SlidesDataset, TilesDataset)
@@ -274,9 +272,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
 
     def __init__(
         self,
-        level: int = 1,
-        backend: str = 'cuCIM',
-        wsi_reader_args: Dict[str, Any] = {},
+        loading_params: LoadingParams = LoadingParams(),
         tiling_params: TilingParams = TilingParams(),
         **kwargs: Any,
     ) -> None:
@@ -290,30 +286,17 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         """
         super().__init__(**kwargs)
         self.tiling_params = tiling_params
-        # WSIReader params
-        self.level = level
-        self.backend = backend
-        self.wsi_reader_args = wsi_reader_args
+        self.loading_params = loading_params
 
     def _load_dataset(self, slides_dataset: SlidesDataset, stage: ModelKey) -> Dataset:
         base_transform = Compose(
             [
-                # LoadImaged(
-                #     keys=SlideKey.IMAGE,
-                #     reader=WSIReader,
-                #     dtype=np.uint8,
-                #     image_only=True,
-                #     level=self.level,
-                #     backend=self.backend,
-                #     **self.wsi_reader_args,
-                # ),
-                LoadRoidTransformsDict[(self.backend, True)](level=self.level, margin=0),
+                self.loading_params.get_load_roid_transform(),
                 self.tiling_params.get_tiling_transform(bag_size=self.bag_sizes[stage], stage=stage),
-                # GridPatchd returns stacked tiles (bag_size, C, H, W), however we need to split them into separate
-                # tiles to be able to apply augmentations on each tile independently
-                SplitDimd(keys=SlideKey.IMAGE, dim=0, keepdim=False, list_output=True),
+                self.tiling_params.get_split_transform(),
             ]
         )
+
         if self.transforms_dict and self.transforms_dict[stage]:
             transforms = Compose([base_transform, self.transforms_dict[stage]]).flatten()
         else:

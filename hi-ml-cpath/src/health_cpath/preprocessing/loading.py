@@ -2,14 +2,14 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from enum import Enum
 import logging
+import param
 import numpy as np
 import skimage.filters
 
 from health_ml.utils import box_utils
 from health_cpath.utils.naming import SlideKey
-from monai.config import KeysCollection
-from monai.data.image_reader import ImageReader
 from monai.data.wsi_reader import WSIReader
 from monai.transforms import MapTransform
 from openslide import OpenSlide
@@ -48,54 +48,24 @@ def segment_foreground(slide: np.ndarray, threshold: Optional[float] = None) -> 
     return luminance < threshold, threshold
 
 
-class ReadImaged(MapTransform):
-    """Basic transform to read image files."""
-
-    def __init__(self, reader: ImageReader, keys: KeysCollection,
-                 allow_missing_keys: bool = False, **kwargs: Any) -> None:
-        super().__init__(keys, allow_missing_keys=allow_missing_keys)
-        self.reader = reader
-        self.kwargs = kwargs
-
-    def __call__(self, data: Dict) -> Dict:
-        for key in self.keys:
-            if key in data or not self.allow_missing_keys:
-                data[key] = self.reader.read(data[key], **self.kwargs)
-        return data
+class ROIType(str, Enum):
+    """Options for the ROI selection. Either a bounding box defined by foreground or a mask can be used."""
+    FOREGROUND = 'foreground'
+    MASK = 'segmentation_mask'
 
 
-class BaseLoadROId:
-    def __init__(self, reader: WSIReader, image_key: str = SlideKey.IMAGE, level: int = 0, margin: int = 0) -> None:
-        """
-        :param reader: And instance of MONAI's `WSIReader`.
-        :param image_key: Image key in the input and output dictionaries.
-        :param level: Magnification level to load from the raw multi-scale file.
-        :param margin: Amount in pixels by which to enlarge the estimated bounding box for cropping.
-        """
-        self.reader = reader
-        self.image_key = image_key
-        self.level = level
-        self.margin = margin
-
-    def _get_size_at_level(self, slide_obj: _OpenSlideOrCuImage, level: int) -> Tuple[int, int]:
-        raise NotImplementedError
-
-    def _get_highest_level(self, slide_obj: _OpenSlideOrCuImage) -> int:
-        raise NotImplementedError
-
-    def _get_scale_at_level(self, slide_obj: _OpenSlideOrCuImage, level: int) -> float:
-        raise NotImplementedError
-
-    def _get_bounding_box(self, slide_obj: _OpenSlideOrCuImage) -> box_utils.Box:
-        raise NotImplementedError
-
-    def __call__(self, data: Dict) -> Dict:
-        raise NotImplementedError
+class WSIBackend(str, Enum):
+    """Options for the WSI reader backend."""
+    OPENSLIDE = 'OpenSlide'
+    CUCIM = 'cuCIM'
 
 
 class CuImageMixin:
+    """Mixin class for CuImage support in WSIReader."""
+
     def _get_size_at_level(self, slide_obj: 'CuImage', level: int) -> Tuple[int, int]:
-        return slide_obj.resolutions['level_dimensions'][level][::-1]
+        size = slide_obj.resolutions['level_dimensions'][level]
+        return size[::-1]  # CuImage returns (width, height), we need to reverse it
 
     def _get_highest_level(self, slide_obj: 'CuImage') -> int:
         return slide_obj.resolutions['level_count'] - 1
@@ -105,9 +75,11 @@ class CuImageMixin:
 
 
 class OpenSlideMixin:
+    """Mixin class for OpenSlide support in WSIReader."""
 
     def _get_size_at_level(self, slide_obj: OpenSlide, level: int) -> Tuple[int, int]:
-        return slide_obj.level_dimensions[level][::-1]
+        size = slide_obj.level_dimensions[level]
+        return size[::-1]  # OpenSlide returns (width, height), we need to reverse it
 
     def _get_highest_level(self, slide_obj: OpenSlide) -> int:
         return slide_obj.level_count - 1
@@ -116,8 +88,47 @@ class OpenSlideMixin:
         return slide_obj.level_downsamples[level]
 
 
+class BaseLoadROId:
+    """Abstract base class for loading a region of interest (ROI) from a slide. The ROI is defined by a bounding box."""
+    def __init__(
+        self, backend: str, image_key: str = SlideKey.IMAGE, level: int = 0, margin: int = 0, backend_args: Dict = {}
+    ) -> None:
+        """
+        :param backend: The WSI reader backend to use. One of 'OpenSlide' or 'cuCIM'.
+        :param image_key: Image key in the input and output dictionaries.
+        :param level: Magnification level to load from the raw multi-scale file.
+        :param margin: Amount in pixels by which to enlarge the estimated bounding box for cropping.
+        :param backend_args: Additional arguments to pass to the WSI reader backend.
+        """
+        self.reader = WSIReader(backend=backend, **backend_args)
+        self.image_key = image_key
+        self.level = level
+        self.margin = margin
+
+    def _get_size_at_level(self, slide_obj: _OpenSlideOrCuImage, level: int) -> Tuple[int, int]:
+        """Get the size of the slide at the given level. This is specific to the slide type (OpenSlide or CuImage).
+        It will be implemented by the mixin classes."""
+        raise NotImplementedError
+
+    def _get_highest_level(self, slide_obj: _OpenSlideOrCuImage) -> int:
+        """Get the highest magnification level of the slide. This is specific to the slide type (OpenSlide or CuImage).
+        It will be implemented by the mixin classes."""
+        raise NotImplementedError
+
+    def _get_scale_at_level(self, slide_obj: _OpenSlideOrCuImage, level: int) -> float:
+        """Get the scale of the slide at the given level. This is specific to the slide type (OpenSlide or CuImage).
+        It will be implemented by the mixin classes."""
+        raise NotImplementedError
+
+    def _get_bounding_box(self, slide_obj: _OpenSlideOrCuImage) -> box_utils.Box:
+        raise NotImplementedError
+
+    def __call__(self, data: Dict) -> Dict:
+        raise NotImplementedError
+
+
 class LoadROId(MapTransform, BaseLoadROId, Generic[_OpenSlideOrCuImage]):
-    """Transform that loads a pathology slide, cropped to an estimated bounding box (ROI).
+    """Transform that loads a pathology slide, cropped to an estimated bounding box (ROI) of the foreground tissue.
 
     Operates on dictionaries, replacing the file path in `image_key` with the loaded array in
     (C, H, W) format. Also adds the following entries:
@@ -126,18 +137,17 @@ class LoadROId(MapTransform, BaseLoadROId, Generic[_OpenSlideOrCuImage]):
     - `SlideKey.FOREGROUND_THRESHOLD` (float): threshold used to segment the foreground
     """
 
-    def __init__(self, reader: WSIReader, image_key: str = SlideKey.IMAGE, level: int = 0,
-                 margin: int = 0, foreground_threshold: Optional[float] = None) -> None:
+    def __init__(
+        self, image_key: str = SlideKey.IMAGE, foreground_threshold: Optional[float] = None, **kwargs: Any
+    ) -> None:
         """
-        :param reader: And instance of MONAI's `WSIReader`.
         :param image_key: Image key in the input and output dictionaries.
-        :param level: Magnification level to load from the raw multi-scale file.
-        :param margin: Amount in pixels by which to enlarge the estimated bounding box for cropping.
         :param foreground_threshold: Pixels with luminance below this value will be considered foreground.
         If `None` (default), an optimal threshold will be estimated automatically using Otsu's method.
+        :param kwargs: Additional arguments for `BaseLoadROId`.
         """
         MapTransform.__init__(self, [image_key], allow_missing_keys=False)
-        BaseLoadROId.__init__(self, reader, image_key, level, margin)
+        BaseLoadROId.__init__(self, image_key=image_key, **kwargs)
         self.foreground_threshold = foreground_threshold
 
     def _load_slide_at_level(self, slide_obj: _OpenSlideOrCuImage, level: int) -> np.ndarray:
@@ -156,7 +166,7 @@ class LoadROId(MapTransform, BaseLoadROId, Generic[_OpenSlideOrCuImage]):
         return slide
 
     def _get_bounding_box(self, slide_obj: _OpenSlideOrCuImage) -> box_utils.Box:
-        # Estimate bounding box at the lowest resolution (i.e. highest level)
+        """Estimate bounding box at the lowest resolution (i.e. highest level) of the slide."""
         highest_level = self._get_highest_level(slide_obj)
         scale = self._get_scale_at_level(slide_obj, highest_level)
         slide = self._load_slide_at_level(slide_obj, level=highest_level)
@@ -188,7 +198,7 @@ class LoadROId(MapTransform, BaseLoadROId, Generic[_OpenSlideOrCuImage]):
 
 
 class LoadMaskROId(MapTransform, BaseLoadROId, Generic[_OpenSlideOrCuImage]):
-    """Transform that loads a pathology slide and mask, cropped to the mask bounding box (ROI).
+    """Transform that loads a pathology slide and mask, cropped to the mask bounding box (ROI) defined by the mask.
 
     Operates on dictionaries, replacing the file paths in `image_key` and `mask_key` with the
     respective loaded arrays, in (C, H, W) format. Also adds the following meta-data entries:
@@ -198,22 +208,18 @@ class LoadMaskROId(MapTransform, BaseLoadROId, Generic[_OpenSlideOrCuImage]):
     - `'scale'` (float): corresponding scale, loaded from the file
     """
 
-    def __init__(self, reader: WSIReader, image_key: str = SlideKey.IMAGE, mask_key: str = SlideKey.MASK,
-                 level: int = 0, margin: int = 0, **kwargs: Any) -> None:
+    def __init__(self, image_key: str, mask_key: str = SlideKey.MASK, **kwargs: Any) -> None:
         """
-        :param reader: And instance of MONAI's `WSIReader`.
         :param image_key: Image key in the input and output dictionaries.
         :param mask_key: Mask key in the input and output dictionaries.
-        :param level: Magnification level to load from the raw multi-scale files.
-        :param margin: Amount in pixels by which to enlarge the estimated bounding box for cropping.
+        :param kwargs: Additional arguments for `BaseLoadROId`.
         """
         MapTransform.__init__(self, [image_key, mask_key], allow_missing_keys=False)
-        BaseLoadROId.__init__(self, reader, image_key, level, margin)
+        BaseLoadROId.__init__(self, image_key=image_key, **kwargs)
         self.mask_key = mask_key
-        self.kwargs = kwargs
 
     def _get_bounding_box(self, mask_obj: _OpenSlideOrCuImage) -> box_utils.Box:
-        # Estimate bounding box at the lowest resolution (i.e. highest level)
+        """Estimate bounding box at the lowest resolution (i.e. highest level) of the mask."""
         highest_level = self._get_highest_level(mask_obj)
         scale = self._get_scale_at_level(mask_obj, highest_level)
         mask, _ = self.reader.get_data(mask_obj, level=highest_level)  # loaded as RGB PIL image
@@ -254,40 +260,99 @@ class LoadMaskROId(MapTransform, BaseLoadROId, Generic[_OpenSlideOrCuImage]):
 
 
 class CucimLoadROId(CuImageMixin, LoadROId['CuImage']):
+    """Transform that loads a pathology slide, cropped to the foreground bounding box (ROI). This transform uses cuCIM
+    backend to load the whole slide image (WSI). Note that cucim is a requires a GPU to run."""
 
-    def __init__(self, image_key: str = SlideKey.IMAGE, level: int = 0, margin: int = 0,
-                 foreground_threshold: Optional[float] = None) -> None:
-        reader = WSIReader(backend='cuCIM')
-        super().__init__(reader, image_key, level, margin, foreground_threshold)
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(backend=WSIBackend.CUCIM, **kwargs)
 
 
 class OpenSlideLoadROId(OpenSlideMixin, LoadROId['OpenSlide']):
+    """Transform that loads a pathology slide, cropped to the foreground bounding box (ROI). This transform uses
+    OpenSlide to load the whole slide image (WSI)."""
 
-    def __init__(self, image_key: str = SlideKey.IMAGE, level: int = 0, margin: int = 0,
-                 foreground_threshold: Optional[float] = None) -> None:
-        reader = WSIReader(backend='OpenSlide')
-        super().__init__(reader, image_key, level, margin, foreground_threshold)
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(backend=WSIBackend.OPENSLIDE, **kwargs)
 
 
 class CucimLoadMaskROId(CuImageMixin, LoadMaskROId['CuImage']):
+    """Transform that loads a pathology slide and mask, cropped to the mask bounding box (ROI) defined by the mask.
+    This transform uses cuCIM backend to load the whole slide image (WSI). Note that cucim is a requires a GPU to
+    run."""
 
-    def __init__(self, image_key: str = 'image', mask_key: str = 'mask', level: int = 0,
-                 margin: int = 0, **kwargs: Any) -> None:
-        reader = WSIReader(backend='cuCIM')
-        super().__init__(reader, image_key, mask_key, level, margin, **kwargs)
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(backend=WSIBackend.CUCIM, **kwargs)
 
 
 class OpenSlideLoadMaskROId(OpenSlideMixin, LoadMaskROId['OpenSlide']):
+    """Transform that loads a pathology slide and mask, cropped to the mask bounding box (ROI) defined by the mask.
+    This transform uses OpenSlides backend to load the whole slide image (WSI)."""
 
-    def __init__(self, image_key: str = 'image', mask_key: str = 'mask', level: int = 0,
-                 margin: int = 0, **kwargs: Any) -> None:
-        reader = WSIReader(backend='OpenSlide')
-        super().__init__(reader, image_key, mask_key, level, margin, **kwargs)
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(backend=WSIBackend.OPENSLIDE, **kwargs)
 
 
-LoadRoidTransformsDict: Dict[Tuple[str, bool], Callable] = {
-    ('cuCIM', False): CucimLoadROId,
-    ('cuCIM', True): CucimLoadMaskROId,
-    ('OpenSlide', False): OpenSlideLoadROId,
-    ('OpenSlide', True): OpenSlideLoadMaskROId,
-}
+class LoadingParams(param.Parameterized):
+    """Parameters for loading a whole slide image."""
+
+    image_key: str = param.String(
+        default=SlideKey.IMAGE,
+        doc="Key for the image in the data dictionary.")
+    mask_key: str = param.String(
+        default=SlideKey.MASK,
+        doc="Key for the mask in the data dictionary. This only applies to `LoadMaskROId`.")
+    level: int = param.Integer(
+        default=0,
+        doc="Magnification level to load from the raw multi-scale files")
+    margin: int = param.Integer(
+        default=0, doc="Amount in pixels by which to enlarge the estimated bounding box for cropping")
+    backend: WSIBackend = param.ClassSelector(
+        default=WSIBackend.CUCIM,
+        class_=WSIBackend,
+        doc="WSI reader backend.")
+    roi_type: ROIType = param.ClassSelector(
+        default=ROIType.FOREGROUND,
+        class_=ROIType,
+        doc="ROI type to use for cropping the slide.")
+    foreground_threshold: Optional[float] = param.Number(
+        default=None,
+        bounds=(0, 255.),
+        allow_None=True,
+        doc="Threshold for foreground mask. If None, the threshold is selected automatically with otsu thresholding."
+        "This only applies to `LoadROId`.")
+
+    @property
+    def load_roid_transforns_dict(self) -> Dict[Tuple[WSIBackend, ROIType], Callable]:
+        """Returns a dictionary of transforms to load a slide and mask, cropped to the mask bounding box (ROI) defined
+        by either the mask or the foreground."""
+        return {
+            (WSIBackend.CUCIM, ROIType.FOREGROUND): CucimLoadROId,
+            (WSIBackend.CUCIM, ROIType.MASK): CucimLoadMaskROId,
+            (WSIBackend.OPENSLIDE, ROIType.FOREGROUND): OpenSlideLoadROId,
+            (WSIBackend.OPENSLIDE, ROIType.MASK): OpenSlideLoadMaskROId,
+        }
+
+    def get_load_roid_transform(self) -> Callable:
+        """Returns a transform to load a slide and mask, cropped to the mask bounding box (ROI) defined by either the
+        mask or the foreground."""
+        return self.load_roid_transforns_dict[(self.backend, self.roi_type)](**self.get_transform_args())
+
+    def get_transform_args(self) -> Dict[str, Any]:
+        """Returns a dictionary of arguments for the transform."""
+        args = dict(
+            image_key=self.image_key,
+            level=self.level,
+            margin=self.margin,
+            backend_args=self.get_additionl_backend_args()
+        )
+        if self.roi_type == ROIType.FOREGROUND:
+            args.update(dict(foreground_threshold=self.foreground_threshold))
+        elif self.roi_type == ROIType.MASK:
+            args.update(dict(mask_key=self.mask_key))
+        return args
+
+    def get_additionl_backend_args(self) -> Dict[str, Any]:
+        """Returns a dictionary of additional arguments for the WSI reader backend. Multi processing is
+        enabled since monai 1.0.0 by specifying num_workers > 0 with CuCIM backend only.
+        """
+        return dict()
