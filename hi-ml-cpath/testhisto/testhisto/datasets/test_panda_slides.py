@@ -52,7 +52,7 @@ def test_panda_reproducibility(tmp_path: Path) -> None:
     container.max_bag_size = num_tiles
     container.local_datasets = [tmp_path]
     container.backend = WSIBackend.CUCIM
-    container.roi_type=ROIType.FOREGROUND
+    container.roi_type = ROIType.FOREGROUND
 
 
     def test_data_items_are_equal(loader_fn_names: List[str]) -> None:
