@@ -212,7 +212,6 @@ smoke_test_openslide_slidespandaimagenetmil_local:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDASLIDES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
 	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS} ${OPENSLIDE_BACKEND_ARGS};}
 
-# Once running in AML the following test takes around 6 minutes
 smoke_test_openslide_slidespandaimagenetmil_aml:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDASLIDES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
 	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS} ${OPENSLIDE_BACKEND_ARGS} ${AML_MULTIPLE_DEVICE_ARGS};}

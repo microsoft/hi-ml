@@ -5,7 +5,8 @@
 from pathlib import Path
 import sys
 import time
-from typing import Any
+from typing import Any, Optional
+from azureml.core import Workspace
 
 himl_histo_root_dir = Path(__file__).parent.parent.parent
 himl_root = himl_histo_root_dir.parent.parent
@@ -16,11 +17,11 @@ from health_azure import DatasetConfig  # noqa: E402
 from health_azure.utils import get_workspace  # noqa: E402
 
 
-def mount_dataset(dataset_id: str, tmp_root: str = "/tmp/datasets/") -> Any:
-    ws = get_workspace()
-    target_folder = tmp_root + dataset_id
+def mount_dataset(dataset_id: str, tmp_root: str = "/tmp/datasets", aml_workspace: Optional[Workspace] = None) -> Any:
+    ws = get_workspace(aml_workspace)
+    target_folder = "/".join([tmp_root, dataset_id])
     dataset = DatasetConfig(name=dataset_id, target_folder=target_folder, use_mounting=True)
-    _, mount_ctx = dataset.to_input_dataset_local(ws)
+    _, mount_ctx = dataset.to_input_dataset_local(strictly_aml_v1=True, workspace=ws)
     assert mount_ctx is not None  # for mypy
     mount_ctx.start()
     return mount_ctx
