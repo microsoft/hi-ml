@@ -17,15 +17,13 @@ from typing import Sequence, List, Any, Dict, Optional, Union, Tuple
 
 from monai.data.meta_tensor import MetaTensor
 from monai.data.dataset import Dataset
-from monai.data.image_reader import WSIReader
 from torch.utils.data import DataLoader
-from health_cpath.preprocessing.loading import LoadROId
-
+from health_cpath.datasets.panda_dataset import PandaDataset
+from health_cpath.preprocessing.loading import LoadRoidTransformsDict
 from health_cpath.utils.naming import SlideKey
 from health_cpath.utils.naming import ResultsKey
 from health_cpath.utils.heatmap_utils import location_selected_tiles
 from health_cpath.utils.tiles_selection_utils import SlideNode
-from health_cpath.datasets.panda_dataset import PandaDataset, LoadPandaROId
 
 
 def load_image_dict(
@@ -45,8 +43,7 @@ def load_image_dict(
     :param wsi_has_mask: whether the WSI has a mask
     :param backend: backend to be used to load the image (cuCIM or OpenSlide)
     """
-    transform = LoadPandaROId if wsi_has_mask else LoadROId
-    loader = transform(WSIReader(backend=backend), level=level, margin=margin)
+    loader = LoadRoidTransformsDict[(backend, wsi_has_mask)](level=level, margin=margin)
     img = loader(sample)
     if isinstance(img[SlideKey.IMAGE], MetaTensor):
         # New monai transforms return a MetaTensor, we need to convert it to a numpy array for backward compatibility

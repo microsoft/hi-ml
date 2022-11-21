@@ -10,6 +10,7 @@ from typing import Any, Callable, Dict, Generic, Optional, Sequence, Tuple, Type
 
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, DistributedSampler
+from health_cpath.preprocessing.loading import LoadRoidTransformsDict
 
 from health_ml.utils.bag_utils import BagDataset, multibag_collate
 from health_ml.utils.common_utils import _create_generator
@@ -297,15 +298,16 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
     def _load_dataset(self, slides_dataset: SlidesDataset, stage: ModelKey) -> Dataset:
         base_transform = Compose(
             [
-                LoadImaged(
-                    keys=SlideKey.IMAGE,
-                    reader=WSIReader,
-                    dtype=np.uint8,
-                    image_only=True,
-                    level=self.level,
-                    backend=self.backend,
-                    **self.wsi_reader_args,
-                ),
+                # LoadImaged(
+                #     keys=SlideKey.IMAGE,
+                #     reader=WSIReader,
+                #     dtype=np.uint8,
+                #     image_only=True,
+                #     level=self.level,
+                #     backend=self.backend,
+                #     **self.wsi_reader_args,
+                # ),
+                LoadRoidTransformsDict[(self.backend, True)](level=self.level, margin=0),
                 self.tiling_params.get_tiling_transform(bag_size=self.bag_sizes[stage], stage=stage),
                 # GridPatchd returns stacked tiles (bag_size, C, H, W), however we need to split them into separate
                 # tiles to be able to apply augmentations on each tile independently
@@ -313,7 +315,6 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
             ]
         )
         if self.transforms_dict and self.transforms_dict[stage]:
-
             transforms = Compose([base_transform, self.transforms_dict[stage]]).flatten()
         else:
             transforms = base_transform
