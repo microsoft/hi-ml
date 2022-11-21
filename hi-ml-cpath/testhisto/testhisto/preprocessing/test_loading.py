@@ -2,10 +2,9 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import pytest
 from pathlib import Path
 from typing import List, Tuple
-from unittest.mock import patch
-import pytest
 from health_cpath.datasets.default_paths import PANDA_DATASET_ID
 from health_cpath.datasets.panda_dataset import PandaDataset
 from health_cpath.preprocessing.loading import (
