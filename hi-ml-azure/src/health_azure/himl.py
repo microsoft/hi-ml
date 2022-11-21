@@ -906,7 +906,7 @@ def submit_to_azure_if_needed(  # type: ignore
                              wait_for_completion=wait_for_completion,
                              wait_for_completion_show_output=wait_for_completion_show_output)
             if after_submission is not None:
-                after_submission(run)
+                after_submission(run)  # type: ignore
         else:
 
             assert conda_environment_file is not None
@@ -939,7 +939,7 @@ def submit_to_azure_if_needed(  # type: ignore
                                 hyperparam_args=hyperparam_args
                                 )
             if after_submission is not None:
-                after_submission(job, ml_client)
+                after_submission(job, ml_client)  # type: ignore
 
     exit(0)
 
