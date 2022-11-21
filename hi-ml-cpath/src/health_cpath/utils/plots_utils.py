@@ -140,7 +140,7 @@ def save_attention_heatmap(
     figures_dir: Path,
     results: ResultsType,
     tile_size: int = 224,
-    level: int = 1,
+    is_level_0_coords: bool = True,
 ) -> None:
     """Plots and saves a slide thumbnail and attention heatmap
 
@@ -150,17 +150,15 @@ def save_attention_heatmap(
     :param figures_dir: The path to the directory where to save the plots.
     :param results: Dict containing ResultsKey keys (e.g. slide id) and values as lists of output slides.
     :param tile_size: Size of each tile. Default 224.
-    :param level: Magnification at which tiles are available (e.g. PANDA levels are 0 for original,
-        1 for 4x downsampled, 2 for 16x downsampled). Default 1.
+    :param is_level_0_coords: Whether the coordinates are in level 0 or not. Default True.
     """
     fig = plot_heatmap_overlay(
         case=case,
         slide_node=slide_node,
-        slide_image=slide_dict[SlideKey.IMAGE],
+        slide_dict=slide_dict,
         results=results,
-        location_bbox=slide_dict[SlideKey.ORIGIN],
         tile_size=tile_size,
-        level=level,
+        is_level_0_coords=is_level_0_coords,
     )
     save_figure(fig=fig, figpath=figures_dir / f"{slide_node.slide_id}_heatmap.png")
 
@@ -184,6 +182,7 @@ class DeepMILPlotsHandler:
         class_names: Optional[Sequence[str]] = None,
         wsi_has_mask: bool = True,
         backend: str = "cuCIM",
+        is_level_0_coords: bool = True,
     ) -> None:
         """Class that handles the plotting of DeepMIL results.
 
@@ -198,6 +197,7 @@ class DeepMILPlotsHandler:
         :param slides_dataset: The slides dataset from where to load the whole slide images, defaults to None
         :param wsi_has_mask: Whether the whole slide images have a mask, defaults to True
         :param backend: The backend to use for loading the whole slide images, defaults to "cuCIM"
+        :param is_level_0_coords: Whether the coordinates are in level 0 or not. Default True.
         """
         self.plot_options = plot_options
         self.class_names = validate_class_names_for_plot_options(class_names, plot_options)
@@ -208,6 +208,7 @@ class DeepMILPlotsHandler:
         self.stage = stage
         self.wsi_has_mask = wsi_has_mask
         self.backend = backend
+        self.is_level_0_coords = is_level_0_coords
         self.slides_dataset: Optional[SlidesDataset] = None
 
     def get_slide_dict(self, slide_node: SlideNode) -> SlideDictType:
@@ -237,7 +238,7 @@ class DeepMILPlotsHandler:
 
             if PlotOption.ATTENTION_HEATMAP in self.plot_options:
                 save_attention_heatmap(
-                    case, slide_node, slide_dict, case_dir, results, self.tile_size, level=self.level
+                    case, slide_node, slide_dict, case_dir, results, self.tile_size, self.is_level_0_coords
                 )
 
     def save_plots(self, outputs_dir: Path, tiles_selector: Optional[TilesSelector], results: ResultsType) -> None:

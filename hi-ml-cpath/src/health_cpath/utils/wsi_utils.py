@@ -1,13 +1,11 @@
 import torch
 import param
-import numpy as np
 
 from typing import Any, Callable, List, Optional, Dict
 from health_cpath.preprocessing.create_tiles_dataset import get_tile_id
 from health_cpath.utils.naming import ModelKey, SlideKey, TileKey
 from health_ml.utils.bag_utils import multibag_collate
 from health_ml.utils.box_utils import Box
-from monai.data.meta_tensor import MetaTensor
 from monai.transforms import RandGridPatchd, GridPatchd
 from monai.utils.enums import WSIPatchKeys
 
@@ -21,6 +19,8 @@ def image_collate(batch: List) -> Any:
     """
 
     for i, item in enumerate(batch):
+        # The tiles have been splited into a list of dicts, each dict containing a single tile to be able to apply
+        # tile wise transforms. We need to stack them back together.
         data = item[0]
         extract_tiles_coordinates_from_metatensor(data)
         # MetaTensor is a monai class that is used to store metadata along with the image
@@ -37,11 +37,10 @@ def extract_tiles_coordinates_from_metatensor(data: Dict[str, Any]) -> None:
     """
     h, w = data[SlideKey.IMAGE].shape[1:]
     ys, xs = data[SlideKey.IMAGE].meta[WSIPatchKeys.LOCATION]
-    scale_factor = 4
-    data[TileKey.TILE_LEFT] = torch.tensor(xs * scale_factor)
-    data[TileKey.TILE_RIGHT] = torch.tensor((xs + w) * scale_factor)
-    data[TileKey.TILE_TOP] = torch.tensor(ys * scale_factor)
-    data[TileKey.TILE_BOTTOM] = torch.tensor((ys + h) * scale_factor)
+    data[TileKey.TILE_LEFT] = torch.tensor(xs)
+    data[TileKey.TILE_RIGHT] = torch.tensor(xs + w)
+    data[TileKey.TILE_TOP] = torch.tensor(ys)
+    data[TileKey.TILE_BOTTOM] = torch.tensor(ys + h)
     data[TileKey.TILE_ID] = [get_tile_id(data[SlideKey.SLIDE_ID], Box(x=x, y=y, w=w, h=h)) for x, y in zip(xs, ys)]
     data[SlideKey.SLIDE_ID] = [data[SlideKey.SLIDE_ID]] * data[SlideKey.IMAGE].meta[WSIPatchKeys.COUNT]
 

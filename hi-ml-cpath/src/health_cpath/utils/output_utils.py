@@ -258,7 +258,8 @@ class DeepMILOutputsHandler:
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
                  maximise: bool, val_plot_options: Collection[PlotOption],
                  test_plot_options: Collection[PlotOption], wsi_has_mask: bool = True,
-                 backend: str = "cuCIM", val_set_is_dist: bool = True) -> None:
+                 backend: str = "cuCIM", is_level_0_coords: bool = True,
+                 val_set_is_dist: bool = True) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
@@ -272,6 +273,7 @@ class DeepMILOutputsHandler:
         :param test_plot_options: The desired plot options for test time.
         :param wsi_has_mask: Whether the whole slides have a mask to crop specific ROIs.
         :param backend: The backend to use for reading the tiles. Default is "cuCIM".
+        :param is_level_0_coords: Whether the coordinates are at level 0 (default) or at the level of the tiles.
         :param val_set_is_dist: If True, the validation set is distributed across processes. Otherwise, the validation
             set is replicated on each process. This shouldn't affect the results, as we take the mean of the validation
             set metrics across processes. This is only relevant for the outputs_handler, which needs to know whether to
@@ -297,6 +299,7 @@ class DeepMILOutputsHandler:
             stage=ModelKey.VAL,
             wsi_has_mask=wsi_has_mask,
             backend=backend,
+            is_level_0_coords=is_level_0_coords,
         )
         self.test_plots_handler = DeepMILPlotsHandler(
             plot_options=test_plot_options,
@@ -306,6 +309,7 @@ class DeepMILOutputsHandler:
             stage=ModelKey.TEST,
             wsi_has_mask=wsi_has_mask,
             backend=backend,
+            is_level_0_coords=is_level_0_coords,
         )
         self.val_set_is_dist = val_set_is_dist
 

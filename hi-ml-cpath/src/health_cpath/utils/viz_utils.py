@@ -168,28 +168,31 @@ def plot_slide(case: str, slide_node: SlideNode, slide_image: np.ndarray, scale:
 def plot_heatmap_overlay(
     case: str,
     slide_node: SlideNode,
-    slide_image: np.ndarray,
+    slide_dict: Dict[SlideKey, Any],
     results: Dict[ResultsKey, List[Any]],
-    location_bbox: List[int],
     tile_size: int = 224,
-    level: int = 1,
+    is_level_0_coords: bool = True,
 ) -> plt.Figure:
     """Plots heatmap of selected tiles (e.g. tiles in a bag) overlay on the corresponding slide.
 
     :param case: The report case (e.g., TP, FN, ...)
     :param slide_node: The slide node that encapsulates the slide metadata.
-    :param slide_image: Numpy array of the slide image (shape: [3, H, W]).
+    :param slide_dict: Dictionary of the slide image (shape: [3, H, W]) containing the slide image and metadata: the
+        location of the bouding box of the slide and the scale factor to convert the heatmap coordinates to the slide
+        level.
     :param results: Dict containing ResultsKey keys (e.g. slide id) and values as lists of output slides.
     :param tile_size: Size of each tile. Default 224.
-    :param level: Magnification at which tiles are available (e.g. PANDA levels are 0 for original,
-    1 for 4x downsampled, 2 for 16x downsampled). Default 1.
-    :param location_bbox: Location of the bounding box of the slide.
+    :param is_level_0_coords: If True, the coordinates are in level 0. Otherwise, the coordinates are in the slide
+        level. Tiles pipeline coordinates are in level 0. However, when tiling on the fly, the coordinates are in the
+        level of the slide.
     :return: matplotlib figure of the heatmap of the given tiles on slide.
     """
     fig, ax = plt.subplots()
     fig.suptitle(_get_histo_plot_title(case, slide_node))
-
+    slide_image = slide_dict[SlideKey.IMAGE]
+    assert isinstance(slide_image, np.ndarray), f"slide image must be a numpy array, got {type(slide_image)}"
     slide_image = slide_image.transpose(1, 2, 0)
+
     ax.imshow(slide_image)
     ax.set_xlim(0, slide_image.shape[1])
     ax.set_ylim(slide_image.shape[0], 0)
@@ -202,7 +205,10 @@ def plot_heatmap_overlay(
                            results[ResultsKey.TILE_TOP][slide_idx].cpu().numpy()])
     attentions = np.array(attentions.cpu()).reshape(-1)
 
-    sel_coords = location_selected_tiles(tile_coords=coords, location_bbox=location_bbox, level=level)
+    sel_coords = location_selected_tiles(tile_coords=coords,
+                                         location_bbox=slide_dict[SlideKey.LOCATION],
+                                         scale_factor=slide_dict[SlideKey.SCALE],
+                                         is_level_0_coords=False)
     cmap = plt.cm.get_cmap("Reds")
 
     tile_xs, tile_ys = sel_coords.T

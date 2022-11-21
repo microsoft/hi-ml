@@ -82,6 +82,9 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams
                                        doc="Whether the WSI has a mask. If True, will use the mask to load a specific"
                                            "region of the WSI. If False, will load the whole WSI.")
     wsi_backend: str = param.String(default="cuCIM", doc="The backend to use for loading WSI. ")
+    is_level_0_coords: bool = param.Boolean(True,
+                                            doc="Whether the coordinates are at level 0. If False, will scale them to "
+                                            "level 0 for plotting heatmaps.")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -158,6 +161,7 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams
             test_plot_options=self.get_test_plot_options(),
             wsi_has_mask=self.wsi_has_mask,
             backend=self.wsi_backend,
+            is_level_0_coords=self.is_level_0_coords,
             val_set_is_dist=self.pl_replace_sampler_ddp and self.max_num_gpus > 1,
         )
         if self.num_top_slides > 0:
