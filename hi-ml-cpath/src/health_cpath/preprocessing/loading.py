@@ -90,6 +90,7 @@ class OpenSlideMixin:
 
 class BaseLoadROId:
     """Abstract base class for loading a region of interest (ROI) from a slide. The ROI is defined by a bounding box."""
+
     def __init__(
         self, backend: str, image_key: str = SlideKey.IMAGE, level: int = 2, margin: int = 0, backend_args: Dict = {}
     ) -> None:
