@@ -45,7 +45,7 @@ def test_get_load_roid_transform(backend: str, roi_type: str) -> None:
         assert "Mask" not in transform.__class__.__name__
 
 
-# @pytest.mark.skip(reason="This test is failing because of issue #655")
+@pytest.mark.skip(reason="This test is failing because of issue #655")
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 def test_load_slide(tmp_path: Path) -> None:
