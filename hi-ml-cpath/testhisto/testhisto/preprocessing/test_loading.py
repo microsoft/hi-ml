@@ -4,9 +4,8 @@
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
 from typing import List, Tuple
-import pandas as pd
+from unittest.mock import patch
 import pytest
-from requests import patch
 from health_cpath.datasets.default_paths import PANDA_DATASET_ID
 from health_cpath.datasets.panda_dataset import PandaDataset
 from health_cpath.preprocessing.loading import (
@@ -46,11 +45,11 @@ def test_get_load_roid_transform(backend: str, roi_type: str) -> None:
         assert "Mask" not in transform.__class__.__name__
 
 
-# @pytest.mark.skip(reason="This test is failing because of issue #655")
+@pytest.mark.skip(reason="This test is failing because of issue #655")
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 def test_load_slide(tmp_path: Path) -> None:
-    with patch("health_cpath.scripts.mount_azure_dataset.get_worskpace") as mock_get_workspace:
+    with patch("health_azure.utils.get_worskpace") as mock_get_workspace:
         mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
         mount_dataset(dataset_id=PANDA_DATASET_ID, tmp_root=str(tmp_path))
     root_path = tmp_path / PANDA_DATASET_ID
