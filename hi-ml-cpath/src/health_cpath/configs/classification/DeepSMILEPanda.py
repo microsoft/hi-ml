@@ -44,7 +44,7 @@ class BaseDeepSMILEPanda(BaseMIL):
             margin=0,
             image_key=SlideKey.IMAGE,
             mask_key=SlideKey.MASK,
-            )
+        )
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
         self.class_names = ["ISUP 0", "ISUP 1", "ISUP 2", "ISUP 3", "ISUP 4", "ISUP 5"]
