@@ -187,16 +187,12 @@ class DeepMILPlotsHandler:
         """Class that handles the plotting of DeepMIL results.
 
         :param plot_options: A set of plot options to produce the desired plot outputs.
-        :param level: Magnification at which tiles are available (e.g. PANDA levels are 0 for original,
-            1 for 4x downsampled, 2 for 16x downsampled). Default 1.
         :param tile_size: _description_, defaults to 224
         :param num_columns: Number of columns to create the subfigures grid, defaults to 4
         :param figsize: The figure size of tiles attention plots, defaults to (10, 10)
         :param stage: Test or Validation, used to name the plots
         :param class_names: List of class names, defaults to None
         :param slides_dataset: The slides dataset from where to load the whole slide images, defaults to None
-        :param wsi_has_mask: Whether the whole slide images have a mask, defaults to True
-        :param backend: The backend to use for loading the whole slide images, defaults to "cuCIM"
         """
         self.plot_options = plot_options
         self.class_names = validate_class_names_for_plot_options(class_names, plot_options)

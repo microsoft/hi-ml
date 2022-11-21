@@ -277,12 +277,9 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         **kwargs: Any,
     ) -> None:
         """
-        :param level: the whole slide image level at which the image is extracted, defaults to 1
-        this param is passed to the LoadImaged monai transform that loads a WSI with cucim backend by default
-        :param backend: the WSI reader backend, defaults to "cuCIM".
-        :param wsi_reader_args: additional arguments to pass to the WSIReader, defaults to {}. Multi processing is
-        enabled since monai 1.0.0 by specifying num_workers > 0 with CuCIM backend only.
         :param tiling_params: the tiling on the fly parameters, defaults to TileOnTheFlyParams()
+        :param loading_params: the loading parameters, defaults to LoadingParams()
+        :param kwargs: additional parameters to pass to the parent class HistoDataModule
         """
         super().__init__(**kwargs)
         self.tiling_params = tiling_params
