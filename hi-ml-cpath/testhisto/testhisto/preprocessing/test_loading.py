@@ -49,7 +49,7 @@ def test_get_load_roid_transform(backend: str, roi_type: str) -> None:
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 def test_load_slide(tmp_path: Path) -> None:
-    with patch("health_azure.utils.get_worskpace") as mock_get_workspace:
+    with patch("health_cpath.scripts.mount_azure_dataset.get_worskpace") as mock_get_workspace:
         mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
         mount_dataset(dataset_id=PANDA_DATASET_ID, tmp_root=str(tmp_path))
     root_path = tmp_path / PANDA_DATASET_ID
