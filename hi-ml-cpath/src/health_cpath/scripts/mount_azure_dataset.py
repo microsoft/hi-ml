@@ -16,9 +16,9 @@ from health_azure import DatasetConfig  # noqa: E402
 from health_azure.utils import get_workspace  # noqa: E402
 
 
-def mount_dataset(dataset_id: str) -> Any:
+def mount_dataset(dataset_id: str, tmp_root: str = "/tmp/datasets/") -> Any:
     ws = get_workspace()
-    target_folder = "/tmp/datasets/" + dataset_id
+    target_folder = tmp_root + dataset_id
     dataset = DatasetConfig(name=dataset_id, target_folder=target_folder, use_mounting=True)
     _, mount_ctx = dataset.to_input_dataset_local(ws)
     assert mount_ctx is not None  # for mypy

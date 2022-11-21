@@ -91,7 +91,7 @@ class OpenSlideMixin:
 class BaseLoadROId:
     """Abstract base class for loading a region of interest (ROI) from a slide. The ROI is defined by a bounding box."""
     def __init__(
-        self, backend: str, image_key: str = SlideKey.IMAGE, level: int = 0, margin: int = 0, backend_args: Dict = {}
+        self, backend: str, image_key: str = SlideKey.IMAGE, level: int = 2, margin: int = 0, backend_args: Dict = {}
     ) -> None:
         """
         :param backend: The WSI reader backend to use. One of 'OpenSlide' or 'cuCIM'.
@@ -208,7 +208,7 @@ class LoadMaskROId(MapTransform, BaseLoadROId, Generic[_OpenSlideOrCuImage]):
     - `'scale'` (float): corresponding scale, loaded from the file
     """
 
-    def __init__(self, image_key: str, mask_key: str = SlideKey.MASK, **kwargs: Any) -> None:
+    def __init__(self, image_key: str = SlideKey.IMAGE, mask_key: str = SlideKey.MASK, **kwargs: Any) -> None:
         """
         :param image_key: Image key in the input and output dictionaries.
         :param mask_key: Mask key in the input and output dictionaries.
