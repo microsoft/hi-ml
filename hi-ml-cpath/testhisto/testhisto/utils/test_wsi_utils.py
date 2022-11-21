@@ -1,3 +1,4 @@
+from unittest.mock import patch
 import torch
 import pytest
 import numpy as np
@@ -84,3 +85,12 @@ def test_tiling_params(stage: ModelKey) -> None:
     expected_transform_type = RandGridPatchd if stage == ModelKey.TRAIN else GridPatchd
     transform = params.get_tiling_transform(stage=stage, bag_size=10)
     assert isinstance(transform, expected_transform_type)
+
+
+def test_tiling_params_split_transform() -> None:
+    params = TilingParams()
+    with patch("health_cpath.utils.wsi_utils.SplitDimd") as mock_split_dim:
+        _ = params.get_split_transform()
+        mock_split_dim.assert_called_once()
+        call_args = mock_split_dim.call_args_list[0][1]
+        assert call_args == {'keys': SlideKey.IMAGE, 'dim': 0, 'keepdim': False, 'list_output': True}

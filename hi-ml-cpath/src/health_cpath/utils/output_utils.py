@@ -264,11 +264,13 @@ class DeepMILOutputsHandler:
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
         :param tile_size: The size of each tile.
+        :param class_names: List of class names. For binary (`n_classes == 1`), expects `len(class_names) == 2`.
+            If `None`, will return `('0', '1', ...)`.
         :param primary_val_metric: Name of the validation metric to track for saving best epoch outputs.
         :param maximise: Whether higher is better for `primary_val_metric`.
         :param val_plot_options: The desired plot options for validation time.
         :param test_plot_options: The desired plot options for test time.
-        :param loading_params: Parameters for loading the wsi to produce plots.
+        :param loading_params: Parameters for loading WSI to create plots. This paramter is passed to PlotsHandler.
         :param val_set_is_dist: If True, the validation set is distributed across processes. Otherwise, the validation
             set is replicated on each process. This shouldn't affect the results, as we take the mean of the validation
             set metrics across processes. This is only relevant for the outputs_handler, which needs to know whether to

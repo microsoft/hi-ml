@@ -157,7 +157,6 @@ class LoadROId(MapTransform, BaseLoadROId, Generic[_OpenSlideOrCuImage]):
         This is a manual workaround for a MONAI bug (https://github.com/Project-MONAI/MONAI/issues/3415)
         fixed in a currently unreleased PR (https://github.com/Project-MONAI/MONAI/pull/3417).
 
-        :param reader: A MONAI `WSIReader` using cuCIM backend.
         :param slide_obj: The cuCIM image object returned by `reader.read(<image_file>)`.
         :param level: Index of the desired magnification level as defined in the `slide_obj` headers.
         :return: The loaded image array in (C, H, W) format.
@@ -355,5 +354,5 @@ class LoadingParams(param.Parameterized):
     def get_additionl_backend_args(self) -> Dict[str, Any]:
         """Returns a dictionary of additional arguments for the WSI reader backend. Multi processing is
         enabled since monai 1.0.0 by specifying num_workers > 0 with CuCIM backend only.
-        """
+        This function can be overridden in BaseMIL to add additional arguments for the backend."""
         return dict()

@@ -146,7 +146,7 @@ def _test_datamodule_pl_ddp_sampler_false(
 ) -> None:
     datamodule.setup()
     if rank == 0:
-        time.sleep(20)  # slow down rank 0 to avoid concurrent file access
+        time.sleep(15)  # slow down rank 0 to avoid concurrent file access
     _validate_sampler_type(datamodule, [ModelKey.VAL, ModelKey.TEST], expected_none=True)
     _validate_sampler_type(datamodule, [ModelKey.TRAIN], expected_none=False)
 
