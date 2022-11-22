@@ -26,7 +26,7 @@ from health_cpath.utils.heatmap_utils import location_selected_tiles
 from health_cpath.utils.tiles_selection_utils import SlideNode
 
 
-def load_image_dict(sample: dict, loading_params: LoadingParams = LoadingParams()) -> Dict[SlideKey, Any]:
+def load_image_dict(sample: dict, loading_params: LoadingParams) -> Dict[SlideKey, Any]:
     """
     Load image from metadata dictionary
     :param sample: dict describing image metadata. Example:
