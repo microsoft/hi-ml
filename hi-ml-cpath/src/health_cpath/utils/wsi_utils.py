@@ -6,7 +6,7 @@ from typing import Any, Callable, List, Optional
 from health_cpath.utils.naming import ModelKey, SlideKey
 from health_ml.utils.bag_utils import multibag_collate
 from monai.data.meta_tensor import MetaTensor
-from monai.transforms import RandGridPatchd, GridPatchd
+from monai.transforms import RandGridPatchd, GridPatchd, SplitDimd
 
 
 def image_collate(batch: List) -> Any:
@@ -99,3 +99,9 @@ class TilingParams(param.Parameterized):
                 pad_mode=self.tile_pad_mode,  # type: ignore
                 constant_values=self.background_val,  # this arg is passed to np.pad or torch.pad
             )
+
+    def get_split_transform(self) -> Callable:
+        """GridPatchd returns stacked tiles (bag_size, C, H, W), however we need to split them into separate
+        tiles to be able to apply augmentations on each tile independently.
+        """
+        return SplitDimd(keys=SlideKey.IMAGE, dim=0, keepdim=False, list_output=True)

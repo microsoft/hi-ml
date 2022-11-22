@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Collection, Dict, List
 from unittest.mock import MagicMock, patch
 import pytest
-
+from health_cpath.preprocessing.loading import LoadingParams, ROIType
 from health_cpath.utils.naming import PlotOption, ResultsKey
 from health_cpath.utils.plots_utils import DeepMILPlotsHandler, save_confusion_matrix, save_pr_curve
 from health_cpath.utils.tiles_selection_utils import SlideNode, TilesSelector
@@ -18,7 +18,15 @@ from testhisto.mocks.container import MockDeepSMILETilesPanda
 def test_plots_handler_wrong_class_names() -> None:
     plot_options = {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX}
     with pytest.raises(ValueError, match=r"No class_names were provided while activating confusion matrix plotting."):
-        _ = DeepMILPlotsHandler(plot_options, class_names=[])
+        _ = DeepMILPlotsHandler(plot_options, class_names=[], loading_params=LoadingParams())
+
+
+@pytest.mark.parametrize("roi_type", [r for r in ROIType])
+def test_plots_handler_always_uses_roid_loading(roi_type: ROIType) -> None:
+    plot_options = {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX}
+    loading_params = LoadingParams(roi_type=roi_type)
+    plots_handler = DeepMILPlotsHandler(plot_options, class_names=["foo", "bar"], loading_params=loading_params)
+    assert plots_handler.loading_params.roi_type in [ROIType.MASK, ROIType.FOREGROUND]
 
 
 @pytest.mark.parametrize(
@@ -71,7 +79,7 @@ def assert_plot_func_called_if_among_plot_options(
     ],
 )
 def test_plots_handler_plots_only_desired_plot_options(plot_options: Collection[PlotOption]) -> None:
-    plots_handler = DeepMILPlotsHandler(plot_options, class_names=["foo1", "foo2"])
+    plots_handler = DeepMILPlotsHandler(plot_options, class_names=["foo1", "foo2"], loading_params=LoadingParams())
     plots_handler.slides_dataset = MagicMock()
 
     n_tiles = 4
