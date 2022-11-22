@@ -40,7 +40,7 @@ class BaseDeepSMILEPanda(BaseMIL):
             adam_betas=(0.9, 0.99),
             # loading params:
             backend=WSIBackend.CUCIM,
-            roi_type=ROIType.MASK,
+            roi_type=ROIType.FOREGROUND,
             margin=0,
             image_key=SlideKey.IMAGE,
             mask_key=SlideKey.MASK,

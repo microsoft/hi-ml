@@ -11,7 +11,7 @@ import skimage.filters
 from health_ml.utils import box_utils
 from health_cpath.utils.naming import SlideKey
 from monai.data.wsi_reader import WSIReader
-from monai.transforms import MapTransform
+from monai.transforms import MapTransform, LoadImaged
 from openslide import OpenSlide
 from typing import Any, Callable, Dict, Generic, Optional, Tuple, TypeVar
 
@@ -52,6 +52,7 @@ class ROIType(str, Enum):
     """Options for the ROI selection. Either a bounding box defined by foreground or a mask can be used."""
     FOREGROUND = 'foreground'
     MASK = 'segmentation_mask'
+    WHOLE = 'whole_slide'
 
 
 class WSIBackend(str, Enum):
@@ -92,12 +93,14 @@ class BaseLoadROId:
     """Abstract base class for loading a region of interest (ROI) from a slide. The ROI is defined by a bounding box."""
 
     def __init__(
-        self, backend: str, image_key: str = SlideKey.IMAGE, level: int = 2, margin: int = 0, backend_args: Dict = {}
+        self, backend: str = WSIBackend.CUCIM, image_key: str = SlideKey.IMAGE, level: int = 1, margin: int = 0,
+        backend_args: Dict = {}
     ) -> None:
         """
         :param backend: The WSI reader backend to use. One of 'OpenSlide' or 'cuCIM'.
         :param image_key: Image key in the input and output dictionaries.
-        :param level: Magnification level to load from the raw multi-scale file.
+        :param level: Magnification level to load from the raw multi-scale file, 0 is the highest resolution. Default: 1
+            which loads the second highest resolution.
         :param margin: Amount in pixels by which to enlarge the estimated bounding box for cropping.
         :param backend_args: Additional arguments to pass to the WSI reader backend.
         """
@@ -151,25 +154,11 @@ class LoadROId(MapTransform, BaseLoadROId, Generic[_OpenSlideOrCuImage]):
         BaseLoadROId.__init__(self, image_key=image_key, **kwargs)
         self.foreground_threshold = foreground_threshold
 
-    def _load_slide_at_level(self, slide_obj: _OpenSlideOrCuImage, level: int) -> np.ndarray:
-        """Load full slide array at the given magnification level.
-
-        This is a manual workaround for a MONAI bug (https://github.com/Project-MONAI/MONAI/issues/3415)
-        fixed in a currently unreleased PR (https://github.com/Project-MONAI/MONAI/pull/3417).
-
-        :param slide_obj: The cuCIM image object returned by `reader.read(<image_file>)`.
-        :param level: Index of the desired magnification level as defined in the `slide_obj` headers.
-        :return: The loaded image array in (C, H, W) format.
-        """
-        size = self._get_size_at_level(slide_obj, level)
-        slide, _ = self.reader.get_data(slide_obj, size=size, level=level)  # loaded as RGB PIL image
-        return slide
-
     def _get_bounding_box(self, slide_obj: _OpenSlideOrCuImage) -> box_utils.Box:
         """Estimate bounding box at the lowest resolution (i.e. highest level) of the slide."""
         highest_level = self._get_highest_level(slide_obj)
         scale = self._get_scale_at_level(slide_obj, highest_level)
-        slide = self._load_slide_at_level(slide_obj, level=highest_level)
+        slide, _ = self.reader.get_data(slide_obj, level=highest_level)
 
         foreground_mask, threshold = segment_foreground(slide, self.foreground_threshold)
         self.foreground_threshold = threshold
@@ -177,23 +166,24 @@ class LoadROId(MapTransform, BaseLoadROId, Generic[_OpenSlideOrCuImage]):
         return bbox
 
     def __call__(self, data: Dict) -> Dict:
-        image_obj: _OpenSlideOrCuImage = self.reader.read(data[self.image_key])
+        try:
+            image_obj: _OpenSlideOrCuImage = self.reader.read(data[self.image_key])
 
-        level0_bbox = self._get_bounding_box(image_obj)
+            level0_bbox = self._get_bounding_box(image_obj)
 
-        # cuCIM/OpenSlide takes absolute location coordinates in the level 0 reference frame,
-        # but relative region size in pixels at the chosen level
-        origin = (level0_bbox.y, level0_bbox.x)
-        scale = self._get_scale_at_level(image_obj, self.level)
-        scaled_bbox = level0_bbox / scale
+            # cuCIM/OpenSlide takes absolute location coordinates in the level 0 reference frame,
+            # but relative region size in pixels at the chosen level
+            origin = (level0_bbox.y, level0_bbox.x)
+            scale = self._get_scale_at_level(image_obj, self.level)
+            scaled_bbox = level0_bbox / scale
 
-        data[self.image_key], _ = self.reader.get_data(image_obj, location=origin, level=self.level,
-                                                       size=(scaled_bbox.h, scaled_bbox.w))
-        data[SlideKey.ORIGIN] = origin
-        data[SlideKey.SCALE] = scale
-        data[SlideKey.FOREGROUND_THRESHOLD] = self.foreground_threshold
-
-        image_obj.close()
+            data[self.image_key], _ = self.reader.get_data(image_obj, location=origin, level=self.level,
+                                                           size=(scaled_bbox.h, scaled_bbox.w))
+            data[SlideKey.ORIGIN] = origin
+            data[SlideKey.SCALE] = scale
+            data[SlideKey.FOREGROUND_THRESHOLD] = self.foreground_threshold
+        finally:
+            image_obj.close()
         return data
 
 
@@ -232,30 +222,31 @@ class LoadMaskROId(MapTransform, BaseLoadROId, Generic[_OpenSlideOrCuImage]):
         return scaled_bbox
 
     def __call__(self, data: Dict) -> Dict:
-        mask_obj: _OpenSlideOrCuImage = self.reader.read(data[self.mask_key])
-        image_obj: _OpenSlideOrCuImage = self.reader.read(data[self.image_key])
+        try:
+            mask_obj: _OpenSlideOrCuImage = self.reader.read(data[self.mask_key])
+            image_obj: _OpenSlideOrCuImage = self.reader.read(data[self.image_key])
 
-        level0_bbox = self._get_bounding_box(mask_obj)
+            level0_bbox = self._get_bounding_box(mask_obj)
 
-        # cuCIM/OpenSlide take absolute location coordinates in the level 0 reference frame,
-        # but relative region size in pixels at the chosen level
-        scale = self._get_scale_at_level(mask_obj, self.level)
-        scaled_bbox = level0_bbox / scale
-        origin = (level0_bbox.y, level0_bbox.x)
-        get_data_kwargs = dict(
-            location=origin,
-            size=(scaled_bbox.h, scaled_bbox.w),
-            level=self.level,
-        )
-        mask, _ = self.reader.get_data(mask_obj, **get_data_kwargs)  # type: ignore
-        data[self.mask_key] = mask[:1]  # PANDA segmentation mask is in 'R' channel
-        data[self.image_key], _ = self.reader.get_data(image_obj, **get_data_kwargs)  # type: ignore
-        data.update(get_data_kwargs)
-        data[SlideKey.SCALE] = scale
-        data[SlideKey.ORIGIN] = origin
-
-        mask_obj.close()
-        image_obj.close()
+            # cuCIM/OpenSlide take absolute location coordinates in the level 0 reference frame,
+            # but relative region size in pixels at the chosen level
+            scale = self._get_scale_at_level(mask_obj, self.level)
+            scaled_bbox = level0_bbox / scale
+            origin = (level0_bbox.y, level0_bbox.x)
+            get_data_kwargs = dict(
+                location=origin,
+                size=(scaled_bbox.h, scaled_bbox.w),
+                level=self.level,
+            )
+            mask, _ = self.reader.get_data(mask_obj, **get_data_kwargs)  # type: ignore
+            data[self.mask_key] = mask[:1]  # PANDA segmentation mask is in 'R' channel
+            data[self.image_key], _ = self.reader.get_data(image_obj, **get_data_kwargs)  # type: ignore
+            data.update(get_data_kwargs)
+            data[SlideKey.SCALE] = scale
+            data[SlideKey.ORIGIN] = origin
+        finally:
+            mask_obj.close()
+            image_obj.close()
         return data
 
 
@@ -302,7 +293,7 @@ class LoadingParams(param.Parameterized):
         default=SlideKey.MASK,
         doc="Key for the mask in the data dictionary. This only applies to `LoadMaskROId`.")
     level: int = param.Integer(
-        default=0,
+        default=1,
         doc="Magnification level to load from the raw multi-scale files")
     margin: int = param.Integer(
         default=0, doc="Amount in pixels by which to enlarge the estimated bounding box for cropping")
@@ -332,9 +323,22 @@ class LoadingParams(param.Parameterized):
             (WSIBackend.OPENSLIDE, ROIType.MASK): OpenSlideLoadMaskROId,
         }
 
+    @property
+    def load_whole_slide_transform(self) -> Callable:
+        """Returns a transform to load a whole slide image."""
+        return LoadImaged(
+            keys=self.image_key,
+            reader=WSIReader,  # type: ignore
+            image_only=True,
+            level=self.level,
+            backend=self.backend,
+            **self.get_additionl_backend_args())
+
     def get_load_roid_transform(self) -> Callable:
         """Returns a transform to load a slide and mask, cropped to the mask bounding box (ROI) defined by either the
         mask or the foreground."""
+        if self.roi_type == ROIType.WHOLE:
+            return self.load_whole_slide_transform
         return self.load_roid_transforns_dict[(self.backend, self.roi_type)](**self.get_transform_args())
 
     def get_transform_args(self) -> Dict[str, Any]:
@@ -355,4 +359,4 @@ class LoadingParams(param.Parameterized):
         """Returns a dictionary of additional arguments for the WSI reader backend. Multi processing is
         enabled since monai 1.0.0 by specifying num_workers > 0 with CuCIM backend only.
         This function can be overridden in BaseMIL to add additional arguments for the backend."""
-        return dict()
+        return dict(dtype=np.uint8)
