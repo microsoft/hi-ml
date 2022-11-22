@@ -193,6 +193,7 @@ class DeepMILPlotsHandler:
         :param stage: Test or Validation, used to name the plots
         :param class_names: List of class names, defaults to None
         :param slides_dataset: The slides dataset from where to load the whole slide images, defaults to None
+        :param loading_params: The loading parameters to use when loading the whole slide images.
         """
         self.plot_options = plot_options
         self.class_names = validate_class_names_for_plot_options(class_names, plot_options)
