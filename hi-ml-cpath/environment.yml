@@ -89,7 +89,7 @@ dependencies:
     - alembic==1.8.1
     - applicationinsights==0.11.10
     - argcomplete==2.0.0
-    - astroid==2.12.12
+    - astroid==2.12.13
     - async-timeout==4.0.2
     - attrs==21.4.0
     - azure-ai-ml==1.1.1
@@ -160,12 +160,12 @@ dependencies:
     - google-auth-oauthlib==0.4.6
     - googleapis-common-protos==1.57.0
     - greenlet==2.0.1
-    - grpcio==1.50.0
+    - grpcio==1.51.0
     - gunicorn==20.1.0
     - hi-ml==0.2.9
     - hi-ml-azure==0.2.9
     - humanfriendly==10.0
-    - identify==2.5.8
+    - identify==2.5.9
     - idna==3.4
     - imageio==2.22.4
     - imagesize==1.4.1
@@ -224,7 +224,7 @@ dependencies:
     - param==1.12.0
     - paramiko==2.12.0
     - pathspec==0.10.2
-    - pillow==9.0.1
+    - pillow==9.3.0
     - pipdeptree==2.2.1
     - pkginfo==1.8.3
     - platformdirs==2.5.4
