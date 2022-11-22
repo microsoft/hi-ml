@@ -400,6 +400,19 @@ def test_create_run_configuration(
     assert not run_config.output_data
 
 
+def create_empty_conda_env(tmp_path: Path) -> Path:
+    """Create an empty conda environment in a given folder, and returns its path."""
+    conda_env_spec = OrderedDict({"name": "dummy_env",
+                                  "channels": OrderedList("default"),
+                                  "dependencies": OrderedList(["- pip=20.1.1", "- python=3.7.3"])})
+
+    conda_env_path = tmp_path / "dummy_conda_env.yml"
+    with open(conda_env_path, "w+") as f_path:
+        yaml.dump(conda_env_spec, f_path)
+    assert conda_env_path.is_file()
+    return conda_env_path
+
+
 @pytest.mark.fast
 @patch("azureml.core.Workspace")
 @patch("health_azure.himl.create_python_environment")
@@ -416,15 +429,7 @@ def test_create_run_configuration_correct_env(mock_create_environment: MagicMock
 
     mock_create_environment.return_value = mock_environment
 
-    conda_env_spec = OrderedDict({"name": "dummy_env",
-                                  "channels": OrderedList("default"),
-                                  "dependencies": OrderedList(["- pip=20.1.1", "- python=3.7.3"])})
-
-    conda_env_path = tmp_path / "dummy_conda_env.yml"
-    with open(conda_env_path, "w+") as f_path:
-        yaml.dump(conda_env_spec, f_path)
-    assert conda_env_path.is_file()
-
+    conda_env_path = create_empty_conda_env(tmp_path)
     with patch.object(mock_environment, "register") as mock_register:
         mock_register.return_value = mock_environment
 
@@ -1688,7 +1693,7 @@ def test_submitting_script_with_sdk_v2(tmp_path: Path) -> None:
     test_script = tmp_path / "test_script.py"
     test_script.write_text("print('hello world')")
     shared_config_json = get_shared_config_json()
-
+    conda_env_path = create_empty_conda_env(tmp_path)
     after_submission_called = False
 
     def after_submission(job: Job, ml_client: MLClient) -> None:
@@ -1707,6 +1712,7 @@ def test_submitting_script_with_sdk_v2(tmp_path: Path) -> None:
             experiment_name="test_submitting_script_with_sdk_v2",
             entry_script=test_script,
             compute_cluster_name=INEXPENSIVE_TESTING_CLUSTER_NAME,
+            conda_environment_file=conda_env_path,
             snapshot_root_directory=tmp_path,
             submit_to_azureml=True,
             after_submission=after_submission,
