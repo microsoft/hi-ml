@@ -42,7 +42,7 @@ class BaseDeepSMILEPanda(BaseMIL):
             backend=WSIBackend.CUCIM,
             roi_type=ROIType.FOREGROUND,
             foreground_threshold=255,
-            margin=224,
+            margin=0,
             image_key=SlideKey.IMAGE,
             mask_key=SlideKey.MASK,
         )

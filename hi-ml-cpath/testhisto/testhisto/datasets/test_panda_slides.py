@@ -53,6 +53,7 @@ def test_panda_reproducibility(tmp_path: Path) -> None:
     container.local_datasets = [tmp_path]
     container.backend = WSIBackend.CUCIM
     container.roi_type = ROIType.FOREGROUND
+    container.margin = 0
     container.level = 0
 
     def test_data_items_are_equal(loader_fn_names: List[str]) -> None:

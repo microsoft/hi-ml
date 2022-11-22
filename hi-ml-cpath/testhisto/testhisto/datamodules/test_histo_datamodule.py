@@ -12,10 +12,10 @@ from torch.utils.data import DataLoader, DistributedSampler, RandomSampler, Sequ
 
 from health_cpath.datamodules.base_module import HistoDataModule
 from health_cpath.datamodules.panda_module import PandaSlidesDataModule, PandaTilesDataModule
-from health_cpath.preprocessing.loading import LoadingParams, ROIType, WSIBackend
 from health_cpath.utils.naming import ModelKey, SlideKey
 from health_cpath.utils.wsi_utils import TilingParams
 from health_ml.utils.common_utils import is_gpu_available
+from testhisto.datamodules.test_slides_datamodule import get_loading_params
 from testhisto.utils.utils_testhisto import run_distributed
 
 
@@ -66,7 +66,7 @@ def test_slides_datamodule_different_bag_sizes(
         max_bag_size=max_bag_size,
         max_bag_size_inf=max_bag_size_inf,
         tiling_params=TilingParams(tile_size=28),
-        loading_params=LoadingParams(level=0, backend=WSIBackend.CUCIM, roi_type=ROIType.FOREGROUND),
+        loading_params=get_loading_params(level=0),
     )
     # For slides datamodule, the true bag sizes [4, 4] are the same as requested to TileOnGrid transform
     _assert_correct_bag_sizes(datamodule, max_bag_size, max_bag_size_inf, true_bag_sizes=[4, 4])
@@ -100,7 +100,7 @@ def test_slides_datamodule_different_batch_sizes(
         max_bag_size=16,
         max_bag_size_inf=16,
         tiling_params=TilingParams(tile_size=28),
-        loading_params=LoadingParams(level=0, backend=WSIBackend.CUCIM, roi_type=ROIType.FOREGROUND),
+        loading_params=get_loading_params(level=0),
     )
     _assert_correct_batch_sizes(datamodule, batch_size, batch_size_inf)
 

@@ -36,6 +36,7 @@ def get_loading_params(level: int = 0) -> LoadingParams:
         backend=WSIBackend.CUCIM,
         roi_type=ROIType.FOREGROUND,
         foreground_threshold=255,
+        margin=0,
     )
 
 
