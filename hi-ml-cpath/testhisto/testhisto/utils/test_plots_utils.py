@@ -18,7 +18,7 @@ from testhisto.mocks.container import MockDeepSMILETilesPanda
 def test_plots_handler_wrong_class_names() -> None:
     plot_options = {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX}
     with pytest.raises(ValueError, match=r"No class_names were provided while activating confusion matrix plotting."):
-        _ = DeepMILPlotsHandler(plot_options, class_names=[])
+        _ = DeepMILPlotsHandler(plot_options, class_names=[], loading_params=LoadingParams())
 
 
 @pytest.mark.parametrize("roi_type", [r for r in ROIType])
@@ -79,7 +79,7 @@ def assert_plot_func_called_if_among_plot_options(
     ],
 )
 def test_plots_handler_plots_only_desired_plot_options(plot_options: Collection[PlotOption]) -> None:
-    plots_handler = DeepMILPlotsHandler(plot_options, class_names=["foo1", "foo2"])
+    plots_handler = DeepMILPlotsHandler(plot_options, class_names=["foo1", "foo2"], loading_params=LoadingParams())
     plots_handler.slides_dataset = MagicMock()
 
     n_tiles = 4

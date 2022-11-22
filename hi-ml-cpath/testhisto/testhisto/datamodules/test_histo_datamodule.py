@@ -157,7 +157,8 @@ def _test_datamodule_pl_ddp_sampler_false(
 def test_slides_datamodule_pl_replace_sampler_ddp(mock_panda_slides_root_dir: Path) -> None:
     slides_datamodule = PandaSlidesDataModule(root_path=mock_panda_slides_root_dir,
                                               pl_replace_sampler_ddp=True,
-                                              seed=42)
+                                              seed=42, tiling_params=TilingParams(),
+                                              loading_params=get_loading_params())
     run_distributed(_test_datamodule_pl_ddp_sampler_true, [slides_datamodule], world_size=2)
     slides_datamodule.pl_replace_sampler_ddp = False
     run_distributed(_test_datamodule_pl_ddp_sampler_false, [slides_datamodule], world_size=2)
@@ -178,6 +179,7 @@ def test_assertion_error_missing_seed(mock_panda_slides_root_dir: Path) -> None:
         with patch("torch.distributed.is_initialized", return_value=True):
             with patch("torch.distributed.get_world_size", return_value=2):
                 slides_datamodule = PandaSlidesDataModule(
-                    root_path=mock_panda_slides_root_dir, pl_replace_sampler_ddp=False
+                    root_path=mock_panda_slides_root_dir, pl_replace_sampler_ddp=False,
+                    tiling_params=TilingParams(), loading_params=get_loading_params()
                 )
                 slides_datamodule._get_ddp_sampler(MagicMock(), ModelKey.TRAIN)
