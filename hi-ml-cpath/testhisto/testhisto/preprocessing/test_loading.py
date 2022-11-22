@@ -6,7 +6,7 @@ import pytest
 from pathlib import Path
 from typing import List, Tuple
 from monai.transforms import LoadImaged
-from monai.data.wsi_reader import CuCIMWSIReader, OpenSlideWSIReader
+from monai.data.wsi_reader import CuCIMWSIReader, OpenSlideWSIReader, WSIReader
 from health_cpath.datasets.default_paths import PANDA_DATASET_ID
 from health_cpath.datasets.panda_dataset import PandaDataset
 from health_cpath.preprocessing.loading import BaseLoadROId, LoadingParams, ROIType, WSIBackend, LoadROId, LoadMaskROId
@@ -28,6 +28,7 @@ def test_get_load_roid_transform(backend: WSIBackend, roi_type: ROIType) -> None
     reader_type = {WSIBackend.CUCIM: CuCIMWSIReader, WSIBackend.OPENSLIDE: OpenSlideWSIReader}
     if roi_type in [ROIType.MASK, ROIType.FOREGROUND]:
         assert isinstance(transform, BaseLoadROId)
+        assert isinstance(transform.reader, WSIReader)
         assert isinstance(transform.reader.reader, reader_type[backend])
 
 
