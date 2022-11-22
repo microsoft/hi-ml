@@ -18,7 +18,7 @@ from health_ml.utils.box_utils import Box
 
 from health_cpath.datasets.base_dataset import SlidesDataset
 from health_cpath.preprocessing import tiling
-from health_cpath.preprocessing.loading import CucimLoadROId, segment_foreground
+from health_cpath.preprocessing.loading import LoadROId, WSIBackend, segment_foreground
 from health_cpath.utils.naming import SlideKey, TileKey
 
 
@@ -176,7 +176,8 @@ def process_slide(sample: Dict[SlideKey, Any], level: int, margin: int, tile_siz
             failed_tiles_file.write('tile_id' + '\n')
 
             print(f"Loading slide {slide_id} ...")
-            loader = CucimLoadROId(level=level, margin=margin, foreground_threshold=foreground_threshold)
+            loader = LoadROId(backend=WSIBackend.CUCIM, level=level, margin=margin,
+                              foreground_threshold=foreground_threshold)
             sample = loader(sample)  # load 'image' from disk
 
             print(f"Tiling slide {slide_id} ...")

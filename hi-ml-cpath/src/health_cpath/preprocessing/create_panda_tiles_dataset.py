@@ -21,7 +21,7 @@ from health_ml.utils.box_utils import Box
 from health_cpath.preprocessing import tiling
 from health_cpath.utils.naming import SlideKey, TileKey
 from health_cpath.datasets.panda_dataset import PandaDataset
-from health_cpath.preprocessing.loading import CucimLoadMaskROId
+from health_cpath.preprocessing.loading import LoadMaskROId, WSIBackend
 from health_cpath.preprocessing.create_tiles_dataset import get_tile_id, save_image, merge_dataset_csv_files
 
 CSV_COLUMNS = (
@@ -138,7 +138,7 @@ def process_slide(sample: dict, level: int, margin: int, tile_size: int, occupan
         dataset_csv_file.write(','.join(CSV_COLUMNS) + '\n')  # write CSV header
 
         print(f"Loading slide {slide_id} ...")
-        loader = CucimLoadMaskROId(level=level, margin=margin)
+        loader = LoadMaskROId(backend=WSIBackend.CUCIM, level=level, margin=margin)
         try:
             sample = loader(sample)  # load 'image' and 'mask' from disk
             failed = False

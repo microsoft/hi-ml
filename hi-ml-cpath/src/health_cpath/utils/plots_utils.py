@@ -202,6 +202,7 @@ class DeepMILPlotsHandler:
         self.figsize = figsize
         self.stage = stage
         self.loading_params = loading_params
+        self.loading_params.set_roi_type_to_foreground()
         self.slides_dataset: Optional[SlidesDataset] = None
 
     def get_slide_dict(self, slide_node: SlideNode) -> SlideDictType:
