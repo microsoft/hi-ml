@@ -28,8 +28,8 @@ def test_get_load_roid_transform(backend: WSIBackend, roi_type: ROIType) -> None
     reader_type = {WSIBackend.CUCIM: CuCIMWSIReader, WSIBackend.OPENSLIDE: OpenSlideWSIReader}
     if roi_type in [ROIType.MASK, ROIType.FOREGROUND]:
         assert isinstance(transform, BaseLoadROId)
-        assert isinstance(transform.reader, WSIReader)
-        assert isinstance(transform.reader.reader, reader_type[backend])
+        assert isinstance(transform.reader, WSIReader)  # type: ignore
+        assert isinstance(transform.reader.reader, reader_type[backend])  # type: ignore
 
 
 @pytest.mark.skip(reason="This test is failing because of issue #655")
