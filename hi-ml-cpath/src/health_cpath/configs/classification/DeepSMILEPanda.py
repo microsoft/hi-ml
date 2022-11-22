@@ -11,7 +11,8 @@ from health_cpath.datasets.default_paths import PANDA_5X_TILES_DATASET_ID, PANDA
 from health_cpath.datasets.panda_dataset import PandaDataset
 from health_cpath.datasets.panda_tiles_dataset import PandaTilesDataset
 from health_cpath.models.encoders import HistoSSLEncoder, ImageNetSimCLREncoder, Resnet18, SSLEncoder
-from health_cpath.utils.naming import PlotOption
+from health_cpath.preprocessing.loading import LoadingParams, ROIType, WSIBackend
+from health_cpath.utils.naming import PlotOption, SlideKey
 from health_cpath.utils.wsi_utils import TilingParams
 from health_ml.networks.layers.attention_layers import AttentionLayer
 from health_ml.utils.checkpoint_utils import CheckpointParser
@@ -36,7 +37,14 @@ class BaseDeepSMILEPanda(BaseMIL):
             # declared in OptimizerParams:
             l_rate=5e-4,
             weight_decay=1e-4,
-            adam_betas=(0.9, 0.99))
+            adam_betas=(0.9, 0.99),
+            # loading params:
+            backend=WSIBackend.CUCIM,
+            roi_type=ROIType.MASK,
+            margin=0,
+            image_key=SlideKey.IMAGE,
+            mask_key=SlideKey.MASK,
+        )
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
         self.class_names = ["ISUP 0", "ISUP 1", "ISUP 2", "ISUP 3", "ISUP 4", "ISUP 5"]
@@ -121,7 +129,6 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
 
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
-            # declared in BaseMILSlides:
             level=1,
             tile_size=224,
             background_val=255,
@@ -145,8 +152,8 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             batch_size_inf=self.batch_size_inf,
             max_bag_size=self.max_bag_size,
             max_bag_size_inf=self.max_bag_size_inf,
-            level=self.level,
             tiling_params=create_from_matching_params(self, TilingParams),
+            loading_params=create_from_matching_params(self, LoadingParams),
             seed=self.get_effective_random_seed(),
             transforms_dict=self.get_transforms_dict(PandaDataset.IMAGE_COLUMN),
             crossval_count=self.crossval_count,

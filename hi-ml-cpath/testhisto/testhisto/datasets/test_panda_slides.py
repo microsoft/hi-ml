@@ -15,6 +15,7 @@ from pytorch_lightning import seed_everything
 
 from health_cpath.configs.classification.DeepSMILESlidesPandaBenchmark import DeepSMILESlidesPandaBenchmark
 from health_cpath.datasets.panda_dataset import PandaDataset
+from health_cpath.preprocessing.loading import ROIType, WSIBackend
 from health_cpath.utils.naming import SlideKey
 from testhisto.mocks.base_data_generator import MockHistoDataType
 from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPositioningType
@@ -50,6 +51,10 @@ def test_panda_reproducibility(tmp_path: Path) -> None:
     container.tile_size = tile_size
     container.max_bag_size = num_tiles
     container.local_datasets = [tmp_path]
+    container.backend = WSIBackend.CUCIM
+    container.roi_type = ROIType.FOREGROUND
+    container.margin = 0
+    container.level = 0
 
     def test_data_items_are_equal(loader_fn_names: List[str]) -> None:
         """Creates a new data module from the container, and checks if all the data loaders specified in

@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import time
 import pytest
 import torch
 from pathlib import Path
@@ -14,6 +15,7 @@ from health_cpath.datamodules.panda_module import PandaSlidesDataModule, PandaTi
 from health_cpath.utils.naming import ModelKey, SlideKey
 from health_cpath.utils.wsi_utils import TilingParams
 from health_ml.utils.common_utils import is_gpu_available
+from testhisto.datamodules.test_slides_datamodule import get_loading_params
 from testhisto.utils.utils_testhisto import run_distributed
 
 
@@ -64,7 +66,7 @@ def test_slides_datamodule_different_bag_sizes(
         max_bag_size=max_bag_size,
         max_bag_size_inf=max_bag_size_inf,
         tiling_params=TilingParams(tile_size=28),
-        level=0,
+        loading_params=get_loading_params(level=0),
     )
     # For slides datamodule, the true bag sizes [4, 4] are the same as requested to TileOnGrid transform
     _assert_correct_bag_sizes(datamodule, max_bag_size, max_bag_size_inf, true_bag_sizes=[4, 4])
@@ -98,7 +100,7 @@ def test_slides_datamodule_different_batch_sizes(
         max_bag_size=16,
         max_bag_size_inf=16,
         tiling_params=TilingParams(tile_size=28),
-        level=0,
+        loading_params=get_loading_params(level=0),
     )
     _assert_correct_batch_sizes(datamodule, batch_size, batch_size_inf)
 
@@ -134,6 +136,8 @@ def _test_datamodule_pl_ddp_sampler_true(
     datamodule: HistoDataModule, rank: int = 0, world_size: int = 1, device: str = "cpu"
 ) -> None:
     datamodule.setup()
+    if rank == 0:
+        time.sleep(15)  # slow down rank 0 to avoid concurrent file access
     _validate_sampler_type(datamodule, [ModelKey.TRAIN, ModelKey.VAL, ModelKey.TEST], expected_none=True)
 
 
@@ -141,6 +145,8 @@ def _test_datamodule_pl_ddp_sampler_false(
     datamodule: HistoDataModule, rank: int = 0, world_size: int = 1, device: str = "cpu"
 ) -> None:
     datamodule.setup()
+    if rank == 0:
+        time.sleep(15)  # slow down rank 0 to avoid concurrent file access
     _validate_sampler_type(datamodule, [ModelKey.VAL, ModelKey.TEST], expected_none=True)
     _validate_sampler_type(datamodule, [ModelKey.TRAIN], expected_none=False)
 
@@ -157,7 +163,6 @@ def test_slides_datamodule_pl_replace_sampler_ddp(mock_panda_slides_root_dir: Pa
     run_distributed(_test_datamodule_pl_ddp_sampler_false, [slides_datamodule], world_size=2)
 
 
-@pytest.mark.skip(reason="Test fails with Broken Pipe Error. To be fixed.")
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
 @pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
 @pytest.mark.gpu

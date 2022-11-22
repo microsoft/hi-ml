@@ -11,6 +11,7 @@ from torch import Tensor
 import matplotlib.pyplot as plt
 
 from health_cpath.datasets.base_dataset import SlidesDataset
+from health_cpath.preprocessing.loading import LoadingParams
 from health_cpath.utils.viz_utils import (
     plot_attention_tiles,
     plot_heatmap_overlay,
@@ -174,41 +175,33 @@ class DeepMILPlotsHandler:
     def __init__(
         self,
         plot_options: Collection[PlotOption],
-        level: int = 1,
         tile_size: int = 224,
         num_columns: int = 4,
         figsize: Tuple[int, int] = (10, 10),
         stage: str = '',
         class_names: Optional[Sequence[str]] = None,
-        wsi_has_mask: bool = True,
-        backend: str = "cuCIM",
         is_level_0_coords: bool = True,
+        loading_params: LoadingParams = LoadingParams(),
     ) -> None:
         """Class that handles the plotting of DeepMIL results.
 
         :param plot_options: A set of plot options to produce the desired plot outputs.
-        :param level: Magnification at which tiles are available (e.g. PANDA levels are 0 for original,
-            1 for 4x downsampled, 2 for 16x downsampled). Default 1.
         :param tile_size: _description_, defaults to 224
         :param num_columns: Number of columns to create the subfigures grid, defaults to 4
         :param figsize: The figure size of tiles attention plots, defaults to (10, 10)
         :param stage: Test or Validation, used to name the plots
         :param class_names: List of class names, defaults to None
         :param slides_dataset: The slides dataset from where to load the whole slide images, defaults to None
-        :param wsi_has_mask: Whether the whole slide images have a mask, defaults to True
-        :param backend: The backend to use for loading the whole slide images, defaults to "cuCIM"
         :param is_level_0_coords: Whether the coordinates are in level 0 or not. Default True.
         """
         self.plot_options = plot_options
         self.class_names = validate_class_names_for_plot_options(class_names, plot_options)
-        self.level = level
         self.tile_size = tile_size
         self.num_columns = num_columns
         self.figsize = figsize
         self.stage = stage
-        self.wsi_has_mask = wsi_has_mask
-        self.backend = backend
         self.is_level_0_coords = is_level_0_coords
+        self.loading_params = loading_params
         self.slides_dataset: Optional[SlidesDataset] = None
 
     def get_slide_dict(self, slide_node: SlideNode) -> SlideDictType:
@@ -217,8 +210,7 @@ class DeepMILPlotsHandler:
         slide_index = self.slides_dataset.dataset_df.index.get_loc(slide_node.slide_id)
         assert isinstance(slide_index, int), f"Got non-unique slide ID: {slide_node.slide_id}"
         slide_dict = self.slides_dataset[slide_index]
-        slide_dict = load_image_dict(slide_dict, level=self.level, margin=0, wsi_has_mask=self.wsi_has_mask,
-                                     backend=self.backend)
+        slide_dict = load_image_dict(slide_dict, loading_params=self.loading_params)
         return slide_dict
 
     def save_slide_node_figures(

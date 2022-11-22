@@ -18,6 +18,7 @@ from torchmetrics.metric import Metric
 
 from health_azure.utils import replace_directory
 from health_cpath.datasets.base_dataset import SlidesDataset
+from health_cpath.preprocessing.loading import LoadingParams
 from health_cpath.utils.plots_utils import DeepMILPlotsHandler, TilesSelector
 from health_cpath.utils.naming import MetricsKey, ModelKey, PlotOption, ResultsKey
 
@@ -254,26 +255,23 @@ class OutputsPolicy:
 class DeepMILOutputsHandler:
     """Class that manages writing validation and test outputs for DeepMIL models."""
 
-    def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
+    def __init__(self, outputs_root: Path, n_classes: int, tile_size: int,
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
                  maximise: bool, val_plot_options: Collection[PlotOption],
-                 test_plot_options: Collection[PlotOption], wsi_has_mask: bool = True,
-                 backend: str = "cuCIM", is_level_0_coords: bool = True,
-                 val_set_is_dist: bool = True) -> None:
+                 test_plot_options: Collection[PlotOption], loading_params: LoadingParams = LoadingParams(),
+                 val_set_is_dist: bool = True, is_level_0_coords: bool = True,) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
         :param tile_size: The size of each tile.
-        :param level: The downsampling level (e.g. 0, 1, 2) of the tiles if available (default=1).
         :param class_names: List of class names. For binary (`n_classes == 1`), expects `len(class_names) == 2`.
             If `None`, will return `('0', '1', ...)`.
         :param primary_val_metric: Name of the validation metric to track for saving best epoch outputs.
         :param maximise: Whether higher is better for `primary_val_metric`.
         :param val_plot_options: The desired plot options for validation time.
         :param test_plot_options: The desired plot options for test time.
-        :param wsi_has_mask: Whether the whole slides have a mask to crop specific ROIs.
-        :param backend: The backend to use for reading the tiles. Default is "cuCIM".
         :param is_level_0_coords: Whether the coordinates are at level 0 (default) or at the level of the tiles.
+        :param loading_params: Parameters for loading WSI to create plots. This paramter is passed to PlotsHandler.
         :param val_set_is_dist: If True, the validation set is distributed across processes. Otherwise, the validation
             set is replicated on each process. This shouldn't affect the results, as we take the mean of the validation
             set metrics across processes. This is only relevant for the outputs_handler, which needs to know whether to
@@ -282,7 +280,6 @@ class DeepMILOutputsHandler:
         self.outputs_root = outputs_root
         self.n_classes = n_classes
         self.tile_size = tile_size
-        self.level = level
         self.class_names = validate_class_names(class_names, self.n_classes)
 
         self.outputs_policy = OutputsPolicy(outputs_root=outputs_root,
@@ -293,23 +290,19 @@ class DeepMILOutputsHandler:
 
         self.val_plots_handler = DeepMILPlotsHandler(
             plot_options=val_plot_options,
-            level=self.level,
             tile_size=self.tile_size,
             class_names=self.class_names,
             stage=ModelKey.VAL,
-            wsi_has_mask=wsi_has_mask,
-            backend=backend,
             is_level_0_coords=is_level_0_coords,
+            loading_params=loading_params,
         )
         self.test_plots_handler = DeepMILPlotsHandler(
             plot_options=test_plot_options,
-            level=self.level,
             tile_size=self.tile_size,
             class_names=self.class_names,
             stage=ModelKey.TEST,
-            wsi_has_mask=wsi_has_mask,
-            backend=backend,
             is_level_0_coords=is_level_0_coords,
+            loading_params=loading_params,
         )
         self.val_set_is_dist = val_set_is_dist
 

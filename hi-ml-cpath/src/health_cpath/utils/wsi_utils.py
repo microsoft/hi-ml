@@ -6,8 +6,9 @@ from health_cpath.preprocessing.create_tiles_dataset import get_tile_id
 from health_cpath.utils.naming import ModelKey, SlideKey, TileKey
 from health_ml.utils.bag_utils import multibag_collate
 from health_ml.utils.box_utils import Box
-from monai.transforms import RandGridPatchd, GridPatchd
 from monai.utils.enums import WSIPatchKeys
+from monai.data.meta_tensor import MetaTensor
+from monai.transforms import RandGridPatchd, GridPatchd, SplitDimd
 
 
 def image_collate(batch: List) -> Any:
@@ -25,6 +26,7 @@ def image_collate(batch: List) -> Any:
         extract_tiles_coordinates_from_metatensor(data)
         # MetaTensor is a monai class that is used to store metadata along with the image
         # We need to convert it to torch tensor to avoid adding the metadata to the batch
+        assert isinstance(data[SlideKey.IMAGE], MetaTensor), f"Expected MetaTensor, got {type(data[SlideKey.IMAGE])}"
         data[SlideKey.IMAGE] = torch.stack([ix[SlideKey.IMAGE].as_tensor() for ix in item], dim=0)
         data[SlideKey.LABEL] = torch.tensor(data[SlideKey.LABEL])
         batch[i] = data
@@ -112,3 +114,9 @@ class TilingParams(param.Parameterized):
                 pad_mode=self.tile_pad_mode,  # type: ignore
                 constant_values=self.background_val,  # this arg is passed to np.pad or torch.pad
             )
+
+    def get_split_transform(self) -> Callable:
+        """GridPatchd returns stacked tiles (bag_size, C, H, W), however we need to split them into separate
+        tiles to be able to apply augmentations on each tile independently.
+        """
+        return SplitDimd(keys=SlideKey.IMAGE, dim=0, keepdim=False, list_output=True)

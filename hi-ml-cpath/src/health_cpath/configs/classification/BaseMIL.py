@@ -15,6 +15,7 @@ from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 
 from health_azure.utils import create_from_matching_params
+from health_cpath.preprocessing.loading import LoadingParams
 from health_cpath.utils.callbacks import LossAnalysisCallback, LossCallbackParams
 from health_cpath.utils.wsi_utils import TilingParams
 
@@ -34,7 +35,7 @@ from health_cpath.utils.naming import MetricsKey, PlotOption, SlideKey, ModelKey
 from health_cpath.utils.tiles_selection_utils import TilesSelector
 
 
-class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams, LossCallbackParams):
+class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, ClassifierParams, LossCallbackParams):
     """BaseMIL is an abstract container defining basic functionality for running MIL experiments in both slides and
     tiles settings. It is responsible for instantiating the encoder and pooling layer. Subclasses should define the
     full DeepMIL model depending on the type of dataset (tiles/slides based).
@@ -55,12 +56,6 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams
                                           "If 0 (default), will return all samples in each bag. "
                                           "If > 0 , bags larger than `max_bag_size_inf` will yield "
                                           "random subsets of instances.")
-    # local_dataset (used as data module root_path) is declared in DatasetParams superclass
-    level: int = param.Integer(1, bounds=(0, None), doc="The whole slide image level at which the image is extracted."
-                                                        "Whole slide images are represented in a pyramid consisting of"
-                                                        "multiple images at different resolutions."
-                                                        "If 1 (default), will extract baseline image at the resolution"
-                                                        "at level 1.")
     # Outputs Handler parameters:
     num_top_slides: int = param.Integer(10, bounds=(0, None), doc="Number of slides to select when saving top and "
                                                                   "bottom tiles. If set to 10 (default), it selects 10 "
@@ -78,13 +73,9 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams
                                          doc="The maximum number of worker processes for dataloaders. Dataloaders use"
                                              "a heuristic num_cpus/num_gpus to set the number of workers, which can be"
                                              "very high for small num_gpus. This parameters sets an upper bound.")
-    wsi_has_mask: bool = param.Boolean(default=True,
-                                       doc="Whether the WSI has a mask. If True, will use the mask to load a specific"
-                                           "region of the WSI. If False, will load the whole WSI.")
-    wsi_backend: str = param.String(default="cuCIM", doc="The backend to use for loading WSI. ")
     is_level_0_coords: bool = param.Boolean(True,
                                             doc="Whether the coordinates are at level 0. If False, will scale them to "
-                                            "level 0 for plotting heatmaps.")
+                                                "level 0 for plotting heatmaps.")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -153,15 +144,13 @@ class BaseMIL(LightningContainer, EncoderParams, PoolingParams, ClassifierParams
             outputs_root=self.outputs_folder,
             n_classes=n_classes,
             tile_size=self.tile_size,
-            level=self.level,
             class_names=self.class_names,
             primary_val_metric=self.primary_val_metric,
             maximise=self.maximise_primary_metric,
             val_plot_options=self.get_val_plot_options(),
             test_plot_options=self.get_test_plot_options(),
-            wsi_has_mask=self.wsi_has_mask,
-            backend=self.wsi_backend,
             is_level_0_coords=self.is_level_0_coords,
+            loading_params=create_from_matching_params(self, LoadingParams),
             val_set_is_dist=self.pl_replace_sampler_ddp and self.max_num_gpus > 1,
         )
         if self.num_top_slides > 0:
