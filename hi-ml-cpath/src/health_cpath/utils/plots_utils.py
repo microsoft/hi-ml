@@ -194,6 +194,7 @@ class DeepMILPlotsHandler:
         :param slides_dataset: The slides dataset from where to load the whole slide images, defaults to None
         :param is_level_0_coords: Whether the coordinates are in level 0 or not. Default True.
         """
+
         self.plot_options = plot_options
         self.class_names = validate_class_names_for_plot_options(class_names, plot_options)
         self.tile_size = tile_size
