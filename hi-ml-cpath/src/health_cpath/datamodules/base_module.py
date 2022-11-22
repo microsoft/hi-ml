@@ -272,13 +272,13 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
 
     def __init__(
         self,
-        loading_params: LoadingParams = LoadingParams(),
-        tiling_params: TilingParams = TilingParams(),
+        loading_params: LoadingParams,
+        tiling_params: TilingParams,
         **kwargs: Any,
     ) -> None:
         """
-        :param tiling_params: the tiling on the fly parameters, defaults to TileOnTheFlyParams()
-        :param loading_params: the loading parameters, defaults to LoadingParams()
+        :param tiling_params: the tiling on the fly parameters.
+        :param loading_params: the loading parameters.
         :param kwargs: additional parameters to pass to the parent class HistoDataModule
         """
         super().__init__(**kwargs)

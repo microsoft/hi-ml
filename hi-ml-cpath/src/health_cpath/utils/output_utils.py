@@ -255,10 +255,10 @@ class OutputsPolicy:
 class DeepMILOutputsHandler:
     """Class that manages writing validation and test outputs for DeepMIL models."""
 
-    def __init__(self, outputs_root: Path, n_classes: int, tile_size: int,
+    def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, loading_params: LoadingParams,
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
                  maximise: bool, val_plot_options: Collection[PlotOption],
-                 test_plot_options: Collection[PlotOption], loading_params: LoadingParams = LoadingParams(),
+                 test_plot_options: Collection[PlotOption],
                  val_set_is_dist: bool = True,) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.

@@ -177,23 +177,23 @@ class DeepMILPlotsHandler:
     def __init__(
         self,
         plot_options: Collection[PlotOption],
+        loading_params: LoadingParams,
         tile_size: int = 224,
         num_columns: int = 4,
         figsize: Tuple[int, int] = (10, 10),
         stage: str = '',
         class_names: Optional[Sequence[str]] = None,
-        loading_params: LoadingParams = LoadingParams(),
     ) -> None:
         """Class that handles the plotting of DeepMIL results.
 
         :param plot_options: A set of plot options to produce the desired plot outputs.
-        :param tile_size: _description_, defaults to 224
+        :param loading_params: The loading parameters to use when loading the whole slide images.
+        :param tile_size: The size of the tiles to use when plotting the attention tiles, defaults to 224
         :param num_columns: Number of columns to create the subfigures grid, defaults to 4
         :param figsize: The figure size of tiles attention plots, defaults to (10, 10)
         :param stage: Test or Validation, used to name the plots
         :param class_names: List of class names, defaults to None
         :param slides_dataset: The slides dataset from where to load the whole slide images, defaults to None
-        :param loading_params: The loading parameters to use when loading the whole slide images.
         """
         self.plot_options = plot_options
         self.class_names = validate_class_names_for_plot_options(class_names, plot_options)

@@ -21,20 +21,16 @@ from health_cpath.datasets.panda_dataset import PandaDataset
 
 from health_cpath.utils.naming import SlideKey, ModelKey
 from health_cpath.datamodules.panda_module import PandaSlidesDataModule
-from testhisto.mocks.slides_generator import (
-    MockPandaSlidesGenerator,
-    MockHistoDataType,
-    TilesPositioningType,
-)
+from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, MockHistoDataType, TilesPositioningType
 
 no_gpu = not is_gpu_available()
 
 
-def get_loading_params(level: int = 0) -> LoadingParams:
+def get_loading_params(level: int = 0, roi_type: ROIType = ROIType.FOREGROUND) -> LoadingParams:
     return LoadingParams(
         level=level,
         backend=WSIBackend.CUCIM,
-        roi_type=ROIType.FOREGROUND,
+        roi_type=roi_type,
         foreground_threshold=255,
         margin=0,
     )
@@ -95,7 +91,8 @@ def get_original_tile(mock_dir: Path, wsi_id: str) -> np.ndarray:
 
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
-def test_tiling_on_the_fly(mock_panda_slides_root_dir_diagonal: Path) -> None:
+@pytest.mark.parametrize("roi_type", [ROIType.FOREGROUND, ROIType.WHOLE])
+def test_tiling_on_the_fly(roi_type: ROIType, mock_panda_slides_root_dir_diagonal: Path) -> None:
     batch_size = 1
     tile_count = 16
     tile_size = 28
@@ -106,7 +103,7 @@ def test_tiling_on_the_fly(mock_panda_slides_root_dir_diagonal: Path) -> None:
         batch_size=batch_size,
         max_bag_size=tile_count,
         tiling_params=TilingParams(tile_size=28),
-        loading_params=get_loading_params(level=0),
+        loading_params=get_loading_params(level=0, roi_type=roi_type),
     )
     dataloader = datamodule.train_dataloader()
     for sample in dataloader:
@@ -123,7 +120,8 @@ def test_tiling_on_the_fly(mock_panda_slides_root_dir_diagonal: Path) -> None:
 
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
-def test_tiling_without_fixed_tile_count(mock_panda_slides_root_dir_diagonal: Path) -> None:
+@pytest.mark.parametrize("roi_type", [ROIType.FOREGROUND, ROIType.WHOLE])
+def test_tiling_without_fixed_tile_count(roi_type: ROIType, mock_panda_slides_root_dir_diagonal: Path) -> None:
     batch_size = 1
     tile_count = None
     assert_batch_index = 0
@@ -133,7 +131,7 @@ def test_tiling_without_fixed_tile_count(mock_panda_slides_root_dir_diagonal: Pa
         batch_size=batch_size,
         max_bag_size=tile_count,
         tiling_params=TilingParams(tile_size=28),
-        loading_params=get_loading_params(level=0),
+        loading_params=get_loading_params(level=0, roi_type=roi_type),
     )
     dataloader = datamodule.train_dataloader()
     for sample in dataloader:
