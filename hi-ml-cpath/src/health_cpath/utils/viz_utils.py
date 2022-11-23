@@ -197,7 +197,7 @@ def plot_heatmap_overlay(
     attentions = np.array(attentions.cpu()).reshape(-1)
 
     sel_coords = location_selected_tiles(tile_coords=coords,
-                                         location_bbox=slide_dict[SlideKey.LOCATION],
+                                         location_bbox=slide_dict[SlideKey.ORIGIN],
                                          scale_factor=slide_dict[SlideKey.SCALE],
                                          should_upsacle_coords=should_upscale_coords)
     cmap = plt.cm.get_cmap("Reds")

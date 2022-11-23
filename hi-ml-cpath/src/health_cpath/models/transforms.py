@@ -256,7 +256,7 @@ class ExtractCoordinatesd(MapTransform):
 
         # Extract scale factor and offset from metadata to rescale coordinates to level 0
         scale_factor = data[SlideKey.SCALE] if SlideKey.SCALE in data else 1
-        offset_x, offset_y = data[SlideKey.ORIGIN] if SlideKey.ORIGIN in data else (0, 0)
+        offset_y, offset_x = data[SlideKey.ORIGIN] if SlideKey.ORIGIN in data else (0, 0)
 
         # Set the coordinates of the tiles in the output dictionary
         coord_keys = [TileKey.TILE_LEFT, TileKey.TILE_TOP, TileKey.TILE_RIGHT, TileKey.TILE_BOTTOM]
@@ -269,6 +269,7 @@ class ExtractCoordinatesd(MapTransform):
         data[TileKey.TILE_ID] = [get_tile_id(data[SlideKey.SLIDE_ID], Box(x=x, y=y, w=w, h=h)) for x, y in zip(xs, ys)]
         data[SlideKey.SLIDE_ID] = [data[SlideKey.SLIDE_ID]] * data[SlideKey.IMAGE].meta[WSIPatchKeys.COUNT]
 
-        # Convert the tiles to tensors after extracting all necessary information
+        # Convert the tiles and label to tensors after extracting all necessary information
         data[SlideKey.IMAGE] = data[SlideKey.IMAGE].as_tensor()
+        data[SlideKey.LABEL] = torch.tensor(data[SlideKey.LABEL])
         return data

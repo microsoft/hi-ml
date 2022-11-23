@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  -------------------------------------------------------------------------------------------
 
+from copy import deepcopy
 import shutil
 from itertools import chain
 from pathlib import Path
@@ -289,14 +290,14 @@ class DeepMILOutputsHandler:
             tile_size=tile_size,
             class_names=self.class_names,
             stage=ModelKey.VAL,
-            loading_params=loading_params,
+            loading_params=deepcopy(loading_params),
         )
         self.test_plots_handler = DeepMILPlotsHandler(
             plot_options=test_plot_options,
             tile_size=tile_size,
             class_names=self.class_names,
             stage=ModelKey.TEST,
-            loading_params=loading_params,
+            loading_params=deepcopy(loading_params),
         )
         self.val_set_is_dist = val_set_is_dist
 

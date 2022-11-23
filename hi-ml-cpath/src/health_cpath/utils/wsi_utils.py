@@ -22,7 +22,6 @@ def image_collate(batch: List) -> Any:
         data = item[0]
         assert isinstance(data[SlideKey.IMAGE], Tensor), f"Expected torch.Tensor, got {type(data[SlideKey.IMAGE])}"
         data[SlideKey.IMAGE] = torch.stack([ix[SlideKey.IMAGE] for ix in item], dim=0)
-        data[SlideKey.LABEL] = torch.tensor(data[SlideKey.LABEL])
         batch[i] = data
     return multibag_collate(batch)
 
