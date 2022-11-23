@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Mapping, Sequence, Union, Callable, Dict
+from typing import Mapping, Sequence, Tuple, Union, Callable, Dict
 
 import torch
 import numpy as np
@@ -240,36 +240,55 @@ class ExtractCoordinatesd(MapTransform):
         self.tile_size = tile_size
 
     @staticmethod
-    def _rescale_coordinates(coordinates: np.ndarray, scale_factor: int, offset: int) -> torch.Tensor:
+    def rescale_coordinates(coordinates: np.ndarray, scale_factor: int, offset: int) -> torch.Tensor:
         """Rescale the coordinates to the highest resolution."""
         coordinates = (coordinates * scale_factor) + offset
         return torch.tensor(coordinates)
 
-    def __call__(self, data: Mapping) -> Mapping:
-        data = dict(data)
-        h, w = self.tile_size, self.tile_size
-
-        # Extract coordinates from metadata
+    def extract_coordinates(self, data: Dict) -> Tuple[np.ndarray, np.ndarray]:
+        """Extract the coordinates of the tiles from the metadata."""
         for key in self.key_iterator(data):
             assert isinstance(data[key], MetaTensor), f"Expected MetaTensor, got {type(data[key])}"
             ys, xs = data[key].meta[WSIPatchKeys.LOCATION]
+        return ys, xs
 
-        # Extract scale factor and offset from metadata to rescale coordinates to level 0
-        scale_factor = data[SlideKey.SCALE] if SlideKey.SCALE in data else 1
-        offset_y, offset_x = data[SlideKey.ORIGIN] if SlideKey.ORIGIN in data else (0, 0)
+    def extract_scale_factor(self, data: Dict) -> int:
+        """Extract the scale factor of the tiles from the metadata to rescale the coordinates to highest resolution."""
+        return data[SlideKey.SCALE] if SlideKey.SCALE in data else 1
 
-        # Set the coordinates of the tiles in the output dictionary
+    def extract_offset(self, data: Dict) -> Tuple[int, int]:
+        """Extract the offset of the tiles from the metadata to translate to (0, 0) origin."""
+        return data[SlideKey.ORIGIN] if SlideKey.ORIGIN in data else (0, 0)
+
+    def set_coordinates(self, data: Dict, xs: np.ndarray, ys: np.ndarray) -> None:
+        """Set the coordinates of the tiles in the metadata."""
+        # Extract the scale factor and offset to rescale the coordinates to highest resolution
+        scale_factor = self.extract_scale_factor(data)
+        offset_y, offset_x = self.extract_offset(data)
+        # We set the coordinates of the tiles as top left and bottom right coordinates
         coord_keys = [TileKey.TILE_LEFT, TileKey.TILE_TOP, TileKey.TILE_RIGHT, TileKey.TILE_BOTTOM]
-        coordinates = [xs, ys, xs + w, ys + h]
+        coordinates = [xs, ys, xs + self.tile_size, ys + self.tile_size]
         offsets = [offset_x, offset_y, offset_x, offset_y]
+        # Set the coordinates of the tiles in the output dictionary
         for key, coord, offset in zip(coord_keys, coordinates, offsets):
-            data[key] = self._rescale_coordinates(coord, scale_factor, offset)
+            data[key] = self.rescale_coordinates(coord, scale_factor, offset)
 
-        # Set the slide and tile ids
+    def set_tile_and_slide_ids(self, data: Dict, xs: np.ndarray, ys: np.ndarray) -> None:
+        """Set the tile and slide id in the metadata."""
+        h, w = self.tile_size, self.tile_size
+        bag_size = data[SlideKey.IMAGE].meta[WSIPatchKeys.COUNT]
         data[TileKey.TILE_ID] = [get_tile_id(data[SlideKey.SLIDE_ID], Box(x=x, y=y, w=w, h=h)) for x, y in zip(xs, ys)]
-        data[SlideKey.SLIDE_ID] = [data[SlideKey.SLIDE_ID]] * data[SlideKey.IMAGE].meta[WSIPatchKeys.COUNT]
+        data[SlideKey.SLIDE_ID] = [data[SlideKey.SLIDE_ID]] * bag_size
 
-        # Convert the tiles and label to tensors after extracting all necessary information
+    def tiles_and_label_to_tensors(self, data: Dict) -> None:
+        """Convert the tiles and label to tensors."""
         data[SlideKey.IMAGE] = data[SlideKey.IMAGE].as_tensor()
         data[SlideKey.LABEL] = torch.tensor(data[SlideKey.LABEL])
+
+    def __call__(self, data: Mapping) -> Mapping:
+        data = dict(data)
+        ys, xs = self.extract_coordinates(data)
+        self.set_coordinates(data, xs=xs, ys=ys)
+        self.set_tile_and_slide_ids(data, xs=xs, ys=ys)
+        self.tiles_and_label_to_tensors(data)
         return data
