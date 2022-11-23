@@ -293,14 +293,13 @@ class DeepMILModule(LightningModule):
         bag_labels = torch.stack(bag_labels_list).view(-1)
         return bag_logits, bag_labels, bag_attn_list
 
-    def update_results_with_data_specific_info(self, batch: Dict, results: Dict) -> None:
-        """Update results with data specific info. This can be either tiles or slides related metadata."""
+    def update_results_with_metadata(self, batch: Dict, results: Dict) -> None:
+        """Update results with metadata. This can be either tiles or slides metadata including tiles coordinates."""
         results.update({ResultsKey.SLIDE_ID: batch[SlideKey.SLIDE_ID],
-                        ResultsKey.TILE_ID: batch[TileKey.TILE_ID],
-                        ResultsKey.TILE_TOP: batch[TileKey.TILE_TOP],
-                        ResultsKey.TILE_LEFT: batch[TileKey.TILE_LEFT],
-                        ResultsKey.TILE_RIGHT: batch[TileKey.TILE_RIGHT],
-                        ResultsKey.TILE_BOTTOM: batch[TileKey.TILE_BOTTOM]})
+                        ResultsKey.TILE_ID: batch[TileKey.TILE_ID]})
+        for key in [ResultsKey.TILE_TOP, ResultsKey.TILE_LEFT, ResultsKey.TILE_RIGHT, ResultsKey.TILE_LEFT]:
+            if key in batch:
+                results[key] = batch[key]
 
     def update_slides_selection(self, stage: str, batch: Dict, results: Dict) -> None:
         if (
@@ -355,7 +354,7 @@ class DeepMILModule(LightningModule):
                         ResultsKey.TRUE_LABEL: bag_labels,
                         ResultsKey.BAG_ATTN: bag_attn_list
                         })
-        self.update_results_with_data_specific_info(batch=batch, results=results)
+        self.update_results_with_metadata(batch=batch, results=results)
         self.update_slides_selection(stage=stage, batch=batch, results=results)
         return results
 

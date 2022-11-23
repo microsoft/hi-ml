@@ -230,7 +230,7 @@ def test_metrics(n_classes: int) -> None:
             expected_value = independent_metrics_dict[key](predicted_probs, true_labels.view(batch_size,))
             assert torch.allclose(value, expected_value), f"Discrepancy in '{key}' metric"
 
-        assert all(key in results.keys() for key in [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH])
+        assert all(key in results.keys() for key in [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID])
 
 
 def move_batch_to_expected_device(batch: Dict[str, List], use_gpu: bool) -> Dict:
@@ -419,6 +419,7 @@ def _get_datamodule(tmp_path: Path) -> PandaTilesDataModule:
         n_channels=3,
         tile_size=28,
         img_size=224,
+        tiling_version=1,
     )
     tiles_generator.generate_mock_histo_data()
     datamodule = PandaTilesDataModule(root_path=tmp_path, batch_size=2, max_bag_size=4)

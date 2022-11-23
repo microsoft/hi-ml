@@ -108,7 +108,7 @@ def test_tiling_on_the_fly(roi_type: ROIType, mock_panda_slides_root_dir_diagona
     dataloader = datamodule.train_dataloader()
     for sample in dataloader:
         # sanity check for expected shape
-        tiles, wsi_id = sample[SlideKey.IMAGE], sample[SlideKey.SLIDE_ID][assert_batch_index]
+        tiles, wsi_id = sample[SlideKey.IMAGE], sample[SlideKey.SLIDE_ID][assert_batch_index][0]
         assert len(tiles) == batch_size
         assert tiles[assert_batch_index].shape == (tile_count, channels, tile_size, tile_size)
 
@@ -158,7 +158,7 @@ def test_multi_resolution_tiling(level: int, mock_panda_slides_root_dir_diagonal
     dataloader = datamodule.train_dataloader()
     for sample in dataloader:
         # sanity check for expected shape
-        tiles, wsi_id = sample[SlideKey.IMAGE], sample[SlideKey.SLIDE_ID][assert_batch_index]
+        tiles, wsi_id = sample[SlideKey.IMAGE], sample[SlideKey.SLIDE_ID][assert_batch_index][0]
         assert tiles[assert_batch_index].shape == (tile_count, channels, tile_size, tile_size)
 
         # check tiling on the fly at different resolutions
@@ -185,7 +185,7 @@ def test_overlapping_tiles(batch_size: int, mock_panda_slides_root_dir_diagonal:
     )
     dataloader = datamodule.train_dataloader()
     for sample in dataloader:
-        tiles, wsi_id = sample[SlideKey.IMAGE], sample[SlideKey.SLIDE_ID][assert_batch_index]
+        tiles, wsi_id = sample[SlideKey.IMAGE], sample[SlideKey.SLIDE_ID][assert_batch_index][0]
         assert tiles[assert_batch_index].shape[0] >= min_expected_tile_count
 
         original_tile = get_original_tile(mock_panda_slides_root_dir_diagonal, wsi_id)
@@ -206,7 +206,7 @@ def test_train_test_transforms(mock_panda_slides_root_dir_diagonal: Path) -> Non
         tiles_dict = {}
         assert_batch_index = 0
         for sample in dataloader:
-            tiles, wsi_id = sample[SlideKey.IMAGE], sample[SlideKey.SLIDE_ID][assert_batch_index]
+            tiles, wsi_id = sample[SlideKey.IMAGE], sample[SlideKey.SLIDE_ID][assert_batch_index][0]
             tiles_dict.update({wsi_id: tiles[assert_batch_index]})
         return tiles_dict
 
