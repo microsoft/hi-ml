@@ -7,6 +7,7 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple
 from pathlib import Path
 from pytorch_lightning import LightningModule
 from torch import Tensor, argmax, mode, nn, optim, round
+from pytorch_lightning.utilities.rank_zero import rank_zero_warn
 from torchmetrics.classification import (MulticlassAUROC, MulticlassAccuracy, MulticlassConfusionMatrix,
                                          MulticlassCohenKappa, MulticlassAveragePrecision, BinaryConfusionMatrix,
                                          BinaryAccuracy, BinaryPrecision, BinaryRecall, BinaryF1Score, BinaryCohenKappa,
@@ -297,9 +298,17 @@ class DeepMILModule(LightningModule):
         """Update results with metadata. This can be either tiles or slides metadata including tiles coordinates."""
         results.update({ResultsKey.SLIDE_ID: batch[SlideKey.SLIDE_ID],
                         ResultsKey.TILE_ID: batch[TileKey.TILE_ID]})
-        for key in [ResultsKey.TILE_TOP, ResultsKey.TILE_LEFT, ResultsKey.TILE_RIGHT, ResultsKey.TILE_LEFT]:
-            if key in batch:
+        # Add tiles coordinates if available
+        coordinates_keys = [TileKey.TILE_TOP, TileKey.TILE_LEFT, TileKey.TILE_RIGHT, TileKey.TILE_LEFT]
+        if all([key in batch for key in coordinates_keys]):
+            for key in coordinates_keys:
                 results[key] = batch[key]
+        elif TilesDataset.TILE_X_COLUMN in batch and TilesDataset.TILE_X_COLUMN in batch:
+            results[ResultsKey.TILE_LEFT] = batch[TilesDataset.TILE_X_COLUMN]
+            results[ResultsKey.TILE_TOP] = batch[TilesDataset.TILE_Y_COLUMN]
+        else:
+            rank_zero_warn(message="Coordinates not found in batch. If this is not expected check your"
+                           "input tiles dataset.")
 
     def update_slides_selection(self, stage: str, batch: Dict, results: Dict) -> None:
         if (
