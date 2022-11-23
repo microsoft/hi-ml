@@ -260,7 +260,6 @@ class DeepMILOutputsHandler:
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
                  maximise: bool, val_plot_options: Collection[PlotOption],
                  test_plot_options: Collection[PlotOption], val_set_is_dist: bool = True) -> None:
-
         """
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).

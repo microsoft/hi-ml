@@ -313,6 +313,7 @@ class BaseMILSlides(BaseMIL, TilingParams):
     responsible for instantiating the full DeepMIL model in slides settings. Subclasses should define their datamodules
     and configure experiment-specific parameters.
     """
+
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.label_column = SlideKey.LABEL
