@@ -239,12 +239,6 @@ class ExtractCoordinatesd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.tile_size = tile_size
 
-    @staticmethod
-    def rescale_coordinates(coordinates: np.ndarray, scale_factor: int, offset: int) -> torch.Tensor:
-        """Rescale the coordinates to the highest resolution."""
-        coordinates = (coordinates * scale_factor) + offset
-        return torch.tensor(coordinates)
-
     def extract_coordinates(self, data: Dict) -> Tuple[np.ndarray, np.ndarray]:
         """Extract the coordinates of the tiles from the metadata."""
         for key in self.key_iterator(data):
@@ -254,7 +248,7 @@ class ExtractCoordinatesd(MapTransform):
 
     def extract_scale_factor(self, data: Dict) -> int:
         """Extract the scale factor of the tiles from the metadata to rescale the coordinates to highest resolution."""
-        return data[SlideKey.SCALE] if SlideKey.SCALE in data else 1
+        return int(data[SlideKey.SCALE]) if SlideKey.SCALE in data else 1
 
     def extract_offset(self, data: Dict) -> Tuple[int, int]:
         """Extract the offset of the tiles from the metadata to translate to (0, 0) origin."""
@@ -271,7 +265,7 @@ class ExtractCoordinatesd(MapTransform):
         offsets = [offset_x, offset_y, offset_x, offset_y]
         # Set the coordinates of the tiles in the output dictionary
         for key, coord, offset in zip(coord_keys, coordinates, offsets):
-            data[key] = self.rescale_coordinates(coord, scale_factor, offset)
+            data[key] = torch.tensor((coord * scale_factor) + offset)
 
     def set_tile_and_slide_ids(self, data: Dict, xs: np.ndarray, ys: np.ndarray) -> None:
         """Set the tile and slide id in the metadata."""

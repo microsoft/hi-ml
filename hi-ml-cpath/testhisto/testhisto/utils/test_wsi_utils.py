@@ -67,6 +67,15 @@ def test_image_collate(random_n_tiles: bool) -> None:
             assert all(torch.equal(value_list[idx], samples_list[idx][key]) for idx in range(batch_size))
 
 
+def test_image_collate_not_a_tensor() -> None:
+    dataset = MockTiledWSIDataset(n_tiles=2, n_slides=2, n_classes=4, tile_size=(1, 4, 4), random_n_tiles=False)
+    batch_size = 2
+    samples_list = [dataset[idx] for idx in range(batch_size)]
+    samples_list[0][0][SlideKey.IMAGE] = "not a tensor"
+    with pytest.raises(AssertionError, match="Expected torch.Tensor"):
+        _ = image_collate(samples_list)
+
+
 @pytest.mark.parametrize("stage", [m for m in ModelKey])
 def test_tiling_params(stage: ModelKey) -> None:
     params = TilingParams()

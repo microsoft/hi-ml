@@ -229,7 +229,7 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
     def create_model(self) -> DeepMILModule:
         self.data_module = self.get_data_module()
         outputs_handler = self.get_outputs_handler()
-        deepmil_module = DeepMILModule(label_column=SlideKey.LABEL,
+        deepmil_module = DeepMILModule(label_column=self.get_label_column(),
                                        n_classes=self.data_module.train_dataset.n_classes,
                                        class_names=self.class_names,
                                        class_weights=self.data_module.class_weights,
@@ -259,6 +259,10 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
         # ignore this warning to avoid noisy logs.
         warnings.filterwarnings("ignore", ".*Trying to infer the `batch_size` from an ambiguous collection.*")
 
+    def get_label_column(self) -> str:
+        """Slides and Tiles pipeline use different label columns."""
+        raise NotImplementedError
+
 
 class BaseMILTiles(BaseMIL):
     """BaseMILTiles is an abstract subclass of BaseMIL for running MIL experiments on tiles datasets. It is responsible
@@ -274,9 +278,8 @@ class BaseMILTiles(BaseMIL):
                                                                "upfront and save it to disk and if re-load in cpu or "
                                                                "gpu. Options: `none`,`cpu` (default), `gpu`")
 
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self.label_column = self.data_module.train_dataset.label_column
+    def get_label_column(self) -> str:
+        return self.data_module.train_dataset.label_column
 
     def setup(self) -> None:
         super().setup()
@@ -313,6 +316,5 @@ class BaseMILSlides(BaseMIL, TilingParams):
     responsible for instantiating the full DeepMIL model in slides settings. Subclasses should define their datamodules
     and configure experiment-specific parameters.
     """
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self.label_column = SlideKey.LABEL
+    def get_label_column(self) -> str:
+        return SlideKey.LABEL
