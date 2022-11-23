@@ -260,12 +260,10 @@ class ExtractCoordinatesd(MapTransform):
         scale_factor = self.extract_scale_factor(data)
         offset_y, offset_x = self.extract_offset(data)
         # We set the coordinates of the tiles as top left and bottom right coordinates
-        coord_keys = [TileKey.TILE_LEFT, TileKey.TILE_TOP, TileKey.TILE_RIGHT, TileKey.TILE_BOTTOM]
-        coordinates = [xs, ys, xs + self.tile_size, ys + self.tile_size]
-        offsets = [offset_x, offset_y, offset_x, offset_y]
-        # Set the coordinates of the tiles in the output dictionary
-        for key, coord, offset in zip(coord_keys, coordinates, offsets):
-            data[key] = torch.tensor((coord * scale_factor) + offset)
+        data[TileKey.TILE_LEFT] = torch.tensor((xs * scale_factor + offset_x))
+        data[TileKey.TILE_TOP] = torch.tensor((ys * scale_factor + offset_y))
+        data[TileKey.TILE_RIGHT] = torch.tensor(((xs + self.tile_size) * scale_factor + offset_x))
+        data[TileKey.TILE_BOTTOM] = torch.tensor(((ys + self.tile_size) * scale_factor + offset_y))
 
     def set_tile_and_slide_ids(self, data: Dict, xs: np.ndarray, ys: np.ndarray) -> None:
         """Set the tile and slide id in the metadata."""
