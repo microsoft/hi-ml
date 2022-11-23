@@ -22,7 +22,7 @@ from health_cpath.utils.viz_utils import (
 from health_cpath.utils.analysis_plot_utils import plot_pr_curve, format_pr_or_roc_axes
 from health_cpath.utils.naming import PlotOption, ResultsKey, SlideKey
 from health_cpath.utils.tiles_selection_utils import SlideNode, TilesSelector
-from health_cpath.utils.viz_utils import load_image_dict, save_figure
+from health_cpath.utils.viz_utils import save_figure
 
 
 ResultsType = Dict[ResultsKey, List[Any]]
@@ -210,7 +210,8 @@ class DeepMILPlotsHandler:
         slide_index = self.slides_dataset.dataset_df.index.get_loc(slide_node.slide_id)
         assert isinstance(slide_index, int), f"Got non-unique slide ID: {slide_node.slide_id}"
         slide_dict = self.slides_dataset[slide_index]
-        slide_dict = load_image_dict(slide_dict, loading_params=self.loading_params)
+        loader = self.loading_params.get_load_roid_transform()
+        slide_dict = loader(slide_dict)
         return slide_dict
 
     def save_slide_node_figures(

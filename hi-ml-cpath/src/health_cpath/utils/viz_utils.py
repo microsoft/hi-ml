@@ -15,7 +15,6 @@ from math import ceil
 from pathlib import Path
 from typing import Sequence, List, Any, Dict, Optional, Union, Tuple
 
-from monai.data.meta_tensor import MetaTensor
 from monai.data.dataset import Dataset
 from torch.utils.data import DataLoader
 from health_cpath.datasets.panda_dataset import PandaDataset
@@ -40,9 +39,6 @@ def load_image_dict(sample: dict, loading_params: LoadingParams) -> Dict[SlideKe
     """
     loader = loading_params.get_load_roid_transform()
     img = loader(sample)
-    if isinstance(img[SlideKey.IMAGE], MetaTensor):
-        # New monai transforms return a MetaTensor, we need to convert it to a numpy array for backward compatibility
-        img[SlideKey.IMAGE] = img[SlideKey.IMAGE].numpy()
     return img
 
 
