@@ -258,8 +258,7 @@ class DeepMILOutputsHandler:
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, loading_params: LoadingParams,
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
                  maximise: bool, val_plot_options: Collection[PlotOption],
-                 test_plot_options: Collection[PlotOption],
-                 val_set_is_dist: bool = True, is_level_0_coords: bool = True) -> None:
+                 test_plot_options: Collection[PlotOption], val_set_is_dist: bool = True) -> None:
 
         """
         :param outputs_root: Root directory where to save all produced outputs.
@@ -272,7 +271,6 @@ class DeepMILOutputsHandler:
         :param maximise: Whether higher is better for `primary_val_metric`.
         :param val_plot_options: The desired plot options for validation time.
         :param test_plot_options: The desired plot options for test time.
-        :param is_level_0_coords: Whether the coordinates are at level 0 (default) or at the level of the tiles.
         :param val_set_is_dist: If True, the validation set is distributed across processes. Otherwise, the validation
             set is replicated on each process. This shouldn't affect the results, as we take the mean of the validation
             set metrics across processes. This is only relevant for the outputs_handler, which needs to know whether to
@@ -280,29 +278,24 @@ class DeepMILOutputsHandler:
         """
         self.outputs_root = outputs_root
         self.n_classes = n_classes
-        self.tile_size = tile_size
         self.class_names = validate_class_names(class_names, self.n_classes)
-
         self.outputs_policy = OutputsPolicy(outputs_root=outputs_root,
                                             primary_val_metric=primary_val_metric,
                                             maximise=maximise)
 
         self.tiles_selector: Optional[TilesSelector] = None
-
         self.val_plots_handler = DeepMILPlotsHandler(
             plot_options=val_plot_options,
-            tile_size=self.tile_size,
+            tile_size=tile_size,
             class_names=self.class_names,
             stage=ModelKey.VAL,
-            is_level_0_coords=is_level_0_coords,
             loading_params=loading_params,
         )
         self.test_plots_handler = DeepMILPlotsHandler(
             plot_options=test_plot_options,
-            tile_size=self.tile_size,
+            tile_size=tile_size,
             class_names=self.class_names,
             stage=ModelKey.TEST,
-            is_level_0_coords=is_level_0_coords,
             loading_params=loading_params,
         )
         self.val_set_is_dist = val_set_is_dist

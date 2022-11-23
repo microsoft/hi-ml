@@ -164,7 +164,7 @@ def plot_heatmap_overlay(
     slide_dict: Dict[SlideKey, Any],
     results: Dict[ResultsKey, List[Any]],
     tile_size: int = 224,
-    is_level_0_coords: bool = True,
+    should_upscale_coords: bool = True,
 ) -> plt.Figure:
     """Plots heatmap of selected tiles (e.g. tiles in a bag) overlay on the corresponding slide.
 
@@ -175,9 +175,7 @@ def plot_heatmap_overlay(
         level.
     :param results: Dict containing ResultsKey keys (e.g. slide id) and values as lists of output slides.
     :param tile_size: Size of each tile. Default 224.
-    :param is_level_0_coords: If True, the coordinates are in level 0. Otherwise, the coordinates are in the slide
-        level. Tiles pipeline coordinates are in level 0. However, when tiling on the fly, the coordinates are in the
-        level of the slide.
+    :param should_upscale_coords: If True, upscales the heatmap coordinates to the slide level. Default True.
     :return: matplotlib figure of the heatmap of the given tiles on slide.
     """
     fig, ax = plt.subplots()
@@ -201,7 +199,7 @@ def plot_heatmap_overlay(
     sel_coords = location_selected_tiles(tile_coords=coords,
                                          location_bbox=slide_dict[SlideKey.LOCATION],
                                          scale_factor=slide_dict[SlideKey.SCALE],
-                                         is_level_0_coords=False)
+                                         should_upsacle_coords=should_upscale_coords)
     cmap = plt.cm.get_cmap("Reds")
 
     tile_xs, tile_ys = sel_coords.T

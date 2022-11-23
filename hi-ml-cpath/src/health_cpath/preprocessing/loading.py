@@ -254,3 +254,9 @@ class LoadingParams(param.Parameterized):
         enabled since monai 1.0.0 by specifying num_workers > 0 with CuCIM backend only.
         This function can be overridden in BaseMIL to add additional arguments for the backend."""
         return dict()
+
+    def should_upscale_coordinates(self) -> bool:
+        """Returns True if the coordinates should be upscaled to the level 0 reference frame. This is the case when
+        we load the whole slide without cropping for tiling on the fly. We need to upscale the coordinates to the
+        highest level to match the coordinates of the tiles pipeline."""
+        return self.level > 0 and self.roi_type == ROIType.WHOLE

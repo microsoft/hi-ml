@@ -73,9 +73,6 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
                                          doc="The maximum number of worker processes for dataloaders. Dataloaders use"
                                              "a heuristic num_cpus/num_gpus to set the number of workers, which can be"
                                              "very high for small num_gpus. This parameters sets an upper bound.")
-    is_level_0_coords: bool = param.Boolean(True,
-                                            doc="Whether the coordinates are at level 0. If False, will scale them to "
-                                                "level 0 for plotting heatmaps.")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -149,7 +146,6 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
             maximise=self.maximise_primary_metric,
             val_plot_options=self.get_val_plot_options(),
             test_plot_options=self.get_test_plot_options(),
-            is_level_0_coords=self.is_level_0_coords,
             loading_params=create_from_matching_params(self, LoadingParams),
             val_set_is_dist=self.pl_replace_sampler_ddp and self.max_num_gpus > 1,
         )

@@ -290,10 +290,10 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
             [
                 self.loading_params.get_load_roid_transform(),
                 self.tiling_params.get_tiling_transform(bag_size=self.bag_sizes[stage], stage=stage),
+                self.tiling_params.get_extract_coordinates_transform(),
                 self.tiling_params.get_split_transform(),
             ]
         )
-
         if self.transforms_dict and self.transforms_dict[stage]:
             transforms = Compose([base_transform, self.transforms_dict[stage]]).flatten()
         else:

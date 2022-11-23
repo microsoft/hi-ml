@@ -94,3 +94,13 @@ def test_tiling_params_split_transform() -> None:
         mock_split_dim.assert_called_once()
         call_args = mock_split_dim.call_args_list[0][1]
         assert call_args == {'keys': SlideKey.IMAGE, 'dim': 0, 'keepdim': False, 'list_output': True}
+
+
+def test_tiling_params_coordinates_transform() -> None:
+    tile_size = 128
+    params = TilingParams(tile_size=tile_size)
+    with patch("health_cpath.utils.wsi_utils.ExtractCoordinatesd") as mock_extract_coordinates:
+        _ = params.get_extract_coordinates_transform()
+        mock_extract_coordinates.assert_called_once()
+        call_args = mock_extract_coordinates.call_args_list[0][1]
+        assert call_args == {'keys': SlideKey.IMAGE, 'tile_size': 128}

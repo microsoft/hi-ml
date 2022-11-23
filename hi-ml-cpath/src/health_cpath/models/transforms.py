@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-
 from pathlib import Path
 from typing import Mapping, Sequence, Union, Callable, Dict
 
@@ -11,10 +10,15 @@ import numpy as np
 import PIL
 from PIL import PngImagePlugin
 from monai.config.type_definitions import KeysCollection
-from monai.transforms.transform import MapTransform, Randomizable
+from monai.transforms import MapTransform, Randomizable
+from monai.utils.enums import WSIPatchKeys
+from monai.data.meta_tensor import MetaTensor
+from health_ml.utils.box_utils import Box
 from torchvision.transforms.functional import to_tensor
 
 from health_cpath.models.encoders import TileEncoder
+from health_cpath.preprocessing.create_tiles_dataset import get_tile_id
+from health_cpath.utils.naming import SlideKey, TileKey
 
 PathOrString = Union[Path, str]
 
@@ -225,3 +229,46 @@ class Subsampled(MapTransform, Randomizable):
         for key in self.key_iterator(out_data):
             out_data[key] = take_indices(data[key], self._indices)
         return out_data
+
+
+class ExtractCoordinatesd(MapTransform):
+    """Extract the coordinates of the tiles returned as meta data by monai transforms to hi-ml-cpath format where
+    the coordinates are represented as TileKey.TILE_LEFT, TileKey.TILE_TOP, TileKey.TILE_RIGHT, TileKey.TILE_BOTTOM."""
+
+    def __init__(self, keys: KeysCollection, tile_size: int, allow_missing_keys: bool = False) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.tile_size = tile_size
+
+    @staticmethod
+    def _rescale_coordinates(coordinates: np.ndarray, scale_factor: int, offset: int) -> torch.Tensor:
+        """Rescale the coordinates to the highest resolution."""
+        coordinates = (coordinates * scale_factor) + offset
+        return torch.tensor(coordinates)
+
+    def __call__(self, data: Mapping) -> Mapping:
+        data = dict(data)
+        h, w = self.tile_size, self.tile_size
+
+        # Extract coordinates from metadata
+        for key in self.key_iterator(data):
+            assert isinstance(data[key], MetaTensor), f"Expected MetaTensor, got {type(data[key])}"
+            ys, xs = data[key].meta[WSIPatchKeys.LOCATION]
+
+        # Extract scale factor and offset from metadata to rescale coordinates to level 0
+        scale_factor = data[SlideKey.SCALE] if SlideKey.SCALE in data else 1
+        offset_x, offset_y = data[SlideKey.ORIGIN] if SlideKey.ORIGIN in data else (0, 0)
+
+        # Set the coordinates of the tiles in the output dictionary
+        coord_keys = [TileKey.TILE_LEFT, TileKey.TILE_TOP, TileKey.TILE_RIGHT, TileKey.TILE_BOTTOM]
+        coordinates = [xs, ys, xs + w, ys + h]
+        offsets = [offset_x, offset_y, offset_x, offset_y]
+        for key, coord, offset in zip(coord_keys, coordinates, offsets):
+            data[key] = self._rescale_coordinates(coord, scale_factor, offset)
+
+        # Set the slide and tile ids
+        data[TileKey.TILE_ID] = [get_tile_id(data[SlideKey.SLIDE_ID], Box(x=x, y=y, w=w, h=h)) for x, y in zip(xs, ys)]
+        data[SlideKey.SLIDE_ID] = [data[SlideKey.SLIDE_ID]] * data[SlideKey.IMAGE].meta[WSIPatchKeys.COUNT]
+
+        # Convert the tiles to tensors after extracting all necessary information
+        data[SlideKey.IMAGE] = data[SlideKey.IMAGE].as_tensor()
+        return data

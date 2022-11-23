@@ -1,13 +1,10 @@
 import torch
 import param
-
-from typing import Any, Callable, List, Optional, Dict
-from health_cpath.preprocessing.create_tiles_dataset import get_tile_id
-from health_cpath.utils.naming import ModelKey, SlideKey, TileKey
+from torch import Tensor
+from typing import Any, Callable, List, Optional
+from health_cpath.models.transforms import ExtractCoordinatesd
+from health_cpath.utils.naming import ModelKey, SlideKey
 from health_ml.utils.bag_utils import multibag_collate
-from health_ml.utils.box_utils import Box
-from monai.utils.enums import WSIPatchKeys
-from monai.data.meta_tensor import MetaTensor
 from monai.transforms import RandGridPatchd, GridPatchd, SplitDimd
 
 
@@ -23,28 +20,11 @@ def image_collate(batch: List) -> Any:
         # The tiles have been splited into a list of dicts, each dict containing a single tile to be able to apply
         # tile wise transforms. We need to stack them back together.
         data = item[0]
-        extract_tiles_coordinates_from_metatensor(data)
-        # MetaTensor is a monai class that is used to store metadata along with the image
-        # We need to convert it to torch tensor to avoid adding the metadata to the batch
-        assert isinstance(data[SlideKey.IMAGE], MetaTensor), f"Expected MetaTensor, got {type(data[SlideKey.IMAGE])}"
-        data[SlideKey.IMAGE] = torch.stack([ix[SlideKey.IMAGE].as_tensor() for ix in item], dim=0)
+        assert isinstance(data[SlideKey.IMAGE], Tensor), f"Expected torch.Tensor, got {type(data[SlideKey.IMAGE])}"
+        data[SlideKey.IMAGE] = torch.stack([ix[SlideKey.IMAGE] for ix in item], dim=0)
         data[SlideKey.LABEL] = torch.tensor(data[SlideKey.LABEL])
         batch[i] = data
     return multibag_collate(batch)
-
-
-def extract_tiles_coordinates_from_metatensor(data: Dict[str, Any]) -> None:
-    """Format the coordinates of the tiles returned as meta data by monai transforms to hi-ml-cpath format where the
-    coordinates are represented as TileKey.TILE_LEFT, TileKey.TILE_TOP, TileKey.TILE_RIGHT, TileKey.TILE_BOTTOM.
-    """
-    h, w = data[SlideKey.IMAGE].shape[1:]
-    ys, xs = data[SlideKey.IMAGE].meta[WSIPatchKeys.LOCATION]
-    data[TileKey.TILE_LEFT] = torch.tensor(xs)
-    data[TileKey.TILE_RIGHT] = torch.tensor(xs + w)
-    data[TileKey.TILE_TOP] = torch.tensor(ys)
-    data[TileKey.TILE_BOTTOM] = torch.tensor(ys + h)
-    data[TileKey.TILE_ID] = [get_tile_id(data[SlideKey.SLIDE_ID], Box(x=x, y=y, w=w, h=h)) for x, y in zip(xs, ys)]
-    data[SlideKey.SLIDE_ID] = [data[SlideKey.SLIDE_ID]] * data[SlideKey.IMAGE].meta[WSIPatchKeys.COUNT]
 
 
 class TilingParams(param.Parameterized):
@@ -120,3 +100,9 @@ class TilingParams(param.Parameterized):
         tiles to be able to apply augmentations on each tile independently.
         """
         return SplitDimd(keys=SlideKey.IMAGE, dim=0, keepdim=False, list_output=True)
+
+    def get_extract_coordinates_transform(self) -> Callable:
+        """Extract the coordinates of the tiles returned as meta data by monai transforms to hi-ml-cpath format where
+        the coordinates are represented as TileKey.TILE_LEFT, TileKey.TILE_TOP, TileKey.TILE_RIGHT, TileKey.TILE_BOTTOM.
+        """
+        return ExtractCoordinatesd(keys=SlideKey.IMAGE, tile_size=self.tile_size)
