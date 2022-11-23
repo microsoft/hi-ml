@@ -280,15 +280,15 @@ class ExtractCoordinatesd(MapTransform):
         data[TileKey.TILE_ID] = [get_tile_id(data[SlideKey.SLIDE_ID], Box(x=x, y=y, w=w, h=h)) for x, y in zip(xs, ys)]
         data[SlideKey.SLIDE_ID] = [data[SlideKey.SLIDE_ID]] * bag_size
 
-    def tiles_and_label_to_tensors(self, data: Dict) -> None:
+    def convert_tiles_and_label_to_tensors(self, data: Dict) -> None:
         """Convert the tiles and label to tensors."""
         data[SlideKey.IMAGE] = data[SlideKey.IMAGE].as_tensor()
         data[SlideKey.LABEL] = torch.tensor(data[SlideKey.LABEL])
 
     def __call__(self, data: Mapping) -> Mapping:
-        data = dict(data)
-        ys, xs = self.extract_coordinates(data)
-        self.set_coordinates(data, xs=xs, ys=ys)
-        self.set_tile_and_slide_ids(data, xs=xs, ys=ys)
-        self.tiles_and_label_to_tensors(data)
-        return data
+        out_data = dict(data)
+        ys, xs = self.extract_coordinates(out_data)
+        self.set_coordinates(out_data, xs=xs, ys=ys)
+        self.set_tile_and_slide_ids(out_data, xs=xs, ys=ys)
+        self.convert_tiles_and_label_to_tensors(out_data)
+        return out_data
