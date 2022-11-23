@@ -21,7 +21,7 @@ from health_ml.utils.common_utils import is_gpu_available, is_windows
 from health_ml.utils.fixed_paths import OutputFolderForTests
 from health_cpath.utils.viz_utils import plot_attention_tiles, plot_scores_hist, resize_and_save, plot_slide, \
     plot_heatmap_overlay, plot_normalized_confusion_matrix
-from health_cpath.utils.naming import ResultsKey
+from health_cpath.utils.naming import ResultsKey, SlideKey
 from health_cpath.utils.heatmap_utils import location_selected_tiles
 from health_cpath.utils.tiles_selection_utils import SlideNode, TileNode
 from health_cpath.utils.viz_utils import save_figure
@@ -222,15 +222,14 @@ def test_plot_heatmap_overlay(test_output_dirs: OutputFolderForTests) -> None:
         slide_id=1, gt_prob_score=0.04, pred_prob_score=0.96, true_label=1, pred_label=0  # type: ignore
     )
     location_bbox = [100, 100]
+    slide_dict = {SlideKey.IMAGE: slide_image, SlideKey.ORIGIN: location_bbox, SlideKey.SCALE: 1}
     tile_size = 224
-    level = 0
     fig = plot_heatmap_overlay(case="FN",
                                slide_node=slide_node,
-                               slide_dict=slide_image,
+                               slide_dict=slide_dict,
                                results=test_dict,  # type: ignore
-                               location_bbox=location_bbox,
                                tile_size=tile_size,
-                               level=level)
+                               should_upscale_coords=False)
     assert isinstance(fig, matplotlib.figure.Figure)
     file = Path(test_output_dirs.root_dir) / "plot_heatmap_overlay.png"
     resize_and_save(5, 5, file)
@@ -266,30 +265,27 @@ def test_plot_normalized_confusion_matrix(test_output_dirs: OutputFolderForTests
 
 
 @pytest.mark.fast
+@pytest.mark.parametrize("should_upsacle_coords", [True, False])
 @pytest.mark.parametrize("level", [0, 1, 2])
-def test_location_selected_tiles(level: int) -> None:
+def test_location_selected_tiles(level: int, should_upsacle_coords: bool) -> None:
     set_random_seed(0)
     slide = 1
     location_bbox = [100, 100]
     slide_image = np.random.rand(3, 1000, 2000)
-
-    coords_list = []
-    slide_ids = [item[0] for item in test_dict[ResultsKey.SLIDE_ID]]  # type: ignore
-    slide_idx = slide_ids.index(slide)
-    for tile_idx in range(len(test_dict[ResultsKey.IMAGE_PATH][slide_idx])):  # type: ignore
-        tile_coords = np.transpose(np.array(
-            [test_dict[ResultsKey.TILE_LEFT][slide_idx][tile_idx].cpu().numpy(),  # type: ignore
-             test_dict[ResultsKey.TILE_TOP][slide_idx][tile_idx].cpu().numpy()  # type: ignore
-             ]))
-        coords_list.append(tile_coords)
-
-    coords = np.array(coords_list)
-    tile_coords_transformed = location_selected_tiles(tile_coords=coords,
-                                                      location_bbox=location_bbox,
-                                                      level=level)
-    tile_xs, tile_ys = tile_coords_transformed.T
     level_dict = {0: 1, 1: 4, 2: 16}
     factor = level_dict[level]
+
+    slide_ids = [item[0] for item in test_dict[ResultsKey.SLIDE_ID]]  # type: ignore
+    slide_idx = slide_ids.index(slide)
+    coords = np.transpose([test_dict[ResultsKey.TILE_LEFT][slide_idx].cpu().numpy(),  # type: ignore
+                           test_dict[ResultsKey.TILE_TOP][slide_idx].cpu().numpy()])  # type: ignore
+
+    coords = coords // factor if should_upsacle_coords else coords
+    tile_coords_transformed = location_selected_tiles(tile_coords=coords,
+                                                      location_bbox=location_bbox,
+                                                      scale_factor=factor,
+                                                      should_upsacle_coords=should_upsacle_coords)
+    tile_xs, tile_ys = tile_coords_transformed.T
     assert min(tile_xs) >= 0
     assert max(tile_xs) <= slide_image.shape[2] // factor
     assert min(tile_ys) >= 0
