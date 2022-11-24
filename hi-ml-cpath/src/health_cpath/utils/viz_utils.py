@@ -15,7 +15,6 @@ from math import ceil
 from pathlib import Path
 from typing import Sequence, List, Any, Dict, Optional, Union, Tuple
 
-from monai.data.meta_tensor import MetaTensor
 from monai.data.dataset import Dataset
 from torch.utils.data import DataLoader
 from health_cpath.datasets.panda_dataset import PandaDataset
@@ -40,9 +39,6 @@ def load_image_dict(sample: dict, loading_params: LoadingParams) -> Dict[SlideKe
     """
     loader = loading_params.get_load_roid_transform()
     img = loader(sample)
-    if isinstance(img[SlideKey.IMAGE], MetaTensor):
-        # New monai transforms return a MetaTensor, we need to convert it to a numpy array for backward compatibility
-        img[SlideKey.IMAGE] = img[SlideKey.IMAGE].numpy()
     return img
 
 
@@ -161,53 +157,45 @@ def plot_slide(case: str, slide_node: SlideNode, slide_image: np.ndarray, scale:
 def plot_heatmap_overlay(
     case: str,
     slide_node: SlideNode,
-    slide_image: np.ndarray,
+    slide_dict: Dict[SlideKey, Any],
     results: Dict[ResultsKey, List[Any]],
-    location_bbox: List[int],
     tile_size: int = 224,
-    level: int = 1,
+    should_upscale_coords: bool = True,
 ) -> plt.Figure:
     """Plots heatmap of selected tiles (e.g. tiles in a bag) overlay on the corresponding slide.
 
     :param case: The report case (e.g., TP, FN, ...)
     :param slide_node: The slide node that encapsulates the slide metadata.
-    :param slide_image: Numpy array of the slide image (shape: [3, H, W]).
+    :param slide_dict: Dictionary of the slide image (shape: [3, H, W]) containing the slide image and metadata: the
+        location of the bouding box of the slide and the scale factor to convert the heatmap coordinates to the slide
+        level.
     :param results: Dict containing ResultsKey keys (e.g. slide id) and values as lists of output slides.
     :param tile_size: Size of each tile. Default 224.
-    :param level: Magnification at which tiles are available (e.g. PANDA levels are 0 for original,
-    1 for 4x downsampled, 2 for 16x downsampled). Default 1.
-    :param location_bbox: Location of the bounding box of the slide.
+    :param should_upscale_coords: If True, upscales the heatmap coordinates to the slide level. Default True.
     :return: matplotlib figure of the heatmap of the given tiles on slide.
     """
     fig, ax = plt.subplots()
     fig.suptitle(_get_histo_plot_title(case, slide_node))
-
+    slide_image = slide_dict[SlideKey.IMAGE]
+    assert isinstance(slide_image, np.ndarray), f"slide image must be a numpy array, got {type(slide_image)}"
     slide_image = slide_image.transpose(1, 2, 0)
+
     ax.imshow(slide_image)
     ax.set_xlim(0, slide_image.shape[1])
     ax.set_ylim(slide_image.shape[0], 0)
 
-    coords_list = []
     slide_ids = [item[0] for item in results[ResultsKey.SLIDE_ID]]
     slide_idx = slide_ids.index(slide_node.slide_id)
     attentions = results[ResultsKey.BAG_ATTN][slide_idx]
 
-    # for each tile in the bag
-    for tile_idx in range(len(results[ResultsKey.IMAGE_PATH][slide_idx])):
-        tile_coords = np.transpose(
-            np.array(
-                [
-                    results[ResultsKey.TILE_LEFT][slide_idx][tile_idx].cpu().numpy(),
-                    results[ResultsKey.TILE_TOP][slide_idx][tile_idx].cpu().numpy(),
-                ]
-            )
-        )
-        coords_list.append(tile_coords)
-
-    coords = np.array(coords_list)
+    coords = np.transpose([results[ResultsKey.TILE_LEFT][slide_idx].cpu().numpy(),
+                           results[ResultsKey.TILE_TOP][slide_idx].cpu().numpy()])
     attentions = np.array(attentions.cpu()).reshape(-1)
 
-    sel_coords = location_selected_tiles(tile_coords=coords, location_bbox=location_bbox, level=level)
+    sel_coords = location_selected_tiles(tile_coords=coords,
+                                         location_bbox=slide_dict[SlideKey.ORIGIN],
+                                         scale_factor=slide_dict[SlideKey.SCALE],
+                                         should_upscale_coords=should_upscale_coords)
     cmap = plt.cm.get_cmap("Reds")
 
     tile_xs, tile_ys = sel_coords.T

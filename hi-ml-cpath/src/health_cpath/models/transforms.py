@@ -2,19 +2,23 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-
 from pathlib import Path
-from typing import Mapping, Sequence, Union, Callable, Dict
+from typing import Mapping, Sequence, Tuple, Union, Callable, Dict
 
 import torch
 import numpy as np
 import PIL
 from PIL import PngImagePlugin
 from monai.config.type_definitions import KeysCollection
-from monai.transforms.transform import MapTransform, Randomizable
+from monai.transforms import MapTransform, Randomizable
+from monai.utils.enums import WSIPatchKeys
+from monai.data.meta_tensor import MetaTensor
+from health_ml.utils.box_utils import Box
 from torchvision.transforms.functional import to_tensor
 
 from health_cpath.models.encoders import TileEncoder
+from health_cpath.preprocessing.create_tiles_dataset import get_tile_id
+from health_cpath.utils.naming import SlideKey, TileKey
 
 PathOrString = Union[Path, str]
 
@@ -224,4 +228,69 @@ class Subsampled(MapTransform, Randomizable):
         self.randomize(size)
         for key in self.key_iterator(out_data):
             out_data[key] = take_indices(data[key], self._indices)
+        return out_data
+
+
+class ExtractCoordinatesd(MapTransform):
+    """Extract the coordinates of the tiles returned as meta data by monai transforms to hi-ml-cpath format where
+    the coordinates are represented as TileKey.TILE_LEFT, TileKey.TILE_TOP, TileKey.TILE_RIGHT, TileKey.TILE_BOTTOM."""
+
+    def __init__(self, image_key: str, tile_size: int) -> None:
+        self.tile_size = tile_size
+        self.image_key = image_key
+
+    def extract_coordinates(self, data: Dict) -> Tuple[np.ndarray, np.ndarray]:
+        """Extract the coordinates of the tiles from the metadata."""
+        assert isinstance(data[self.image_key], MetaTensor), f"Expected MetaTensor, got {type(data[self.image_key])}"
+        ys, xs = data[self.image_key].meta[WSIPatchKeys.LOCATION]
+        return ys, xs
+
+    def extract_scale_factor(self, data: Dict) -> int:
+        """Extract the scale factor of the tiles from the metadata to rescale the coordinates to highest resolution."""
+        return int(data.get(SlideKey.SCALE, 1))
+
+    def extract_offset(self, data: Dict) -> Tuple[int, int]:
+        """Extract the offset of the tiles from the metadata to translate to (0, 0) origin."""
+        return data.get(SlideKey.ORIGIN, (0, 0))
+
+    def set_coordinates(self, data: Dict, xs: np.ndarray, ys: np.ndarray) -> None:
+        """Set the coordinates of the tiles in the metadata."""
+        # Extract the scale factor and offset to rescale the coordinates to highest resolution
+        scale_factor = self.extract_scale_factor(data)
+        offset_y, offset_x = self.extract_offset(data)
+        # We set the coordinates of the tiles as top left and bottom right coordinates
+        data[TileKey.TILE_LEFT] = torch.tensor((xs * scale_factor + offset_x))
+        data[TileKey.TILE_TOP] = torch.tensor((ys * scale_factor + offset_y))
+        data[TileKey.TILE_RIGHT] = data[TileKey.TILE_LEFT] + self.tile_size * scale_factor
+        data[TileKey.TILE_BOTTOM] = data[TileKey.TILE_TOP] + self.tile_size * scale_factor
+
+    def set_tile_and_slide_ids(self, data: Dict, xs: np.ndarray, ys: np.ndarray) -> None:
+        """Set the tile and slide id in the metadata."""
+        h, w = self.tile_size, self.tile_size
+        bag_size = data[SlideKey.IMAGE].meta[WSIPatchKeys.COUNT]
+        data[TileKey.TILE_ID] = [get_tile_id(data[SlideKey.SLIDE_ID], Box(x=x, y=y, w=w, h=h)) for x, y in zip(xs, ys)]
+        data[SlideKey.SLIDE_ID] = [data[SlideKey.SLIDE_ID]] * bag_size
+
+    def convert_tiles_and_label_to_tensors(self, data: Dict) -> None:
+        """Convert the tiles and label to tensors."""
+        data[SlideKey.IMAGE] = data[SlideKey.IMAGE].as_tensor()
+        data[SlideKey.LABEL] = torch.tensor(data[SlideKey.LABEL])
+
+    def __call__(self, data: Mapping) -> Mapping:
+        out_data = dict(data)
+        ys, xs = self.extract_coordinates(out_data)
+        self.set_coordinates(out_data, xs=xs, ys=ys)
+        self.set_tile_and_slide_ids(out_data, xs=xs, ys=ys)
+        self.convert_tiles_and_label_to_tensors(out_data)
+        return out_data
+
+
+class MetaTensorToTensord(MapTransform):
+    """Converts a MetaTensor to a Tensor."""
+
+    def __call__(self, data: Mapping) -> Mapping:
+        out_data = dict(data)
+        for key in self.key_iterator(out_data):
+            assert isinstance(out_data[key], MetaTensor), f"Expected MetaTensor, got {type(out_data[key])}"
+            out_data[key] = out_data[key].as_tensor()
         return out_data

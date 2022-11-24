@@ -50,6 +50,11 @@ class BaseDeepSMILEPanda(BaseMIL):
         if not is_running_in_azure_ml():
             self.max_epochs = 2
 
+    def get_test_plot_options(self) -> Set[PlotOption]:
+        plot_options = super().get_test_plot_options()
+        plot_options.update([PlotOption.SLIDE_THUMBNAIL, PlotOption.ATTENTION_HEATMAP])
+        return plot_options
+
 
 class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
     """ DeepSMILETilesPanda is derived from BaseMILTiles and BaseDeepSMILEPanda to inherit common behaviors from both
@@ -92,11 +97,6 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
 
     def get_slides_dataset(self) -> Optional[PandaDataset]:
         return PandaDataset(root=self.local_datasets[1])                             # type: ignore
-
-    def get_test_plot_options(self) -> Set[PlotOption]:
-        plot_options = super().get_test_plot_options()
-        plot_options.update([PlotOption.SLIDE_THUMBNAIL, PlotOption.ATTENTION_HEATMAP])
-        return plot_options
 
 
 class TilesPandaImageNetMIL(DeepSMILETilesPanda):

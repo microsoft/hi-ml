@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import Callback
 
-from health_cpath.models.deepmil import BaseDeepMILModule
+from health_cpath.models.deepmil import DeepMILModule
 from health_cpath.utils.naming import ModelKey, ResultsKey
 from health_cpath.utils.output_utils import BatchResultsType
 
@@ -462,7 +462,7 @@ class LossAnalysisCallback(Callback):
                     [self.TILES_JOIN_TOKEN.join(tiles) for tiles in outputs[ResultsKey.TILE_ID]]
                 )
 
-    def synchronise_processes_and_reset(self, trainer: Trainer, pl_module: BaseDeepMILModule, stage: ModelKey) -> None:
+    def synchronise_processes_and_reset(self, trainer: Trainer, pl_module: DeepMILModule, stage: ModelKey) -> None:
         """Synchronises the processes in DDP mode and resets the loss cache for the next epoch."""
         if self.should_cache_loss_values(trainer.current_epoch):
             self.gather_loss_cache(rank=pl_module.global_rank, stage=stage)
@@ -510,7 +510,7 @@ class LossAnalysisCallback(Callback):
     def on_train_batch_end(  # type: ignore
         self,
         trainer: Trainer,
-        pl_module: BaseDeepMILModule,
+        pl_module: DeepMILModule,
         outputs: BatchResultsType,
         batch: Dict,
         batch_idx: int,
@@ -522,7 +522,7 @@ class LossAnalysisCallback(Callback):
     def on_validation_batch_end(  # type: ignore
         self,
         trainer: Trainer,
-        pl_module: BaseDeepMILModule,
+        pl_module: DeepMILModule,
         outputs: BatchResultsType,
         batch: Any,
         batch_idx: int,
@@ -531,15 +531,15 @@ class LossAnalysisCallback(Callback):
         """Caches validation loss values per slide at each training step in a local variable self.loss_cache."""
         self.update_loss_cache(trainer, outputs, batch, stage=ModelKey.VAL)
 
-    def on_train_epoch_end(self, trainer: Trainer, pl_module: BaseDeepMILModule) -> None:  # type: ignore
+    def on_train_epoch_end(self, trainer: Trainer, pl_module: DeepMILModule) -> None:  # type: ignore
         """Gathers loss values per slide from all processes at the end of each epoch and saves them to a csv file."""
         self.synchronise_processes_and_reset(trainer, pl_module, ModelKey.TRAIN)
 
-    def on_validation_epoch_end(self, trainer: Trainer, pl_module: BaseDeepMILModule) -> None:  # type: ignore
+    def on_validation_epoch_end(self, trainer: Trainer, pl_module: DeepMILModule) -> None:  # type: ignore
         """Gathers loss values per slide from all processes at the end of each epoch and saves them to a csv file."""
         self.synchronise_processes_and_reset(trainer, pl_module, ModelKey.VAL)
 
-    def on_train_end(self, trainer: Trainer, pl_module: BaseDeepMILModule) -> None:  # type: ignore
+    def on_train_end(self, trainer: Trainer, pl_module: DeepMILModule) -> None:  # type: ignore
         """Hook called at the end of training. Plot the loss heatmap and scratter plots after ranking the slides by loss
         values."""
         if pl_module.global_rank == 0:
@@ -548,7 +548,7 @@ class LossAnalysisCallback(Callback):
             except Exception as e:
                 self.handle_loss_exceptions(stage=ModelKey.TRAIN, exception=e)
 
-    def on_validation_end(self, trainer: Trainer, pl_module: BaseDeepMILModule) -> None:  # type: ignore
+    def on_validation_end(self, trainer: Trainer, pl_module: DeepMILModule) -> None:  # type: ignore
         """Hook called at the end of validation. Plot the loss heatmap and scratter plots after ranking the slides by
         loss values."""
         epoch = trainer.current_epoch

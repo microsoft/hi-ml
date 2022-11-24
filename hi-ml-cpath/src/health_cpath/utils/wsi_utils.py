@@ -1,11 +1,10 @@
 import torch
 import param
-import numpy as np
-
+from torch import Tensor
 from typing import Any, Callable, List, Optional
+from health_cpath.models.transforms import ExtractCoordinatesd
 from health_cpath.utils.naming import ModelKey, SlideKey
 from health_ml.utils.bag_utils import multibag_collate
-from monai.data.meta_tensor import MetaTensor
 from monai.transforms import RandGridPatchd, GridPatchd, SplitDimd
 
 
@@ -18,16 +17,11 @@ def image_collate(batch: List) -> Any:
     """
 
     for i, item in enumerate(batch):
+        # The tiles have been splited into a list of dicts, each dict containing a single tile to be able to apply
+        # tile wise transforms. We need to stack them back together.
         data = item[0]
-        if isinstance(data[SlideKey.IMAGE], MetaTensor):
-            # MetaTensor is a monai class that is used to store metadata along with the image
-            # We need to convert it to torch tensor to avoid adding the metadata to the batch
-            data[SlideKey.IMAGE] = torch.stack([ix[SlideKey.IMAGE].as_tensor() for ix in item], dim=0)
-        elif isinstance(data[SlideKey.IMAGE], torch.Tensor):
-            data[SlideKey.IMAGE] = torch.stack([ix[SlideKey.IMAGE] for ix in item], dim=0)
-        else:
-            data[SlideKey.IMAGE] = torch.tensor(np.array([ix[SlideKey.IMAGE] for ix in item]))
-        data[SlideKey.LABEL] = torch.tensor(data[SlideKey.LABEL])
+        assert isinstance(data[SlideKey.IMAGE], Tensor), f"Expected torch.Tensor, got {type(data[SlideKey.IMAGE])}"
+        data[SlideKey.IMAGE] = torch.stack([ix[SlideKey.IMAGE] for ix in item], dim=0)
         batch[i] = data
     return multibag_collate(batch)
 
@@ -105,3 +99,9 @@ class TilingParams(param.Parameterized):
         tiles to be able to apply augmentations on each tile independently.
         """
         return SplitDimd(keys=SlideKey.IMAGE, dim=0, keepdim=False, list_output=True)
+
+    def get_extract_coordinates_transform(self) -> Callable:
+        """Extract the coordinates of the tiles returned as meta data by monai transforms to hi-ml-cpath format where
+        the coordinates are represented as TileKey.TILE_LEFT, TileKey.TILE_TOP, TileKey.TILE_RIGHT, TileKey.TILE_BOTTOM.
+        """
+        return ExtractCoordinatesd(image_key=SlideKey.IMAGE, tile_size=self.tile_size)

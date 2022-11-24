@@ -9,23 +9,26 @@ import numpy as np
 
 def location_selected_tiles(tile_coords: np.ndarray,
                             location_bbox: List[int],
-                            level: int) -> np.ndarray:
+                            scale_factor: int = 1,
+                            should_upscale_coords: bool = True) -> np.ndarray:
     """ Return the scaled and shifted tile co-ordinates for selected tiles in the slide.
+
     :param tile_coords: XY tile coordinates, assumed to be spaced by multiples of `tile_size`
     (shape: [N, 2]) in original resolution.
     :param location_bbox: Location of the bounding box on the slide in original resolution.
-    :param level: The downsampling level (e.g. 0, 1, 2) of the tiles if available.
-    (e.g. PANDA levels are 0 for original, 1 for 4x downsampled, 2 for 16x downsampled).
+    :param scale_factor: Scale factor to be applied to the tile coordinates.
+    :param should_upscale_coords: If True, the tile coordinates are upscaled by the scale factor before substructing
+        the offset. If False, the tile coordinates are not upscaled and the offset is upscaled by the scale factor.
     """
-    level_dict = {0: 1, 1: 4, 2: 16}
-    factor = level_dict[level]
 
     y_tr, x_tr = location_bbox
+    if should_upscale_coords:
+        tile_coords = tile_coords * scale_factor
     tile_xs, tile_ys = tile_coords.T
     tile_xs = tile_xs - x_tr
     tile_ys = tile_ys - y_tr
-    tile_xs = tile_xs // factor
-    tile_ys = tile_ys // factor
+    tile_xs = tile_xs // scale_factor
+    tile_ys = tile_ys // scale_factor
 
     sel_coords = np.transpose([tile_xs.tolist(), tile_ys.tolist()])
 

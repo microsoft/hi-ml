@@ -27,7 +27,7 @@ from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
 
 from health_cpath.datamodules.base_module import CacheLocation, CacheMode, HistoDataModule
 from health_cpath.datasets.base_dataset import SlidesDataset
-from health_cpath.models.deepmil import TilesDeepMILModule, SlidesDeepMILModule, BaseDeepMILModule
+from health_cpath.models.deepmil import DeepMILModule
 from health_cpath.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
 from health_cpath.utils.deepmil_utils import ClassifierParams, EncoderParams, PoolingParams
 from health_cpath.utils.output_utils import DeepMILOutputsHandler
@@ -225,8 +225,23 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
         random see. See `SlidesDataModule` for an example how to achieve that."""
         return None
 
-    def create_model(self) -> BaseDeepMILModule:
-        raise NotImplementedError
+    def create_model(self) -> DeepMILModule:
+        self.data_module = self.get_data_module()
+        outputs_handler = self.get_outputs_handler()
+        deepmil_module = DeepMILModule(label_column=self.get_label_column(),
+                                       n_classes=self.data_module.train_dataset.n_classes,
+                                       class_names=self.class_names,
+                                       class_weights=self.data_module.class_weights,
+                                       outputs_folder=self.outputs_folder,
+                                       encoder_params=create_from_matching_params(self, EncoderParams),
+                                       pooling_params=create_from_matching_params(self, PoolingParams),
+                                       classifier_params=create_from_matching_params(self, ClassifierParams),
+                                       optimizer_params=create_from_matching_params(self, OptimizerParams),
+                                       outputs_handler=outputs_handler,
+                                       analyse_loss=self.analyse_loss)
+        deepmil_module.transfer_weights(self.trained_weights_path)
+        outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
+        return deepmil_module
 
     def get_data_module(self) -> HistoDataModule:
         raise NotImplementedError
@@ -242,6 +257,10 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
         # ignore this warning to avoid noisy logs.
         warnings.filterwarnings("ignore", ".*Trying to infer the `batch_size` from an ambiguous collection.*")
 
+    def get_label_column(self) -> str:
+        """Slides and Tiles pipeline use different label columns."""
+        raise NotImplementedError
+
 
 class BaseMILTiles(BaseMIL):
     """BaseMILTiles is an abstract subclass of BaseMIL for running MIL experiments on tiles datasets. It is responsible
@@ -256,6 +275,9 @@ class BaseMILTiles(BaseMIL):
                                                            doc="Whether to pre-cache the entire transformed dataset "
                                                                "upfront and save it to disk and if re-load in cpu or "
                                                                "gpu. Options: `none`,`cpu` (default), `gpu`")
+
+    def get_label_column(self) -> str:
+        return self.data_module.train_dataset.label_column
 
     def setup(self) -> None:
         super().setup()
@@ -286,25 +308,6 @@ class BaseMILTiles(BaseMIL):
         # in case the transformations for training contain augmentations, val and test transform will be different
         return {ModelKey.TRAIN: transform, ModelKey.VAL: transform, ModelKey.TEST: transform}
 
-    def create_model(self) -> TilesDeepMILModule:
-        self.data_module = self.get_data_module()
-        outputs_handler = self.get_outputs_handler()
-        deepmil_module = TilesDeepMILModule(label_column=self.data_module.train_dataset.label_column,
-                                            n_classes=self.data_module.train_dataset.n_classes,
-                                            class_names=self.class_names,
-                                            class_weights=self.data_module.class_weights,
-                                            encoder_params=create_from_matching_params(self, EncoderParams),
-                                            pooling_params=create_from_matching_params(self, PoolingParams),
-                                            classifier_params=create_from_matching_params(self, ClassifierParams),
-                                            optimizer_params=create_from_matching_params(self, OptimizerParams),
-                                            outputs_folder=self.outputs_folder,
-                                            outputs_handler=outputs_handler,
-                                            analyse_loss=self.analyse_loss,
-                                            )
-        deepmil_module.transfer_weights(self.trained_weights_path)
-        outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
-        return deepmil_module
-
 
 class BaseMILSlides(BaseMIL, TilingParams):
     """BaseSlidesMIL is an abstract subclass of BaseMIL for running MIL experiments on slides datasets. It is
@@ -312,21 +315,5 @@ class BaseMILSlides(BaseMIL, TilingParams):
     and configure experiment-specific parameters.
     """
 
-    def create_model(self) -> SlidesDeepMILModule:
-        self.data_module = self.get_data_module()
-        outputs_handler = self.get_outputs_handler()
-        deepmil_module = SlidesDeepMILModule(label_column=SlideKey.LABEL,
-                                             n_classes=self.data_module.train_dataset.n_classes,
-                                             class_names=self.class_names,
-                                             class_weights=self.data_module.class_weights,
-                                             outputs_folder=self.outputs_folder,
-                                             encoder_params=create_from_matching_params(self, EncoderParams),
-                                             pooling_params=create_from_matching_params(self, PoolingParams),
-                                             classifier_params=create_from_matching_params(self, ClassifierParams),
-                                             optimizer_params=create_from_matching_params(self, OptimizerParams),
-                                             outputs_handler=outputs_handler,
-                                             analyse_loss=self.analyse_loss,
-                                             )
-        deepmil_module.transfer_weights(self.trained_weights_path)
-        outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
-        return deepmil_module
+    def get_label_column(self) -> str:
+        return SlideKey.LABEL

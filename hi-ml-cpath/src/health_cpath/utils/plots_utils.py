@@ -22,7 +22,7 @@ from health_cpath.utils.viz_utils import (
 from health_cpath.utils.analysis_plot_utils import plot_pr_curve, format_pr_or_roc_axes
 from health_cpath.utils.naming import PlotOption, ResultsKey, SlideKey
 from health_cpath.utils.tiles_selection_utils import SlideNode, TilesSelector
-from health_cpath.utils.viz_utils import load_image_dict, save_figure
+from health_cpath.utils.viz_utils import save_figure
 
 
 ResultsType = Dict[ResultsKey, List[Any]]
@@ -141,7 +141,7 @@ def save_attention_heatmap(
     figures_dir: Path,
     results: ResultsType,
     tile_size: int = 224,
-    level: int = 1,
+    should_upscale_coords: bool = False,
 ) -> None:
     """Plots and saves a slide thumbnail and attention heatmap
 
@@ -151,17 +151,15 @@ def save_attention_heatmap(
     :param figures_dir: The path to the directory where to save the plots.
     :param results: Dict containing ResultsKey keys (e.g. slide id) and values as lists of output slides.
     :param tile_size: Size of each tile. Default 224.
-    :param level: Magnification at which tiles are available (e.g. PANDA levels are 0 for original,
-        1 for 4x downsampled, 2 for 16x downsampled). Default 1.
+    :param should_upscale_coords: Whether to upscale the coordinates of the attention heatmap. Default False.
     """
     fig = plot_heatmap_overlay(
         case=case,
         slide_node=slide_node,
-        slide_image=slide_dict[SlideKey.IMAGE],
+        slide_dict=slide_dict,
         results=results,
-        location_bbox=slide_dict[SlideKey.ORIGIN],
         tile_size=tile_size,
-        level=level,
+        should_upscale_coords=should_upscale_coords,
     )
     save_figure(fig=fig, figpath=figures_dir / f"{slide_node.slide_id}_heatmap.png")
 
@@ -193,8 +191,8 @@ class DeepMILPlotsHandler:
         :param figsize: The figure size of tiles attention plots, defaults to (10, 10)
         :param stage: Test or Validation, used to name the plots
         :param class_names: List of class names, defaults to None
-        :param slides_dataset: The slides dataset from where to load the whole slide images, defaults to None
         """
+
         self.plot_options = plot_options
         self.class_names = validate_class_names_for_plot_options(class_names, plot_options)
         self.tile_size = tile_size
@@ -202,6 +200,7 @@ class DeepMILPlotsHandler:
         self.figsize = figsize
         self.stage = stage
         self.loading_params = loading_params
+        self.should_upscale_coords = loading_params.should_upscale_coordinates()
         self.loading_params.set_roi_type_to_foreground()
         self.slides_dataset: Optional[SlidesDataset] = None
 
@@ -211,7 +210,8 @@ class DeepMILPlotsHandler:
         slide_index = self.slides_dataset.dataset_df.index.get_loc(slide_node.slide_id)
         assert isinstance(slide_index, int), f"Got non-unique slide ID: {slide_node.slide_id}"
         slide_dict = self.slides_dataset[slide_index]
-        slide_dict = load_image_dict(slide_dict, loading_params=self.loading_params)
+        loader = self.loading_params.get_load_roid_transform()
+        slide_dict = loader(slide_dict)
         return slide_dict
 
     def save_slide_node_figures(
@@ -231,7 +231,7 @@ class DeepMILPlotsHandler:
 
             if PlotOption.ATTENTION_HEATMAP in self.plot_options:
                 save_attention_heatmap(
-                    case, slide_node, slide_dict, case_dir, results, self.tile_size, level=self.loading_params.level
+                    case, slide_node, slide_dict, case_dir, results, self.tile_size, self.should_upscale_coords
                 )
 
     def save_plots(self, outputs_dir: Path, tiles_selector: Optional[TilesSelector], results: ResultsType) -> None:
