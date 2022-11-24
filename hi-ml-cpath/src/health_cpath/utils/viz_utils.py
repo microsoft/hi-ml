@@ -195,7 +195,7 @@ def plot_heatmap_overlay(
     sel_coords = location_selected_tiles(tile_coords=coords,
                                          location_bbox=slide_dict[SlideKey.ORIGIN],
                                          scale_factor=slide_dict[SlideKey.SCALE],
-                                         should_upsacle_coords=should_upscale_coords)
+                                         should_upscale_coords=should_upscale_coords)
     cmap = plt.cm.get_cmap("Reds")
 
     tile_xs, tile_ys = sel_coords.T

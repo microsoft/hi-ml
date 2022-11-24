@@ -289,9 +289,6 @@ class ExtractCoordinatesd(MapTransform):
 class MetaTensorToTensord(MapTransform):
     """Converts a MetaTensor to a Tensor."""
 
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
-        super().__init__(keys, allow_missing_keys)
-
     def __call__(self, data: Mapping) -> Mapping:
         out_data = dict(data)
         for key in self.key_iterator(out_data):

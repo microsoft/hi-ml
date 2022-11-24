@@ -265,9 +265,9 @@ def test_plot_normalized_confusion_matrix(test_output_dirs: OutputFolderForTests
 
 
 @pytest.mark.fast
-@pytest.mark.parametrize("should_upsacle_coords", [True, False])
+@pytest.mark.parametrize("should_upscale_coords", [True, False])
 @pytest.mark.parametrize("level", [0, 1, 2])
-def test_location_selected_tiles(level: int, should_upsacle_coords: bool) -> None:
+def test_location_selected_tiles(level: int, should_upscale_coords: bool) -> None:
     set_random_seed(0)
     slide = 1
     location_bbox = [100, 100]
@@ -280,11 +280,11 @@ def test_location_selected_tiles(level: int, should_upsacle_coords: bool) -> Non
     coords = np.transpose([test_dict[ResultsKey.TILE_LEFT][slide_idx].cpu().numpy(),  # type: ignore
                            test_dict[ResultsKey.TILE_TOP][slide_idx].cpu().numpy()])  # type: ignore
 
-    coords = coords // factor if should_upsacle_coords else coords
+    coords = coords // factor if should_upscale_coords else coords
     tile_coords_transformed = location_selected_tiles(tile_coords=coords,
                                                       location_bbox=location_bbox,
                                                       scale_factor=factor,
-                                                      should_upsacle_coords=should_upsacle_coords)
+                                                      should_upscale_coords=should_upscale_coords)
     tile_xs, tile_ys = tile_coords_transformed.T
     assert min(tile_xs) >= 0
     assert max(tile_xs) <= slide_image.shape[2] // factor
