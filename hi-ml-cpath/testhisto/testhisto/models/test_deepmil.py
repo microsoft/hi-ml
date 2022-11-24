@@ -41,8 +41,8 @@ from testhisto.models.test_encoders import TEST_SSL_RUN_ID
 no_gpu = not is_gpu_available()
 
 
-def get_supervised_imagenet_encoder_params(tune_encoder: bool = True) -> EncoderParams:
-    return EncoderParams(encoder_type=Resnet18.__name__, tune_encoder=tune_encoder)
+def get_supervised_imagenet_encoder_params(tune_encoder: bool = True, is_caching: bool = False) -> EncoderParams:
+    return EncoderParams(encoder_type=Resnet18.__name__, tune_encoder=tune_encoder, is_caching=is_caching)
 
 
 def get_attention_pooling_layer_params(pool_out_dim: int = 1, tune_pooling: bool = True) -> PoolingParams:
@@ -545,12 +545,13 @@ def _get_tiles_deepmil_module(
     num_layers: int = 2,
     num_heads: int = 1,
     hidden_dim: int = 8,
-    transformer_dropout: float = 0.1
+    transformer_dropout: float = 0.1,
+    is_caching: bool = False,
 ) -> DeepMILModule:
     module = DeepMILModule(
         n_classes=n_classes,
         label_column=MockPandaTilesGenerator.ISUP_GRADE,
-        encoder_params=get_supervised_imagenet_encoder_params(),
+        encoder_params=get_supervised_imagenet_encoder_params(is_caching=is_caching),
         pooling_params=get_transformer_pooling_layer_params(num_layers, num_heads, hidden_dim, transformer_dropout),
         classifier_params=ClassifierParams(pretrained_classifier=pretrained_classifier),
     )
@@ -713,3 +714,9 @@ def test_ssl_containers_default_checkpoint(container_type: BaseMIL) -> None:
 
     container = container_type(ssl_checkpoint=CheckpointParser(TEST_SSL_RUN_ID))
     assert container.ssl_checkpoint.checkpoint != default_checkpoint
+
+
+@pytest.mark.parametrize("is_caching", [True, False])
+def test_reset_encoder_to_identity_encoder(is_caching: bool) -> None:
+    model = _get_tiles_deepmil_module(is_caching=is_caching)
+    assert isinstance(model.encoder, IdentityEncoder) if is_caching else isinstance(model.encoder, Resnet18)
