@@ -267,7 +267,7 @@ def _get_sample(wsi_is_cropped: bool = False) -> Dict:
     torch.manual_seed(42)
     bag_size = 2
     h, w = 16, 16
-    tiles = torch.randint(0, 255, (bag_size, 3, h, w))
+    tiles = torch.randint(0, 254, (bag_size, 3, h, w))
     xs = torch.randint(0, w, (bag_size,))
     ys = torch.randint(0, h, (bag_size,))
     coords = torch.stack([ys, xs], dim=0)

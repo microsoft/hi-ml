@@ -12,6 +12,7 @@ def location_selected_tiles(tile_coords: np.ndarray,
                             scale_factor: int = 1,
                             should_upscale_coords: bool = True) -> np.ndarray:
     """ Return the scaled and shifted tile co-ordinates for selected tiles in the slide.
+
     :param tile_coords: XY tile coordinates, assumed to be spaced by multiples of `tile_size`
     (shape: [N, 2]) in original resolution.
     :param location_bbox: Location of the bounding box on the slide in original resolution.
