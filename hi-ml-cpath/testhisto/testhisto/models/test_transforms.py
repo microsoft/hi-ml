@@ -284,7 +284,7 @@ def _get_sample(wsi_is_cropped: bool = False) -> Dict:
 def test_extract_coordinates_from_non_metatensor() -> None:
     sample = _get_sample(wsi_is_cropped=False)
     sample[SlideKey.IMAGE] = sample[SlideKey.IMAGE].as_tensor()
-    transform = ExtractCoordinatesd(tile_size=16, keys=SlideKey.IMAGE)
+    transform = ExtractCoordinatesd(tile_size=16, image_key=SlideKey.IMAGE)
     with pytest.raises(AssertionError, match="Expected MetaTensor"):
         _ = transform(sample)
 
@@ -292,7 +292,7 @@ def test_extract_coordinates_from_non_metatensor() -> None:
 @pytest.mark.parametrize('wsi_is_cropped', [True, False])
 def test_extract_scale_factor(wsi_is_cropped: bool) -> None:
     sample = _get_sample(wsi_is_cropped=wsi_is_cropped)
-    transform = ExtractCoordinatesd(tile_size=16, keys=SlideKey.IMAGE)
+    transform = ExtractCoordinatesd(tile_size=16, image_key=SlideKey.IMAGE)
     scale = transform.extract_scale_factor(sample)
     assert scale == (4 if wsi_is_cropped else 1)
 
@@ -300,7 +300,7 @@ def test_extract_scale_factor(wsi_is_cropped: bool) -> None:
 @pytest.mark.parametrize('wsi_is_cropped', [True, False])
 def test_extract_offset(wsi_is_cropped: bool) -> None:
     sample = _get_sample(wsi_is_cropped=wsi_is_cropped)
-    transform = ExtractCoordinatesd(tile_size=16, keys=SlideKey.IMAGE)
+    transform = ExtractCoordinatesd(tile_size=16, image_key=SlideKey.IMAGE)
     offset = transform.extract_offset(sample)
     assert offset == ((2, 3) if wsi_is_cropped else (0, 0))
 
@@ -312,7 +312,7 @@ def test_extract_coordinates_d_transform(roi_type: ROIType) -> None:
     wsi_is_cropped = (roi_type != ROIType.WHOLE)
     sample = _get_sample(wsi_is_cropped=wsi_is_cropped)
 
-    transform = ExtractCoordinatesd(tile_size=tile_size, keys=SlideKey.IMAGE)
+    transform = ExtractCoordinatesd(tile_size=tile_size, image_key=SlideKey.IMAGE)
     new_sample = transform(sample)
 
     offset_y, offset_x = (2, 3) if wsi_is_cropped else (0, 0)

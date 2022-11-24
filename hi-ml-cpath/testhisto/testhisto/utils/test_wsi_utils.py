@@ -100,4 +100,4 @@ def test_tiling_params_coordinates_transform() -> None:
         _ = params.get_extract_coordinates_transform()
         mock_extract_coordinates.assert_called_once()
         call_args = mock_extract_coordinates.call_args_list[0][1]
-        assert call_args == {'keys': SlideKey.IMAGE, 'tile_size': 128}
+        assert call_args == {'image_key': SlideKey.IMAGE, 'tile_size': 128}

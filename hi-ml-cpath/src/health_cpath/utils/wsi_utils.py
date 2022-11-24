@@ -104,4 +104,4 @@ class TilingParams(param.Parameterized):
         """Extract the coordinates of the tiles returned as meta data by monai transforms to hi-ml-cpath format where
         the coordinates are represented as TileKey.TILE_LEFT, TileKey.TILE_TOP, TileKey.TILE_RIGHT, TileKey.TILE_BOTTOM.
         """
-        return ExtractCoordinatesd(keys=SlideKey.IMAGE, tile_size=self.tile_size)
+        return ExtractCoordinatesd(image_key=SlideKey.IMAGE, tile_size=self.tile_size)

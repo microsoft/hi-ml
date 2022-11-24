@@ -235,15 +235,14 @@ class ExtractCoordinatesd(MapTransform):
     """Extract the coordinates of the tiles returned as meta data by monai transforms to hi-ml-cpath format where
     the coordinates are represented as TileKey.TILE_LEFT, TileKey.TILE_TOP, TileKey.TILE_RIGHT, TileKey.TILE_BOTTOM."""
 
-    def __init__(self, keys: KeysCollection, tile_size: int, allow_missing_keys: bool = False) -> None:
-        super().__init__(keys, allow_missing_keys)
+    def __init__(self, image_key: str, tile_size: int) -> None:
         self.tile_size = tile_size
+        self.image_key = image_key
 
     def extract_coordinates(self, data: Dict) -> Tuple[np.ndarray, np.ndarray]:
         """Extract the coordinates of the tiles from the metadata."""
-        for key in self.key_iterator(data):
-            assert isinstance(data[key], MetaTensor), f"Expected MetaTensor, got {type(data[key])}"
-            ys, xs = data[key].meta[WSIPatchKeys.LOCATION]
+        assert isinstance(data[self.image_key], MetaTensor), f"Expected MetaTensor, got {type(data[self.image_key])}"
+        ys, xs = data[self.image_key].meta[WSIPatchKeys.LOCATION]
         return ys, xs
 
     def extract_scale_factor(self, data: Dict) -> int:
