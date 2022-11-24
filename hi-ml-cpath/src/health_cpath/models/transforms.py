@@ -247,11 +247,11 @@ class ExtractCoordinatesd(MapTransform):
 
     def extract_scale_factor(self, data: Dict) -> int:
         """Extract the scale factor of the tiles from the metadata to rescale the coordinates to highest resolution."""
-        return int(data[SlideKey.SCALE]) if SlideKey.SCALE in data else 1
+        return int(data.get(SlideKey.SCALE, 1))
 
     def extract_offset(self, data: Dict) -> Tuple[int, int]:
         """Extract the offset of the tiles from the metadata to translate to (0, 0) origin."""
-        return data[SlideKey.ORIGIN] if SlideKey.ORIGIN in data else (0, 0)
+        return data.get(SlideKey.ORIGIN, (0, 0))
 
     def set_coordinates(self, data: Dict, xs: np.ndarray, ys: np.ndarray) -> None:
         """Set the coordinates of the tiles in the metadata."""
@@ -261,8 +261,8 @@ class ExtractCoordinatesd(MapTransform):
         # We set the coordinates of the tiles as top left and bottom right coordinates
         data[TileKey.TILE_LEFT] = torch.tensor((xs * scale_factor + offset_x))
         data[TileKey.TILE_TOP] = torch.tensor((ys * scale_factor + offset_y))
-        data[TileKey.TILE_RIGHT] = torch.tensor(((xs + self.tile_size) * scale_factor + offset_x))
-        data[TileKey.TILE_BOTTOM] = torch.tensor(((ys + self.tile_size) * scale_factor + offset_y))
+        data[TileKey.TILE_RIGHT] = data[TileKey.TILE_LEFT] + self.tile_size * scale_factor
+        data[TileKey.TILE_BOTTOM] = data[TileKey.TILE_TOP] + self.tile_size * scale_factor
 
     def set_tile_and_slide_ids(self, data: Dict, xs: np.ndarray, ys: np.ndarray) -> None:
         """Set the tile and slide id in the metadata."""
