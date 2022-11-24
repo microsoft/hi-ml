@@ -284,3 +284,17 @@ class ExtractCoordinatesd(MapTransform):
         self.set_tile_and_slide_ids(out_data, xs=xs, ys=ys)
         self.convert_tiles_and_label_to_tensors(out_data)
         return out_data
+
+
+class MetaTensorToTensord(MapTransform):
+    """Converts a MetaTensor to a Tensor."""
+
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
+        super().__init__(keys, allow_missing_keys)
+
+    def __call__(self, data: Mapping) -> Mapping:
+        out_data = dict(data)
+        for key in self.key_iterator(out_data):
+            assert isinstance(out_data[key], MetaTensor), f"Expected MetaTensor, got {type(out_data[key])}"
+            out_data[key] = out_data[key].as_tensor()
+        return out_data

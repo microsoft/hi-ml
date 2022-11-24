@@ -28,7 +28,7 @@ from health_cpath.datasets.panda_tiles_dataset import PandaTilesDataset
 from health_cpath.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
 from health_cpath.models.encoders import Resnet18
 from health_cpath.models.transforms import (EncodeTilesBatchd, ExtractCoordinatesd, LoadTiled,
-                                            LoadTilesBatchd, Subsampled, transform_dict_adaptor)
+                                            LoadTilesBatchd, MetaTensorToTensord, Subsampled, transform_dict_adaptor)
 from testhisto.utils.utils_testhisto import assert_dicts_equal
 
 
@@ -263,7 +263,7 @@ def test_transform_dict_adaptor() -> None:
     assert output_dict3 == input_dict
 
 
-def _get_sample(wsi_is_cropped: bool) -> Dict:
+def _get_sample(wsi_is_cropped: bool = False) -> Dict:
     torch.manual_seed(42)
     bag_size = 2
     h, w = 16, 16
@@ -338,3 +338,12 @@ def test_extract_coordinates_d_transform(roi_type: ROIType) -> None:
     assert SlideKey.SLIDE_ID in new_sample
     assert len(new_sample[TileKey.TILE_ID]) == bag_size
     assert len(new_sample[TileKey.SLIDE_ID]) == bag_size
+
+
+def test_metatensor_to_tensor_d_transform() -> None:
+    sample = _get_sample()
+    transform = MetaTensorToTensord(keys=SlideKey.IMAGE)
+    new_sample = transform(sample)
+    assert isinstance(new_sample[SlideKey.IMAGE], torch.Tensor)
+    with pytest.raises(AssertionError, match="Expected MetaTensor"):
+        _ = transform(new_sample)

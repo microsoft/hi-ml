@@ -9,6 +9,7 @@ from torch import optim
 from monai.transforms import Compose, ScaleIntensityRanged, RandRotate90d, RandFlipd
 from health_cpath.configs.run_ids import innereye_ssl_checkpoint_binary
 from health_azure.utils import create_from_matching_params
+from health_cpath.models.transforms import MetaTensorToTensord
 from health_cpath.preprocessing.loading import LoadingParams
 from health_cpath.utils.wsi_utils import TilingParams
 from health_ml.networks.layers.attention_layers import (
@@ -92,10 +93,11 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             RandFlipd(keys=image_key, spatial_axis=0, prob=0.5),
             RandFlipd(keys=image_key, spatial_axis=1, prob=0.5),
             RandRotate90d(keys=image_key, prob=0.5),
-            ScaleIntensityRanged(keys=image_key, a_min=0.0, a_max=255.0)
+            ScaleIntensityRanged(keys=image_key, a_min=0.0, a_max=255.0),
+            MetaTensorToTensord(keys=image_key),  # rotate transforms add some metadata to affine matrix
         ])
         transform_inf = Compose([
-            ScaleIntensityRanged(keys=image_key, a_min=0.0, a_max=255.0)
+            ScaleIntensityRanged(keys=image_key, a_min=0.0, a_max=255.0),
         ])
         return {ModelKey.TRAIN: transform_train, ModelKey.VAL: transform_inf, ModelKey.TEST: transform_inf}
 
