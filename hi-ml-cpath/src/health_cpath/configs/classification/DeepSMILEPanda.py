@@ -12,9 +12,9 @@ from health_cpath.datasets.panda_dataset import PandaDataset
 from health_cpath.datasets.panda_tiles_dataset import PandaTilesDataset
 from health_cpath.models.encoders import HistoSSLEncoder, ImageNetSimCLREncoder, Resnet18, SSLEncoder
 from health_cpath.preprocessing.loading import LoadingParams, ROIType, WSIBackend
-from health_cpath.utils.naming import PlotOption, SlideKey
+from health_cpath.utils.naming import MetricsKey, PlotOption, SlideKey
 from health_cpath.utils.wsi_utils import TilingParams
-from health_ml.networks.layers.attention_layers import AttentionLayer
+from health_ml.networks.layers.attention_layers import AttentionLayer, TransformerPooling, TransformerPoolingBenchmark
 from health_ml.utils.checkpoint_utils import CheckpointParser
 
 
@@ -70,11 +70,25 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
             is_caching=False,
             batch_size=8,
             batch_size_inf=8,
-            azure_datasets=[PANDA_5X_TILES_DATASET_ID, PANDA_DATASET_ID])
+            azure_datasets=[PANDA_5X_TILES_DATASET_ID, PANDA_DATASET_ID],
+            # Best hyperparameters for DeepSMILETilesPanda
+            pool_hidden_dim=2048,
+            crossval_count=5,
+            l_rate=3e-4,
+            weight_decay=0,
+            primary_val_metric=MetricsKey.ACC)
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
 
     def setup(self) -> None:
+        # Params specific to transformer pooling
+        if self.pool_type in [TransformerPoolingBenchmark.__name__, TransformerPooling.__name__]:
+            self.l_rate = 3e-5
+            self.weight_decay = 0.1
+        # Params specific to fine-tuning
+        if self.tune_encoder:
+            self.batch_size = 2
+            self.batch_size_inf = 2
         BaseMILTiles.setup(self)
 
     def get_data_module(self) -> PandaTilesDataModule:

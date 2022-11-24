@@ -12,10 +12,7 @@ from health_azure.utils import create_from_matching_params
 from health_cpath.models.transforms import MetaTensorToTensord
 from health_cpath.preprocessing.loading import LoadingParams
 from health_cpath.utils.wsi_utils import TilingParams
-from health_ml.networks.layers.attention_layers import (
-    TransformerPooling,
-    TransformerPoolingBenchmark
-)
+from health_ml.networks.layers.attention_layers import TransformerPooling, TransformerPoolingBenchmark
 from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_ml.deep_learning_config import OptimizerParams
 from health_cpath.datasets.panda_dataset import PandaDataset
