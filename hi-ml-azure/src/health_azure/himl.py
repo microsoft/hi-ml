@@ -35,7 +35,8 @@ from azureml.train.hyperdrive import HyperDriveConfig, GridParameterSampling, Pr
 from azureml.dataprep.fuse.daemon import MountContext
 
 from health_azure.amulet import (ENV_AMLT_DATAREFERENCE_DATA, ENV_AMLT_DATAREFERENCE_OUTPUT, is_amulet_job)
-from health_azure.utils import (create_python_environment, create_run_recovery_id, find_file_in_parent_to_pythonpath,
+from health_azure.utils import (ENV_EXPERIMENT_NAME, create_python_environment, create_run_recovery_id,
+                                find_file_in_parent_to_pythonpath,
                                 is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
                                 run_duration_string_to_seconds, to_azure_friendly_string, RUN_CONTEXT, get_workspace,
                                 PathOrString, DEFAULT_ENVIRONMENT_VARIABLES, get_ml_client,
@@ -422,6 +423,24 @@ def get_display_name_v2(tags: Optional[Dict[str, Any]] = None) -> str:
     tag = tags.get("tag", "")
     display_name = tag.replace(" ", "-")
     return display_name
+
+
+def effective_experiment_name(experiment_name: str,
+                              entry_script: PathOrString) -> str:
+    """Choose the experiment name to use for the run. If provided in the environment variable HIML_EXPERIMENT_NAME,
+    then use that. Otherwise, use the argument `experiment_name`, or fall back to the default based on the
+    entry point script.
+
+    :param experiment_name: The name of the AzureML experiment in which the run should be submitted.
+    :param entry_script: The script that should be run in AzureML.
+    :return: The effective experiment name to use, based on the fallback rules above.
+    """
+    value_from_env = os.environ.get(ENV_EXPERIMENT_NAME, "")
+    if value_from_env:
+        return value_from_env
+    if experiment_name:
+        return experiment_name
+    return Path(entry_script).stem
 
 
 def submit_run_v2(workspace: Optional[Workspace],
@@ -852,6 +871,7 @@ def submit_to_azure_if_needed(  # type: ignore
 
     amlignore_path = snapshot_root_directory / AML_IGNORE_FILE
     lines_to_append = [str(path) for path in (ignored_folders or [])]
+
     with append_to_amlignore(amlignore=amlignore_path, lines_to_append=lines_to_append):
         if strictly_aml_v1:
             run_config = create_run_configuration(
@@ -880,10 +900,8 @@ def submit_to_azure_if_needed(  # type: ignore
             else:
                 config_to_submit = script_run_config
 
-            effective_experiment_name = experiment_name or Path(script_run_config.script).stem
-
             run = submit_run(workspace=workspace,
-                             experiment_name=effective_experiment_name,
+                             experiment_name=effective_experiment_name(experiment_name, script_run_config.script),
                              script_run_config=config_to_submit,
                              tags=tags,
                              wait_for_completion=wait_for_completion,
@@ -898,7 +916,6 @@ def submit_to_azure_if_needed(  # type: ignore
             if entry_script is None:
                 entry_script = Path(sys.argv[0])
             script_params = script_params or sys.argv[1:]
-            effective_experiment_name = experiment_name or Path(entry_script).stem
 
             ml_client = get_ml_client(ml_client=ml_client, aml_workspace=workspace)
             registered_env = register_environment_v2(environment, ml_client)
@@ -908,7 +925,7 @@ def submit_to_azure_if_needed(  # type: ignore
             run = submit_run_v2(workspace=workspace,
                                 input_datasets_v2=input_datasets_v2,
                                 output_datasets_v2=output_datasets_v2,
-                                experiment_name=effective_experiment_name,
+                                experiment_name=effective_experiment_name(experiment_name, entry_script),
                                 environment=registered_env,
                                 snapshot_root_directory=snapshot_root_directory,
                                 entry_script=entry_script,

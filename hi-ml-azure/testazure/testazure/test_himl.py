@@ -45,6 +45,7 @@ from health_azure.datasets import (
 )
 from health_azure.utils import (
     DEFAULT_ENVIRONMENT_VARIABLES,
+    ENV_EXPERIMENT_NAME,
     ENVIRONMENT_VERSION,
     EXPERIMENT_RUN_SEPARATOR,
     WORKSPACE_CONFIG_JSON,
@@ -1676,3 +1677,13 @@ def test_get_display_name_v2() -> None:
     # if no tags provided, display name should be empty
     display_name = himl.get_display_name_v2()
     assert display_name == ""
+
+
+def test_experiment_name() -> None:
+    """Test the logic for choosing experiment names: Explicitly given experiment name should be used if provided,
+    otherwise fall back to environment variables and then script name."""
+    assert himl.effective_experiment_name("explicit", Path()) == "explicit"
+    assert himl.effective_experiment_name("", Path("from_script.py")) == "from_script"
+    with mock.patch.dict(os.environ, {ENV_EXPERIMENT_NAME: "name_from_env"}):
+        assert himl.effective_experiment_name("explicit", Path()) == "name_from_env"
+        assert himl.effective_experiment_name("", Path("from_script.py")) == "name_from_env"

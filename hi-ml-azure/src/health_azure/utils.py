@@ -76,6 +76,9 @@ ENV_LOCAL_RANK = "LOCAL_RANK"
 ENV_RANK = "RANK"
 MASTER_PORT_DEFAULT = 6105
 
+# Environment variables that affect job submission, in particular in builds
+ENV_EXPERIMENT_NAME = "HIML_EXPERIMENT_NAME"
+
 # Other Azure ML related variables
 ENVIRONMENT_VERSION = "1"
 FINAL_MODEL_FOLDER = "final_model"
