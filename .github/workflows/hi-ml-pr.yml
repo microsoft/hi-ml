@@ -27,6 +27,12 @@ env:
 
 jobs:
 
+  cancel-azureml:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel previous AzureML runs
+        uses: ./.github/actions/cancel_azureml_jobs
+
   flake8:
     runs-on: ubuntu-20.04
     steps:
@@ -144,7 +150,7 @@ jobs:
 
   test-artifact-pkg:
     runs-on: ubuntu-20.04
-    needs: [ build-python ]
+    needs: [ build-python, cancel-azureml ]
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
