@@ -26,7 +26,7 @@ from testhiml.utils_testhiml import DEFAULT_WORKSPACE
 
 
 def create_unittest_run_object(snapshot_directory: Optional[Path] = None) -> Run:
-    return create_aml_run_object(experiment_name = effective_experiment_name("himl-tests"),
+    return create_aml_run_object(experiment_name=effective_experiment_name("himl-tests"),
                                  workspace=DEFAULT_WORKSPACE.workspace,
                                  snapshot_directory=snapshot_directory or ".")
 
