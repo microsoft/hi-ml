@@ -31,7 +31,7 @@ def cancel_running_and_queued_jobs() -> None:
         assert isinstance(run, Run)
         status_suffix = f"'{run.status}' run {run.id} ({run.display_name})"
         if run.status in (RunStatus.COMPLETED, RunStatus.FAILED, RunStatus.FINALIZING, RunStatus.CANCELED,
-                                       RunStatus.CANCEL_REQUESTED):
+                          RunStatus.CANCEL_REQUESTED):
             print(f"Skipping {status_suffix}")
         else:
             print(f"Cancelling {status_suffix}")
