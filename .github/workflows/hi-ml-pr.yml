@@ -30,6 +30,8 @@ jobs:
   cancel-azureml:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v3
+
       - name: Cancel previous AzureML runs
         uses: ./.github/actions/cancel_azureml_jobs
 
