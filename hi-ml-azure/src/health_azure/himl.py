@@ -425,7 +425,7 @@ def get_display_name_v2(tags: Optional[Dict[str, Any]] = None) -> str:
     return display_name
 
 
-def effective_experiment_name(experiment_name: str,
+def effective_experiment_name(experiment_name: Optional[str],
                               entry_script: Optional[PathOrString] = None) -> str:
     """Choose the experiment name to use for the run. If provided in the environment variable HIML_EXPERIMENT_NAME,
     then use that. Otherwise, use the argument `experiment_name`, or fall back to the default based on the

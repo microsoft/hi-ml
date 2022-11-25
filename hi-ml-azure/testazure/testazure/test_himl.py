@@ -742,6 +742,7 @@ def test_submit_run(mock_workspace: mock.MagicMock,
         assert "AzureML completed" not in out
 
 
+@pytest.mark.fast
 def test_submit_run_v2(tmp_path: Path) -> None:
     def _mock_sweep(*args: Any, **kwargs: Any) -> MagicMock:
         assert kwargs.get("compute") == dummy_compute_target
@@ -865,7 +866,7 @@ def test_submit_run_v2(tmp_path: Path) -> None:
             # 'command' should be called with the same args
             print(mock_command.call)
             # command should be called once when initialising the command job and once when updating the param sampling
-            mock_command.call_count == 2
+            assert mock_command.call_count == 2
 
             mock_command.assert_any_call(
                 code=str(dummy_root_directory),
@@ -1658,6 +1659,7 @@ def test_extract_v2_inputs_outputs_from_args() -> None:
         assert len(output_datasets) == 0
 
 
+@pytest.mark.fast
 def test_get_display_name_v2() -> None:
     dummy_display_name = "job display name"
     expected_display_name = "job-display-name"
@@ -1679,6 +1681,7 @@ def test_get_display_name_v2() -> None:
     assert display_name == ""
 
 
+@pytest.mark.fast
 def test_experiment_name() -> None:
     """Test the logic for choosing experiment names: Explicitly given experiment name should be used if provided,
     otherwise fall back to environment variables and then script name."""
