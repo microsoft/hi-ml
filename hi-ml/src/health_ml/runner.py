@@ -230,7 +230,7 @@ class Runner:
         workspace: Optional[Workspace] = None
         if self.experiment_config.cluster:
             try:
-                workspace = get_workspace()
+                workspace = get_workspace(workspace_config_path=self.experiment_config.workspace_config_path)
             except ValueError:
                 raise ValueError("Unable to submit the script to AzureML because no workspace configuration file "
                                  "(config.json) was found.")
