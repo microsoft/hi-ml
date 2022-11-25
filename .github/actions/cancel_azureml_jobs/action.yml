@@ -44,9 +44,9 @@ runs:
     - name: Cancel AzureML jobs
       shell: bash
       run: |
-        # Set the AML experiment name for all AML jobs submitted during tests. Github.ref looks like
-        # "refs/pull/123/merge" for PR builds.
-        echo "HIML_EXPERIMENT_NAME=${{ github.ref }}" >> $GITHUB_ENV
-
         echo "Cancelling any existing AzureML jobs for this PR"
         python .github/actions/cancel_azureml_jobs/cancel_aml_jobs.py
+      env:
+        # Set the AML experiment name for all AML jobs submitted during tests. Github.ref looks like
+        # "refs/pull/123/merge" for PR builds.
+        HIML_EXPERIMENT_NAME: ${{ github.ref }}
