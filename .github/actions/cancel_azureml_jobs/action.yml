@@ -44,7 +44,7 @@ runs:
     - name: Cancel AzureML jobs
       shell: bash
       run: |
-        echo "Cancelling all unfinished AzureML jobs for this PR"
+        echo "Cancelling all unfinished AzureML jobs for this PR."
         python .github/actions/cancel_azureml_jobs/cancel_aml_jobs.py
       env:
         # Set the AML experiment name for all AML jobs submitted during tests. Github.ref looks like
