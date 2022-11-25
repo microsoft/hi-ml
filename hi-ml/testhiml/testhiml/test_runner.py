@@ -138,6 +138,7 @@ def test_submit_to_azureml_if_needed(mock_get_workspace: MagicMock,
     def _mock_dont_submit_to_aml(input_datasets: List[DatasetConfig],
                                  submit_to_azureml: bool, strictly_aml_v1: bool,  # type: ignore
                                  environment_variables: Dict[str, Any],  # type: ignore
+                                 default_datastore: Optional[str],  # type: ignore
                                  ) -> AzureRunInfo:
         datasets_input = [d.target_folder for d in input_datasets] if input_datasets else []
         return AzureRunInfo(input_datasets=datasets_input,
@@ -349,3 +350,16 @@ def test_invalid_profiler(mock_runner: Runner) -> None:
         with pytest.raises(ValueError) as ex:
             mock_runner.run()
         assert "Unsupported profiler." in str(ex)
+
+
+def test_custom_datastore_outside_aml(mock_runner: Runner) -> None:
+    model_name = "HelloWorld"
+    datastore = "foo"
+    arguments = ["", f"--datastore={datastore}", f"--model={model_name}"]
+    with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_azure_if_needed:
+        with patch("health_ml.runner.get_workspace"):
+            with patch("health_ml.runner.Runner.run_in_situ"):
+                with patch.object(sys, "argv", arguments):
+                    mock_runner.run()
+        mock_submit_to_azure_if_needed.assert_called_once()
+        assert mock_submit_to_azure_if_needed.call_args[1]["default_datastore"] == datastore

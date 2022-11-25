@@ -230,7 +230,7 @@ class Runner:
         workspace: Optional[Workspace] = None
         if self.experiment_config.cluster:
             try:
-                workspace = get_workspace()
+                workspace = get_workspace(workspace_config_path=self.experiment_config.workspace_config_path)
             except ValueError:
                 raise ValueError("Unable to submit the script to AzureML because no workspace configuration file "
                                  "(config.json) was found.")
@@ -299,6 +299,7 @@ class Runner:
                 submit_to_azureml=False,
                 environment_variables=environment_variables,
                 strictly_aml_v1=self.experiment_config.strictly_aml_v1,
+                default_datastore=datastore,
             )
         if azure_run_info.run:
             # This code is only reached inside Azure. Set display name again - this will now affect

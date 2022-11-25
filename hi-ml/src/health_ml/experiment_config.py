@@ -46,6 +46,10 @@ class ExperimentConfig(param.Parameterized):
                                                          "should only be used when debugging issues")
     strictly_aml_v1: bool = param.Boolean(default=False, doc="If True, use AzureML v1 SDK. If False (default), use "
                                                              "the v2 of the SDK")
+    workspace_config_path: Optional[Path] = \
+        param.ClassSelector(class_=Path, default=None, allow_None=True,
+                            doc="The path to the AzureML workspace configuration file. If not specified, the "
+                                "configuration file in the current folder or one of its parents will be used.")
     max_run_duration: str = param.String(
         default="", doc="The maximum runtime that is allowed for this job in AzureML. This is given as a floating"
         "point number with a string suffix s, m, h, d for seconds, minutes, hours, day. Examples: '3.5h', '2d'"
