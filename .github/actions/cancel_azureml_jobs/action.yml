@@ -15,14 +15,14 @@ runs:
       uses: actions/cache@v3
       with:
         path: /usr/share/miniconda/envs/AzureML_SDK
-        key: azureml-conda-${{ hashFiles('.github/azureml-conda-environment.yml') }}
+        key: azureml-conda-${{ hashFiles('.github/actions/cancel_azureml_jobs/azureml-env.yml') }}
 
     # If the cache action didn't find a cache, then install the conda environment afresh.
     - name: Build Conda environment from scratch
       uses: conda-incubator/setup-miniconda@v2
       if: steps.cache-conda.outputs.cache-hit != 'true'
       with:
-        environment-file: .github/azureml-conda-environment.yml
+        environment-file: .github/actions/cancel_azureml_jobs/azureml-env.yml
         activate-environment: AzureML_SDK
 
     # Modify the path to point to the new or cached Conda environment.
@@ -49,4 +49,4 @@ runs:
         echo "HIML_EXPERIMENT_NAME=${{ github.ref }}" >> $GITHUB_ENV
 
         echo "Cancelling any existing AzureML jobs for this PR"
-        python .github/actions/cancel_azureml_jobs/cancel_azureml_jobs.py
+        python .github/actions/cancel_azureml_jobs/cancel_aml_jobs.py
