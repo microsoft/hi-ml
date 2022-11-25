@@ -437,12 +437,16 @@ def effective_experiment_name(experiment_name: str,
     """
     value_from_env = os.environ.get(ENV_EXPERIMENT_NAME, "")
     if value_from_env:
-        return value_from_env
-    if experiment_name:
-        return experiment_name
-    if entry_script is not None:
-        return Path(entry_script).stem
-    raise ValueError("No experiment name provided, and no entry script provided. ")
+        raw_value = value_from_env
+    elif experiment_name:
+        raw_value = experiment_name
+    elif entry_script is not None:
+        raw_value = Path(entry_script).stem
+    else:
+        raise ValueError("No experiment name provided, and no entry script provided. ")
+    cleaned_value = to_azure_friendly_string(raw_value)
+    assert cleaned_value is not None, "Expecting an actual string"
+    return cleaned_value
 
 
 def submit_run_v2(workspace: Optional[Workspace],
