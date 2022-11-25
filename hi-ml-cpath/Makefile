@@ -160,11 +160,11 @@ define DEFAULT_SMOKE_TEST_ARGS
 endef
 
 define AML_ONE_DEVICE_ARGS
---cluster=testing-nc6 --wait_for_completion --num_nodes=1 --max_num_gpus=1 --strictly_aml_v1=True
+--cluster=testing-nc6 --wait_for_completion --num_nodes=1 --max_num_gpus=1 --strictly_aml_v1=True --max_run_duration=1h
 endef
 
 define AML_MULTIPLE_DEVICE_ARGS
---cluster=dedicated-nc24s-v2 --wait_for_completion --strictly_aml_v1=True
+--cluster=dedicated-nc24s-v2 --wait_for_completion --strictly_aml_v1=True --max_run_duration=1h
 endef
 
 define DEEPSMILEDEFAULT_SMOKE_TEST_ARGS

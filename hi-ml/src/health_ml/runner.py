@@ -32,7 +32,7 @@ from health_azure.amulet import prepare_amulet_job, is_amulet_job  # noqa: E402
 from health_azure.utils import (get_workspace, get_ml_client, is_local_rank_zero,  # noqa: E402
                                 is_running_in_azure_ml, set_environment_variables_for_multi_node,
                                 create_argparser, parse_arguments, ParserResult, apply_overrides,
-                                filter_v2_input_output_args, is_global_rank_zero)
+                                filter_v2_input_output_args, is_global_rank_zero, run_duration_string_to_seconds)
 
 from health_ml.experiment_config import DEBUG_DDP_ENV_VAR, ExperimentConfig  # noqa: E402
 from health_ml.lightning_container import LightningContainer  # noqa: E402
@@ -266,7 +266,7 @@ class Runner:
             env_file = choose_conda_env_file(env_file=self.experiment_config.conda_env)
             logging.info(f"Using this Conda environment definition: {env_file}")
             check_conda_environment(env_file)
-
+            max_run_duration_seconds = run_duration_string_to_seconds(self.experiment_config.max_run_duration)
             azure_run_info = submit_to_azure_if_needed(
                 entry_script=entry_script,
                 snapshot_root_directory=root_folder,
@@ -281,6 +281,7 @@ class Runner:
                 input_datasets=input_datasets,  # type: ignore
                 num_nodes=self.experiment_config.num_nodes,
                 wait_for_completion=self.experiment_config.wait_for_completion,
+                max_run_duration_seconds=max_run_duration_seconds,
                 ignored_folders=[],
                 submit_to_azureml=bool(self.experiment_config.cluster),
                 docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
