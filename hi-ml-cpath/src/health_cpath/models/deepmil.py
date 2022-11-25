@@ -360,7 +360,7 @@ class DeepMILModule(LightningModule):
                         ResultsKey.PROB: predicted_probs,
                         ResultsKey.CLASS_PROBS: probs_perclass,
                         ResultsKey.PRED_LABEL: predicted_labels,
-                        ResultsKey.TRUE_LABEL: bag_labels,
+                        ResultsKey.TRUE_LABEL: bag_labels.int(),
                         ResultsKey.BAG_ATTN: bag_attn_list
                         })
         self.update_results_with_metadata(batch=batch, results=results)
