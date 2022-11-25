@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional
 from functools import lru_cache
 
+from health_azure.himl import effective_experiment_name
 from health_azure.utils import PathOrString
 from health_azure.utils import create_aml_run_object
 from testazure.utils_testazure import DEFAULT_WORKSPACE
