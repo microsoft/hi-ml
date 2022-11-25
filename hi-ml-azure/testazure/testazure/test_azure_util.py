@@ -35,7 +35,7 @@ from azure.core.exceptions import ClientAuthenticationError, ResourceNotFoundErr
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
 import health_azure.utils as util
-from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore
+from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore, effective_experiment_name
 from health_azure.utils import (ENV_MASTER_ADDR, ENV_MASTER_PORT, MASTER_PORT_DEFAULT,
                                 PackageDependency, create_argparser, get_credential)
 from testazure.test_himl import RunTarget, render_and_run_test_script
@@ -1308,7 +1308,7 @@ def test_download_run_file_during_run(tmp_path: Path) -> None:
     information about the workspace to use, but pick up the current workspace.
     """
     # Create a run that contains a simple txt file
-    experiment_name = "himl-tests"
+    experiment_name = effective_experiment_name("himl-tests")
     run_to_download_from = util.create_aml_run_object(experiment_name=experiment_name,
                                                       workspace=DEFAULT_WORKSPACE.workspace)
     file_contents = "Hello World!"
@@ -2341,8 +2341,8 @@ def test_create_run() -> None:
     """
     Test if we can create an AML run object here in the test suite, write logs and read them back in.
     """
-    run_name = "foo"
-    experiment_name = "himl-tests"
+    run_name = "test_create_run"
+    experiment_name = effective_experiment_name("himl-tests")
     run: Optional[Run] = None
     try:
         run = util.create_aml_run_object(experiment_name=experiment_name, run_name=run_name,

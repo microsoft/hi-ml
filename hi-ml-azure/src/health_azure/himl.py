@@ -426,7 +426,7 @@ def get_display_name_v2(tags: Optional[Dict[str, Any]] = None) -> str:
 
 
 def effective_experiment_name(experiment_name: str,
-                              entry_script: PathOrString) -> str:
+                              entry_script: Optional[PathOrString] = None) -> str:
     """Choose the experiment name to use for the run. If provided in the environment variable HIML_EXPERIMENT_NAME,
     then use that. Otherwise, use the argument `experiment_name`, or fall back to the default based on the
     entry point script.
@@ -440,7 +440,9 @@ def effective_experiment_name(experiment_name: str,
         return value_from_env
     if experiment_name:
         return experiment_name
-    return Path(entry_script).stem
+    if entry_script is not None:
+        return Path(entry_script).stem
+    raise ValueError("No experiment name provided, and no entry script provided. ")
 
 
 def submit_run_v2(workspace: Optional[Workspace],
