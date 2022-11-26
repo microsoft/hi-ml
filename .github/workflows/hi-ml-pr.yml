@@ -22,6 +22,9 @@ env:
   HIML_DIST_ARTIFACT_SUFFIX: '-dist'
   HIML_PACKAGE_NAME_ARTIFACT_SUFFIX: '-package_name'
   HIML_VERSION_ARTIFACT_SUFFIX: '-latest_version'
+  # Set the AML experiment name for all AML jobs submitted during tests. Github.ref looks like
+  # "refs/pull/123/merge" for PR builds.
+  HIML_EXPERIMENT_NAME: ${{ github.ref }}
   PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
   PYPI_TEST_API_TOKEN: ${{ secrets.PYPI_TEST_API_TOKEN }}
 
@@ -200,10 +203,6 @@ jobs:
 
           # Set env vars so wheel is sent to azureml as a private package
           echo "HIML_AZURE_WHEEL_FILENAME=${{ steps.download.outputs.package_filename }}" >> $GITHUB_ENV
-
-          # Set the AML experiment name for all AML jobs submitted during tests. Github.ref looks like
-          # "refs/pull/123/merge" for PR builds.
-          echo "HIML_EXPERIMENT_NAME=${{ github.ref }}" >> $GITHUB_ENV
 
           # Test with pytest
           make pytest_and_coverage

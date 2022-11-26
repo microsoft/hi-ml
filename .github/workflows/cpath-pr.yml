@@ -23,6 +23,9 @@ env:
   HIML_WORKSPACE_NAME: ${{ secrets.HIML_WORKSPACE_NAME }}
   HIML_SERVICE_PRINCIPAL_ID: ${{ secrets.HIML_SERVICE_PRINCIPAL_ID }}
   HIML_SERVICE_PRINCIPAL_PASSWORD: ${{ secrets.HIML_SERVICE_PRINCIPAL_PASSWORD }}
+  # Set the AML experiment name for all AML jobs submitted during tests. Github.ref looks like
+  # "refs/pull/123/merge" for PR builds.
+  HIML_EXPERIMENT_NAME: ${{ github.ref }}
 
 jobs:
 

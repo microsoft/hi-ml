@@ -52,10 +52,3 @@ runs:
       run: |
         cd hi-ml-azure
         make pip_local
-
-    - name: Set experiment name for AzureML runs
-      shell: bash
-      run: |
-          # Set the AML experiment name for all AML jobs submitted during tests. Github.ref looks like
-          # "refs/pull/123/merge" for PR builds.
-          echo "HIML_EXPERIMENT_NAME=${{ github.ref }}" >> $GITHUB_ENV
