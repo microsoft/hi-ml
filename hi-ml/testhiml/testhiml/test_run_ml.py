@@ -24,7 +24,7 @@ from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_ml.utils.common_utils import is_gpu_available
 from health_ml.utils.lightning_loggers import HimlMLFlowLogger, StoringLogger
 from health_azure.utils import ENV_EXPERIMENT_NAME, is_global_rank_zero
-from testazure.utils_testazure import DEFAULT_WORKSPACE
+from testazure.utils_testazure import DEFAULT_WORKSPACE, experiment_for_unittests
 from testhiml.utils.fixed_paths_for_tests import mock_run_id
 
 no_gpu = not is_gpu_available()
@@ -383,8 +383,7 @@ def test_log_on_vm(log_from_vm: bool) -> None:
     container = HelloWorld()
     container.max_epochs = 1
     # Mimic an experiment name given on the command line.
-    experiment_name = "unittest"
-    container.experiment = experiment_name
+    container.experiment = experiment_for_unittests()
     # The tag is used to identify the run, similar to the behaviour when submitting a run to AzureML.
     tag = f"test_log_on_vm [{log_from_vm}]"
     container.tag = tag
@@ -420,7 +419,7 @@ def test_experiment_name() -> None:
         container._model_name = model_name
         assert container.effective_experiment_name == model_name
         # Experiment name given on the commandline: use the experiment name
-        experiment_name = "unittest"
+        experiment_name = experiment_for_unittests()
         container.experiment = experiment_name
         assert container.effective_experiment_name == experiment_name
 

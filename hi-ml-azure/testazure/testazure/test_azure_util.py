@@ -40,12 +40,11 @@ from health_azure.utils import (ENV_MASTER_ADDR, ENV_MASTER_PORT, MASTER_PORT_DE
                                 PackageDependency, create_argparser, get_credential)
 from testazure.test_himl import RunTarget, render_and_run_test_script
 from testazure.utils_testazure import (DEFAULT_IGNORE_FOLDERS, DEFAULT_WORKSPACE, MockRun, change_working_directory,
-                                       himl_azure_root, repository_root)
+                                       experiment_for_unittests, himl_azure_root, repository_root)
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
 EXPERIMENT_NAME = "fancy-experiment"
-AML_TESTS_EXPERIMENT = "test_experiment"
 
 
 def oh_no() -> None:
@@ -1103,16 +1102,16 @@ def test_get_latest_aml_run_from_experiment(num_runs: int, tags: Dict[str, str],
             assert len(aml_runs) == expected_num_returned
 
 
-def test_get_latest_aml_run_from_experiment_remote(tmp_path: Path) -> None:
+def test_get_latest_aml_run_from_experiment_remote() -> None:
     """
     Test that a remote run with particular tags can be correctly retrieved, ignoring any more recent
     experiments which do not have the correct tags. Note: this test will instantiate 2 new Runs in the
-    workspace described in your config.json file, under an experiment defined by AML_TESTS_EXPERIMENT
+    workspace described in your config.json file, under an experiment defined by experiment_for_unittests()
     """
     ws = DEFAULT_WORKSPACE.workspace
     assert True
 
-    experiment = Experiment(ws, AML_TESTS_EXPERIMENT)
+    experiment = Experiment(ws, experiment_for_unittests())
     config = ScriptRunConfig(
         source_directory=".",
         command=["cd ."],  # command that does nothing
@@ -1123,6 +1122,7 @@ def test_get_latest_aml_run_from_experiment_remote(tmp_path: Path) -> None:
             amlignore=Path("") / AML_IGNORE_FILE,
             lines_to_append=DEFAULT_IGNORE_FOLDERS):
         first_run = experiment.submit(config)
+        first_run.diplay_name = "test_get_latest_aml_run_from_experiment_remote"
     tags = {"experiment_type": "great_experiment"}
     first_run.set_tags(tags)
     first_run.wait_for_completion()
@@ -1136,7 +1136,7 @@ def test_get_latest_aml_run_from_experiment_remote(tmp_path: Path) -> None:
         second_run.remove_tags(tags)
 
     # Retrieve latest run with given tags (expect first_run to be returned)
-    retrieved_runs = util.get_latest_aml_runs_from_experiment(AML_TESTS_EXPERIMENT, tags=tags, aml_workspace=ws)
+    retrieved_runs = util.get_latest_aml_runs_from_experiment(experiment_for_unittests(), tags=tags, aml_workspace=ws)
     assert len(retrieved_runs) == 1
     assert retrieved_runs[0].id == first_run.id
     assert retrieved_runs[0].get_tags() == tags
@@ -1258,7 +1258,7 @@ def test_download_file_from_run(tmp_path: Path, dummy_env_vars: Dict[str, str], 
 def test_download_file_from_run_remote(tmp_path: Path) -> None:
     # This test will create a Run in your workspace (using only local compute)
     ws = DEFAULT_WORKSPACE.workspace
-    experiment = Experiment(ws, AML_TESTS_EXPERIMENT)
+    experiment = Experiment(ws, experiment_for_unittests())
     config = ScriptRunConfig(
         source_directory=".",
         command=["cd ."],  # command that does nothing
@@ -1268,6 +1268,7 @@ def test_download_file_from_run_remote(tmp_path: Path) -> None:
             amlignore=Path("") / AML_IGNORE_FILE,
             lines_to_append=DEFAULT_IGNORE_FOLDERS):
         run = experiment.submit(config)
+        run.diplay_name = "test_download_file_from_run_remote"
 
     file_to_upload = tmp_path / "dummy_file.txt"
     file_contents = "Hello world"
@@ -1582,7 +1583,7 @@ def test_checkpoint_download_remote(tmp_path: Path) -> None:
     prefix = "outputs/checkpoints/"
 
     ws = DEFAULT_WORKSPACE.workspace
-    experiment = Experiment(ws, AML_TESTS_EXPERIMENT)
+    experiment = Experiment(ws, experiment_for_unittests())
     config = ScriptRunConfig(
         source_directory=".",
         command=["cd ."],  # command that does nothing
@@ -1592,6 +1593,7 @@ def test_checkpoint_download_remote(tmp_path: Path) -> None:
             amlignore=Path("") / AML_IGNORE_FILE,
             lines_to_append=DEFAULT_IGNORE_FOLDERS):
         run = experiment.submit(config)
+        run.display_name = "test_checkpoint_download_remote"
 
     file_contents = "Hello world"
     file_name = ""  # for pyright

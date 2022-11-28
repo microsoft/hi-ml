@@ -296,7 +296,9 @@ def test_azureml_logger_actual_run() -> None:
     """
     When running outside of AzureML, a new run should be created.
     """
-    logger = AzureMLLogger(enable_logging_outside_azure_ml=True, workspace=DEFAULT_WORKSPACE.workspace)
+    logger = AzureMLLogger(enable_logging_outside_azure_ml=True,
+                           workspace=DEFAULT_WORKSPACE.workspace,
+                           run_name="test_azureml_logger_actual_run")
     assert not logger.is_running_in_azure_ml
     assert logger.run is not None
     assert logger.run != RUN_CONTEXT
