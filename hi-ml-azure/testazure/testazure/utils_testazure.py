@@ -10,7 +10,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, Generator, Optional
 
-from health_azure.utils import (UnitTestWorkspaceWrapper, ENV_EXPERIMENT_NAME, WORKSPACE_CONFIG_JSON)
+from health_azure.utils import (ENV_EXPERIMENT_NAME, WORKSPACE_CONFIG_JSON, UnitTestWorkspaceWrapper,
+                                to_azure_friendly_string)
 
 DEFAULT_DATASTORE = "himldatasets"
 FALLBACK_SINGLE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538212_d2b07afd"
@@ -50,7 +51,8 @@ def experiment_for_unittests() -> str:
     """
     Gets the name of the experiment to use for tests.
     """
-    return os.getenv(ENV_EXPERIMENT_NAME, "unittests")
+    experiment_name = os.getenv(ENV_EXPERIMENT_NAME, "unittests")
+    return to_azure_friendly_string(experiment_name)
 
 
 @contextmanager
