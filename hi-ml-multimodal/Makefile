@@ -55,13 +55,7 @@ pytest:
 
 # run pytest with coverage on package
 pytest_coverage:
-	pytest \
-		--cov=health_multimodal \
-		--cov-branch \
-		--cov-report=html \
-		--cov-report=xml \
-		--cov-report=term-missing \
-		--cov-config=.coveragerc
+	pytest --cov=health_multimodal --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc
 
 # Install pyright
 pyright_install:
