@@ -71,7 +71,7 @@ jobs:
         with:
           python-version: ${{ env.pythonVersion }}
 
-      - name: Run tests including coverage
+      - name: Run tests and compute coverage
         run: |
           cd ${{ env.folder }}
           make pip
