@@ -51,8 +51,9 @@ def experiment_for_unittests() -> str:
     """
     Gets the name of the experiment to use for tests.
     """
-    experiment_name = os.getenv(ENV_EXPERIMENT_NAME, "unittests")
-    return to_azure_friendly_string(experiment_name)
+    experiment_name = to_azure_friendly_string(os.getenv(ENV_EXPERIMENT_NAME, "unittests"))
+    assert experiment_name is not None
+    return experiment_name
 
 
 @contextmanager
