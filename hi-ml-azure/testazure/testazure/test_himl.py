@@ -1684,15 +1684,19 @@ def test_get_display_name_v2() -> None:
 @pytest.mark.fast
 def test_experiment_name() -> None:
     """Test the logic for choosing experiment names: Explicitly given experiment name should be used if provided,
-    otherwise fall back to environment variables and then script name."""
-    assert himl.effective_experiment_name("explicit", Path()) == "explicit"
-    assert himl.effective_experiment_name("", Path("from_script.py")) == "from_script"
+    otherwise fall back to environment variables and thpwden script name."""
+    # When the test suite runs on the Github, the environment variable "HIML_EXPERIMENT_NAME" will be set.
+    # Remove it to test the default behaviour.
+    with mock.patch.dict(os.environ):
+        os.environ.pop(ENV_EXPERIMENT_NAME, None)
+        assert himl.effective_experiment_name("explicit", Path()) == "explicit"
+        assert himl.effective_experiment_name("", Path("from_script.py")) == "from_script"
+        # Provide experiment names with special characters here that should be filtered out
+        with mock.patch("health_azure.himl.to_azure_friendly_string", return_value="mock_return"):
+            assert himl.effective_experiment_name("explicit", Path()) == "mock_return"
+        assert himl.effective_experiment_name("explicit/", Path()) == "explicit_"
+        with mock.patch.dict(os.environ, {ENV_EXPERIMENT_NAME: "name/from/env"}):
+            assert himl.effective_experiment_name("explicit", Path()) == "name_from_env"
     with mock.patch.dict(os.environ, {ENV_EXPERIMENT_NAME: "name_from_env"}):
         assert himl.effective_experiment_name("explicit", Path()) == "name_from_env"
         assert himl.effective_experiment_name("", Path("from_script.py")) == "name_from_env"
-    # Provide experiment names with special characters here that should be filtered out
-    with mock.patch("health_azure.himl.to_azure_friendly_string", return_value="mock_return"):
-        assert himl.effective_experiment_name("explicit", Path()) == "mock_return"
-    assert himl.effective_experiment_name("explicit/", Path()) == "explicit_"
-    with mock.patch.dict(os.environ, {ENV_EXPERIMENT_NAME: "name/from/env"}):
-        assert himl.effective_experiment_name("explicit", Path()) == "name_from_env"
