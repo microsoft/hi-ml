@@ -10,7 +10,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, Generator, Optional
 
-from health_azure.utils import (UnitTestWorkspaceWrapper, WORKSPACE_CONFIG_JSON)
+from health_azure.utils import (ENV_EXPERIMENT_NAME, WORKSPACE_CONFIG_JSON, UnitTestWorkspaceWrapper,
+                                to_azure_friendly_string)
 
 DEFAULT_DATASTORE = "himldatasets"
 FALLBACK_SINGLE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538212_d2b07afd"
@@ -44,6 +45,15 @@ def repository_root() -> Path:
     Gets the root folder of the git repository.
     """
     return himl_azure_root().parent
+
+
+def experiment_for_unittests() -> str:
+    """
+    Gets the name of the experiment to use for tests.
+    """
+    experiment_name = to_azure_friendly_string(os.getenv(ENV_EXPERIMENT_NAME, "unittests"))
+    assert experiment_name is not None
+    return experiment_name
 
 
 @contextmanager

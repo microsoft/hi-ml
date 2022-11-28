@@ -2,12 +2,14 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import os
 import shutil
 import pytest
 
 from pathlib import Path
 from typing import Generator
-from unittest.mock import DEFAULT, MagicMock, Mock, patch
+from unittest import mock
+from unittest.mock import MagicMock, Mock, patch
 from _pytest.logging import LogCaptureFixture
 from pytorch_lightning import LightningModule
 
@@ -21,8 +23,8 @@ from health_ml.run_ml import MLRunner, get_mlflow_run_id_from_previous_loggers
 from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_ml.utils.common_utils import is_gpu_available
 from health_ml.utils.lightning_loggers import HimlMLFlowLogger, StoringLogger
-from health_azure.utils import is_global_rank_zero
-from testazure.utils_testazure import DEFAULT_WORKSPACE
+from health_azure.utils import ENV_EXPERIMENT_NAME, is_global_rank_zero
+from testazure.utils_testazure import DEFAULT_WORKSPACE, experiment_for_unittests
 from testhiml.utils.fixed_paths_for_tests import mock_run_id
 
 no_gpu = not is_gpu_available()
@@ -299,11 +301,11 @@ def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with
     with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
         with patch.multiple(
             ml_runner_with_container,
-            checkpoint_handler=DEFAULT,
-            load_model_checkpoint=DEFAULT,
-            run_training=DEFAULT,
-            run_validation=DEFAULT,
-            run_inference=DEFAULT,
+            checkpoint_handler=mock.DEFAULT,
+            load_model_checkpoint=mock.DEFAULT,
+            run_training=mock.DEFAULT,
+            run_validation=mock.DEFAULT,
+            run_inference=mock.DEFAULT,
         ) as mocks:
             mock_create_trainer.return_value = MagicMock(), MagicMock()
             ml_runner_with_container.run()
@@ -327,9 +329,9 @@ def test_run_inference_only(ml_runner_with_run_id: MLRunner) -> None:
     with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
         with patch.multiple(
             ml_runner_with_run_id,
-            run_training=DEFAULT,
-            run_validation=DEFAULT,
-            validate_model_weights=DEFAULT
+            run_training=mock.DEFAULT,
+            run_validation=mock.DEFAULT,
+            validate_model_weights=mock.DEFAULT
         ) as mocks:
             mock_trainer = MagicMock()
             mock_create_trainer.return_value = mock_trainer, MagicMock()
@@ -349,7 +351,7 @@ def test_resume_training_from_run_id(run_extra_val_epoch: bool, ml_runner_with_r
     ml_runner_with_run_id.container.max_num_gpus = 0
     ml_runner_with_run_id.container.max_epochs += 10
     assert ml_runner_with_run_id.checkpoint_handler.trained_weights_path
-    with patch.multiple(ml_runner_with_run_id, run_validation=DEFAULT, run_inference=DEFAULT) as mocks:
+    with patch.multiple(ml_runner_with_run_id, run_validation=mock.DEFAULT, run_inference=mock.DEFAULT) as mocks:
         ml_runner_with_run_id.run()
         assert mocks["run_validation"].called == run_extra_val_epoch
         mocks["run_inference"].assert_called_once()
@@ -381,8 +383,7 @@ def test_log_on_vm(log_from_vm: bool) -> None:
     container = HelloWorld()
     container.max_epochs = 1
     # Mimic an experiment name given on the command line.
-    experiment_name = "unittest"
-    container.experiment = experiment_name
+    container.experiment = experiment_for_unittests()
     # The tag is used to identify the run, similar to the behaviour when submitting a run to AzureML.
     tag = f"test_log_on_vm [{log_from_vm}]"
     container.tag = tag
@@ -404,18 +405,23 @@ def test_log_on_vm(log_from_vm: bool) -> None:
     assert isinstance(logger, HimlMLFlowLogger)
 
 
+@pytest.mark.fast
 def test_experiment_name() -> None:
     """Test that the experiment name is set correctly, choosing either the experiment name given on the commandline
     or the model name"""
-    container = HelloWorld()
-    # No experiment name given on the commandline: use the model name
-    model_name = "some_model"
-    container._model_name = model_name
-    assert container.effective_experiment_name == model_name
-    # Experiment name given on the commandline: use the experiment name
-    experiment_name = "unittest"
-    container.experiment = experiment_name
-    assert container.effective_experiment_name == experiment_name
+    # When the test suite runs on the Github, the environment variable "HIML_EXPERIMENT_NAME" will be set.
+    # Remove it to test the default behaviour.
+    with patch.dict(os.environ):
+        os.environ.pop(ENV_EXPERIMENT_NAME, None)
+        container = HelloWorld()
+        # No experiment name given on the commandline: use the model name
+        model_name = "some_model"
+        container._model_name = model_name
+        assert container.effective_experiment_name == model_name
+        # Experiment name given on the commandline: use the experiment name
+        experiment_name = experiment_for_unittests()
+        container.experiment = experiment_name
+        assert container.effective_experiment_name == experiment_name
 
 
 def test_get_mlflow_run_id_from_previous_loggers() -> None:

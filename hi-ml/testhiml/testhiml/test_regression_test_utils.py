@@ -28,7 +28,7 @@ from health_ml.utils.regression_test_utils import (
     compare_folder_contents,
     compare_folders_and_run_outputs,
 )
-from testazure.utils_testazure import DEFAULT_WORKSPACE
+from testazure.utils_testazure import DEFAULT_WORKSPACE, experiment_for_unittests
 
 
 def create_folder_and_write_text(file: Path, text: str) -> None:
@@ -242,7 +242,9 @@ def upload_to_run_and_compare(regression_test_subfolder: str, run_to_mock: str, 
     file_contents = "some file contents"
     file_name = "contents.txt"
     regression_test_folder = tmp_path / "expected"
-    run = create_aml_run_object(workspace=DEFAULT_WORKSPACE.workspace, experiment_name="test_regression_test_utils")
+    run = create_aml_run_object(workspace=DEFAULT_WORKSPACE.workspace,
+                                experiment_name=experiment_for_unittests(),
+                                run_name="upload_to_run_and_compare")
     # Upload a single file to the newly created run. When comparing the run output files,
     # and seeing this in the set of files that are expected to exist on the run, this should pass.
     file1 = tmp_path / file_name

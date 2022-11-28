@@ -281,6 +281,7 @@ class Runner:
                 input_datasets=input_datasets,  # type: ignore
                 num_nodes=self.experiment_config.num_nodes,
                 wait_for_completion=self.experiment_config.wait_for_completion,
+                max_run_duration=self.experiment_config.max_run_duration,
                 ignored_folders=[],
                 submit_to_azureml=bool(self.experiment_config.cluster),
                 docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,

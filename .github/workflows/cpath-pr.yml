@@ -23,8 +23,19 @@ env:
   HIML_WORKSPACE_NAME: ${{ secrets.HIML_WORKSPACE_NAME }}
   HIML_SERVICE_PRINCIPAL_ID: ${{ secrets.HIML_SERVICE_PRINCIPAL_ID }}
   HIML_SERVICE_PRINCIPAL_PASSWORD: ${{ secrets.HIML_SERVICE_PRINCIPAL_PASSWORD }}
+  # Set the AML experiment name for all AML jobs submitted during tests. Github.ref looks like
+  # "refs/pull/123/merge" for PR builds.
+  HIML_EXPERIMENT_NAME: ${{ github.ref }}
 
 jobs:
+
+  cancel-azureml:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Cancel previous AzureML runs
+        uses: ./.github/actions/cancel_azureml_jobs
 
   flake8:
     runs-on: ubuntu-20.04
@@ -64,6 +75,7 @@ jobs:
 
   pytest:
     runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -85,10 +97,7 @@ jobs:
         if: always()
         shell: bash -l {0}
         run: |
-          branch_prefix="refs/heads/"
-          full_branch_name=$GITHUB_REF
-          branch_name_without_prefix=${full_branch_name#$branch_prefix}
-          python hi-ml-azure/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ env.folder }}/environment.yml --folder=${{ env.folder }} --coverage_module=${{ env.module_for_coverage_reporting }} --experiment="$branch_name_without_prefix"
+          python hi-ml-azure/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ env.folder }}/environment.yml --folder=${{ env.folder }} --coverage_module=${{ env.module_for_coverage_reporting }}
 
       - name: Upload coverage reports to Codecov
         # Coverage should also be uploaded if tests still fail.
@@ -100,6 +109,7 @@ jobs:
 
   smoke_test_cucim_slidespandaimagenetmil:
     runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -115,6 +125,7 @@ jobs:
 
   smoke_test_openslide_slidespandaimagenetmil:
     runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -130,6 +141,7 @@ jobs:
 
   smoke_test_tilespandaimagenetmil:
     runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -145,6 +157,7 @@ jobs:
 
   smoke_test_tcgacrckimagenetmil:
     runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -160,6 +173,7 @@ jobs:
 
   smoke_test_tcgacrcksslmil:
     runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -175,6 +189,7 @@ jobs:
 
   smoke_test_crck_simclr:
     runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -190,6 +205,7 @@ jobs:
 
   smoke_test_crck_flexible_finetuning:
     runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -205,6 +221,7 @@ jobs:
 
   smoke_test_crck_loss_analysis:
     runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -220,6 +237,7 @@ jobs:
 
   smoke_test_slides_panda_loss_analysis:
     runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -235,6 +253,7 @@ jobs:
 
   smoke_test_slides_panda_no_ddp_sampler:
     runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -250,6 +269,7 @@ jobs:
 
   smoke_test_tiles_panda_no_ddp_sampler:
     runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
         with:

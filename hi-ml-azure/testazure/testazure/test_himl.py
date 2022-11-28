@@ -45,6 +45,7 @@ from health_azure.datasets import (
 )
 from health_azure.utils import (
     DEFAULT_ENVIRONMENT_VARIABLES,
+    ENV_EXPERIMENT_NAME,
     ENVIRONMENT_VERSION,
     EXPERIMENT_RUN_SEPARATOR,
     WORKSPACE_CONFIG_JSON,
@@ -741,6 +742,7 @@ def test_submit_run(mock_workspace: mock.MagicMock,
         assert "AzureML completed" not in out
 
 
+@pytest.mark.fast
 def test_submit_run_v2(tmp_path: Path) -> None:
     def _mock_sweep(*args: Any, **kwargs: Any) -> MagicMock:
         assert kwargs.get("compute") == dummy_compute_target
@@ -864,7 +866,7 @@ def test_submit_run_v2(tmp_path: Path) -> None:
             # 'command' should be called with the same args
             print(mock_command.call)
             # command should be called once when initialising the command job and once when updating the param sampling
-            mock_command.call_count == 2
+            assert mock_command.call_count == 2
 
             mock_command.assert_any_call(
                 code=str(dummy_root_directory),
@@ -1657,6 +1659,7 @@ def test_extract_v2_inputs_outputs_from_args() -> None:
         assert len(output_datasets) == 0
 
 
+@pytest.mark.fast
 def test_get_display_name_v2() -> None:
     dummy_display_name = "job display name"
     expected_display_name = "job-display-name"
@@ -1676,3 +1679,24 @@ def test_get_display_name_v2() -> None:
     # if no tags provided, display name should be empty
     display_name = himl.get_display_name_v2()
     assert display_name == ""
+
+
+@pytest.mark.fast
+def test_experiment_name() -> None:
+    """Test the logic for choosing experiment names: Explicitly given experiment name should be used if provided,
+    otherwise fall back to environment variables and thpwden script name."""
+    # When the test suite runs on the Github, the environment variable "HIML_EXPERIMENT_NAME" will be set.
+    # Remove it to test the default behaviour.
+    with mock.patch.dict(os.environ):
+        os.environ.pop(ENV_EXPERIMENT_NAME, None)
+        assert himl.effective_experiment_name("explicit", Path()) == "explicit"
+        assert himl.effective_experiment_name("", Path("from_script.py")) == "from_script"
+        # Provide experiment names with special characters here that should be filtered out
+        with mock.patch("health_azure.himl.to_azure_friendly_string", return_value="mock_return"):
+            assert himl.effective_experiment_name("explicit", Path()) == "mock_return"
+        assert himl.effective_experiment_name("explicit/", Path()) == "explicit_"
+        with mock.patch.dict(os.environ, {ENV_EXPERIMENT_NAME: "name/from/env"}):
+            assert himl.effective_experiment_name("explicit", Path()) == "name_from_env"
+    with mock.patch.dict(os.environ, {ENV_EXPERIMENT_NAME: "name_from_env"}):
+        assert himl.effective_experiment_name("explicit", Path()) == "name_from_env"
+        assert himl.effective_experiment_name("", Path("from_script.py")) == "name_from_env"

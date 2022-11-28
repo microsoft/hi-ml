@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional
 from functools import lru_cache
 
+from health_azure.himl import effective_experiment_name
 from health_azure.utils import PathOrString
 from health_azure.utils import create_aml_run_object
 from testazure.utils_testazure import DEFAULT_WORKSPACE
@@ -50,7 +51,7 @@ def mock_run_id(id: int = 0) -> str:
     :return: The run id of the created run that contains the checkpoint.
     """
 
-    experiment_name = "himl-tests"
+    experiment_name = effective_experiment_name("himl-tests")
     run_to_download_from = create_aml_run_object(experiment_name=experiment_name, workspace=DEFAULT_WORKSPACE.workspace)
     full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
 
