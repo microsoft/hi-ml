@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import os
+import re
 
 from azureml._restclient.constants import RunStatus
 from azureml.core import Experiment, Run, Workspace
@@ -23,7 +24,7 @@ def cancel_running_and_queued_jobs() -> None:
         resource_group=os.environ["HIML_RESOURCE_GROUP"]
     )
     experiment_name = os.environ["HIML_EXPERIMENT_NAME"]
-    experiment_name = experiment_name.replace("/", "_")
+    experiment_name = re.sub("_+", "_", re.sub(r"\W+", "_", experiment_name))
     print(f"Experiment: {experiment_name}")
     experiment = Experiment(workspace, name=experiment_name)
     print(f"Retrieved experiment {experiment.name}")
