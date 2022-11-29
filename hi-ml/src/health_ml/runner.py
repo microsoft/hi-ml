@@ -10,7 +10,7 @@ import os
 import param
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import matplotlib
 from azureml.core import Workspace, Run
@@ -180,6 +180,12 @@ class Runner:
             **self.lightning_container.get_additional_aml_run_tags()
         }
 
+    def additional_environment_variables(self) -> Dict[str, str]:
+        return {
+            DEBUG_DDP_ENV_VAR: self.experiment_config.debug_ddp.value,
+            **self.lightning_container.get_additional_environment_variables()
+        }
+
     def run(self) -> Tuple[LightningContainer, AzureRunInfo]:
         """
         The main entry point for training and testing models from the commandline. This chooses a model to train
@@ -220,10 +226,6 @@ class Runner:
         root_folder = self.project_root
         entry_script = Path(sys.argv[0]).resolve()
         script_params = sys.argv[1:]
-
-        # TODO: Update environment variables
-        environment_variables: Dict[str, Any] = {}
-        environment_variables[DEBUG_DDP_ENV_VAR] = self.experiment_config.debug_ddp.value
 
         # Get default datastore from the provided workspace. Authentication can take a few seconds, hence only do
         # that if we are really submitting to AzureML.
@@ -275,7 +277,7 @@ class Runner:
                 aml_workspace=workspace,
                 ml_client=ml_client,
                 compute_cluster_name=self.experiment_config.cluster,
-                environment_variables=environment_variables,
+                environment_variables=self.additional_environment_variables(),
                 default_datastore=datastore,
                 experiment_name=self.lightning_container.effective_experiment_name,
                 input_datasets=input_datasets,  # type: ignore
@@ -297,7 +299,7 @@ class Runner:
             azure_run_info = submit_to_azure_if_needed(
                 input_datasets=input_datasets,  # type: ignore
                 submit_to_azureml=False,
-                environment_variables=environment_variables,
+                environment_variables=self.additional_environment_variables(),
                 strictly_aml_v1=self.experiment_config.strictly_aml_v1,
                 default_datastore=datastore,
             )
