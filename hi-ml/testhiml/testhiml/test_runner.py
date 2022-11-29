@@ -132,9 +132,10 @@ def test_additional_environment_variables(mock_runner: Runner) -> None:
                         mock_runner.lightning_container = mock_container
                         mock_runner.run()
         mocks["submit_to_azure_if_needed"].assert_called_once()
-        assert DEBUG_DDP_ENV_VAR in mocks["submit_to_azure_if_needed"].call_args[1]["environment_variables"]
-        assert "foo" in mocks["submit_to_azure_if_needed"].call_args[1]["environment_variables"]
-        assert mocks["submit_to_azure_if_needed"].call_args[1]["environment_variables"]["foo"] == "bar"
+        mock_env_vars = mocks["submit_to_azure_if_needed"].call_args[1]["environment_variables"]
+        assert DEBUG_DDP_ENV_VAR in mock_env_vars
+        assert "foo" in mock_env_vars
+        assert mock_env_vars["foo"] == "bar"
 
 
 def test_run(mock_runner: Runner) -> None:

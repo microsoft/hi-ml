@@ -227,6 +227,8 @@ class Runner:
         entry_script = Path(sys.argv[0]).resolve()
         script_params = sys.argv[1:]
 
+        environment_variables = self.additional_environment_variables()
+
         # Get default datastore from the provided workspace. Authentication can take a few seconds, hence only do
         # that if we are really submitting to AzureML.
         workspace: Optional[Workspace] = None
@@ -277,7 +279,7 @@ class Runner:
                 aml_workspace=workspace,
                 ml_client=ml_client,
                 compute_cluster_name=self.experiment_config.cluster,
-                environment_variables=self.additional_environment_variables(),
+                environment_variables=environment_variables,
                 default_datastore=datastore,
                 experiment_name=self.lightning_container.effective_experiment_name,
                 input_datasets=input_datasets,  # type: ignore
@@ -299,7 +301,7 @@ class Runner:
             azure_run_info = submit_to_azure_if_needed(
                 input_datasets=input_datasets,  # type: ignore
                 submit_to_azureml=False,
-                environment_variables=self.additional_environment_variables(),
+                environment_variables=environment_variables,
                 strictly_aml_v1=self.experiment_config.strictly_aml_v1,
                 default_datastore=datastore,
             )
