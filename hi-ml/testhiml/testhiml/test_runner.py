@@ -127,9 +127,9 @@ def test_additional_environment_variables(mock_runner: Runner) -> None:
             with patch("health_ml.runner.Runner.parse_and_load_model"):
                 with patch("health_ml.runner.Runner.validate"):
                     with patch.object(sys, "argv", arguments):
-                        mock_runner.lightning_container = create_autospec(LightningContainer)
-                        mock_runner.lightning_container.get_additional_environment_variables = \
-                            MagicMock(return_value={"foo": "bar"})
+                        mock_container = create_autospec(LightningContainer)
+                        mock_container.get_additional_environment_variables = MagicMock(return_value={"foo": "bar"})
+                        mock_runner.lightning_container = mock_container
                         mock_runner.run()
         mocks["submit_to_azure_if_needed"].assert_called_once()
         assert DEBUG_DDP_ENV_VAR in mocks["submit_to_azure_if_needed"].call_args[1]["environment_variables"]
