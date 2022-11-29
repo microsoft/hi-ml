@@ -252,6 +252,10 @@ class LightningContainer(WorkflowParams,
         """Returns a dictionary of tags that should be added to the AzureML run."""
         return {}
 
+    def get_additional_environment_variables(self) -> Dict[str, str]:
+        """Returns a dictionary of environment variables that should be added to the AzureML run."""
+        return {}
+
     def on_run_extra_validation_epoch(self) -> None:
         if hasattr(self.model, "on_run_extra_validation_epoch"):
             assert self._model, "Model is not initialized."
