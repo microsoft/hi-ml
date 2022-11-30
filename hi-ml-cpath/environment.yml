@@ -71,7 +71,7 @@ dependencies:
   - pytorch-mutex=1.0=cuda
   - readline=8.2=h5eee18b_0
   - six=1.16.0=pyhd3eb1b0_1
-  - sqlite=3.39.3=h5082296_0
+  - sqlite=3.40.0=h5082296_0
   - tk=8.6.12=h1ccaba5_0
   - torchvision=0.11.1=py39_cu113
   - typing_extensions=4.3.0=py39h06a4308_0
@@ -92,7 +92,7 @@ dependencies:
     - astroid==2.12.13
     - async-timeout==4.0.2
     - attrs==21.4.0
-    - azure-ai-ml==1.1.1
+    - azure-ai-ml==1.1.2
     - azure-common==1.1.28
     - azure-core==1.26.1
     - azure-graphrbac==0.61.1
@@ -133,8 +133,8 @@ dependencies:
     - conda-merge==0.1.5
     - contextlib2==21.6.0
     - coverage==6.3.2
-    - cryptography==38.0.3
-    - cucim==22.4.0
+    - cryptography==38.0.4
+    - cucim==22.10.0
     - cycler==0.11.0
     - databricks-cli==0.17.3
     - dataclasses-json==0.5.2
@@ -153,17 +153,17 @@ dependencies:
     - fsspec==2022.11.0
     - fusepy==3.0.1
     - girder-client==3.1.14
-    - gitdb==4.0.9
+    - gitdb==4.0.10
     - gitpython==3.1.29
     - google-api-core==2.10.2
     - google-auth==1.35.0
     - google-auth-oauthlib==0.4.6
     - googleapis-common-protos==1.57.0
     - greenlet==2.0.1
-    - grpcio==1.51.0
+    - grpcio==1.51.1
     - gunicorn==20.1.0
-    - hi-ml==0.2.9
-    - hi-ml-azure==0.2.9
+    - hi-ml==0.2.11
+    - hi-ml-azure==0.2.11
     - humanfriendly==10.0
     - identify==2.5.9
     - idna==3.4
@@ -180,7 +180,7 @@ dependencies:
     - jmespath==1.0.1
     - joblib==1.2.0
     - jsonpickle==2.2.0
-    - jsonschema==4.17.0
+    - jsonschema==4.17.3
     - keyring==23.11.0
     - kiwisolver==1.4.4
     - knack==0.10.0
@@ -226,7 +226,7 @@ dependencies:
     - pathspec==0.10.2
     - pillow==9.3.0
     - pipdeptree==2.2.1
-    - pkginfo==1.8.3
+    - pkginfo==1.9.2
     - platformdirs==2.5.4
     - pluggy==0.13.1
     - portalocker==2.6.0
@@ -301,7 +301,7 @@ dependencies:
     - tensorboard-data-server==0.6.1
     - tensorboard-plugin-wit==1.8.1
     - threadpoolctl==3.1.0
-    - tifffile==2021.11.2
+    - tifffile==2022.10.10
     - toml==0.10.2
     - tomli==2.0.1
     - tomlkit==0.11.6
@@ -310,8 +310,8 @@ dependencies:
     - twine==3.3.0
     - typing-inspect==0.8.0
     - umap-learn==0.5.2
-    - urllib3==1.26.12
-    - virtualenv==20.16.7
+    - urllib3==1.26.13
+    - virtualenv==20.17.0
     - webencodings==0.5.1
     - websocket-client==1.4.2
     - werkzeug==2.2.2
@@ -319,4 +319,4 @@ dependencies:
     - wrapt==1.14.1
     - yacs==0.1.8
     - yarl==1.8.1
-    - zipp==3.10.0
+    - zipp==3.11.0
