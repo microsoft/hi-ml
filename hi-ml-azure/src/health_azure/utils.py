@@ -104,7 +104,6 @@ DEFAULT_ENVIRONMENT_VARIABLES = {
     "MKL_SERVICE_FORCE_INTEL": "1",
     # Switching to a new software stack in AML for mounting datasets
     "RSLEX_DIRECT_VOLUME_MOUNT": "true",
-    "DATASET_MOUNT_CACHE_SIZE": "1",
 }
 
 
