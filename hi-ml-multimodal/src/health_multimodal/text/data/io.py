@@ -11,6 +11,8 @@ from transformers import BertTokenizer
 
 TypePrompts = Union[str, List[str]]
 
+logger = logging.getLogger(__name__)
+
 
 class TextInput:
     """Text input class that can be used for inference and deployment.
@@ -44,7 +46,7 @@ class TextInput:
         if verbose:
             for prompt in tokenizer_output.input_ids:
                 input_tokens = self.tokenizer.convert_ids_to_tokens(prompt.tolist())
-                logging.info(f"Input tokens: {input_tokens}")
+                logger.info(f"Input tokens: {input_tokens}")
 
         return tokenizer_output
 
