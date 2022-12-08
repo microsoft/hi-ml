@@ -2,7 +2,11 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import datetime
+import logging
+import os
 from pathlib import Path
+import time
 from typing import Mapping, Sequence, Tuple, Union, Callable, Dict
 
 import torch
@@ -13,6 +17,7 @@ from monai.config.type_definitions import KeysCollection
 from monai.transforms import MapTransform, Randomizable
 from monai.utils.enums import WSIPatchKeys
 from monai.data.meta_tensor import MetaTensor
+from health_azure.utils import ENV_GLOBAL_RANK, ENV_LOCAL_RANK
 from health_ml.utils.box_utils import Box
 from torchvision.transforms.functional import to_tensor
 
@@ -293,4 +298,21 @@ class MetaTensorToTensord(MapTransform):
         for key in self.key_iterator(out_data):
             assert isinstance(out_data[key], MetaTensor), f"Expected MetaTensor, got {type(out_data[key])}"
             out_data[key] = out_data[key].as_tensor()
+        return out_data
+
+
+class TimerTransform(MapTransform):
+    """Transform that measures the time it takes to execute the transform."""
+
+    def __init__(self, transform: Callable) -> None:
+        self.transform = transform
+
+    def __call__(self, data: Mapping) -> Mapping:
+        start = time.time()
+        out_data = self.transform(data)
+        end = time.time()
+        print(
+            f"{datetime.datetime.now()}, "
+            f"Rank {os.getenv(ENV_LOCAL_RANK)}_{os.getenv(ENV_GLOBAL_RANK)}, PID {os.getpid()},"
+            f"{self.transform.__class__.__name__}, Slide {data[SlideKey.SLIDE_ID]}, Time {end - start}")
         return out_data

@@ -15,8 +15,9 @@ import matplotlib.cm as cm
 
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
-from pytorch_lightning import Trainer
+from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import Callback
+from pytorch_lightning.utilities.types import STEP_OUTPUT
 
 from health_cpath.models.deepmil import DeepMILModule
 from health_cpath.utils.naming import ModelKey, ResultsKey
@@ -557,3 +558,64 @@ class LossAnalysisCallback(Callback):
                 self.save_loss_outliers_analaysis_results(stage=ModelKey.VAL)
             except Exception as e:
                 self.handle_loss_exceptions(stage=ModelKey.VAL, exception=e)
+
+
+class DataDiagnosisCallback(Callback):
+    """Callback to diagnose the data. It logs time when each event is called."""
+
+    def on_init_start(self, trainer: Trainer) -> None:
+        logging.info("Logging from on_init_start")
+
+    def on_init_end(self, trainer: Trainer) -> None:
+        logging.info("Logging from on_init_end")
+
+    def on_train_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        logging.info(f"Logging from on_train_start: {pl_module.global_rank}")
+
+    def on_train_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        logging.info(f"Logging from on_train_end: {pl_module.global_rank}")
+
+    def on_validation_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        logging.info(f"Logging from on_validation_start: {pl_module.global_rank}")
+
+    def on_validation_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        logging.info(f"Logging from on_validation_end: {pl_module.global_rank}")
+
+    def on_test_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        logging.info(f"Logging from on_test_start: {pl_module.global_rank}")
+
+    def on_test_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        logging.info(f"Logging from on_test_end: {pl_module.global_rank}")
+
+    def on_train_batch_start(
+        self, trainer: Trainer, pl_module: LightningModule, batch: Any, batch_idx: int, unused: int = 0
+    ) -> None:
+        logging.info(f"Logging from on_train_batch_start: {pl_module.global_rank}")
+
+    def on_train_batch_end(
+        self, trainer: Trainer, pl_module: LightningModule, outputs: STEP_OUTPUT, batch: Any, batch_idx: int,
+        unused: int = 0
+    ) -> None:
+        logging.info(f"Logging from on_train_batch_end: {pl_module.global_rank}")
+
+    def on_validation_batch_start(
+        self, trainer: Trainer, pl_module: LightningModule, batch: Any, batch_idx: int, unused: int = 0
+    ) -> None:
+        logging.info(f"Logging from on_validation_batch_start: {pl_module.global_rank}")
+
+    def on_validation_batch_end(
+        self, trainer: Trainer, pl_module: LightningModule, outputs: Optional[STEP_OUTPUT], batch: Any, batch_idx: int,
+        dataloader_idx: int
+    ) -> None:
+        logging.info(f"Logging from on_validation_batch_end: {pl_module.global_rank}")
+
+    def on_test_batch_end(
+        self, trainer: Trainer, pl_module: LightningModule, outputs: Optional[STEP_OUTPUT], batch: Any, batch_idx: int,
+        dataloader_idx: int
+    ) -> None:
+        logging.info(f"Logging from on_test_batch_end: {pl_module.global_rank}")
+
+    def on_test_batch_start(
+        self, trainer: Trainer, pl_module: LightningModule, batch: Any, batch_idx: int, unused: int = 0
+    ) -> None:
+        logging.info(f"Logging from on_test_batch_start: {pl_module.global_rank}")
