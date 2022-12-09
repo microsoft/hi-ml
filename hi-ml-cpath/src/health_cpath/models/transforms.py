@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import datetime
-import logging
 import os
 from pathlib import Path
 import time
@@ -17,7 +16,7 @@ from monai.config.type_definitions import KeysCollection
 from monai.transforms import MapTransform, Randomizable
 from monai.utils.enums import WSIPatchKeys
 from monai.data.meta_tensor import MetaTensor
-from health_azure.utils import ENV_GLOBAL_RANK, ENV_LOCAL_RANK
+from health_azure.utils import ENV_LOCAL_RANK
 from health_ml.utils.box_utils import Box
 from torchvision.transforms.functional import to_tensor
 
@@ -313,6 +312,6 @@ class TimerTransform(MapTransform):
         end = time.time()
         print(
             f"{datetime.datetime.now()}, "
-            f"Rank {os.getenv(ENV_LOCAL_RANK)}_{os.getenv(ENV_GLOBAL_RANK)}, PID {os.getpid()},"
+            f"Rank {os.getenv(ENV_LOCAL_RANK)}, PID {os.getpid()}, "
             f"{self.transform.__class__.__name__}, Slide {data[SlideKey.SLIDE_ID]}, Time {end - start}")
         return out_data
