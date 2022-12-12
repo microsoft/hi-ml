@@ -140,7 +140,7 @@ class GridPatch(Transform):
         return image_np, locations
 
     def __call__(self, array: NdarrayOrTensor, slide_id: str = None):
-        with elapsed_timer(f"{slide_id} - create patches        "):
+        with elapsed_timer(f"{slide_id} {array.shape} - create patches        "):
             # create the patch iterator which sweeps the image row-by-row
             array_np, *_ = convert_data_type(array, np.ndarray)
             patch_iterator = iter_patch(
@@ -156,14 +156,14 @@ class GridPatch(Transform):
             patched_image = np.array(patches[0])
             locations = np.array(patches[1])[:, 1:, 0]  # only keep the starting location
 
-        with elapsed_timer(f"{slide_id} - filter patches        "):
+        with elapsed_timer(f"{slide_id} {array.shape} - filter patches        "):
             # Filter patches
             if self.num_patches:
                 patched_image, locations = self.filter_count(patched_image, locations)
             elif self.threshold:
                 patched_image, locations = self.filter_threshold(patched_image, locations)
 
-        with elapsed_timer(f"{slide_id} - pad patches           "):
+        with elapsed_timer(f"{slide_id} {array.shape} - pad patches           "):
             # Pad the patch list to have the requested number of patches
             if self.num_patches:
                 padding = self.num_patches - len(patched_image)
@@ -175,7 +175,7 @@ class GridPatch(Transform):
                     )
                     locations = np.pad(locations, [[0, padding], [0, 0]], constant_values=0)
 
-        with elapsed_timer(f"{slide_id} - convert to MetaTensor "):
+        with elapsed_timer(f"{slide_id} {array.shape} - convert to MetaTensor "):
             # Convert to MetaTensor
             metadata = array.meta if isinstance(array, MetaTensor) else MetaTensor.get_default_meta()
             metadata[WSIPatchKeys.LOCATION] = locations.T
