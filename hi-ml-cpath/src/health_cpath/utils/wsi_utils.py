@@ -1,7 +1,6 @@
 import datetime
-import logging
 import os
-import time
+from pyparsing import Generator
 import torch
 import param
 from torch import Tensor
@@ -22,6 +21,8 @@ from monai.utils.enums import GridPatchSort, PytorchPadMode, TransformBackends, 
 from monai.utils import NumpyPadMode, ensure_tuple, ensure_tuple_rep
 from monai.transforms.utils import convert_pad_mode
 from monai.utils.type_conversion import convert_data_type
+from contextlib import contextmanager
+from time import time
 
 
 def image_collate(batch: List) -> Any:
@@ -31,7 +32,7 @@ def image_collate(batch: List) -> Any:
         followed by the default collate which will form a batch BxNx3xHxW.
         The list of dicts refers to the the list of tiles produced by the Rand/GridPatchd transform applied on a WSI.
     """
-    logging.info(f"Collating {len(batch)} slides")
+    print_message_from_rank_pid(f"Collating {len(batch)} slides")
     for i, item in enumerate(batch):
         # The tiles have been splited into a list of dicts, each dict containing a single tile to be able to apply
         # tile wise transforms. We need to stack them back together.
@@ -42,8 +43,16 @@ def image_collate(batch: List) -> Any:
     return multibag_collate(batch)
 
 
-def print_message(message: str = '') -> None:
+def print_message_from_rank_pid(message: str = '') -> None:
     print(f"{datetime.datetime.now()}, Rank {os.getenv(ENV_LOCAL_RANK)}, PID {os.getpid()}, {message}")
+
+
+@contextmanager
+def elapsed_timer(message: str) -> Generator:
+    start = time()
+    yield
+    elapsed = time() - start
+    print_message_from_rank_pid(f"{message} took {elapsed:.2f} seconds")
 
 
 class GridPatch(Transform):
@@ -131,56 +140,49 @@ class GridPatch(Transform):
         return image_np, locations
 
     def __call__(self, array: NdarrayOrTensor, slide_id: str = None):
-        start_time = time.time()
-        # create the patch iterator which sweeps the image row-by-row
-        array_np, *_ = convert_data_type(array, np.ndarray)
-        patch_iterator = iter_patch(
-            array_np,
-            patch_size=(None,) + self.patch_size,  # expand to have the channel dim
-            start_pos=(0,) + self.offset,  # expand to have the channel dim
-            overlap=self.overlap,
-            copy_back=False,
-            mode=self.pad_mode,
-            **self.pad_kwargs,
-        )
-        end_time = time.time()
-        print_message(f"{slide_id} {end_time - start_time:.4f} seconds to create the patch iterator.")
-        patches = list(zip(*patch_iterator))
-        patched_image = np.array(patches[0])
-        locations = np.array(patches[1])[:, 1:, 0]  # only keep the starting location
+        with elapsed_timer(f"{slide_id} - create patches        "):
+            # create the patch iterator which sweeps the image row-by-row
+            array_np, *_ = convert_data_type(array, np.ndarray)
+            patch_iterator = iter_patch(
+                array_np,
+                patch_size=(None,) + self.patch_size,  # expand to have the channel dim
+                start_pos=(0,) + self.offset,  # expand to have the channel dim
+                overlap=self.overlap,
+                copy_back=False,
+                mode=self.pad_mode,
+                **self.pad_kwargs,
+            )
+            patches = list(zip(*patch_iterator))
+            patched_image = np.array(patches[0])
+            locations = np.array(patches[1])[:, 1:, 0]  # only keep the starting location
 
-        start_time = time.time()
-        # Filter patches
-        if self.num_patches:
-            patched_image, locations = self.filter_count(patched_image, locations)
-        elif self.threshold:
-            patched_image, locations = self.filter_threshold(patched_image, locations)
-        end_time = time.time()
-        print_message(f"{slide_id} {end_time - start_time:.4f} seconds to filter patches.")
+        with elapsed_timer(f"{slide_id} - filter patches        "):
+            # Filter patches
+            if self.num_patches:
+                patched_image, locations = self.filter_count(patched_image, locations)
+            elif self.threshold:
+                patched_image, locations = self.filter_threshold(patched_image, locations)
 
-        start_time = time.time()
-        # Pad the patch list to have the requested number of patches
-        if self.num_patches:
-            padding = self.num_patches - len(patched_image)
-            if padding > 0:
-                patched_image = np.pad(
-                    patched_image,
-                    [[0, padding], [0, 0]] + [[0, 0]] * len(self.patch_size),
-                    constant_values=self.pad_kwargs.get("constant_values", 0),
-                )
-                locations = np.pad(locations, [[0, padding], [0, 0]], constant_values=0)
-        end_time = time.time()
-        print_message(f"{slide_id} {end_time - start_time:.4f} seconds to pad patches.")
+        with elapsed_timer(f"{slide_id} - pad patches           "):
+            # Pad the patch list to have the requested number of patches
+            if self.num_patches:
+                padding = self.num_patches - len(patched_image)
+                if padding > 0:
+                    patched_image = np.pad(
+                        patched_image,
+                        [[0, padding], [0, 0]] + [[0, 0]] * len(self.patch_size),
+                        constant_values=self.pad_kwargs.get("constant_values", 0),
+                    )
+                    locations = np.pad(locations, [[0, padding], [0, 0]], constant_values=0)
 
-        start_time = time.time()
-        # Convert to MetaTensor
-        metadata = array.meta if isinstance(array, MetaTensor) else MetaTensor.get_default_meta()
-        metadata[WSIPatchKeys.LOCATION] = locations.T
-        metadata[WSIPatchKeys.COUNT] = len(locations)
-        metadata["spatial_shape"] = np.tile(np.array(self.patch_size), (len(locations), 1)).T
-        output = MetaTensor(x=patched_image, meta=metadata)
-        output.is_batch = True
-        print_message(f"{slide_id} {time.time() - start_time:.4f} seconds to convert to MetaTensor.")
+        with elapsed_timer(f"{slide_id} - convert to MetaTensor "):
+            # Convert to MetaTensor
+            metadata = array.meta if isinstance(array, MetaTensor) else MetaTensor.get_default_meta()
+            metadata[WSIPatchKeys.LOCATION] = locations.T
+            metadata[WSIPatchKeys.COUNT] = len(locations)
+            metadata["spatial_shape"] = np.tile(np.array(self.patch_size), (len(locations), 1)).T
+            output = MetaTensor(x=patched_image, meta=metadata)
+            output.is_batch = True
 
         return output
 
@@ -244,7 +246,6 @@ class GridPatchd(MapTransform):
         )
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        print_message(f"GridPatchd: start. Slide {data[SlideKey.SLIDE_ID]}")
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.patcher(d[key], data[SlideKey.SLIDE_ID])
@@ -320,7 +321,7 @@ class RandGridPatch(GridPatch, RandomizableTransform):
         if randomize:
             start_time = time.time()
             self.randomize(array)
-            print_message(f"Randomize time: {time.time() - start_time}")
+            print_message_from_rank_pid(f"Randomize time: {time.time() - start_time}")
         return super().__call__(array, slide_id=slide_id)
 
 
@@ -396,7 +397,6 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
         return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        print_message(f"RandGridPatchd: {data[SlideKey.SLIDE_ID]}")
         d = dict(data)
         # All the keys share the same random noise
         for key in self.key_iterator(d):
