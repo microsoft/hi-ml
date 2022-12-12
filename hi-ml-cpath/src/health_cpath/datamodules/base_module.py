@@ -15,7 +15,7 @@ from health_ml.utils.bag_utils import BagDataset, multibag_collate
 from health_ml.utils.common_utils import _create_generator
 
 from health_cpath.utils.wsi_utils import TilingParams, image_collate
-from health_cpath.models.transforms import LoadTilesBatchd, TimerTransform
+from health_cpath.models.transforms import LoadTilesBatchd
 from health_cpath.datasets.base_dataset import SlidesDataset, TilesDataset
 from health_cpath.utils.naming import ModelKey
 
@@ -288,8 +288,8 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
     def _load_dataset(self, slides_dataset: SlidesDataset, stage: ModelKey) -> Dataset:
         base_transform = Compose(
             [
-                TimerTransform(self.loading_params.get_load_roid_transform()),
-                TimerTransform(self.tiling_params.get_tiling_transform(bag_size=self.bag_sizes[stage], stage=stage)),
+                self.loading_params.get_load_roid_transform(),
+                self.tiling_params.get_tiling_transform(bag_size=self.bag_sizes[stage], stage=stage),
                 self.tiling_params.get_extract_coordinates_transform(),
                 self.tiling_params.get_split_transform(),
             ]
