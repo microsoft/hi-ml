@@ -18,7 +18,7 @@ from health_ml.utils.common_utils import _create_generator
 from health_cpath.utils.wsi_utils import image_collate
 from health_cpath.models.transforms import LoadTilesBatchd
 from health_cpath.datasets.base_dataset import SlidesDataset, TilesDataset
-from health_cpath.utils.naming import ModelKey
+from health_cpath.utils.naming import ModelKey, SlideKey
 
 from monai.transforms.compose import Compose
 from monai.transforms.io.dictionary import LoadImaged
@@ -330,7 +330,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         base_transform = Compose(
             [
                 LoadImaged(
-                    keys=slides_dataset.IMAGE_COLUMN,
+                    keys=SlideKey.IMAGE,
                     reader=WSIReader,
                     dtype=np.uint8,
                     image_only=True,
@@ -339,7 +339,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
                     **self.wsi_reader_args,
                 ),
                 TileOnGridd(
-                    keys=slides_dataset.IMAGE_COLUMN,
+                    keys=SlideKey.IMAGE,
                     tile_count=self.bag_sizes[stage],
                     tile_size=self.tile_size,
                     step=self.step,
