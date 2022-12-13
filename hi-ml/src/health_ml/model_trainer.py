@@ -95,24 +95,24 @@ def create_lightning_trainer(container: LightningContainer,
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
     loggers: List[Any] = [tensorboard_logger]
 
-    # if is_running_in_azure_ml():
-    #     mlflow_run_id = os.environ.get("MLFLOW_RUN_ID", None)
-    #     logging.info(f"Logging to MLFlow run with id: {mlflow_run_id}")
-    #     mlflow_logger = HimlMLFlowLogger(
-    #         run_id=mlflow_run_id
-    #     )
-    #     loggers.append(mlflow_logger)
-    # else:
-    mlflow_run_dir = container.outputs_folder / "mlruns"
-    try:
-        mlflow_run_dir.mkdir(exist_ok=True)
-        mlflow_tracking_uri = "file:" + str(mlflow_run_dir)
-        mlflow_logger = HimlMLFlowLogger(run_id=mlflow_run_for_logging, tracking_uri=mlflow_tracking_uri)
+    if is_running_in_azure_ml():
+        mlflow_run_id = os.environ.get("MLFLOW_RUN_ID", None)
+        logging.info(f"Logging to MLFlow run with id: {mlflow_run_id}")
+        mlflow_logger = HimlMLFlowLogger(
+            run_id=mlflow_run_id
+        )
         loggers.append(mlflow_logger)
-        logging.info(f"Logging to MLFlow run with id: {mlflow_run_for_logging}. Local MLFlow logs are stored in "
-                     f"{mlflow_tracking_uri}")
-    except FileNotFoundError as e:
-        logging.warning(f"Unable to initialise MLFlowLogger due to error: {e}")
+    else:
+        mlflow_run_dir = container.outputs_folder / "mlruns"
+        try:
+            mlflow_run_dir.mkdir(exist_ok=True)
+            mlflow_tracking_uri = "file:" + str(mlflow_run_dir)
+            mlflow_logger = HimlMLFlowLogger(run_id=mlflow_run_for_logging, tracking_uri=mlflow_tracking_uri)
+            loggers.append(mlflow_logger)
+            logging.info(f"Logging to MLFlow run with id: {mlflow_run_for_logging}. Local MLFlow logs are stored in "
+                        f"{mlflow_tracking_uri}")
+        except FileNotFoundError as e:
+            logging.warning(f"Unable to initialise MLFlowLogger due to error: {e}")
 
     storing_logger = StoringLogger()
     loggers.append(storing_logger)
