@@ -117,7 +117,7 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
 
     def train_dataloader(self) -> DataLoader:
         return self._get_dataloader(self.train_dataset,  # type: ignore
-                                    shuffle=False,
+                                    shuffle=True,
                                     stage=ModelKey.TRAIN,
                                     **self.dataloader_kwargs)
 

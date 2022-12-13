@@ -110,7 +110,7 @@ def create_lightning_trainer(container: LightningContainer,
             mlflow_logger = HimlMLFlowLogger(run_id=mlflow_run_for_logging, tracking_uri=mlflow_tracking_uri)
             loggers.append(mlflow_logger)
             logging.info(f"Logging to MLFlow run with id: {mlflow_run_for_logging}. Local MLFlow logs are stored in "
-                        f"{mlflow_tracking_uri}")
+                         f"{mlflow_tracking_uri}")
         except FileNotFoundError as e:
             logging.warning(f"Unable to initialise MLFlowLogger due to error: {e}")
 
