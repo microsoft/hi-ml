@@ -34,7 +34,7 @@ def image_collate(batch: List) -> Any:
         followed by the default collate which will form a batch BxNx3xHxW.
         The list of dicts refers to the the list of tiles produced by the Rand/GridPatchd transform applied on a WSI.
     """
-    print_message_from_rank_pid(f"Collating {len(batch)} slides")
+    # print_message_from_rank_pid(f"Collating {len(batch)} slides")
     for i, item in enumerate(batch):
         # The tiles have been splited into a list of dicts, each dict containing a single tile to be able to apply
         # tile wise transforms. We need to stack them back together.
