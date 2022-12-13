@@ -215,7 +215,7 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
         workers_per_gpu = num_cpus // (num_devices or 1)
         workers_per_gpu = min(self.max_num_workers, workers_per_gpu)
         logging.info(f"Using {workers_per_gpu} data loader worker processes per GPU")
-        dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=True)
+        dataloader_kwargs = dict(num_workers=workers_per_gpu, pin_memory=False)
         return dataloader_kwargs
 
     def get_transforms_dict(self, image_key: str) -> Optional[Dict[ModelKey, Union[Callable, None]]]:
