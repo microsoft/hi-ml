@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
+from time import time
 from typing import Mapping, Sequence, Tuple, Union, Callable, Dict
 
 import torch
@@ -10,9 +11,10 @@ import numpy as np
 import PIL
 from PIL import PngImagePlugin
 from monai.config.type_definitions import KeysCollection
-from monai.transforms import MapTransform, Randomizable
+from monai.transforms import MapTransform, Randomizable, Transform
 from monai.utils.enums import WSIPatchKeys
 from monai.data.meta_tensor import MetaTensor
+from health_azure.logging import print_message_from_rank_pid
 from health_ml.utils.box_utils import Box
 from torchvision.transforms.functional import to_tensor
 
@@ -293,4 +295,24 @@ class MetaTensorToTensord(MapTransform):
         for key in self.key_iterator(out_data):
             assert isinstance(out_data[key], MetaTensor), f"Expected MetaTensor, got {type(out_data[key])}"
             out_data[key] = out_data[key].as_tensor()
+        return out_data
+
+
+class TimerWrapper(Transform):
+    """Transform that measures the time it takes to execute the transform. Useful for debugging. This can be used by
+    wrapping the transform in a TimerWrapperd transform.
+    Example:
+        transform = TimerWrapperd(Compose([LoadImaged(keys="image"), MetaTensorToTensord(keys="image")]))
+    """
+
+    def __init__(self, transform: Callable) -> None:
+        self.transform = transform
+
+    def __call__(self, data: Mapping) -> Mapping:
+        start = time()
+        out_data = self.transform(data)
+        end = time()
+        print_message_from_rank_pid(
+            f"{self.transform.__class__.__name__}, Slide {data[SlideKey.SLIDE_ID]}, Time {(end - start):.2f}"
+        )
         return out_data

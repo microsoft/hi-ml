@@ -4,6 +4,7 @@ import pytest
 from _pytest.capture import SysCapture
 from time import sleep
 from health_azure.logging import format_time_from_seconds, elapsed_timer, print_message_with_rank_pid, logging_section
+from health_azure.utils import ENV_LOCAL_RANK
 
 
 def test_format_time_from_second() -> None:
@@ -26,7 +27,7 @@ def test_format_time_from_second() -> None:
 
 def test_print_message_with_rank_pid(capsys: SysCapture) -> None:
     rank = "0"
-    os.environ["LOCAL_RANK"] = rank
+    os.environ[ENV_LOCAL_RANK] = rank
     message = "test"
     print_message_with_rank_pid(message)
     stdout: str = capsys.readouterr().out  # type: ignore
@@ -38,7 +39,7 @@ def test_print_message_with_rank_pid(capsys: SysCapture) -> None:
 @pytest.mark.parametrize("format_seconds", [True, False])
 def test_elapsed_timer(format_seconds: bool, capsys: SysCapture) -> None:
     rank = "0"
-    os.environ["LOCAL_RANK"] = rank
+    os.environ[ENV_LOCAL_RANK] = rank
     with elapsed_timer("test", format_seconds):
         sleep(0.1)  # Sleep for 100 ms
     stdout: str = capsys.readouterr().out  # type: ignore
@@ -47,7 +48,7 @@ def test_elapsed_timer(format_seconds: bool, capsys: SysCapture) -> None:
 
 def test_logging_section(caplog: pytest.LogCaptureFixture) -> None:
     rank = "0"
-    os.environ["LOCAL_RANK"] = rank
+    os.environ[ENV_LOCAL_RANK] = rank
     with logging_section("test"):
         sleep(0.1)  # Sleep for 100 ms
         logging.info("foo")
