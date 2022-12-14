@@ -2,13 +2,15 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  -------------------------------------------------------------------------------------------
+import datetime
 import logging
+import os
 import sys
 import time
 from contextlib import contextmanager
 from typing import Generator, Optional, Union
 
-from health_azure.utils import check_is_any_of, is_global_rank_zero
+from health_azure.utils import ENV_LOCAL_RANK, check_is_any_of, is_global_rank_zero
 
 logging_stdout_handler: Optional[logging.StreamHandler] = None
 logging_to_file_handler: Optional[logging.StreamHandler] = None
@@ -66,6 +68,16 @@ def _add_formatter(handler: logging.StreamHandler) -> None:
     handler.setFormatter(formatter)
 
 
+def format_time_from_seconds(time_in_seconds: float) -> str:
+    if time_in_seconds >= 3600:
+        time_expr = f"{time_in_seconds / 3600:0.2f} hours"
+    elif time_in_seconds >= 60:
+        time_expr = f"{time_in_seconds / 60:0.2f} minutes"
+    else:
+        time_expr = f"{time_in_seconds:0.2f} seconds"
+    return time_expr
+
+
 @contextmanager
 def logging_section(gerund: str) -> Generator:
     """
@@ -86,12 +98,22 @@ def logging_section(gerund: str) -> Generator:
     yield
     elapsed = time() - start_time
     logging.info("")
-    if elapsed >= 3600:
-        time_expr = f"{elapsed / 3600:0.2f} hours"
-    elif elapsed >= 60:
-        time_expr = f"{elapsed / 60:0.2f} minutes"
-    else:
-        time_expr = f"{elapsed:0.2f} seconds"
+    time_expr = format_time_from_seconds(elapsed)
     msg = f"**** FINISHED: {gerund} after {time_expr} "
     logging.info(msg + (100 - len(msg)) * "*")
     logging.info("")
+
+
+def print_message_with_rank_pid(message: str = '') -> None:
+    """Prints a message with the rank and PID of the current process."""
+    print(f"{datetime.datetime.now()}: Rank {os.getenv(ENV_LOCAL_RANK)}, PID {os.getpid()} - {message}")
+
+
+@contextmanager
+def elapsed_timer(message: str, format_seconds: bool = False) -> Generator:
+    """Context manager to print the elapsed time for a block of code."""
+    start = time.time()
+    yield
+    elapsed = time.time() - start
+    time_expr = format_time_from_seconds(elapsed) if format_seconds else f"{elapsed:0.2f} seconds"
+    print_message_with_rank_pid(f"{message} took {time_expr}")
