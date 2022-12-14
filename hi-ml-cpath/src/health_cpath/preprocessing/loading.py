@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import logging
 import param
 import numpy as np
 import skimage.filters
@@ -115,7 +116,12 @@ class LoadROId(MapTransform, BaseLoadROId):
     def __call__(self, data: Dict) -> Dict:
         try:
             image_obj = self.reader.read(data[self.image_key])
-            level0_bbox = self._get_bounding_box(image_obj)
+            try:
+                level0_bbox = self._get_bounding_box(image_obj)
+            except Exception as e:
+                logging.warning(f"Failed to get bounding box for {data[SlideKey.SLIDE_ID]}: {e}")
+                h, w = self.reader.get_size(image_obj, level=0)
+                level0_bbox = box_utils.Box(0, 0, w, h)
 
             # cuCIM/OpenSlide takes absolute location coordinates in the level 0 reference frame,
             # but relative region size in pixels at the chosen level
