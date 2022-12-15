@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import logging
 import param
 import numpy as np
 import skimage.filters
@@ -13,6 +12,7 @@ from health_cpath.utils.naming import SlideKey
 from monai.data.wsi_reader import WSIReader
 from monai.transforms import MapTransform, LoadImaged
 from typing import Any, Callable, Dict, Optional, Tuple
+from health_azure.logging import print_message_with_rank_pid
 
 
 def get_luminance(slide: np.ndarray) -> np.ndarray:
@@ -89,7 +89,7 @@ class BaseLoadROId:
         try:
             bbox = box_utils.get_bounding_box(foreground_mask)
         except RuntimeError as e:
-            logging.warning(f"Failed to estimate bounding box for slide {slide_id}: {e}")
+            print_message_with_rank_pid(f"Failed to estimate bounding box for slide {slide_id}: {e}")
             bbox = self._get_whole_slide_bbox(slide_obj, highest_level)
         return scale * bbox.add_margin(self.margin)
 
