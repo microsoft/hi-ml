@@ -73,7 +73,7 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
                                          doc="The maximum number of worker processes for dataloaders. Dataloaders use"
                                              "a heuristic num_cpus/num_gpus to set the number of workers, which can be"
                                              "very high for small num_gpus. This parameters sets an upper bound.")
-    save_inter_outputs: bool = param.Boolean(False,
+    save_inter_outputs: bool = param.Boolean(True,
                                              doc="Whether to save intermediate validation outputs during training.")
 
     def __init__(self, **kwargs: Any) -> None:
