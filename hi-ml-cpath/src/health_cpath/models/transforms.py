@@ -302,7 +302,7 @@ class TimerWrapper(Transform):
     """Transform that measures the time it takes to execute the transform. Useful for debugging. This can be used by
     wrapping the transform in a TimerWrapperd transform.
     Example:
-        transform = TimerWrapperd(Compose([LoadImaged(keys="image"), MetaTensorToTensord(keys="image")]))
+        transform = Compose([TimerWrapperd(LoadImaged(keys="image")), TimerWrapperd(MetaTensorToTensord(keys="image"))])
     """
 
     def __init__(self, transform: Callable) -> None:
