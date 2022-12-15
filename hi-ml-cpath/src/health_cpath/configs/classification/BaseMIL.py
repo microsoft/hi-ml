@@ -76,7 +76,6 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
     save_inter_outputs: bool = param.Boolean(False,
                                              doc="Whether to save intermediate validation outputs during training.")
 
-
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.run_extra_val_epoch = True  # Enable running an additional validation step to save tiles/slides thumbnails
