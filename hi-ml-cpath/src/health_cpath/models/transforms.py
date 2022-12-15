@@ -14,7 +14,7 @@ from monai.config.type_definitions import KeysCollection
 from monai.transforms import MapTransform, Randomizable, Transform
 from monai.utils.enums import WSIPatchKeys
 from monai.data.meta_tensor import MetaTensor
-from health_azure.logging import print_message_from_rank_pid
+from health_azure.logging import print_message_with_rank_pid
 from health_ml.utils.box_utils import Box
 from torchvision.transforms.functional import to_tensor
 
@@ -312,7 +312,7 @@ class TimerWrapper(Transform):
         start = time()
         out_data = self.transform(data)
         end = time()
-        print_message_from_rank_pid(
+        print_message_with_rank_pid(
             f"{self.transform.__class__.__name__}, Slide {data[SlideKey.SLIDE_ID]}, Time {(end - start):.2f}"
         )
         return out_data
