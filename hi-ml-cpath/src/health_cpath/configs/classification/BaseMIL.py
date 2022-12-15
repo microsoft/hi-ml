@@ -73,6 +73,9 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
                                          doc="The maximum number of worker processes for dataloaders. Dataloaders use"
                                              "a heuristic num_cpus/num_gpus to set the number of workers, which can be"
                                              "very high for small num_gpus. This parameters sets an upper bound.")
+    save_inter_outputs: bool = param.Boolean(False,
+                                             doc="Whether to save intermediate validation outputs during training.")
+
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -147,6 +150,7 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
             test_plot_options=self.get_test_plot_options(),
             loading_params=create_from_matching_params(self, LoadingParams),
             val_set_is_dist=self.pl_replace_sampler_ddp and self.max_num_gpus > 1,
+            save_inter_outputs=self.save_inter_outputs,
         )
         if self.num_top_slides > 0:
             outputs_handler.tiles_selector = TilesSelector(

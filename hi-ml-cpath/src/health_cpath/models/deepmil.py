@@ -395,7 +395,7 @@ class DeepMILModule(LightningModule):
 
     def validation_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
         self.log_metrics(stage=ModelKey.VAL, prefix=self.get_extra_prefix())
-        if self.outputs_handler and self._on_extra_val_epoch:
+        if self.outputs_handler:
             self.outputs_handler.save_validation_outputs(
                 epoch_results=epoch_results,
                 metrics_dict=self.get_metrics_dict(ModelKey.VAL),  # type: ignore
