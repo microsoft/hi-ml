@@ -370,7 +370,7 @@ class DeepMILOutputsHandler:
         # Only global rank-0 process should actually render and save the outputs
         # We also want to save the plots of the extra validation epoch
         if self.save_intermediate_outputs and self.outputs_policy.should_save_validation_outputs(
-               metrics_dict, epoch, is_global_rank_zero, on_extra_val
+            metrics_dict, epoch, is_global_rank_zero, on_extra_val
         ):
             # First move existing outputs to a temporary directory, to avoid mixing
             # outputs of different epochs in case writing fails halfway through
