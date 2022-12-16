@@ -119,8 +119,8 @@ class LoadROId(MapTransform, BaseLoadROId):
             try:
                 level0_bbox = self._get_bounding_box(image_obj)
             except Exception as e:
-                logging.warning(f"Failed to get bounding box for {data[SlideKey.SLIDE_ID]}: {e}")
-                h, w = self.reader.get_size(image_obj, level=0)
+                print(f"Failed to get bounding box for {data[SlideKey.SLIDE_ID]}: {e}")
+                h, w = self.reader.get_size(image_obj, level=1)
                 level0_bbox = box_utils.Box(0, 0, w, h)
 
             # cuCIM/OpenSlide takes absolute location coordinates in the level 0 reference frame,
