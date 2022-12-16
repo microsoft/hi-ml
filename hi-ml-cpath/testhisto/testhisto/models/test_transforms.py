@@ -363,4 +363,5 @@ def test_timer_wrapper_transform(capsys: SysCapture) -> None:
     out = transform(sample)
     assert out == sample
     message = capsys.readouterr().out  # type: ignore
-    assert "DummyTransform, Slide 0, Time 0.1" in message
+    assert "Rank 0" in message
+    assert "DummyTransform, Slide 0 took 0.10 seconds" in message

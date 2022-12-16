@@ -343,53 +343,83 @@ class BatchTimeCallback(Callback):
 class TrainingDiagnoticsCallback(Callback):
     """Callback that logs information about the training process."""
 
+    def on_train_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        logging.info(f"Reached on_train_epoch_start on global rank {pl_module.global_rank}")
+
+    def on_train_epoch_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        logging.info(f"Reached on_train_epoch_end on global rank {pl_module.global_rank}")
+
+    def on_validation_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        logging.info(f"Reached on_validation_epoch_start on global rank {pl_module.global_rank}")
+
+    def on_validation_epoch_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        logging.info(f"Reached on_validation_epoch_end on global rank {pl_module.global_rank}")
+
+    def on_test_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        logging.info(f"Reached on_test_epoch_start on global rank {pl_module.global_rank}")
+
+    def on_test_epoch_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        logging.info(f"Reached on_test_epoch_end on global rank {pl_module.global_rank}")
+
     def on_train_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
-        logging.info(f"Logging from on_train_start: {pl_module.global_rank}")
+        logging.info(f"Reached on_train_start on global rank {pl_module.global_rank}")
 
     def on_train_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
-        logging.info(f"Logging from on_train_end: {pl_module.global_rank}")
+        logging.info(f"Reached from on_train_end on global rank {pl_module.global_rank}")
 
     def on_validation_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
-        logging.info(f"Logging from on_validation_start: {pl_module.global_rank}")
+        logging.info(f"Reached from on_validation_start on global rank {pl_module.global_rank}")
 
     def on_validation_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
-        logging.info(f"Logging from on_validation_end: {pl_module.global_rank}")
+        logging.info(f"Reached from on_validation_end on global rank {pl_module.global_rank}")
 
     def on_test_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
-        logging.info(f"Logging from on_test_start: {pl_module.global_rank}")
+        logging.info(f"Reached from on_test_start on global rank {pl_module.global_rank}")
 
     def on_test_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
-        logging.info(f"Logging from on_test_end: {pl_module.global_rank}")
+        logging.info(f"Reached from on_test_end on global rank {pl_module.global_rank}")
 
     def on_train_batch_start(
         self, trainer: Trainer, pl_module: LightningModule, batch: Any, batch_idx: int, unused: int = 0
     ) -> None:
-        logging.info(f"Logging from on_train_batch_start: {pl_module.global_rank}")
+        logging.info(
+            f"Reached from on_train_batch_start on global rank {pl_module.global_rank} for batch_idx {batch_idx}"
+        )
 
     def on_train_batch_end(
         self, trainer: Trainer, pl_module: LightningModule, outputs: STEP_OUTPUT, batch: Any, batch_idx: int,
         unused: int = 0
     ) -> None:
-        logging.info(f"Logging from on_train_batch_end: {pl_module.global_rank}")
+        logging.info(
+            f"Reached from on_train_batch_end on global rank {pl_module.global_rank} for batch_idx {batch_idx}"
+        )
 
     def on_validation_batch_start(
         self, trainer: Trainer, pl_module: LightningModule, batch: Any, batch_idx: int, unused: int = 0
     ) -> None:
-        logging.info(f"Logging from on_validation_batch_start: {pl_module.global_rank}")
+        logging.info(
+            f"Reached from on_validation_batch_start on global rank {pl_module.global_rank} for batch_idx {batch_idx}"
+        )
 
     def on_validation_batch_end(
         self, trainer: Trainer, pl_module: LightningModule, outputs: Optional[STEP_OUTPUT], batch: Any, batch_idx: int,
         dataloader_idx: int
     ) -> None:
-        logging.info(f"Logging from on_validation_batch_end: {pl_module.global_rank}")
+        logging.info(
+            f"Reached from on_validation_batch_end on global rank {pl_module.global_rank} for batch_idx {batch_idx}"
+        )
 
     def on_test_batch_end(
         self, trainer: Trainer, pl_module: LightningModule, outputs: Optional[STEP_OUTPUT], batch: Any, batch_idx: int,
         dataloader_idx: int
     ) -> None:
-        logging.info(f"Logging from on_test_batch_end: {pl_module.global_rank}")
+        logging.info(
+            f"Reached from on_test_batch_end on global rank {pl_module.global_rank} for batch_idx {batch_idx}"
+        )
 
     def on_test_batch_start(
         self, trainer: Trainer, pl_module: LightningModule, batch: Any, batch_idx: int, unused: int = 0
     ) -> None:
-        logging.info(f"Logging from on_test_batch_start: {pl_module.global_rank}")
+        logging.info(
+            f"Reached from on_test_batch_start on global rank {pl_module.global_rank} for batch_idx {batch_idx}"
+        )
