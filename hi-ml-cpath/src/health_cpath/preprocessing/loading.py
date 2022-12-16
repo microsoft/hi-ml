@@ -72,25 +72,25 @@ class BaseLoadROId:
         self.level = level
         self.margin = margin
 
-    def _get_foreground_mask(self, slide_obj: Any, highest_level: int) -> np.ndarray:
-        """Estimate foreground mask at the highest resolution (i.e. lowest level) of the slide."""
+    def _get_foreground_mask(self, slide_obj: Any, level: int) -> np.ndarray:
+        """Estimate foreground mask at the given level of the slide."""
         raise NotImplementedError
 
-    def _get_whole_slide_bbox(self, slide_obj: Any, highest_level: int) -> box_utils.Box:
-        """Return a bounding box that covers the whole slide at the highest resolution (i.e. lowest level)."""
-        h, w = self.reader.get_size(slide_obj, level=highest_level)
+    def _get_whole_slide_bbox(self, slide_obj: Any, level: int) -> box_utils.Box:
+        """Return a bounding box that covers the whole slide at the given level."""
+        h, w = self.reader.get_size(slide_obj, level=level)
         return box_utils.Box(0, 0, w, h)
 
     def _get_bounding_box(self, slide_obj: Any, slide_id: int) -> box_utils.Box:
         """Estimate bounding box at the lowest resolution (i.e. highest level) of the slide."""
         highest_level = self.reader.get_level_count(slide_obj) - 1
         scale = self.reader.get_downsample_ratio(slide_obj, highest_level)
-        foreground_mask = self._get_foreground_mask(slide_obj, highest_level)
+        foreground_mask = self._get_foreground_mask(slide_obj, level=highest_level)
         try:
             bbox = box_utils.get_bounding_box(foreground_mask)
         except RuntimeError as e:
             print_message_with_rank_pid(f"Failed to estimate bounding box for slide {slide_id}: {e}")
-            bbox = self._get_whole_slide_bbox(slide_obj, highest_level)
+            bbox = self._get_whole_slide_bbox(slide_obj, level=highest_level)
         return scale * bbox.add_margin(self.margin)
 
     def __call__(self, data: Dict) -> Dict:
@@ -120,9 +120,9 @@ class LoadROId(MapTransform, BaseLoadROId):
         BaseLoadROId.__init__(self, image_key=image_key, **kwargs)
         self.foreground_threshold = foreground_threshold
 
-    def _get_foreground_mask(self, slide_obj: Any, highest_level: int) -> np.ndarray:
+    def _get_foreground_mask(self, slide_obj: Any, level: int) -> np.ndarray:
         """Estimate foreground mask at the highest resolution (i.e. lowest level) of the slide based on luminance."""
-        slide, _ = self.reader.get_data(slide_obj, level=highest_level)
+        slide, _ = self.reader.get_data(slide_obj, level=level)
         foreground_mask, threshold = segment_foreground(slide, self.foreground_threshold)
         self.foreground_threshold = threshold
         return foreground_mask
@@ -169,9 +169,9 @@ class LoadMaskROId(MapTransform, BaseLoadROId):
         BaseLoadROId.__init__(self, image_key=image_key, **kwargs)
         self.mask_key = mask_key
 
-    def _get_foreground_mask(self, mask_obj: Any, highest_level: int) -> np.ndarray:
-        """Load foreground mask at the highest resolution (i.e. lowest level) of the slide."""
-        mask, _ = self.reader.get_data(mask_obj, level=highest_level)  # loaded as RGB PIL image
+    def _get_foreground_mask(self, mask_obj: Any, level: int) -> np.ndarray:
+        """Load foreground mask at the given level of the slide."""
+        mask, _ = self.reader.get_data(mask_obj, level=level)  # loaded as RGB PIL image
         foreground_mask = mask[0] > 0  # PANDA segmentation mask is in 'R' channel
         return foreground_mask
 
