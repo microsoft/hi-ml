@@ -118,7 +118,7 @@ def test_ssl_container_cifar10_resnet_simclr() -> None:
         - training of image classifier for one epoch.
     """
     model_namespace_simclr = "SSL.configs.CIFAR10SimCLR"
-    args = common_test_args + [f"--model={model_namespace_simclr}", f"--max_num_gpus=0"]
+    args = common_test_args + [f"--model={model_namespace_simclr}", "--max_num_gpus=0"]
     runner = default_runner()
     with mock.patch("sys.argv", args):
         loaded_config, _ = runner.run()
