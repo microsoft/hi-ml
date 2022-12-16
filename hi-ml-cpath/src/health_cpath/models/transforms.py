@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from time import time
 from typing import Mapping, Sequence, Tuple, Union, Callable, Dict
 
 import torch
@@ -14,7 +13,7 @@ from monai.config.type_definitions import KeysCollection
 from monai.transforms import MapTransform, Randomizable, Transform
 from monai.utils.enums import WSIPatchKeys
 from monai.data.meta_tensor import MetaTensor
-from health_azure.logging import print_message_with_rank_pid
+from health_azure.logging import elapsed_timer
 from health_ml.utils.box_utils import Box
 from torchvision.transforms.functional import to_tensor
 
@@ -309,10 +308,7 @@ class TimerWrapper(Transform):
         self.transform = transform
 
     def __call__(self, data: Mapping) -> Mapping:
-        start = time()
-        out_data = self.transform(data)
-        end = time()
-        print_message_with_rank_pid(
-            f"{self.transform.__class__.__name__}, Slide {data[SlideKey.SLIDE_ID]}, Time {(end - start):.2f}"
-        )
+        message = f"{self.transform.__class__.__name__}, Slide {data[SlideKey.SLIDE_ID]}"
+        with elapsed_timer(message):
+            out_data = self.transform(data)
         return out_data

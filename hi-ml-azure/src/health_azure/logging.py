@@ -69,6 +69,13 @@ def _add_formatter(handler: logging.StreamHandler) -> None:
 
 
 def format_time_from_seconds(time_in_seconds: float) -> str:
+    """Formats a time in seconds as a string, e.g. 1.5 hours, 2.5 minutes, 3.5 seconds.
+
+    :param time_in_seconds: time in seconds.
+    :return: string expressing the time. If the time is more than an hour, it is expressed in hours, to 2 decimal
+        places. If the time is more than a minute, it is expressed in minutes, to 2 decimal places. Otherwise, it is
+        rounded to 2 decimal places and expressed in seconds.
+    """
     if time_in_seconds >= 3600:
         time_expr = f"{time_in_seconds / 3600:0.2f} hours"
     elif time_in_seconds >= 60:
@@ -106,12 +113,16 @@ def logging_section(gerund: str) -> Generator:
 
 def print_message_with_rank_pid(message: str = '') -> None:
     """Prints a message with the rank and PID of the current process."""
-    print(f"{datetime.datetime.now()}: Rank {os.getenv(ENV_LOCAL_RANK)}, PID {os.getpid()} - {message}")
+    print(f"{datetime.datetime.utcnow()} DEBUG    Rank {os.getenv(ENV_LOCAL_RANK)} - PID {os.getpid()} - {message}")
 
 
 @contextmanager
 def elapsed_timer(message: str, format_seconds: bool = False) -> Generator:
-    """Context manager to print the elapsed time for a block of code."""
+    """Context manager to print the elapsed time for a block of code in addition to its local rank and PID.
+    Usage:
+    with elapsed_timer("doing this and that"):
+        print("doing this and that")
+    """
     start = time.time()
     yield
     elapsed = time.time() - start
