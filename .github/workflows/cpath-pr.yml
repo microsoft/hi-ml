@@ -98,7 +98,8 @@ jobs:
         shell: bash -l {0}
         run: |
           make clean
-          python hi-ml-azure/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ env.folder }}/environment.yml --folder=${{ env.folder }} --coverage_module=${{ env.module_for_coverage_reporting }}
+          python hi-ml-azure/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ env.folder }}/environment.yml
+          --folder=${{ env.folder }} --coverage_module=${{ env.module_for_coverage_reporting }} --strictly_aml_v1=True
 
       - name: Upload coverage reports to Codecov
         # Coverage should also be uploaded if tests still fail.
