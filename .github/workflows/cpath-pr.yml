@@ -75,7 +75,6 @@ jobs:
 
   pytest:
     runs-on: ubuntu-20.04
-    needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -92,16 +91,32 @@ jobs:
           make pip_test
           make pytest_coverage
 
-      - name: Run GPU tests
-        # GPU tests should be run even if other tests fail
+      - name: Upload coverage reports to Codecov
+        # Coverage should also be uploaded if tests still fail.
+        # This will pick up the file coverage.xml from the test run
         if: always()
-        shell: bash -l {0}
+        uses: codecov/codecov-action@v3
+        with:
+            flags: ${{ env.folder }}
+
+  pytest_gpu:
+    runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Prepare Conda environment
+        uses: ./.github/actions/prepare_cpath_environment
+
+      - name: Run GPU tests
         run: |
           python hi-ml-azure/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ env.folder }}/environment.yml --folder=${{ env.folder }} --coverage_module=${{ env.module_for_coverage_reporting }}
 
       - name: Upload coverage reports to Codecov
         # Coverage should also be uploaded if tests still fail.
-        # This will pick up both the files coverage.xml (from the normal tests) and pytest_gpu_coverage.xml (from the GPU tests).
+        # This will pick up the file pytest_gpu_coverage.xml from the GPU tests.
         if: always()
         uses: codecov/codecov-action@v3
         with:
