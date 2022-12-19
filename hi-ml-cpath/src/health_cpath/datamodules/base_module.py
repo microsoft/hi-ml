@@ -286,7 +286,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         self.loading_params = loading_params
 
     def _load_dataset(self, slides_dataset: SlidesDataset, stage: ModelKey) -> Dataset:
-        base_transform = Compose(self._get_tiling_on_the_fly_steps_transforms(stage=stage))
+        base_transform = Compose(self.get_tiling_transforms(stage=stage))
         if self.transforms_dict and self.transforms_dict[stage]:
             transforms = Compose([base_transform, self.transforms_dict[stage]]).flatten()
         else:
@@ -312,7 +312,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
             **dataloader_kwargs,
         )
 
-    def _get_tiling_on_the_fly_steps_transforms(self, stage: ModelKey) -> List[Callable]:
+    def get_tiling_transforms(self, stage: ModelKey) -> List[Callable]:
         """Returns the list of transforms to apply to the dataset to perform tiling on the fly. The transforms are
         applied in the order they are returned by this method. To add additional transforms, override this method."""
         return [
