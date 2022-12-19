@@ -20,7 +20,6 @@ from torch.utils.data import Subset
 from torchvision.transforms import RandomHorizontalFlip
 from health_cpath.preprocessing.loading import ROIType
 from health_cpath.utils.naming import SlideKey, TileKey
-from health_azure.utils import ENV_LOCAL_RANK
 from health_ml.utils.bag_utils import BagDataset
 from health_ml.utils.data_augmentations import HEDJitter
 
