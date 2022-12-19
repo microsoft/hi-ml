@@ -83,8 +83,12 @@ pytest_coverage:
 
 # run pytest using GPUs via an AzureML job
 pytest_gpu:
-	python ../hi-ml-azure/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=environment.yml --folder=hi-ml-cpath --coverage_module=health_cpath
-
+	python ../hi-ml-azure/run_pytest.py \
+		--mark=gpu --cluster=pr-gpu \
+		--conda_env=environment.yml \
+		--folder=hi-ml-cpath \
+		--coverage_module=health_cpath \
+		--strictly_aml_v1=True
 
 SSL_CKPT_RUN_ID_CRCK := CRCK_SimCLR_1655731022_85790606
 SRC_CKPT_RUN_ID_CRCK := TcgaCrckSSLMIL_1667832811_4e855804

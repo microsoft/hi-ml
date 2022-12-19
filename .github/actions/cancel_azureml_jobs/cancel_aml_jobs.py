@@ -39,6 +39,8 @@ def cancel_running_and_queued_jobs() -> None:
             try:
                 run.cancel()
             except Exception as ex:
+                # Exceptions here are rare, but do happen. Sometimes AML says "Run is in a terminal state", and
+                # refuses to cancel.
                 print(f"Unable to cancel {status_suffix}: {ex}")
 
 
