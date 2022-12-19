@@ -89,8 +89,7 @@ def find_recovery_checkpoint_on_disk_or_cloud(path: Path) -> Optional[Path]:
             "No checkpoints available in the checkpoint folder. Trying to find checkpoints in AzureML.")
         # Download checkpoints from AzureML, then try to find recovery checkpoints among those.
         # Downloads should go to a temporary folder because downloading the files to the checkpoint
-        # folder might
-        # cause artifact conflicts later.
+        # folder might cause artifact conflicts later.
         temp_folder = download_folder_from_run_to_temp_folder(folder=DEFAULT_AML_CHECKPOINT_DIR)
         recovery_checkpoint = find_recovery_checkpoint(temp_folder)
     return recovery_checkpoint
