@@ -93,7 +93,6 @@ def test_download_from_run_if_necessary(tmp_path: Path, overwrite: bool) -> None
             time.sleep(2)
             assert output_path.is_file(), "File still not on disk?"
 
-
     run = MagicMock()
     run.download_file.side_effect = create_mock_file
 
