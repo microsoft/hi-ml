@@ -5,7 +5,7 @@
 import torch
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, Generic, Optional, Sequence, Tuple, TypeVar, Union
+from typing import Any, Callable, Dict, Generic, List, Optional, Sequence, Tuple, TypeVar, Union
 
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, DistributedSampler
@@ -286,14 +286,7 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         self.loading_params = loading_params
 
     def _load_dataset(self, slides_dataset: SlidesDataset, stage: ModelKey) -> Dataset:
-        base_transform = Compose(
-            [
-                self.loading_params.get_load_roid_transform(),
-                self.tiling_params.get_tiling_transform(bag_size=self.bag_sizes[stage], stage=stage),
-                self.tiling_params.get_extract_coordinates_transform(),
-                self.tiling_params.get_split_transform(),
-            ]
-        )
+        base_transform = Compose(self._get_tiling_on_the_fly_steps_transforms(stage=stage))
         if self.transforms_dict and self.transforms_dict[stage]:
             transforms = Compose([base_transform, self.transforms_dict[stage]]).flatten()
         else:
@@ -318,3 +311,13 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
             generator=generator,
             **dataloader_kwargs,
         )
+
+    def _get_tiling_on_the_fly_steps_transforms(self, stage: ModelKey) -> List[Callable]:
+        """Returns the list of transforms to apply to the dataset to perform tiling on the fly. The transforms are
+        applied in the order they are returned by this method. To add additional transforms, override this method."""
+        return [
+            self.loading_params.get_load_roid_transform(),
+            self.tiling_params.get_tiling_transform(bag_size=self.bag_sizes[stage], stage=stage),
+            self.tiling_params.get_extract_coordinates_transform(),
+            self.tiling_params.get_split_transform(),
+        ]
