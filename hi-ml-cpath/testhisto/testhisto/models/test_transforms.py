@@ -351,7 +351,6 @@ def test_metatensor_to_tensor_d_transform() -> None:
 
 
 def test_timer_wrapper_transform(capsys: SysCapture) -> None:
-    os.environ[ENV_LOCAL_RANK] = "0"
     sample = {"a": 1, SlideKey.SLIDE_ID: "0"}
 
     class DummyTransform:
@@ -363,5 +362,5 @@ def test_timer_wrapper_transform(capsys: SysCapture) -> None:
     out = transform(sample)
     assert out == sample
     message = capsys.readouterr().out  # type: ignore
-    assert "Rank 0" in message
+    assert "Rank " in message
     assert "DummyTransform, Slide 0 took 0.10 seconds" in message
