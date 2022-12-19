@@ -15,7 +15,7 @@ on:
 
 # Cancel previous runs of this workflow that are still in progress.
 concurrency:
-  group: ${{ github.ref }}
+  group: ${{ github.ref }}/cpath-pr
   cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 env:
