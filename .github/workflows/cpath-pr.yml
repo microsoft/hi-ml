@@ -13,6 +13,11 @@ on:
       - "hi-ml-azure/**"
       - "hi-ml/**"
 
+# Cancel previous runs of this workflow that are still in progress.
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
 env:
   pythonVersion: 3.9
   folder: hi-ml-cpath

@@ -11,6 +11,11 @@ on:
       - "hi-ml/**"
       - ".github/workflows/hi-ml-pr.yml"
 
+# Cancel previous runs of this workflow that are still in progress.
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
 env:
   pythonVersion: 3.7
   HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
