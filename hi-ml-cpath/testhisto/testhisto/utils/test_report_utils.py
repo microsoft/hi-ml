@@ -97,18 +97,18 @@ def test_download_from_run_if_necessary(tmp_path: Path, overwrite: bool) -> None
     run.download_file.side_effect = create_mock_file
 
     local_path = download_file_if_necessary(run, remote_filename, expected_local_path)
+    run.download_file.assert_called_once()
     assert local_path == expected_local_path
     assert local_path.exists()
-    run.download_file.assert_called_once()
 
     run.reset_mock()
     new_local_path = download_file_if_necessary(run, remote_filename, expected_local_path, overwrite=overwrite)
-    assert new_local_path == local_path
-    assert new_local_path.exists()
     if overwrite:
         run.download_file.assert_called_once()
     else:
         run.download_file.assert_not_called()
+    assert new_local_path == local_path
+    assert new_local_path.exists()
 
 
 class MockChildRun:
