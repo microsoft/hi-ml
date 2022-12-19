@@ -6,13 +6,11 @@
 #  ------------------------------------------------------------------------------------------
 import argparse
 import logging
-import os
 import param
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-import matplotlib
 from azureml.core import Workspace, Run
 
 # Add hi-ml packages to sys.path so that AML can find them if we are using the runner directly from the git repo
@@ -41,6 +39,7 @@ from health_ml.utils import fixed_paths  # noqa: E402
 from health_ml.utils.common_utils import (DEFAULT_DOCKER_BASE_IMAGE, check_conda_environment,  # noqa: E402
                                           choose_conda_env_file, is_linux)
 from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
+from health_ml.utils.logging import package_setup_and_hacks  # noqa: E402
 
 
 # We change the current working directory before starting the actual training. However, this throws off starting
@@ -63,34 +62,6 @@ def initialize_rpdb() -> None:
     # For some reason, os.getpid() does not return the ID of what appears to be the currently running process.
     logging.info("rpdb is handling traps. To debug: identify the main runner.py process, then as root: "
                  f"kill -TRAP <process_id>; nc 127.0.0.1 {rpdb_port}")
-
-
-def package_setup_and_hacks() -> None:
-    """
-    Set up the Python packages where needed. In particular, reduce the logging level for some of the used
-    libraries, which are particularly talkative in DEBUG mode. Usually when running in DEBUG mode, we want
-    diagnostics about the model building itself, but not for the underlying libraries.
-    It also adds workarounds for known issues in some packages.
-    """
-    # Numba code generation is extremely talkative in DEBUG mode, disable that.
-    logging.getLogger('numba').setLevel(logging.WARNING)
-    # Matplotlib is also very talkative in DEBUG mode, filling half of the log file in a PR build.
-    logging.getLogger('matplotlib').setLevel(logging.INFO)
-    # Urllib3 prints out connection information for each call to write metrics, etc
-    logging.getLogger('urllib3').setLevel(logging.INFO)
-    logging.getLogger('msrest').setLevel(logging.INFO)
-    # AzureML prints too many details about logging metrics
-    logging.getLogger('azureml').setLevel(logging.INFO)
-    # Jupyter notebook report generation
-    logging.getLogger('papermill').setLevel(logging.INFO)
-    logging.getLogger('nbconvert').setLevel(logging.INFO)
-    # This is working around a spurious error message thrown by MKL, see
-    # https://github.com/pytorch/pytorch/issues/37377
-    os.environ['MKL_THREADING_LAYER'] = 'GNU'
-    # Workaround for issues with matplotlib on some X servers, see
-    # https://stackoverflow.com/questions/45993879/matplot-lib-fatal-io-error-25-inappropriate-ioctl-for-device-on-x
-    # -server-loc
-    matplotlib.use('Agg')
 
 
 def create_runner_parser() -> argparse.ArgumentParser:
