@@ -304,6 +304,7 @@ jobs:
       flake8,
       mypy,
       pytest,
+      pytest_gpu,
       smoke_test_cucim_slidespandaimagenetmil,
       smoke_test_openslide_slidespandaimagenetmil,
       smoke_test_tilespandaimagenetmil,
