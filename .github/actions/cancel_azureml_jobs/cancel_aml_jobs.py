@@ -36,7 +36,10 @@ def cancel_running_and_queued_jobs() -> None:
             print(f"Skipping {status_suffix}")
         else:
             print(f"Cancelling {status_suffix}")
-            run.cancel()
+            try:
+                run.cancel()
+            except Exception as ex:
+                print(f"Unable to cancel {status_suffix}: {ex}")
 
 
 if __name__ == "__main__":
