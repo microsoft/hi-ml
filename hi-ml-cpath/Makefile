@@ -81,6 +81,11 @@ pytest:
 pytest_coverage:
 	pytest --cov=health_cpath --cov SSL --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc
 
+# run pytest using GPUs via an AzureML job
+pytest_gpu:
+	python ../hi-ml-azure/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=environment.yml --folder=hi-ml-cpath --coverage_module=health_cpath
+
+
 SSL_CKPT_RUN_ID_CRCK := CRCK_SimCLR_1655731022_85790606
 SRC_CKPT_RUN_ID_CRCK := TcgaCrckSSLMIL_1667832811_4e855804
 

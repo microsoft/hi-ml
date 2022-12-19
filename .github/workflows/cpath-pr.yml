@@ -16,7 +16,6 @@ on:
 env:
   pythonVersion: 3.9
   folder: hi-ml-cpath
-  module_for_coverage_reporting: health_cpath
   HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
   HIML_RESOURCE_GROUP: ${{ secrets.HIML_RESOURCE_GROUP }}
   HIML_SUBSCRIPTION_ID: ${{ secrets.HIML_SUBSCRIPTION_ID }}
@@ -112,7 +111,8 @@ jobs:
 
       - name: Run GPU tests
         run: |
-          python hi-ml-azure/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ env.folder }}/environment.yml --folder=${{ env.folder }} --coverage_module=${{ env.module_for_coverage_reporting }}
+          cd ${{ env.folder }}
+          make pytest_gpu
 
       - name: Upload coverage reports to Codecov
         # Coverage should also be uploaded if tests still fail.
