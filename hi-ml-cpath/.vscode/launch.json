@@ -85,21 +85,5 @@
             "console": "integratedTerminal",
             "justMyCode": false,
         },
-        {
-            "name": "Upload heatmap to DSA",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/src/health_cpath/utils/girder.py",
-            "args": [
-                "--dsa-url=https://dsa.westeurope.cloudapp.azure.com/",
-                "--dsa-key=FFw1x8bnzG14Fv88dq3Hh4liFfZFxQgL94smESfB",
-                "--workspace-config=${workspaceFolder}/config.json",
-                "--run-id=TFF3_HECytedMIL_1671118151_bab03db7",
-                "--dry-run",
-                "--max-slides=2",
-            ],
-            "console": "integratedTerminal",
-            "justMyCode": false,
-        },
     ]
 }
