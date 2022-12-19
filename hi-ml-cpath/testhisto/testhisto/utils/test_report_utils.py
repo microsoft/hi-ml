@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import pandas.testing
 import pytest
+import time
 
 from health_azure.utils import download_file_if_necessary
 from health_cpath.utils.output_utils import (AML_LEGACY_TEST_OUTPUTS_CSV, AML_OUTPUTS_DIR, AML_TEST_OUTPUTS_CSV,
@@ -81,7 +82,17 @@ def test_download_from_run_if_necessary(tmp_path: Path, overwrite: bool) -> None
     expected_local_path = download_dir / filename
 
     def create_mock_file(name: str, output_file_path: str, _validate_checksum: bool) -> None:
-        Path(output_file_path).write_text("mock content")
+        output_path = Path(output_file_path)
+        # This odd-looking construction is to diagnose weird behaviour on the build agents,
+        # where the file doesn't seem to be created.
+        print(f"Writing mock content to file {output_path}")
+        output_path.write_text("mock content")
+        if output_path.is_file():
+            print(f"File {output_path} exists")
+        else:
+            time.sleep(2)
+            assert output_path.is_file(), "File still not on disk?"
+
 
     run = MagicMock()
     run.download_file.side_effect = create_mock_file
