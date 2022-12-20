@@ -22,7 +22,8 @@ from health_azure.utils import (RUN_CONTEXT,
                                 get_run_file_names,
                                 is_running_in_azure_ml,
                                 is_local_rank_zero)
-from health_ml.utils.common_utils import (AUTOSAVE_CHECKPOINT_CANDIDATES, CHECKPOINT_FOLDER, DEFAULT_AML_CHECKPOINT_DIR, CHECKPOINT_SUFFIX, DEFAULT_AML_UPLOAD_DIR)
+from health_ml.utils.common_utils import (
+    AUTOSAVE_CHECKPOINT_CANDIDATES, CHECKPOINT_FOLDER, DEFAULT_AML_CHECKPOINT_DIR, CHECKPOINT_SUFFIX, DEFAULT_AML_UPLOAD_DIR)
 from health_ml.utils.type_annotations import PathOrString
 
 # This is a constant that must match a filename defined in pytorch_lightning.ModelCheckpoint, but we don't want
