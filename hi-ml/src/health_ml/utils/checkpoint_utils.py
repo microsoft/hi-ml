@@ -26,6 +26,9 @@ LEGACY_RECOVERY_CHECKPOINT_FILE_NAME = "recovery"
 MODEL_INFERENCE_JSON_FILE_NAME = "model_inference_config.json"
 MODEL_WEIGHTS_DIR_NAME = "pretrained_models"
 
+# The dictionary field where PyTorch Lightning stores the epoch number in the checkpoint file.
+CHECKPOINT_EPOCH_KEY = "epoch"
+
 
 def get_best_checkpoint_path(path: Path) -> Path:
     """
@@ -129,7 +132,7 @@ def find_recovery_checkpoint(path: Path) -> Optional[Path]:
         if full_path.is_file():
             try:
                 checkpoint = torch.load(str(full_path), map_location=torch.device("cpu"))
-                epoch = checkpoint["epoch"]
+                epoch = checkpoint[CHECKPOINT_EPOCH_KEY]
                 logging.info(f"Checkpoint for epoch {epoch} in {full_path}")
                 if (highest_epoch is None) or (epoch > highest_epoch):
                     highest_epoch = epoch

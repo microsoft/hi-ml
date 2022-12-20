@@ -7,14 +7,18 @@ from typing import Tuple
 from unittest import mock
 import pytest
 
+import torch
+
 from health_ml.configs.hello_world import HelloWorld
 from health_ml.deep_learning_config import WorkflowParams
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils.checkpoint_utils import (
+    CHECKPOINT_EPOCH_KEY,
     LAST_CHECKPOINT_FILE_NAME,
     MODEL_WEIGHTS_DIR_NAME,
     CheckpointDownloader,
-    CheckpointParser,)
+    CheckpointParser,
+    find_recovery_checkpoint_on_disk_or_cloud,)
 from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
 from testhiml.utils.fixed_paths_for_tests import full_test_data_path, mock_run_id
@@ -143,3 +147,36 @@ def test_custom_checkpoint_for_test(tmp_path: Path) -> None:
             checkpoint_handler.get_checkpoint_to_test()
         assert str(does_not_exist) in str(ex)
         mock2.assert_called_once()
+
+
+def write_empty_checkpoint_file(path: Path, epoch: int, file_name: str = "") -> Path:
+    """Writes a dummy torch checkpoint file to the given path."""
+    full_path = path / (file_name or LAST_CHECKPOINT_FILE_NAME)
+    checkpoint_dict = {CHECKPOINT_EPOCH_KEY: epoch}
+    torch.save(checkpoint_dict, full_path)
+    return full_path
+
+
+def test_find_recovery_checkpoints_local(tmp_path: Path) -> None:
+    """Test if the logic to find recovery checkpoints on the local disk works.
+    """
+    # If no checkpoint file is found, the function should return None.
+    assert find_recovery_checkpoint_on_disk_or_cloud(tmp_path) is None
+
+    write_empty_checkpoint_file(tmp_path, 0)
+    epoch_0 = find_recovery_checkpoint_on_disk_or_cloud(tmp_path)
+    assert epoch_0 is not None
+    assert epoch_0.name == LAST_CHECKPOINT_FILE_NAME
+    file_100 = "epoch_100.ckpt"
+    write_empty_checkpoint_file(tmp_path, 100, file_name=file_100)
+    epoch_100 = find_recovery_checkpoint_on_disk_or_cloud(tmp_path)
+    assert epoch_100 is not None
+    assert epoch_100.name == file_100
+
+
+def test_find_recovery_checkpoints_in_cloud(tmp_path: Path) -> None:
+    """Test if the logic to find recovery checkpoints in AzureML works.
+    """
+    file_100 = write_empty_checkpoint_file(tmp_path, 100, "")
+    run = create_unittest_run()
+    run.
