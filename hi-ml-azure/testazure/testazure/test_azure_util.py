@@ -37,10 +37,16 @@ from azureml.data.azure_storage_datastore import AzureBlobDatastore
 import health_azure.utils as util
 from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore, effective_experiment_name
 from health_azure.utils import (ENV_MASTER_ADDR, ENV_MASTER_PORT, MASTER_PORT_DEFAULT,
-                                PackageDependency, create_argparser, get_credential)
+                                PackageDependency, create_argparser, get_credential, download_file_if_necessary)
 from testazure.test_himl import RunTarget, render_and_run_test_script
-from testazure.utils_testazure import (DEFAULT_IGNORE_FOLDERS, DEFAULT_WORKSPACE, MockRun, change_working_directory,
-                                       experiment_for_unittests, himl_azure_root, repository_root)
+from testazure.utils_testazure import (DEFAULT_IGNORE_FOLDERS,
+                                       DEFAULT_WORKSPACE,
+                                       MockRun,
+                                       change_working_directory,
+                                       create_unittest_run_object,
+                                       experiment_for_unittests,
+                                       himl_azure_root,
+                                       repository_root)
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
@@ -2509,3 +2515,74 @@ def test_filter_v2_input_output_args() -> None:
     expected_filtered = ["--input_0=input0", "--a=foo"]
     actual_filtered = util.filter_v2_input_output_args(args_to_filter)
     _compare_args(expected_filtered, actual_filtered)
+
+
+def test_download_from_run(tmp_path: Path) -> None:
+    """Test if a file can be downloaded from a run, and if download is skipped on ranks other than zero."""
+    path_on_aml = "outputs/test.txt"
+    local_file = tmp_path / "test.txt"
+    local_content = "mock content"
+    local_file.write_text(local_content)
+    try:
+        run = create_unittest_run_object()
+        run.upload_file(path_on_aml, str(local_file))
+        run.flush()
+        download_path = tmp_path / "downloaded.txt"
+        with mock.patch("health_azure.utils.is_local_rank_zero", return_value=True):
+            download_file_if_necessary(run, path_on_aml, download_path)
+        assert download_path.is_file(), "File was not downloaded"
+        assert download_path.read_text() == local_content, "Downloaded file content is incorrect"
+
+        download_path2 = tmp_path / "downloaded2.txt"
+        with mock.patch("health_azure.utils.is_local_rank_zero", return_value=False):
+            download_file_if_necessary(run, path_on_aml, download_path2)
+        assert not download_path2.is_file(), "No file should have been downloaded"
+    finally:
+        run.complete()
+
+
+@pytest.mark.parametrize('overwrite', [False, True])
+def test_download_from_run_if_necessary(tmp_path: Path, overwrite: bool) -> None:
+    """Test if downloading a file from a run works. """
+    filename = "test_output.csv"
+    download_dir = tmp_path
+    remote_filename = "outputs/" + filename
+    expected_local_path = download_dir / filename
+
+    def create_mock_file(name: str, output_file_path: str, _validate_checksum: bool) -> None:
+        output_path = Path(output_file_path)
+        print(f"Writing mock content to file {output_path}")
+        output_path.write_text("mock content")
+
+    run = MagicMock()
+    run.download_file.side_effect = create_mock_file
+
+    with mock.patch("health_azure.utils.is_local_rank_zero", return_value=True):
+        local_path = download_file_if_necessary(run, remote_filename, expected_local_path)
+        run.download_file.assert_called_once()
+        assert local_path == expected_local_path
+        assert local_path.exists()
+
+        run.reset_mock()
+        new_local_path = download_file_if_necessary(run, remote_filename, expected_local_path, overwrite=overwrite)
+        if overwrite:
+            run.download_file.assert_called_once()
+        else:
+            run.download_file.assert_not_called()
+        assert new_local_path == local_path
+        assert new_local_path.exists()
+
+
+def test_download_from_run_if_necessary_rank_nonzero(tmp_path: Path) -> None:
+    filename = "test_output.csv"
+    download_dir = tmp_path
+    remote_filename = "outputs/" + filename
+    expected_local_path = download_dir / filename
+
+    run = MagicMock()
+    run.download_file.side_effect = ValueError
+
+    with mock.patch("health_azure.utils.is_local_rank_zero", return_value=False):
+        local_path = download_file_if_necessary(run, remote_filename, expected_local_path)
+        assert local_path is not None
+        run.download_file.assert_not_called()
