@@ -2523,19 +2523,22 @@ def test_download_from_run(tmp_path: Path) -> None:
     local_file = tmp_path / "test.txt"
     local_content = "mock content"
     local_file.write_text(local_content)
-    run = create_unittest_run_object()
-    run.upload_file(path_on_aml, str(local_file))
-    run.flush()
-    download_path = tmp_path / "downloaded.txt"
-    with mock.patch("health_azure.utils.is_local_rank_zero", return_value=True):
-        download_file_if_necessary(run, path_on_aml, download_path)
-    assert download_path.is_file(), "File was not downloaded"
-    assert download_path.read_text() == local_content, "Downloaded file content is incorrect"
+    try:
+        run = create_unittest_run_object()
+        run.upload_file(path_on_aml, str(local_file))
+        run.flush()
+        download_path = tmp_path / "downloaded.txt"
+        with mock.patch("health_azure.utils.is_local_rank_zero", return_value=True):
+            download_file_if_necessary(run, path_on_aml, download_path)
+        assert download_path.is_file(), "File was not downloaded"
+        assert download_path.read_text() == local_content, "Downloaded file content is incorrect"
 
-    download_path2 = tmp_path / "downloaded2.txt"
-    with mock.patch("health_azure.utils.is_local_rank_zero", return_value=False):
-        download_file_if_necessary(run, path_on_aml, download_path2)
-    assert not download_path2.is_file(), "No file should have been downloaded"
+        download_path2 = tmp_path / "downloaded2.txt"
+        with mock.patch("health_azure.utils.is_local_rank_zero", return_value=False):
+            download_file_if_necessary(run, path_on_aml, download_path2)
+        assert not download_path2.is_file(), "No file should have been downloaded"
+    finally:
+        run.complete()
 
 
 @pytest.mark.parametrize('overwrite', [False, True])
