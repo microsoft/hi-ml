@@ -2538,7 +2538,7 @@ def test_download_from_run(tmp_path: Path) -> None:
             download_file_if_necessary(run, path_on_aml, download_path2)
         assert not download_path2.is_file(), "No file should have been downloaded"
     finally:
-        run.complete()
+        run.complete()  # type: ignore
 
 
 @pytest.mark.parametrize('overwrite', [False, True])
