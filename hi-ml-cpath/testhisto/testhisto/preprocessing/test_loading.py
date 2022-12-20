@@ -83,7 +83,7 @@ def test_failed_to_estimate_foreground(
     roi_type: ROIType, mock_panda_slides_root_dir: Path, capsys: SysCapture
 ) -> None:
     loading_params = LoadingParams(roi_type=roi_type, level=2)
-    load_transform = loading_params.get_load_roid_transform()
+    load_transform: BaseLoadROId = loading_params.get_load_roid_transform()
     sample = PandaDataset(mock_panda_slides_root_dir)[0]
     if roi_type == ROIType.MASK:
         os.makedirs(Path(sample[SlideKey.MASK]).parent, exist_ok=True)
