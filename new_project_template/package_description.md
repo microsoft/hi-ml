@@ -1,15 +1,15 @@
-# Microsoft Health Intelligence Newproject Toolbox
+# Microsoft Health Intelligence (Insert Area Here) Toolbox
 
 ## Overview
 
-This toolbox provides models for working with multi-modal health data.
+This toolbox provides models for working with (insert area here).
 
 ## Installation
 
 You can install the latest version from `pypi` via
 
 ```shell
-pip install hi-ml-newproject
+pip install <insert-your-project-name-here>
 ```
 
 ## Documentation
