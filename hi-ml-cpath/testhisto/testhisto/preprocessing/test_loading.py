@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import os
 import shutil
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 from _pytest.capture import SysCapture
@@ -90,7 +90,8 @@ def test_failed_to_estimate_foreground(
         shutil.copy(sample[SlideKey.IMAGE], sample[SlideKey.MASK])  # copy image to mask, we just need a dummy mask
     with patch.object(load_transform, "_get_foreground_mask", return_value=np.zeros((24, 24))):  # empty mask
         with patch.object(load_transform, "_get_whole_slide_bbox") as mock_get_wsi_bbox:
-            _ = load_transform(sample)
-            mock_get_wsi_bbox.assert_called_once()
-            stdout: str = capsys.readouterr().out  # type: ignore
-            assert "Failed to estimate bounding box for slide _0: The input mask is empty" in stdout
+            with patch.object(load_transform.reader, "get_data", return_value=(MagicMock(), MagicMock())):
+                _ = load_transform(sample)
+                mock_get_wsi_bbox.assert_called_once()
+                stdout: str = capsys.readouterr().out  # type: ignore
+                assert "Failed to estimate bounding box for slide _0: The input mask is empty" in stdout
