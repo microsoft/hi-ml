@@ -5,18 +5,24 @@
 import re
 import os
 import uuid
-import torch
 import logging
 import tempfile
 import requests
 
+import torch
+
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional, Tuple
 from urllib.parse import urlparse
-from azureml.core import Run, Workspace
-from health_azure import download_checkpoints_from_run_id, get_workspace
-from health_azure.utils import (RUN_CONTEXT, download_files_from_run_id, get_run_file_names, is_running_in_azure_ml)
-from health_ml.utils.common_utils import (AUTOSAVE_CHECKPOINT_CANDIDATES, DEFAULT_AML_CHECKPOINT_DIR, CHECKPOINT_SUFFIX)
+from azureml.core import Run
+
+from health_azure import download_checkpoints_from_run_id, get_workspace, torch_barrier
+from health_azure.utils import (RUN_CONTEXT,
+                                _download_files_from_run,
+                                get_run_file_names,
+                                is_running_in_azure_ml,
+                                is_local_rank_zero)
+from health_ml.utils.common_utils import (AUTOSAVE_CHECKPOINT_CANDIDATES, CHECKPOINT_FOLDER, DEFAULT_AML_CHECKPOINT_DIR, CHECKPOINT_SUFFIX, DEFAULT_AML_UPLOAD_DIR)
 from health_ml.utils.type_annotations import PathOrString
 
 # This is a constant that must match a filename defined in pytorch_lightning.ModelCheckpoint, but we don't want
@@ -28,6 +34,9 @@ MODEL_WEIGHTS_DIR_NAME = "pretrained_models"
 
 # The dictionary field where PyTorch Lightning stores the epoch number in the checkpoint file.
 CHECKPOINT_EPOCH_KEY = "epoch"
+
+# The string that is used to prefix the folders with results from retries after low priority preemption in AzureML.
+AZUREML_RETRY_PREFIX = "retry_"
 
 
 def get_best_checkpoint_path(path: Path) -> Path:
@@ -41,18 +50,20 @@ def get_best_checkpoint_path(path: Path) -> Path:
 
 def download_folder_from_run_to_temp_folder(folder: str,
                                             run: Optional[Run] = None,  # type: ignore
-                                            workspace: Optional[Workspace] = None) -> Path:
+                                            run_barrier: bool = True) -> Path:
     """
     Downloads all files from a run that have the given prefix to a temporary folder.
     For example, if the run contains files "foo/bar.txt" and "nothing.txt", and this function is called with
     argument folder = "foo", it will return a path in a temp file system pointing to "bar.txt".
 
-    In distributed training, the download only happens once per node.
+    In distributed training, the download only happens once per node, on local rank zero. All ranks wait for the
+    completion of the downloads, by calling `torch.barrier()`. This is to avoid multiple ranks trying to download
+    the same files at the same time. Calling the barrier can be skipped by setting `run_barrier` to False.
 
+    :param folder: The folder to download. This is the prefix of the files to download.
     :param run: If provided, download the files from that run. If omitted, download the files from the current run
         (taken from RUN_CONTEXT)
-    :param workspace: The AML workspace where the run is located. If omitted, the hi-ml defaults of finding a workspace
-        are used (current workspace when running in AzureML, otherwise expecting a config.json file)
+    :param run_barrier: If True, call torch.barrier() after the download.
     :return: The path to which the files were downloaded. The files are located in that folder, without any further
         subfolders.
     """
@@ -66,15 +77,51 @@ def download_folder_from_run_to_temp_folder(folder: str,
     if len(existing_checkpoints) > 0:
         try:
             logging.info(f"Downloading checkpoints to {temp_folder}")
-            download_files_from_run_id(run_id=run.id,  # type: ignore
-                                       output_folder=temp_folder,
-                                       prefix=cleaned_prefix,
-                                       workspace=workspace)
+            _download_files_from_run(
+                run=run,  # type: ignore
+                output_folder=temp_folder,
+                prefix=cleaned_prefix)
         except Exception as ex:
             logging.warning(f"Unable to download checkpoints from AzureML. Error: {str(ex)}")
     # Checkpoint downloads preserve the full folder structure, point the caller directly to the folder where the
     # checkpoints really are.
+    if run_barrier:
+        torch_barrier()
     return temp_folder / cleaned_prefix
+
+
+def _get_checkpoint_files(files: List[str]) -> List[str]:
+    """Filters a list of files in an AzureML run to only retain those that could be recovery or last checkpoints.
+    This takes the folder structures for retries into account, where files are written into subfolders like
+    `retry_001`.
+
+    :param files: The list of file names to check.
+    :return: A list of file names that could be recovery checkpoints."""
+    folder_pattern = f"{DEFAULT_AML_UPLOAD_DIR}(/{AZUREML_RETRY_PREFIX}[0-9]" + "{3})?" + f"/{CHECKPOINT_FOLDER}/"
+    checkpoint_filenames = (*AUTOSAVE_CHECKPOINT_CANDIDATES, LAST_CHECKPOINT_FILE_NAME)
+    file_pattern = "|".join(f"({filename})" for filename in checkpoint_filenames)
+    pattern = f"{folder_pattern}({file_pattern})"
+    regex = re.compile(pattern)
+    return [f for f in files if regex.match(f)]
+
+
+def download_checkpoints_from_run(run: Run, tmp_folder: Optional[Path] = None) -> Path:
+    """This function will download all checkpoints from the current AzureML run to a temporary folder. It will take
+    into account cases where a job got pre-empted, and wrote checkpoints to subfolders like `retry_001`.
+
+    In distributed training, the download only happens once per node, on local rank zero. All ranks wait for the
+    completion of the downloads, by calling `torch.barrier()`. This is to avoid multiple ranks trying to download
+    the same files at the same time.
+
+    :param run: The AzureML run to download the checkpoints from.
+    :param tmp_folder: The folder to download the checkpoints to. If None, a temporary folder will be created.
+    :return: The folder to which the checkpoints were downloaded."""
+    tmp_folder = tmp_folder or Path(tempfile.mkdtemp())
+    if is_local_rank_zero():
+        for file in _get_checkpoint_files(run.get_file_names()):
+            run.download_file(file, output_file_path=str(tmp_folder / file))
+    torch_barrier()
+    return tmp_folder
 
 
 def find_recovery_checkpoint_on_disk_or_cloud(path: Path) -> Optional[Path]:
@@ -93,7 +140,7 @@ def find_recovery_checkpoint_on_disk_or_cloud(path: Path) -> Optional[Path]:
         # Download checkpoints from AzureML, then try to find recovery checkpoints among those.
         # Downloads should go to a temporary folder because downloading the files to the checkpoint
         # folder might cause artifact conflicts later.
-        temp_folder = download_folder_from_run_to_temp_folder(folder=DEFAULT_AML_CHECKPOINT_DIR)
+        temp_folder = download_checkpoints_from_run(run=RUN_CONTEXT)
         recovery_checkpoint = find_recovery_checkpoint(temp_folder)
     return recovery_checkpoint
 
@@ -135,26 +182,26 @@ def find_recovery_checkpoint(path: Path) -> Optional[Path]:
         logging.warning(f"Found these legacy checkpoint files: {legacy_recovery_checkpoints}")
         raise ValueError("The legacy recovery checkpoint setup is no longer supported. As a workaround, you can take "
                          f"one of the legacy checkpoints and upload as '{AUTOSAVE_CHECKPOINT_CANDIDATES[0]}'")
-    candidates = [*AUTOSAVE_CHECKPOINT_CANDIDATES, LAST_CHECKPOINT_FILE_NAME]
+    candidates = set((*AUTOSAVE_CHECKPOINT_CANDIDATES, LAST_CHECKPOINT_FILE_NAME))
     highest_epoch: Optional[int] = None
     file_with_highest_epoch: Optional[Path] = None
-    for f in candidates:
-        full_path = path / f
-        if full_path.is_file():
+    for file in path.glob(f"**/*{CHECKPOINT_SUFFIX}"):
+        if file.name in candidates:
             try:
-                epoch = _load_epoch_from_checkpoint(full_path)
-                logging.info(f"Checkpoint for epoch {epoch} in {full_path}")
+                epoch = _load_epoch_from_checkpoint(file)
+                logging.info(f"Checkpoint for epoch {epoch} in {file}")
                 if (highest_epoch is None) or (epoch > highest_epoch):
                     highest_epoch = epoch
-                    file_with_highest_epoch = full_path
+                    file_with_highest_epoch = file
             except Exception as ex:
-                logging.warning(f"Unable to load checkpoint file {full_path}: {ex}")
+                logging.warning(f"Unable to load checkpoint file {file}: {ex}")
     return file_with_highest_epoch
 
 
 def cleanup_checkpoints(ckpt_folder: Path) -> None:
     """
     Remove autosave checkpoints from the given checkpoint folder, and check if a "last.ckpt" checkpoint is present.
+
     :param ckpt_folder: The folder that contains all checkpoint files.
     """
     files_in_checkpoint_folder = [p.name for p in ckpt_folder.glob('*')]

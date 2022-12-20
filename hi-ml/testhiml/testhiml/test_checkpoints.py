@@ -18,6 +18,9 @@ from health_ml.utils.checkpoint_utils import (
     MODEL_WEIGHTS_DIR_NAME,
     CheckpointDownloader,
     CheckpointParser,
+    _get_checkpoint_files,
+    download_checkpoints_from_run,
+    find_recovery_checkpoint,
     find_recovery_checkpoint_on_disk_or_cloud,
     _load_epoch_from_checkpoint)
 from health_ml.utils.checkpoint_handler import CheckpointHandler
@@ -176,27 +179,76 @@ def test_find_recovery_checkpoints_local(tmp_path: Path) -> None:
     assert epoch_100.name == file_100
 
 
+def test_get_checkpoint_filenames() -> None:
+    """Test matching for folders and file names for recovery checkpoints. This should cover the
+    folders for different retries, and all 3 types of checkpoints (2 autosave and last)"""
+    output_folder = Path(DEFAULT_AML_UPLOAD_DIR)
+    file = str(output_folder / CHECKPOINT_FOLDER / AUTOSAVE_CHECKPOINT_CANDIDATES[0])
+    filtered = _get_checkpoint_files([file])
+    assert filtered == [file]
+
+    file = str(output_folder / "retry_002" / CHECKPOINT_FOLDER / AUTOSAVE_CHECKPOINT_CANDIDATES[1])
+    filtered = _get_checkpoint_files([file])
+    assert filtered == [file]
+
+    file = str(output_folder / "retry_001" / CHECKPOINT_FOLDER / LAST_CHECKPOINT_FILE_NAME)
+    filtered = _get_checkpoint_files([file])
+    assert filtered == [file]
+
+
+def test_get_checkpoint_filenames_non_matching() -> None:
+    output_folder = Path(DEFAULT_AML_UPLOAD_DIR)
+    # No checkpoint folder
+    file = str(output_folder / AUTOSAVE_CHECKPOINT_CANDIDATES[0])
+    assert _get_checkpoint_files([file]) == []
+
+    # Retry folder has wrong name (should be padded to 3 digits, not 4)
+    file = str(output_folder / "retry_0002" / CHECKPOINT_FOLDER / AUTOSAVE_CHECKPOINT_CANDIDATES[1])
+    assert _get_checkpoint_files([file]) == []
+
+
 def test_find_recovery_checkpoints_in_cloud(tmp_path: Path) -> None:
     """Test if the logic to find recovery checkpoints in AzureML works.
     """
     empty_file = (tmp_path / "empty.txt")
     empty_file.touch()
-    file1 = write_empty_checkpoint_file(tmp_path, 1, "")
-    file2 = write_empty_checkpoint_file(tmp_path, 2, "")
+    highest_epoch = 2
+    file1 = write_empty_checkpoint_file(tmp_path, 1, "epoch1")
+    file2 = write_empty_checkpoint_file(tmp_path, highest_epoch, "epoch2")
     run = create_unittest_run_object()
     try:
         output_folder = Path(DEFAULT_AML_UPLOAD_DIR)
+        other_file = "some_other_file.txt"
         # Create 3 files in the run: one in the default folder, no checkpoint in retry folder 001, and a valid
         # checkpoint file in retry folder 002
+        highest_epoch_file = output_folder / "retry_002" / CHECKPOINT_FOLDER / AUTOSAVE_CHECKPOINT_CANDIDATES[1]
         files_to_upload = [
             (file1, output_folder / CHECKPOINT_FOLDER / AUTOSAVE_CHECKPOINT_CANDIDATES[0]),
-            (empty_file, output_folder / "retry_001" / CHECKPOINT_FOLDER / AUTOSAVE_CHECKPOINT_CANDIDATES[0]),
-            (file2, output_folder / "retry_002" / CHECKPOINT_FOLDER / AUTOSAVE_CHECKPOINT_CANDIDATES[0]),
+            (empty_file, output_folder / "retry_001" / CHECKPOINT_FOLDER / AUTOSAVE_CHECKPOINT_CANDIDATES[1]),
+            (file2, highest_epoch_file),
+            (empty_file, output_folder / other_file)
         ]
         for (file, name) in files_to_upload:
             run.upload_file(name=str(name), path_or_stream=str(file))
-
         run.flush()
+
+        # Check if we can download all those files to a local folder.
+        new_folder = tmp_path / "new_folder"
+        download_checkpoints_from_run(run, new_folder)
+        for file in [
+            output_folder / CHECKPOINT_FOLDER / AUTOSAVE_CHECKPOINT_CANDIDATES[0],
+            output_folder / "retry_001" / CHECKPOINT_FOLDER / AUTOSAVE_CHECKPOINT_CANDIDATES[1],
+            output_folder / "retry_002" / CHECKPOINT_FOLDER / AUTOSAVE_CHECKPOINT_CANDIDATES[1],
+        ]:
+            assert (new_folder / file).is_file()
+        # A file that is not a checkpoint should not be downloaded.
+        assert not (new_folder / DEFAULT_AML_UPLOAD_DIR / other_file).exists()
+
+        found_highest_epoch_file = find_recovery_checkpoint(new_folder)
+        assert str(found_highest_epoch_file).endswith(str(highest_epoch_file)), \
+            f"Highest epoch file should be {highest_epoch_file}, but was {found_highest_epoch_file}"
+        assert _load_epoch_from_checkpoint(found_highest_epoch_file) == highest_epoch
+
         empty_temp_folder = tmp_path / "no_such_folder"
         empty_temp_folder.mkdir()
         with mock.patch("health_ml.utils.checkpoint_utils.is_running_in_azure_ml", return_value=True):
@@ -206,4 +258,3 @@ def test_find_recovery_checkpoints_in_cloud(tmp_path: Path) -> None:
                 assert _load_epoch_from_checkpoint(recovery_checkpoint) == 2
     finally:
         run.complete()
-        run.delete
