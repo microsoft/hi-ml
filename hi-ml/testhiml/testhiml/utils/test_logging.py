@@ -19,17 +19,10 @@ from _pytest.logging import LogCaptureFixture
 from azureml._restclient.constants import RunStatus
 from azureml.core import Run
 
-from health_azure import RUN_CONTEXT, create_aml_run_object
-from health_azure.himl import effective_experiment_name
+from health_azure import RUN_CONTEXT
 from health_ml.utils import AzureMLLogger, AzureMLProgressBar, log_learning_rate, log_on_epoch
 from health_ml.utils.logging import _preprocess_hyperparams
 from testhiml.utils_testhiml import DEFAULT_WORKSPACE
-
-
-def create_unittest_run_object(snapshot_directory: Optional[Path] = None) -> Run:
-    return create_aml_run_object(experiment_name=effective_experiment_name("himl-tests"),
-                                 workspace=DEFAULT_WORKSPACE.workspace,
-                                 snapshot_directory=snapshot_directory or ".")
 
 
 def test_log_on_epoch() -> None:
