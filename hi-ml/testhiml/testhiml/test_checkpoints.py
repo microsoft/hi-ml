@@ -18,9 +18,11 @@ from health_ml.utils.checkpoint_utils import (
     MODEL_WEIGHTS_DIR_NAME,
     CheckpointDownloader,
     CheckpointParser,
-    find_recovery_checkpoint_on_disk_or_cloud,)
+    find_recovery_checkpoint_on_disk_or_cloud,
+    _load_epoch_from_checkpoint)
 from health_ml.utils.checkpoint_handler import CheckpointHandler
-from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
+from health_ml.utils.common_utils import AUTOSAVE_CHECKPOINT_CANDIDATES, CHECKPOINT_FOLDER, DEFAULT_AML_UPLOAD_DIR
+from testazure.utils_testazure import create_unittest_run_object
 from testhiml.utils.fixed_paths_for_tests import full_test_data_path, mock_run_id
 from testhiml.utils_testhiml import DEFAULT_WORKSPACE
 
@@ -177,6 +179,31 @@ def test_find_recovery_checkpoints_local(tmp_path: Path) -> None:
 def test_find_recovery_checkpoints_in_cloud(tmp_path: Path) -> None:
     """Test if the logic to find recovery checkpoints in AzureML works.
     """
-    file_100 = write_empty_checkpoint_file(tmp_path, 100, "")
-    run = create_unittest_run()
-    run.
+    empty_file = (tmp_path / "empty.txt")
+    empty_file.touch()
+    file1 = write_empty_checkpoint_file(tmp_path, 1, "")
+    file2 = write_empty_checkpoint_file(tmp_path, 2, "")
+    run = create_unittest_run_object()
+    try:
+        output_folder = Path(DEFAULT_AML_UPLOAD_DIR)
+        # Create 3 files in the run: one in the default folder, no checkpoint in retry folder 001, and a valid
+        # checkpoint file in retry folder 002
+        files_to_upload = [
+            (file1, output_folder / CHECKPOINT_FOLDER / AUTOSAVE_CHECKPOINT_CANDIDATES[0]),
+            (empty_file, output_folder / "retry_001" / CHECKPOINT_FOLDER / AUTOSAVE_CHECKPOINT_CANDIDATES[0]),
+            (file2, output_folder / "retry_002" / CHECKPOINT_FOLDER / AUTOSAVE_CHECKPOINT_CANDIDATES[0]),
+        ]
+        for (file, name) in files_to_upload:
+            run.upload_file(name=str(name), path_or_stream=str(file))
+
+        run.flush()
+        empty_temp_folder = tmp_path / "no_such_folder"
+        empty_temp_folder.mkdir()
+        with mock.patch("health_ml.utils.checkpoint_utils.is_running_in_azure_ml", return_value=True):
+            with mock.patch("health_ml.utils.checkpoint_utils.RUN_CONTEXT", run):
+                recovery_checkpoint = find_recovery_checkpoint_on_disk_or_cloud(empty_temp_folder)
+                assert recovery_checkpoint is not None
+                assert _load_epoch_from_checkpoint(recovery_checkpoint) == 2
+    finally:
+        run.complete()
+        run.delete

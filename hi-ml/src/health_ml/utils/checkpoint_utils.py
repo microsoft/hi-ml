@@ -111,11 +111,22 @@ def get_recovery_checkpoint_path(path: Path) -> Path:
     return recovery_checkpoint
 
 
+def _load_epoch_from_checkpoint(path: Path) -> int:
+    """
+    Loads the epoch number from the given checkpoint file.
+
+    :param path: Path to checkpoint file
+    """
+    checkpoint = torch.load(str(path), map_location=torch.device("cpu"))
+    return checkpoint[CHECKPOINT_EPOCH_KEY]
+
+
 def find_recovery_checkpoint(path: Path) -> Optional[Path]:
     """
     Finds the checkpoint file in the given path that can be used for re-starting the present job.
     This can be an autosave checkpoint, or the last checkpoint. All existing checkpoints are loaded, and the one
     for the highest epoch is used for recovery.
+
     :param path: The folder to search in.
     :return: Returns the checkpoint file to use for re-starting, or None if no such file was found.
     """
@@ -131,8 +142,7 @@ def find_recovery_checkpoint(path: Path) -> Optional[Path]:
         full_path = path / f
         if full_path.is_file():
             try:
-                checkpoint = torch.load(str(full_path), map_location=torch.device("cpu"))
-                epoch = checkpoint[CHECKPOINT_EPOCH_KEY]
+                epoch = _load_epoch_from_checkpoint(full_path)
                 logging.info(f"Checkpoint for epoch {epoch} in {full_path}")
                 if (highest_epoch is None) or (epoch > highest_epoch):
                     highest_epoch = epoch
