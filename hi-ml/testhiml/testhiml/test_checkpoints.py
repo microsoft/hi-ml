@@ -24,7 +24,11 @@ from health_ml.utils.checkpoint_utils import (
     find_recovery_checkpoint_on_disk_or_cloud,
     _load_epoch_from_checkpoint)
 from health_ml.utils.checkpoint_handler import CheckpointHandler
-from health_ml.utils.common_utils import AUTOSAVE_CHECKPOINT_CANDIDATES, CHECKPOINT_FOLDER, DEFAULT_AML_UPLOAD_DIR
+from health_ml.utils.common_utils import (
+    AUTOSAVE_CHECKPOINT_CANDIDATES,
+    CHECKPOINT_FOLDER,
+    DEFAULT_AML_CHECKPOINT_DIR,
+    DEFAULT_AML_UPLOAD_DIR)
 from testazure.utils_testazure import create_unittest_run_object
 from testhiml.utils.fixed_paths_for_tests import full_test_data_path, mock_run_id
 from testhiml.utils_testhiml import DEFAULT_WORKSPACE
@@ -244,7 +248,9 @@ def test_find_recovery_checkpoints_in_cloud(tmp_path: Path) -> None:
         # A file that is not a checkpoint should not be downloaded.
         assert not (new_folder / DEFAULT_AML_UPLOAD_DIR / other_file).exists()
 
+        # When choosing the best checkpoint in that folder, it should be the one with the highest epoch.
         found_highest_epoch_file = find_recovery_checkpoint(new_folder)
+        assert found_highest_epoch_file is not None
         assert str(found_highest_epoch_file).endswith(str(highest_epoch_file)), \
             f"Highest epoch file should be {highest_epoch_file}, but was {found_highest_epoch_file}"
         assert _load_epoch_from_checkpoint(found_highest_epoch_file) == highest_epoch

@@ -12,18 +12,23 @@ import requests
 import torch
 
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional
 from urllib.parse import urlparse
 from azureml.core import Run
 
 from health_azure import download_checkpoints_from_run_id, get_workspace, torch_barrier
-from health_azure.utils import (RUN_CONTEXT,
-                                _download_files_from_run,
-                                get_run_file_names,
-                                is_running_in_azure_ml,
-                                is_local_rank_zero)
+from health_azure.utils import (
+    RUN_CONTEXT,
+    _download_files_from_run,
+    get_run_file_names,
+    is_running_in_azure_ml,
+    is_local_rank_zero)
 from health_ml.utils.common_utils import (
-    AUTOSAVE_CHECKPOINT_CANDIDATES, CHECKPOINT_FOLDER, DEFAULT_AML_CHECKPOINT_DIR, CHECKPOINT_SUFFIX, DEFAULT_AML_UPLOAD_DIR)
+    AUTOSAVE_CHECKPOINT_CANDIDATES,
+    CHECKPOINT_FOLDER,
+    DEFAULT_AML_CHECKPOINT_DIR,
+    CHECKPOINT_SUFFIX,
+    DEFAULT_AML_UPLOAD_DIR)
 from health_ml.utils.type_annotations import PathOrString
 
 # This is a constant that must match a filename defined in pytorch_lightning.ModelCheckpoint, but we don't want
@@ -80,7 +85,7 @@ def download_folder_from_run_to_temp_folder(folder: str,
             logging.info(f"Downloading checkpoints to {temp_folder}")
             _download_files_from_run(
                 run=run,  # type: ignore
-                output_folder=temp_folder,
+                output_dir=temp_folder,
                 prefix=cleaned_prefix)
         except Exception as ex:
             logging.warning(f"Unable to download checkpoints from AzureML. Error: {str(ex)}")
