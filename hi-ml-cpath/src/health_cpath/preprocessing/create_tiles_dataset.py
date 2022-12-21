@@ -242,7 +242,7 @@ def merge_dataset_csv_files(dataset_dir: Path) -> Path:
 def main(slides_dataset: SlidesDataset, root_output_dir: Union[str, Path],
          level: int, tile_size: int, margin: int, foreground_threshold: Optional[float],
          occupancy_threshold: float, parallel: bool = False, overwrite: bool = False,
-         n_slides: Optional[int] = None) -> None:
+         n_slides: Optional[int] = 0, only: Optional[str] = None) -> None:
     """Process a slides dataset to produce a tiles dataset.
 
     :param slides_dataset: Input tiles dataset object.
@@ -261,7 +261,13 @@ def main(slides_dataset: SlidesDataset, root_output_dir: Union[str, Path],
 
     # Ignoring some types here because mypy is getting confused with the MONAI Dataset class
     # to select a subsample use keyword n_slides
-    dataset = Dataset(slides_dataset)[:n_slides]  # type: ignore
+    if only:
+        slides_dataset.dataset_df = slides_dataset.dataset_df.filter(items=[only], axis=0)
+    dataset = Dataset(slides_dataset)
+
+    if n_slides > 0:
+        dataset = dataset[:n_slides]  # type: ignore
+
     output_dir = Path(root_output_dir)
 
     print(f"Creating dataset of level-{level} {tile_size}x{tile_size} "
@@ -299,8 +305,8 @@ if __name__ == '__main__':
     # Example set up for an existing slides dataset:
     main(slides_dataset=TcgaPradDataset("/tmp/datasets/TCGA-PRAD_20220712"),
          root_output_dir="/tmp/datasets/TCGA-PRAD_10X_tiles_level1_224",
-         n_slides=5,
-         level=1,
+         n_slides=2,
+         level=0,
          tile_size=224,
          margin=0,
          foreground_threshold=None,
