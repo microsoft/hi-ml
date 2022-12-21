@@ -12,6 +12,7 @@ from health_ml.lightning_container import LightningContainer
 from health_ml.model_trainer import create_lightning_trainer, write_experiment_summary_file
 from health_ml.utils.common_utils import EXPERIMENT_SUMMARY_FILE
 from health_ml.utils.config_loader import ModelConfigLoader
+from health_ml.utils.diagnostics import TrainingDiagnoticsCallback
 from health_ml.utils.lightning_loggers import StoringLogger
 
 
@@ -61,9 +62,10 @@ class MyCallback(Callback):
         print("Starting to init trainer")
 
 
-def test_create_lightning_trainer_with_callbacks() -> None:
+@pytest.mark.parametrize("monitor_training", [True, False])
+def test_create_lightning_trainer_with_callbacks(monitor_training: bool) -> None:
     """
-    Test that create_lightning_trainer picks up on additional Container callbacks
+    Test that create_lightning_trainer picks up on additional Container callbacks along with the default ones.
     """
 
     def _get_trainer_arguments() -> Dict[str, Any]:
@@ -75,6 +77,7 @@ def test_create_lightning_trainer_with_callbacks() -> None:
     container = model_config_loader.create_model_config_from_name(model_name)
     container.monitor_gpu = False
     container.monitor_loading = False
+    container.monitor_training = monitor_training
     # mock get_trainer_arguments method, since default HelloWorld class doesn't specify any additional callbacks
     container.get_trainer_arguments = _get_trainer_arguments  # type: ignore
 
@@ -85,9 +88,10 @@ def test_create_lightning_trainer_with_callbacks() -> None:
     # expect trainer to have 5 default callbacks: TQProgressBar, ModelSummary, GradintAccumlationScheduler
     # and 2 ModelCheckpoints, plus any additional callbacks specified in get_trainer_arguments method
     kwarg_callbacks = kwargs.get("callbacks") or []
-    expected_num_callbacks = len(kwarg_callbacks) + 5
+    expected_num_callbacks = len(kwarg_callbacks) + 5 + int(monitor_training)
     assert len(trainer.callbacks) == expected_num_callbacks, f"Found callbacks: {trainer.callbacks}"
     assert any([isinstance(c, MyCallback) for c in trainer.callbacks])
+    assert any([isinstance(c, TrainingDiagnoticsCallback) for c in trainer.callbacks]) if monitor_training else True
 
     assert isinstance(storing_logger, StoringLogger)
 

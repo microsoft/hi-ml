@@ -10,9 +10,10 @@ import numpy as np
 import PIL
 from PIL import PngImagePlugin
 from monai.config.type_definitions import KeysCollection
-from monai.transforms import MapTransform, Randomizable
+from monai.transforms import MapTransform, Randomizable, Transform
 from monai.utils.enums import WSIPatchKeys
 from monai.data.meta_tensor import MetaTensor
+from health_azure.logging import elapsed_timer
 from health_ml.utils.box_utils import Box
 from torchvision.transforms.functional import to_tensor
 
@@ -293,4 +294,21 @@ class MetaTensorToTensord(MapTransform):
         for key in self.key_iterator(out_data):
             assert isinstance(out_data[key], MetaTensor), f"Expected MetaTensor, got {type(out_data[key])}"
             out_data[key] = out_data[key].as_tensor()
+        return out_data
+
+
+class TimerWrapper(Transform):
+    """Transform that measures the time it takes to execute the transform. Useful for debugging. This can be used by
+    wrapping the transform in a TimerWrapperd transform.
+    Example:
+        transform = Compose([TimerWrapperd(LoadImaged(keys="image")), TimerWrapperd(MetaTensorToTensord(keys="image"))])
+    """
+
+    def __init__(self, transform: Callable) -> None:
+        self.transform = transform
+
+    def __call__(self, data: Mapping) -> Mapping:
+        message = f"{self.transform.__class__.__name__}, Slide {data[SlideKey.SLIDE_ID]}"
+        with elapsed_timer(message):
+            out_data = self.transform(data)
         return out_data
