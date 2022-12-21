@@ -125,6 +125,7 @@ def download_checkpoints_from_run(run: Run, tmp_folder: Optional[Path] = None) -
     tmp_folder = tmp_folder or Path(tempfile.mkdtemp())
     if is_local_rank_zero():
         for file in _get_checkpoint_files(run.get_file_names()):
+            logging.info(f"Downloading checkpoint file {file} to temp folder")
             run.download_file(file, output_file_path=str(tmp_folder / file))
     torch_barrier()
     return tmp_folder
