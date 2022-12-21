@@ -2,7 +2,12 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import os
+import shutil
+from unittest.mock import MagicMock, patch
+import numpy as np
 import pytest
+from _pytest.capture import SysCapture
 from pathlib import Path
 from typing import List, Tuple
 from monai.transforms import LoadImaged
@@ -69,3 +74,24 @@ def test_load_slide(tmp_path: Path) -> None:
     mask_expected_shape = (3, 1344, 341)
     for backend in [WSIBackend.CUCIM, WSIBackend.OPENSLIDE]:
         _check_load_roi_transforms(backend, mask_expected_keys, mask_expected_shape)
+
+
+@pytest.mark.parametrize("roi_type", [ROIType.FOREGROUND, ROIType.MASK])
+@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
+@pytest.mark.gpu
+def test_failed_to_estimate_foreground(
+    roi_type: ROIType, mock_panda_slides_root_dir: Path, capsys: SysCapture
+) -> None:
+    loading_params = LoadingParams(roi_type=roi_type, level=2)
+    load_transform: BaseLoadROId = loading_params.get_load_roid_transform()  # type: ignore
+    sample = PandaDataset(mock_panda_slides_root_dir)[0]
+    if roi_type == ROIType.MASK:
+        os.makedirs(Path(sample[SlideKey.MASK]).parent, exist_ok=True)
+        shutil.copy(sample[SlideKey.IMAGE], sample[SlideKey.MASK])  # copy image to mask, we just need a dummy mask
+    with patch.object(load_transform, "_get_foreground_mask", return_value=np.zeros((24, 24))):  # empty mask
+        with patch.object(load_transform, "_get_whole_slide_bbox") as mock_get_wsi_bbox:
+            with patch.object(load_transform.reader, "get_data", return_value=(MagicMock(), MagicMock())):
+                _ = load_transform(sample)
+                mock_get_wsi_bbox.assert_called_once()
+                stdout: str = capsys.readouterr().out  # type: ignore
+                assert "Failed to estimate bounding box for slide _0: The input mask is empty" in stdout

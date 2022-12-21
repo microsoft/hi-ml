@@ -8,7 +8,6 @@ import pandas as pd
 import pandas.testing
 import pytest
 
-from health_azure.utils import download_file_if_necessary
 from health_cpath.utils.output_utils import (AML_LEGACY_TEST_OUTPUTS_CSV, AML_OUTPUTS_DIR, AML_TEST_OUTPUTS_CSV,
                                              AML_VAL_OUTPUTS_CSV)
 from health_cpath.utils.report_utils import (collect_hyperdrive_metrics, collect_hyperdrive_outputs,
@@ -71,34 +70,6 @@ def test_hyperdrive_runs_have_val_and_test_outputs() -> None:
     with patch.object(parent_run, 'get_children', return_value=[legacy_run, run_with_val_and_test]):
         with pytest.raises(ValueError, match="has mixed children"):
             child_runs_have_val_and_test_outputs(parent_run)
-
-
-@pytest.mark.parametrize('overwrite', [False, True])
-def test_download_from_run_if_necessary(tmp_path: Path, overwrite: bool) -> None:
-    filename = "test_output.csv"
-    download_dir = tmp_path
-    remote_filename = "outputs/" + filename
-    expected_local_path = download_dir / filename
-
-    def create_mock_file(name: str, output_file_path: str, _validate_checksum: bool) -> None:
-        Path(output_file_path).write_text("mock content")
-
-    run = MagicMock()
-    run.download_file.side_effect = create_mock_file
-
-    local_path = download_file_if_necessary(run, remote_filename, expected_local_path)
-    assert local_path == expected_local_path
-    assert local_path.exists()
-    run.download_file.assert_called_once()
-
-    run.reset_mock()
-    new_local_path = download_file_if_necessary(run, remote_filename, expected_local_path, overwrite=overwrite)
-    assert new_local_path == local_path
-    assert new_local_path.exists()
-    if overwrite:
-        run.download_file.assert_called_once()
-    else:
-        run.download_file.assert_not_called()
 
 
 class MockChildRun:

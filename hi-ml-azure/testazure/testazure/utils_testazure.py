@@ -10,8 +10,12 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, Generator, Optional
 
+from azureml.core import Run
+
 from health_azure.utils import (ENV_EXPERIMENT_NAME, WORKSPACE_CONFIG_JSON, UnitTestWorkspaceWrapper,
                                 to_azure_friendly_string)
+from health_azure import create_aml_run_object
+from health_azure.himl import effective_experiment_name
 
 DEFAULT_DATASTORE = "himldatasets"
 FALLBACK_SINGLE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538212_d2b07afd"
@@ -73,3 +77,9 @@ def get_shared_config_json() -> Path:
     Gets the path to the config.json file that should exist for running tests locally (outside github build agents).
     """
     return repository_root() / "hi-ml-azure" / "testazure" / WORKSPACE_CONFIG_JSON
+
+
+def create_unittest_run_object(snapshot_directory: Optional[Path] = None) -> Run:
+    return create_aml_run_object(experiment_name=effective_experiment_name("himl-tests"),
+                                 workspace=DEFAULT_WORKSPACE.workspace,
+                                 snapshot_directory=snapshot_directory)

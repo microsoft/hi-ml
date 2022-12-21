@@ -20,7 +20,7 @@ class CIFAR10SimCLR(SSLContainer):
                          ssl_encoder=EncoderName.resnet50,
                          ssl_training_type=SSLTrainingType.SimCLR,
                          random_seed=1,
-                         num_epochs=2500,
+                         max_epochs=2500,
                          num_workers=6)
 
 
@@ -37,7 +37,7 @@ class CIFAR10BYOL(SSLContainer):
                          ssl_encoder=EncoderName.resnet50,
                          ssl_training_type=SSLTrainingType.BYOL,
                          random_seed=1,
-                         num_epochs=2500,
+                         max_epochs=2500,
                          num_workers=6)
 
 

@@ -5,9 +5,10 @@
 
 import os
 from pathlib import Path
+import time
 from typing import Any, Callable, Dict, Sequence, Union
 import numpy as np
-
+from _pytest.capture import SysCapture
 import pytest
 import torch
 from monai.data.meta_tensor import MetaTensor
@@ -19,7 +20,6 @@ from torch.utils.data import Subset
 from torchvision.transforms import RandomHorizontalFlip
 from health_cpath.preprocessing.loading import ROIType
 from health_cpath.utils.naming import SlideKey, TileKey
-
 from health_ml.utils.bag_utils import BagDataset
 from health_ml.utils.data_augmentations import HEDJitter
 
@@ -27,7 +27,7 @@ from health_cpath.datasets.default_paths import TCGA_CRCK_DATASET_DIR
 from health_cpath.datasets.panda_tiles_dataset import PandaTilesDataset
 from health_cpath.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
 from health_cpath.models.encoders import Resnet18
-from health_cpath.models.transforms import (EncodeTilesBatchd, ExtractCoordinatesd, LoadTiled,
+from health_cpath.models.transforms import (EncodeTilesBatchd, ExtractCoordinatesd, LoadTiled, TimerWrapper,
                                             LoadTilesBatchd, MetaTensorToTensord, Subsampled, transform_dict_adaptor)
 from testhisto.utils.utils_testhisto import assert_dicts_equal
 
@@ -347,3 +347,19 @@ def test_metatensor_to_tensor_d_transform() -> None:
     assert isinstance(new_sample[SlideKey.IMAGE], torch.Tensor)
     with pytest.raises(AssertionError, match="Expected MetaTensor"):
         _ = transform(new_sample)
+
+
+def test_timer_wrapper_transform(capsys: SysCapture) -> None:
+    sample = {"a": 1, SlideKey.SLIDE_ID: "0"}
+
+    class DummyTransform:
+        def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+            time.sleep(0.1)
+            return data
+
+    transform = TimerWrapper(DummyTransform())
+    out = transform(sample)
+    assert out == sample
+    message = capsys.readouterr().out  # type: ignore
+    assert "Rank " in message
+    assert "DummyTransform, Slide 0 took 0.10 seconds" in message
