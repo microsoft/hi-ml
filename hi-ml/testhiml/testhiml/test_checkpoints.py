@@ -172,15 +172,13 @@ def test_find_recovery_checkpoints_local(tmp_path: Path) -> None:
     # If no checkpoint file is found, the function should return None.
     assert find_recovery_checkpoint_on_disk_or_cloud(tmp_path) is None
 
-    write_empty_checkpoint_file(tmp_path, 0)
+    write_empty_checkpoint_file(tmp_path, 0, AUTOSAVE_CHECKPOINT_CANDIDATES[0])
     epoch_0 = find_recovery_checkpoint_on_disk_or_cloud(tmp_path)
     assert epoch_0 is not None
-    assert epoch_0.name == LAST_CHECKPOINT_FILE_NAME
-    file_100 = "epoch_100.ckpt"
-    write_empty_checkpoint_file(tmp_path, 100, file_name=file_100)
+    write_empty_checkpoint_file(tmp_path, 100, file_name=AUTOSAVE_CHECKPOINT_CANDIDATES[1])
     epoch_100 = find_recovery_checkpoint_on_disk_or_cloud(tmp_path)
     assert epoch_100 is not None
-    assert epoch_100.name == file_100
+    assert epoch_100.name == AUTOSAVE_CHECKPOINT_CANDIDATES[1]
 
 
 def test_get_checkpoint_filenames() -> None:
