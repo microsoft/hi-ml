@@ -2523,8 +2523,8 @@ def test_download_from_run(tmp_path: Path) -> None:
     local_file = tmp_path / "test.txt"
     local_content = "mock content"
     local_file.write_text(local_content)
+    run = create_unittest_run_object()
     try:
-        run = create_unittest_run_object()
         run.upload_file(path_on_aml, str(local_file))
         run.flush()
         download_path = tmp_path / "downloaded.txt"
@@ -2538,7 +2538,7 @@ def test_download_from_run(tmp_path: Path) -> None:
             download_file_if_necessary(run, path_on_aml, download_path2)
         assert not download_path2.is_file(), "No file should have been downloaded"
     finally:
-        run.complete()  # type: ignore
+        run.complete()
 
 
 @pytest.mark.parametrize('overwrite', [False, True])
