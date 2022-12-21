@@ -67,6 +67,7 @@ from testazure.utils_testazure import (
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXPECTED_QUEUED = "This command will be run in AzureML:"
 GITHUB_SHIBBOLETH = "GITHUB_RUN_ID"  # https://docs.github.com/en/actions/reference/environment-variables
+AZUREML_FLAG = "--azureml"
 
 logger = logging.getLogger('test.health_azure')
 logger.setLevel(logging.DEBUG)
@@ -535,7 +536,7 @@ def test_invalid_entry_script(tmp_path: Path) -> None:
 def test_get_script_params() -> None:
     expected_params = ["a string"]
     assert expected_params == himl._get_script_params(expected_params)
-    with mock.patch("sys.argv", ["", "a string", "--azureml"]):
+    with mock.patch("sys.argv", ["", "a string", AZUREML_FLAG]):
         assert expected_params == himl._get_script_params()
     with mock.patch("sys.argv", ["", "a string"]):
         assert expected_params == himl._get_script_params()
@@ -582,7 +583,7 @@ def test_submit_to_azure_if_needed_azure_return(
         output_folder=Path.cwd() / himl.OUTPUT_FOLDER,
         logs_folder=Path.cwd() / himl.LOGS_FOLDER)
     mock_generate_azure_datasets.return_value = expected_run_info
-    with mock.patch("sys.argv", ["", "--azureml"]):
+    with mock.patch("sys.argv", ["", AZUREML_FLAG]):
         run_info = himl.submit_to_azure_if_needed(
             aml_workspace=mock_workspace,
             entry_script=Path(__file__),
@@ -1030,7 +1031,10 @@ def render_and_run_test_script(path: Path,
                                               f"got a return code {code}"
 
     if run_target == RunTarget.LOCAL or not expected_pass:
-        assert EXPECTED_QUEUED not in captured
+        if AZUREML_FLAG in extra_args:
+            assert EXPECTED_QUEUED in captured
+        else:
+            assert EXPECTED_QUEUED not in captured
         return captured
     else:
         assert EXPECTED_QUEUED in captured
@@ -1121,6 +1125,25 @@ def test_invoking_hello_world_config(run_target: RunTarget, use_package: bool, t
                                           "HIML_AZURE_TEST_PYPI_VERSION": '',
                                           "HIML_AZURE_PYPI_VERSION": ''}):
             output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
+    expected_output = f"The message was: {message_guid}"
+    assert expected_output in output
+
+
+def test_invoking_hello_world_using_azureml_flag(tmp_path: Path) -> None:
+    """
+    Test that invoking hello_world.py with the --azureml flag will submit to AzureML and not run locally.
+    :param tmp_path: PyTest test fixture for temporary path.
+    """
+
+    message_guid = uuid4().hex
+    parser_args = "parser.add_argument('-m', '--message', type=str, required=True, help='The message to print out')"
+    extra_options = {
+        'args': parser_args,
+        'body': 'print(f"The message was: {args.message}")',
+        'submit_to_azureml': None,
+    }
+    extra_args = [f"--message={message_guid}", AZUREML_FLAG]
+    output = render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options, extra_args, True)
     expected_output = f"The message was: {message_guid}"
     assert expected_output in output
 
@@ -1509,7 +1532,7 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock,
     Test that himl.submit_to_azure_if_needed can be called, and returns immediately.
     """
     cross_validation_metric_name = cross_validation_metric_name or ""
-    mock_sys_args.return_value = ["", "--azureml"]
+    mock_sys_args.return_value = ["", AZUREML_FLAG]
     with patch("health_azure.himl.get_ml_client") as mock_get_ml_client:
         mock_ml_client = MagicMock()
         mock_get_ml_client.return_value = mock_ml_client
