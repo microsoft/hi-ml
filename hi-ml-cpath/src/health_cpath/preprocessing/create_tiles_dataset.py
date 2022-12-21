@@ -257,16 +257,17 @@ def main(slides_dataset: SlidesDataset, root_output_dir: Union[str, Path],
     :param overwrite: Whether to overwrite an existing output tiles dataset. If `True`, will delete
     and recreate `root_output_dir`, otherwise will resume by skipping already processed slides.
     :param n_slides: If given, limit the total number of slides for debugging.
+    :param only: Id of a single slide for debugging.
     """
 
     # Ignoring some types here because mypy is getting confused with the MONAI Dataset class
     # to select a subsample use keyword n_slides
     if only:
         slides_dataset.dataset_df = slides_dataset.dataset_df.filter(items=[only], axis=0)
-    dataset = Dataset(slides_dataset)
+    dataset = Dataset(slides_dataset)  # type: ignore
 
-    if n_slides > 0:
-        dataset = dataset[:n_slides]  # type: ignore
+    if n_slides > 0:  # type: ignore
+        dataset = dataset[:n_slides]
 
     output_dir = Path(root_output_dir)
 
@@ -306,6 +307,7 @@ if __name__ == '__main__':
     main(slides_dataset=TcgaPradDataset("/tmp/datasets/TCGA-PRAD_20220712"),
          root_output_dir="/tmp/datasets/TCGA-PRAD_10X_tiles_level1_224",
          n_slides=2,
+         only=None,
          level=0,
          tile_size=224,
          margin=0,
