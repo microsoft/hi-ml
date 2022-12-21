@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import os
 import shutil
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 from _pytest.capture import SysCapture
@@ -83,14 +83,15 @@ def test_failed_to_estimate_foreground(
     roi_type: ROIType, mock_panda_slides_root_dir: Path, capsys: SysCapture
 ) -> None:
     loading_params = LoadingParams(roi_type=roi_type, level=2)
-    load_transform = loading_params.get_load_roid_transform()
+    load_transform: BaseLoadROId = loading_params.get_load_roid_transform()  # type: ignore
     sample = PandaDataset(mock_panda_slides_root_dir)[0]
     if roi_type == ROIType.MASK:
         os.makedirs(Path(sample[SlideKey.MASK]).parent, exist_ok=True)
         shutil.copy(sample[SlideKey.IMAGE], sample[SlideKey.MASK])  # copy image to mask, we just need a dummy mask
     with patch.object(load_transform, "_get_foreground_mask", return_value=np.zeros((24, 24))):  # empty mask
         with patch.object(load_transform, "_get_whole_slide_bbox") as mock_get_wsi_bbox:
-            _ = load_transform(sample)
-            mock_get_wsi_bbox.assert_called_once()
-            stdout: str = capsys.readouterr().out  # type: ignore
-            assert "Failed to estimate bounding box for slide _0: The input mask is empty" in stdout
+            with patch.object(load_transform.reader, "get_data", return_value=(MagicMock(), MagicMock())):
+                _ = load_transform(sample)
+                mock_get_wsi_bbox.assert_called_once()
+                stdout: str = capsys.readouterr().out  # type: ignore
+                assert "Failed to estimate bounding box for slide _0: The input mask is empty" in stdout
