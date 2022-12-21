@@ -139,7 +139,7 @@ def find_recovery_checkpoint_on_disk_or_cloud(path: Path) -> Optional[Path]:
     :param path: The folder to start searching in.
     :return: None if there is no suitable recovery checkpoints, or else a full path to the checkpoint file.
     """
-    recovery_checkpoint = find_recovery_checkpoint(path)
+    recovery_checkpoint = find_local_recovery_checkpoint(path)
     if recovery_checkpoint is None and is_running_in_azure_ml():
         logging.info(
             "No checkpoints available in the checkpoint folder. Trying to find checkpoints in AzureML.")
@@ -147,52 +147,32 @@ def find_recovery_checkpoint_on_disk_or_cloud(path: Path) -> Optional[Path]:
         # Downloads should go to a temporary folder because downloading the files to the checkpoint
         # folder might cause artifact conflicts later.
         temp_folder = download_checkpoints_from_run(run=RUN_CONTEXT)
-        recovery_checkpoint = find_recovery_checkpoint(temp_folder)
+        recovery_checkpoint = find_recovery_checkpoint_in_downloaded_files(temp_folder)
     return recovery_checkpoint
 
 
-def get_recovery_checkpoint_path(path: Path) -> Path:
-    """
-    Returns the path to the last recovery checkpoint in the given folder or the provided filename. Raises a
-    FileNotFoundError if no recovery checkpoint file is present.
-    :param path: Path to checkpoint folder
-    """
-    recovery_checkpoint = find_recovery_checkpoint(path)
-    if recovery_checkpoint is None:
-        files = [f.name for f in path.glob("*")]
-        raise FileNotFoundError(f"No checkpoint files found in {path}. Existing files: {' '.join(files)}")
-    return recovery_checkpoint
-
-
-def _load_epoch_from_checkpoint(path: Path) -> int:
+def _load_epoch_from_checkpoint(path: Optional[Path]) -> int:
     """
     Loads the epoch number from the given checkpoint file.
 
     :param path: Path to checkpoint file
     """
+    if path is None:
+        raise ValueError("Checkpoint path is None")
     checkpoint = torch.load(str(path), map_location=torch.device("cpu"))
     return checkpoint[CHECKPOINT_EPOCH_KEY]
 
 
-def find_recovery_checkpoint(path: Path) -> Optional[Path]:
-    """
-    Finds the checkpoint file in the given path that can be used for re-starting the present job.
-    This can be an autosave checkpoint, or the last checkpoint. All existing checkpoints are loaded, and the one
-    for the highest epoch is used for recovery.
+def find_checkpoint_with_highest_epoch(files: List[Path]) -> Optional[Path]:
+    """Loads the epoch numbers from the given checkpoint files, and returns the one with the
+    highest epoch number. If no files can be loaded, or the list is empty, None is returned.
 
-    :param path: The folder to search in.
-    :return: Returns the checkpoint file to use for re-starting, or None if no such file was found.
-    """
-    legacy_recovery_checkpoints = list(path.glob(LEGACY_RECOVERY_CHECKPOINT_FILE_NAME + "*"))
-    if len(legacy_recovery_checkpoints) > 0:
-        logging.warning(f"Found these legacy checkpoint files: {legacy_recovery_checkpoints}")
-        raise ValueError("The legacy recovery checkpoint setup is no longer supported. As a workaround, you can take "
-                         f"one of the legacy checkpoints and upload as '{AUTOSAVE_CHECKPOINT_CANDIDATES[0]}'")
-    candidates = set((*AUTOSAVE_CHECKPOINT_CANDIDATES, LAST_CHECKPOINT_FILE_NAME))
+    :param files: A list of checkpoint files.
+    :return: The checkpoint file with the highest epoch number, or None if no such file was found."""
     highest_epoch: Optional[int] = None
     file_with_highest_epoch: Optional[Path] = None
-    for file in path.glob(f"**/*{CHECKPOINT_SUFFIX}"):
-        if file.name in candidates:
+    for file in files:
+        if file.is_file():
             try:
                 epoch = _load_epoch_from_checkpoint(file)
                 logging.info(f"Checkpoint for epoch {epoch} in {file}")
@@ -202,6 +182,29 @@ def find_recovery_checkpoint(path: Path) -> Optional[Path]:
             except Exception as ex:
                 logging.warning(f"Unable to load checkpoint file {file}: {ex}")
     return file_with_highest_epoch
+
+
+def find_local_recovery_checkpoint(path: Path) -> Optional[Path]:
+    """Checks for a recovery checkpoint in the local checkpoint folder. This can be either
+    an autosave checkpoint or the last checkpoint.
+
+    :param path: The folder to search in.
+    :return: The checkpoint file with the highest epoch number, or None if no such file was found.
+    """
+    candidates = [path / f for f in (*AUTOSAVE_CHECKPOINT_CANDIDATES, LAST_CHECKPOINT_FILE_NAME)]
+    return find_checkpoint_with_highest_epoch(candidates)
+
+
+def find_recovery_checkpoint_in_downloaded_files(path: Path) -> Optional[Path]:
+    """
+    Finds the checkpoint file in the given path that can be used for re-starting the present job.
+    All existing checkpoints are loaded, and the one for the highest epoch is used for recovery.
+
+    :param path: The folder to search in.
+    :return: The checkpoint file with the highest epoch number, or None if no such file was found.
+    """
+    candidates = list(path.glob(f"**/*{CHECKPOINT_SUFFIX}"))
+    return find_checkpoint_with_highest_epoch(candidates)
 
 
 def cleanup_checkpoints(ckpt_folder: Path) -> None:
