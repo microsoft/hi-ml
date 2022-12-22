@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
+import os
 from pathlib import Path
 from typing import Any, List, Optional, Tuple, TypeVar
 
@@ -16,9 +17,10 @@ from pytorch_lightning.profiler import BaseProfiler, SimpleProfiler, AdvancedPro
 from health_azure.utils import RUN_CONTEXT, is_running_in_azure_ml
 
 from health_ml.lightning_container import LightningContainer
-from health_ml.utils import AzureMLLogger, AzureMLProgressBar
+from health_ml.utils import AzureMLProgressBar
 from health_ml.utils.common_utils import AUTOSAVE_CHECKPOINT_FILE_NAME, EXPERIMENT_SUMMARY_FILE
-from health_ml.utils.lightning_loggers import StoringLogger
+from health_ml.utils.diagnostics import TrainingDiagnoticsCallback
+from health_ml.utils.lightning_loggers import StoringLogger, HimlMLFlowLogger
 
 
 T = TypeVar('T')
@@ -55,7 +57,8 @@ def create_lightning_trainer(container: LightningContainer,
                              resume_from_checkpoint: Optional[Path] = None,
                              num_nodes: int = 1,
                              multiple_trainloader_mode: str = "max_size_cycle",
-                             azureml_run_for_logging: Optional[Run] = None) -> \
+                             azureml_run_for_logging: Optional[Run] = None,
+                             mlflow_run_for_logging: Optional[str] = None) -> \
         Tuple[Trainer, StoringLogger]:
     """
     Creates a Pytorch Lightning Trainer object for the given model configuration. It creates checkpoint handlers
@@ -91,9 +94,27 @@ def create_lightning_trainer(container: LightningContainer,
             message += "s per node with DDP"
     logging.info(f"Using {message}")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
-    azureml_logger = AzureMLLogger(enable_logging_outside_azure_ml=container.log_from_vm,
-                                   run=azureml_run_for_logging)
-    loggers = [tensorboard_logger, azureml_logger]
+    loggers: List[Any] = [tensorboard_logger]
+
+    if is_running_in_azure_ml():
+        mlflow_run_id = os.environ.get("MLFLOW_RUN_ID", None)
+        logging.info(f"Logging to MLFlow run with id: {mlflow_run_id}")
+        mlflow_logger = HimlMLFlowLogger(
+            run_id=mlflow_run_id
+        )
+        loggers.append(mlflow_logger)
+    else:
+        mlflow_run_dir = container.outputs_folder / "mlruns"
+        try:
+            mlflow_run_dir.mkdir(exist_ok=True)
+            mlflow_tracking_uri = "file:" + str(mlflow_run_dir)
+            mlflow_logger = HimlMLFlowLogger(run_id=mlflow_run_for_logging, tracking_uri=mlflow_tracking_uri)
+            loggers.append(mlflow_logger)
+            logging.info(f"Logging to MLFlow run with id: {mlflow_run_for_logging}. Local MLFlow logs are stored in "
+                         f"{mlflow_tracking_uri}")
+        except FileNotFoundError as e:
+            logging.warning(f"Unable to initialise MLFlowLogger due to error: {e}")
+
     storing_logger = StoringLogger()
     loggers.append(storing_logger)
     # Use 32bit precision when running on CPU. Otherwise, make it depend on use_mixed_precision flag.
@@ -130,6 +151,8 @@ def create_lightning_trainer(container: LightningContainer,
         # TODO antonsc: Remove after fixing the callback.
         raise NotImplementedError("Monitoring batch loading times has been temporarily disabled.")
         # callbacks.append(BatchTimeCallback())
+    if container.monitor_training:
+        callbacks.append(TrainingDiagnoticsCallback())
     if num_gpus > 0 and container.monitor_gpu:
         logging.info("Adding monitoring for GPU utilization")
         callbacks.append(GPUStatsMonitor(intra_step_time=True, inter_step_time=True))
@@ -177,16 +200,19 @@ def create_lightning_trainer(container: LightningContainer,
                       limit_test_batches=container.pl_limit_test_batches or 1.0,
                       fast_dev_run=container.pl_fast_dev_run,  # type: ignore
                       num_sanity_val_steps=container.pl_num_sanity_val_steps,
+                      log_every_n_steps=container.pl_log_every_n_steps,
                       # check_val_every_n_epoch=container.pl_check_val_every_n_epoch,
                       callbacks=callbacks,
                       logger=loggers,
                       num_nodes=num_nodes,
                       devices=devices,
                       precision=precision,
-                      sync_batchnorm=True,
+                      sync_batchnorm=container.pl_sync_batchnorm,
                       detect_anomaly=container.detect_anomaly,
                       profiler=profiler,
                       resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
                       multiple_trainloader_mode=multiple_trainloader_mode,
+                      accumulate_grad_batches=container.pl_accumulate_grad_batches,
+                      replace_sampler_ddp=container.pl_replace_sampler_ddp,
                       **additional_args)
     return trainer, storing_logger

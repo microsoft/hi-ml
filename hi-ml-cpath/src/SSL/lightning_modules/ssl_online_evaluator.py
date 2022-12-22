@@ -97,7 +97,7 @@ class SslOnlineEvaluatorHiml(SSLOnlineEvaluator):
         self.evaluator.to(pl_module.device)
         if hasattr(trainer, "accelerator_connector"):
             # This works with Lightning 1.3.8
-            accelerator = trainer.accelerator_connector
+            accelerator = trainer.accelerator_connector  # type: ignore
         elif hasattr(trainer, "_accelerator_connector"):
             # This works with Lightning 1.5.5
             accelerator = trainer._accelerator_connector

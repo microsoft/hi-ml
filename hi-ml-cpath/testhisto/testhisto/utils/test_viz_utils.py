@@ -21,12 +21,11 @@ from health_ml.utils.common_utils import is_gpu_available, is_windows
 from health_ml.utils.fixed_paths import OutputFolderForTests
 from health_cpath.utils.viz_utils import plot_attention_tiles, plot_scores_hist, resize_and_save, plot_slide, \
     plot_heatmap_overlay, plot_normalized_confusion_matrix
-from health_cpath.utils.naming import ResultsKey
+from health_cpath.utils.naming import ResultsKey, SlideKey
 from health_cpath.utils.heatmap_utils import location_selected_tiles
 from health_cpath.utils.tiles_selection_utils import SlideNode, TileNode
 from health_cpath.utils.viz_utils import save_figure
 from testhisto.utils.utils_testhisto import assert_binary_files_match, full_ml_test_data_path
-# import testhisto
 
 
 def set_random_seed(random_seed: int, caller_name: Optional[str] = None) -> None:
@@ -124,7 +123,7 @@ def slide_node() -> SlideNode:
     set_random_seed(0)
     tile_size = (3, 224, 224)
     num_top_tiles = 12
-    slide_node = SlideNode(slide_id="slide_0", prob_score=0.5, true_label=1, pred_label=1)
+    slide_node = SlideNode(slide_id="slide_0", gt_prob_score=0.04, pred_prob_score=0.96, true_label=1, pred_label=0)
     top_attn_scores = [0.99, 0.98, 0.97, 0.96, 0.95, 0.94, 0.93, 0.92, 0.91, 0.90, 0.89, 0.88]
     slide_node.top_tiles = [
         TileNode(attn=top_attn_scores[i], data=torch.randint(0, 255, tile_size)) for i in range(num_top_tiles)
@@ -150,11 +149,11 @@ def assert_plot_tiles_figure(tiles_fig: plt.Figure, fig_name: str, test_output_d
 @pytest.mark.skipif(is_windows(), reason="Rendering is different on Windows")
 def test_plot_top_bottom_tiles(slide_node: SlideNode, test_output_dirs: OutputFolderForTests) -> None:
     top_tiles_fig = plot_attention_tiles(
-        case="TP", slide_node=slide_node, top=True, num_columns=4, figsize=(10, 10)
+        case="FN", slide_node=slide_node, top=True, num_columns=4, figsize=(10, 10)
     )
     assert top_tiles_fig is not None
     bottom_tiles_fig = plot_attention_tiles(
-        case="TP", slide_node=slide_node, top=False, num_columns=4, figsize=(10, 10)
+        case="FN", slide_node=slide_node, top=False, num_columns=4, figsize=(10, 10)
     )
     assert bottom_tiles_fig is not None
     assert_plot_tiles_figure(top_tiles_fig, "slide_0_top.png", test_output_dirs)
@@ -167,7 +166,7 @@ def test_plot_attention_tiles_below_min_rows(slide_node: SlideNode, caplog: LogC
     slide_node.bottom_tiles = []
     with caplog.at_level(logging.WARNING):
         bottom_tiles_fig = plot_attention_tiles(
-            case="TP", slide_node=slide_node, top=False, num_columns=4, figsize=(10, 10)
+            case="FN", slide_node=slide_node, top=False, num_columns=4, figsize=(10, 10)
         )
         assert bottom_tiles_fig is None
         assert expected_warning in caplog.text
@@ -175,25 +174,43 @@ def test_plot_attention_tiles_below_min_rows(slide_node: SlideNode, caplog: LogC
     slide_node.top_tiles = []
     with caplog.at_level(logging.WARNING):
         top_tiles_fig = plot_attention_tiles(
-            case="TP", slide_node=slide_node, top=True, num_columns=4, figsize=(10, 10)
+            case="FN", slide_node=slide_node, top=True, num_columns=4, figsize=(10, 10)
         )
         assert top_tiles_fig is None
         assert expected_warning in caplog.text
 
 
-@pytest.mark.parametrize("scale", [0.1, 1.2, 2.4, 3.6])
-def test_plot_slide(test_output_dirs: OutputFolderForTests, scale: int) -> None:
+@pytest.mark.parametrize(
+    "scale, gt_prob, pred_prob, gt_label, pred_label, case",
+    [
+        (0.1, 0.99, 0.99, 1, 1, "TP"),
+        (1.2, 0.95, 0.95, 0, 0, "TN"),
+        (2.4, 0.04, 0.96, 0, 1, "FP"),
+        (3.6, 0.03, 0.97, 1, 0, "FN"),
+    ],
+)
+def test_plot_slide(
+    test_output_dirs: OutputFolderForTests,
+    scale: int,
+    gt_prob: float,
+    pred_prob: float,
+    case: str,
+    gt_label: int,
+    pred_label: int,
+) -> None:
     set_random_seed(0)
     slide_image = np.random.rand(3, 1000, 2000)
-    slide_node = SlideNode(slide_id="slide_0", prob_score=0.5, true_label=1, pred_label=1)
-    fig = plot_slide(case="TP", slide_node=slide_node, slide_image=slide_image, scale=scale)
+    slide_node = SlideNode(
+        slide_id="slide_0", gt_prob_score=gt_prob, pred_prob_score=pred_prob, true_label=gt_label, pred_label=pred_label
+    )
+    fig = plot_slide(case=case, slide_node=slide_node, slide_image=slide_image, scale=scale)
     assert isinstance(fig, matplotlib.figure.Figure)
     file = Path(test_output_dirs.root_dir) / "plot_slide.png"
     resize_and_save(5, 5, file)
     assert file.exists()
-    expected = full_ml_test_data_path("histo_heatmaps") / f"slide_{scale}.png"
+    expected = full_ml_test_data_path("histo_heatmaps") / f"slide_{scale}_{case}.png"
     # To update the stored results, uncomment this line:
-    # expected.write_bytes(file.read_bytes())
+    expected.write_bytes(file.read_bytes())
     assert_binary_files_match(file, expected)
 
 
@@ -201,17 +218,18 @@ def test_plot_slide(test_output_dirs: OutputFolderForTests, scale: int) -> None:
 def test_plot_heatmap_overlay(test_output_dirs: OutputFolderForTests) -> None:
     set_random_seed(0)
     slide_image = np.random.rand(3, 1000, 2000)
-    slide_node = SlideNode(slide_id=1, prob_score=0.5, true_label=1, pred_label=1)  # type: ignore
+    slide_node = SlideNode(
+        slide_id=1, gt_prob_score=0.04, pred_prob_score=0.96, true_label=1, pred_label=0  # type: ignore
+    )
     location_bbox = [100, 100]
+    slide_dict = {SlideKey.IMAGE: slide_image, SlideKey.ORIGIN: location_bbox, SlideKey.SCALE: 1}
     tile_size = 224
-    level = 0
-    fig = plot_heatmap_overlay(case="TP",
+    fig = plot_heatmap_overlay(case="FN",
                                slide_node=slide_node,
-                               slide_image=slide_image,
+                               slide_dict=slide_dict,
                                results=test_dict,  # type: ignore
-                               location_bbox=location_bbox,
                                tile_size=tile_size,
-                               level=level)
+                               should_upscale_coords=False)
     assert isinstance(fig, matplotlib.figure.Figure)
     file = Path(test_output_dirs.root_dir) / "plot_heatmap_overlay.png"
     resize_and_save(5, 5, file)
@@ -247,28 +265,27 @@ def test_plot_normalized_confusion_matrix(test_output_dirs: OutputFolderForTests
 
 
 @pytest.mark.fast
+@pytest.mark.parametrize("should_upscale_coords", [True, False])
 @pytest.mark.parametrize("level", [0, 1, 2])
-def test_location_selected_tiles(level: int) -> None:
+def test_location_selected_tiles(level: int, should_upscale_coords: bool) -> None:
     set_random_seed(0)
     slide = 1
     location_bbox = [100, 100]
     slide_image = np.random.rand(3, 1000, 2000)
-
-    coords_list = []
-    slide_ids = [item[0] for item in test_dict[ResultsKey.SLIDE_ID]]  # type: ignore
-    slide_idx = slide_ids.index(slide)
-    for tile_idx in range(len(test_dict[ResultsKey.IMAGE_PATH][slide_idx])):  # type: ignore
-        tile_coords = np.transpose(np.array([test_dict[ResultsKey.TILE_LEFT][slide_idx][tile_idx].cpu().numpy(),
-                                             test_dict[ResultsKey.TILE_TOP][slide_idx][tile_idx].cpu().numpy()]))
-        coords_list.append(tile_coords)
-
-    coords = np.array(coords_list)
-    tile_coords_transformed = location_selected_tiles(tile_coords=coords,
-                                                      location_bbox=location_bbox,
-                                                      level=level)
-    tile_xs, tile_ys = tile_coords_transformed.T
     level_dict = {0: 1, 1: 4, 2: 16}
     factor = level_dict[level]
+
+    slide_ids = [item[0] for item in test_dict[ResultsKey.SLIDE_ID]]  # type: ignore
+    slide_idx = slide_ids.index(slide)
+    coords = np.transpose([test_dict[ResultsKey.TILE_LEFT][slide_idx].cpu().numpy(),  # type: ignore
+                           test_dict[ResultsKey.TILE_TOP][slide_idx].cpu().numpy()])  # type: ignore
+
+    coords = coords // factor if should_upscale_coords else coords
+    tile_coords_transformed = location_selected_tiles(tile_coords=coords,
+                                                      location_bbox=location_bbox,
+                                                      scale_factor=factor,
+                                                      should_upscale_coords=should_upscale_coords)
+    tile_xs, tile_ys = tile_coords_transformed.T
     assert min(tile_xs) >= 0
     assert max(tile_xs) <= slide_image.shape[2] // factor
     assert min(tile_ys) >= 0

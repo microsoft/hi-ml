@@ -7,16 +7,16 @@ import param
 from torch import nn
 from pathlib import Path
 from typing import Optional, Tuple
-from torchvision.models.resnet import resnet18, resnet50
-from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CheckpointDownloader
-from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
+from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_cpath.models.encoders import (
     HistoSSLEncoder,
-    ImageNetEncoder,
-    ImageNetEncoder_Resnet50,
     ImageNetSimCLREncoder,
     SSLEncoder,
     TileEncoder,
+    Resnet18,
+    Resnet50,
+    Resnet18_NoPreproc,
+    Resnet50_NoPreproc,
 )
 from health_ml.networks.layers.attention_layers import (
     AttentionLayer,
@@ -28,14 +28,28 @@ from health_ml.networks.layers.attention_layers import (
 )
 
 
+def set_module_gradients_enabled(model: nn.Module, tuning_flag: bool) -> None:
+    """Given a model, enable or disable gradients for all parameters.
+
+    :param model: A PyTorch model.
+    :param tuning_flag: A boolean indicating whether to enable or disable gradients for the model parameters.
+    """
+    for params in model.parameters():
+        params.requires_grad = tuning_flag
+
+
 class EncoderParams(param.Parameterized):
     """Parameters class to group all encoder specific attributes for deepmil module. """
 
     encoder_type: str = param.String(doc="Name of the encoder class to use.")
     tile_size: int = param.Integer(default=224, bounds=(1, None), doc="Tile width/height, in pixels.")
     n_channels: int = param.Integer(default=3, bounds=(1, None), doc="Number of channels in the tile.")
-    is_finetune: bool = param.Boolean(
-        False, doc="If True, fine-tune the encoder during training. If False (default), " "keep the encoder frozen."
+    tune_encoder: bool = param.Boolean(
+        False, doc="If True, fine-tune the encoder during training. If False (default), keep the encoder frozen."
+    )
+    pretrained_encoder = param.Boolean(
+        False, doc="If True, transfer weights from the pretrained model (specified in `src_checkpoint`) to the encoder."
+        "Else (False), keep the encoder weights as defined by the `encoder_type`."
     )
     is_caching: bool = param.Boolean(
         default=False,
@@ -45,26 +59,35 @@ class EncoderParams(param.Parameterized):
     encoding_chunk_size: int = param.Integer(
         default=0, doc="If > 0 performs encoding in chunks, by enconding_chunk_size tiles " "per chunk"
     )
+    ssl_checkpoint: CheckpointParser = param.ClassSelector(class_=CheckpointParser, default=None,
+                                                           instantiate=False, doc=CheckpointParser.DOC)
 
-    def get_encoder(self, ssl_ckpt_run_id: Optional[str], outputs_folder: Optional[Path]) -> TileEncoder:
+    def validate(self) -> None:
+        """Validate the encoder parameters."""
+        if self.encoder_type == SSLEncoder.__name__ and not self.ssl_checkpoint:
+            raise ValueError("SSLEncoder requires an ssl_checkpoint. Please specify a valid checkpoint. "
+                             f"{CheckpointParser.INFO_MESSAGE}")
+
+    def get_encoder(self, outputs_folder: Optional[Path]) -> TileEncoder:
         """Given the current encoder parameters, returns the encoder object.
 
-        :param ssl_ckpt_run_id: The AML run id for SSL checkpoint download.
         :param outputs_folder: The output folder where SSL checkpoint should be saved.
         :param encoder_params: The encoder arguments that define the encoder class object depending on the encoder type.
         :raises ValueError: If the encoder type is not supported.
         :return: A TileEncoder instance for deepmil module.
         """
         encoder: TileEncoder
-        if self.encoder_type == ImageNetEncoder.__name__:
-            encoder = ImageNetEncoder(
-                feature_extraction_model=resnet18, tile_size=self.tile_size, n_channels=self.n_channels,
-            )
-        elif self.encoder_type == ImageNetEncoder_Resnet50.__name__:
-            # Myronenko et al. 2021 uses Resnet50 CNN encoder
-            encoder = ImageNetEncoder_Resnet50(
-                feature_extraction_model=resnet50, tile_size=self.tile_size, n_channels=self.n_channels,
-            )
+        if self.encoder_type == Resnet18.__name__:
+            encoder = Resnet18(tile_size=self.tile_size, n_channels=self.n_channels)
+
+        elif self.encoder_type == Resnet18_NoPreproc.__name__:
+            encoder = Resnet18_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
+
+        elif self.encoder_type == Resnet50.__name__:
+            encoder = Resnet50(tile_size=self.tile_size, n_channels=self.n_channels)
+
+        elif self.encoder_type == Resnet50_NoPreproc.__name__:
+            encoder = Resnet50_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
 
         elif self.encoder_type == ImageNetSimCLREncoder.__name__:
             encoder = ImageNetSimCLREncoder(tile_size=self.tile_size, n_channels=self.n_channels)
@@ -73,24 +96,15 @@ class EncoderParams(param.Parameterized):
             encoder = HistoSSLEncoder(tile_size=self.tile_size, n_channels=self.n_channels)
 
         elif self.encoder_type == SSLEncoder.__name__:
-            assert ssl_ckpt_run_id and outputs_folder, "SSLEncoder requires ssl_ckpt_run_id and outputs_folder"
-            downloader = CheckpointDownloader(run_id=ssl_ckpt_run_id,
-                                              download_dir=outputs_folder,
-                                              checkpoint_filename=LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
-                                              remote_checkpoint_dir=Path(DEFAULT_AML_CHECKPOINT_DIR))
+            assert outputs_folder is not None, "outputs_folder cannot be None for SSLEncoder"
             encoder = SSLEncoder(
-                pl_checkpoint_path=downloader.local_checkpoint_path,
+                pl_checkpoint_path=self.ssl_checkpoint.get_path(outputs_folder),
                 tile_size=self.tile_size,
                 n_channels=self.n_channels,
             )
         else:
             raise ValueError(f"Unsupported encoder type: {self.encoder_type}")
-
-        if self.is_finetune:
-            for params in encoder.parameters():
-                params.requires_grad = True
-        else:
-            encoder.eval()
+        set_module_gradients_enabled(encoder, tuning_flag=self.tune_encoder)
         return encoder
 
 
@@ -106,9 +120,20 @@ class PoolingParams(param.Parameterized):
         default=4, doc="If transformer pooling is chosen, this defines the number of encoding layers.",
     )
     num_transformer_pool_heads: int = param.Integer(
-        4,
-        doc="If transformer pooling is chosen, this defines the number\
-         of attention heads.",
+        default=4, doc="If transformer pooling is chosen, this defines the number of attention heads.",
+    )
+    tune_pooling: bool = param.Boolean(
+        default=True,
+        doc="If True (default), fine-tune the pooling layer during training. If False, keep the pooling layer frozen.",
+    )
+    pretrained_pooling = param.Boolean(
+        default=False,
+        doc="If True, transfer weights from the pretrained model (specified in `src_checkpoint`) to the pooling"
+        "layer. Else (False), initialize the pooling layer randomly.",
+    )
+    transformer_dropout: float = param.Number(
+        default=0.0,
+        doc="If transformer pooling is chosen, this defines the dropout of the tranformer encoder layers.",
     )
 
     def get_pooling_layer(self, num_encoding: int) -> Tuple[nn.Module, int]:
@@ -121,24 +146,53 @@ class PoolingParams(param.Parameterized):
         """
         pooling_layer: nn.Module
         if self.pool_type == AttentionLayer.__name__:
-            pooling_layer = AttentionLayer(num_encoding, self.pool_hidden_dim, self.pool_out_dim)
+            pooling_layer = AttentionLayer(input_dims=num_encoding,
+                                           hidden_dims=self.pool_hidden_dim,
+                                           attention_dims=self.pool_out_dim)
         elif self.pool_type == GatedAttentionLayer.__name__:
-            pooling_layer = GatedAttentionLayer(num_encoding, self.pool_hidden_dim, self.pool_out_dim)
+            pooling_layer = GatedAttentionLayer(input_dims=num_encoding,
+                                                hidden_dims=self.pool_hidden_dim,
+                                                attention_dims=self.pool_out_dim)
         elif self.pool_type == MeanPoolingLayer.__name__:
             pooling_layer = MeanPoolingLayer()
         elif self.pool_type == MaxPoolingLayer.__name__:
             pooling_layer = MaxPoolingLayer()
         elif self.pool_type == TransformerPooling.__name__:
             pooling_layer = TransformerPooling(
-                self.num_transformer_pool_layers, self.num_transformer_pool_heads, num_encoding
-            )
+                num_layers=self.num_transformer_pool_layers,
+                num_heads=self.num_transformer_pool_heads,
+                dim_representation=num_encoding,
+                transformer_dropout=self.transformer_dropout)
             self.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
         elif self.pool_type == TransformerPoolingBenchmark.__name__:
             pooling_layer = TransformerPoolingBenchmark(
-                self.num_transformer_pool_layers, self.num_transformer_pool_heads, num_encoding, self.pool_hidden_dim
-            )
+                num_layers=self.num_transformer_pool_layers,
+                num_heads=self.num_transformer_pool_heads,
+                dim_representation=num_encoding,
+                hidden_dim=self.pool_hidden_dim,
+                transformer_dropout=self.transformer_dropout)
             self.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
         else:
-            raise ValueError(f"Unsupported pooling type: {self.pooling_type}")
+            raise ValueError(f"Unsupported pooling type: {self.pool_type}")
         num_features = num_encoding * self.pool_out_dim
+        set_module_gradients_enabled(pooling_layer, tuning_flag=self.tune_pooling)
         return pooling_layer, num_features
+
+
+class ClassifierParams(param.Parameterized):
+    dropout_rate: Optional[float] = param.Number(None, bounds=(0, 1), doc="Pre-classifier dropout rate.")
+    tune_classifier: bool = param.Boolean(
+        default=True,
+        doc="If True (default), fine-tune the classifier during training. If False, keep the classifier frozen.")
+    pretrained_classifier: bool = param.Boolean(
+        default=False,
+        doc="If True, will use classifier weights from pretrained model specified in src_checkpoint. If False, will "
+            "initiliaze classifier with random weights.")
+
+    def get_classifier(self, in_features: int, out_features: int) -> nn.Module:
+        classifier_layer = nn.Linear(in_features=in_features,
+                                     out_features=out_features)
+        set_module_gradients_enabled(classifier_layer, tuning_flag=self.tune_classifier)
+        if self.dropout_rate is None:
+            return classifier_layer
+        return nn.Sequential(nn.Dropout(self.dropout_rate), classifier_layer)

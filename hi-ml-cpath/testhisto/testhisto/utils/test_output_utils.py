@@ -1,12 +1,14 @@
 from pathlib import Path
 from typing import Dict, List
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 import torch
 import torch.distributed
 import torch.multiprocessing
 from ruamel.yaml import YAML
+from health_cpath.preprocessing.loading import LoadingParams
+from health_cpath.utils.tiles_selection_utils import TilesSelector
 from testhisto.utils.utils_testhisto import run_distributed
 from torch.testing import assert_close
 from torchmetrics.metric import Metric
@@ -30,7 +32,7 @@ def _create_outputs_handler(outputs_root: Path) -> DeepMILOutputsHandler:
         outputs_root=outputs_root,
         n_classes=1,
         tile_size=224,
-        level=1,
+        loading_params=LoadingParams(level=1),
         class_names=None,
         primary_val_metric=_PRIMARY_METRIC_KEY,
         maximise=True,
@@ -251,3 +253,27 @@ def test_collate_results_multigpu() -> None:
     epoch_results = _create_epoch_results(batch_size, num_batches, rank=0, device='cuda:0') \
         + _create_epoch_results(batch_size, num_batches, rank=1, device='cuda:1')
     _test_collate_results(epoch_results, total_num_samples=2 * num_batches * batch_size)
+
+
+@pytest.mark.parametrize('val_set_is_dist', [True, False])
+def test_results_gathering_with_val_set_is_dist_flag(val_set_is_dist: bool, tmp_path: Path) -> None:
+    outputs_handler = _create_outputs_handler(tmp_path)
+    outputs_handler.tiles_selector = TilesSelector(2, num_slides=2, num_tiles=2)
+    outputs_handler.val_set_is_dist = val_set_is_dist
+    outputs_handler._save_outputs = MagicMock()  # type: ignore
+    metric_value = 0.5
+    with patch("health_cpath.utils.output_utils.gather_results") as mock_gather_results:
+        with patch.object(outputs_handler.tiles_selector, "gather_selected_tiles_across_devices") as mock_gather_tiles:
+            with patch.object(outputs_handler.tiles_selector, "_clear_cached_slides_heaps") as mock_clear_cache:
+                with patch.object(outputs_handler, "should_gather_tiles") as mock_should_gather_tiles:
+                    mock_should_gather_tiles.return_value = True
+                    for rank in range(2):
+                        epoch_results = [{_PRIMARY_METRIC_KEY: [metric_value] * 5, _RANK_KEY: rank}]
+                        outputs_handler.save_validation_outputs(
+                            epoch_results=epoch_results,  # type: ignore
+                            metrics_dict=_get_mock_metrics_dict(metric_value),
+                            epoch=0,
+                            is_global_rank_zero=rank == 0)
+                        assert mock_gather_results.called == val_set_is_dist
+                        assert mock_gather_tiles.called == val_set_is_dist
+                        mock_clear_cache.assert_called()

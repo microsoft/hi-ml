@@ -6,6 +6,8 @@
   ],
   "exclude": [
     "hi-ml/other",
+    // The Amulet example script uses a Python 3.9 feature (f'{foo=}') that Pyright doesn't support yet.
+    "docs/source/amulet",
   ],
   "useLibraryCodeForTypes": false,
   "reportMissingImports": true,

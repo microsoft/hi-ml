@@ -1,0 +1,28 @@
+/.git
+/.github
+/azure-pipelines
+/docs/build
+/.idea
+outputs/
+__pycache__/
+.pytest_cache
+.mypy_cache
+logs/
+config.json
+*.egg-info
+# Temporary files generated from conda merging
+temp_environment-*
+.config
+.vscode
+node_modules
+
+# Temp folders created from SSL tests
+cifar-10-python.tar.gz
+cifar-10-batches-py/
+None/
+hi-ml-cpath/testSSL/test_outputs
+hi-ml-cpath/testhisto/test_data
+test_outputs/
+lightning_logs/
+# Downloaded datasets
+TCGA-Crck/

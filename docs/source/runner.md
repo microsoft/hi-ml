@@ -226,6 +226,8 @@ the model weights by setting `--src_checkpoint` argument that supports three typ
   checkpoints folder `outputs/checkpoints`. If no filename is provided (e.g., `--src_checkpoint=AzureML_run_id`),
   the last epoch checkpoint `outputs/checkpoints/last.ckpt` will be loaded.
 
+Refer to [Checkpoints Utils](checkpoints.md) for more details on how checkpoints are parsed.
+
 Running the following command line will run inference using `MyContainer` model with weights from the checkpoint saved
 in the AzureMl run `MyContainer_XXXX_yyyy` at the best validation loss epoch `/outputs/checkpoints/best_val_loss.ckpt`.
 
@@ -235,12 +237,12 @@ himl-runner --model=Mycontainer --run_inference_only --src_checkpoint=MyContaine
 
 ## Resume training from a given checkpoint
 
-Analogously, one can resume training by setting `--src_checkpoint` to either continue training or transfer learning.
+Analogously, one can resume training by setting `--src_checkpoint` and `--resume_training` to train a model longer.
 The pytorch lightning trainer will initialize the lightning module from the given checkpoint corresponding to the best
 validation loss epoch as set in the following comandline.
 
 ```bash
-himl-runner --model=Mycontainer --cluster=my_cluster_name --src_checkpoint=MyContainer_XXXX_yyyy:best_val_loss.ckpt
+himl-runner --model=Mycontainer --cluster=my_cluster_name --src_checkpoint=MyContainer_XXXX_yyyy:best_val_loss.ckpt --resume_training
 ```
 
 Warning: When resuming training, one should make sure to set `container.max_epochs` greater than the last epoch of the
@@ -279,3 +281,22 @@ The following command will log to the experiment `my_experiment`, in a run that 
 ```bash
 himl-runner --model=HelloWorld --log_from_vm --experiment=my_experiment --tag=my_first_run
 ```
+
+## Starting experiments with different seeds
+
+To assess the variability of metrics, it is often useful to run the same experiment multiple times with different seeds.
+There is a built-in functionality of the runner to do this. When adding the commandline flag `--different_seeds=3`, your
+experiment will get run 3 times with seeds 0, 1 and 2. This is equivalent to starting the runner with arguments
+`--random_seed=0`, `--random_seed=1` and `--random_seed=2`.
+
+These runs will be started in parallel in AzureML via the HyperDrive framework. It is not possible to run with different
+seeds on a local machine, other than by manually starting runs with `--random_seed=0` etc.
+
+## Common problems with running in AML
+
+1. `"Your total snapshot size exceeds the limit <SNAPSHOT_LIMIT>"`. Cause: The size of your source directory is larger than
+   the limit that AML sets for snapshots. Solution: check for cache files, log files or other files that are not
+   necessary for running your experiment and add them to a `.amlignore` file in the root directory. Alternatively, you
+   can see Azure ML documentation for instructions on increasing this limit, although it will make your jobs slower.
+2. `"FileNotFoundError"`. Possible cause: Symlinked files. Azure ML SDK v2 will resolve the symlink and attempt to upload
+the resolved file. Solution: Remove symlinks from any files that should be uploaded to Azure ML.

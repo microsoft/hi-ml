@@ -11,6 +11,11 @@ on:
       - "hi-ml/**"
       - ".github/workflows/hi-ml-pr.yml"
 
+# Cancel previous runs of this workflow that are still in progress.
+concurrency:
+  group: ${{ github.ref }}/hi-ml-pr
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
 env:
   pythonVersion: 3.7
   HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
@@ -22,10 +27,21 @@ env:
   HIML_DIST_ARTIFACT_SUFFIX: '-dist'
   HIML_PACKAGE_NAME_ARTIFACT_SUFFIX: '-package_name'
   HIML_VERSION_ARTIFACT_SUFFIX: '-latest_version'
+  # Set the AML experiment name for all AML jobs submitted during tests. Github.ref looks like
+  # "refs/pull/123/merge" for PR builds.
+  HIML_EXPERIMENT_NAME: ${{ github.ref }}
   PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
   PYPI_TEST_API_TOKEN: ${{ secrets.PYPI_TEST_API_TOKEN }}
 
 jobs:
+
+  cancel-azureml:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Cancel previous AzureML runs
+        uses: ./.github/actions/cancel_azureml_jobs
 
   flake8:
     runs-on: ubuntu-20.04
@@ -144,7 +160,7 @@ jobs:
 
   test-artifact-pkg:
     runs-on: ubuntu-20.04
-    needs: [ build-python ]
+    needs: [ build-python, cancel-azureml ]
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
@@ -205,7 +221,7 @@ jobs:
 
   publish-testpypi-pkg:
     runs-on: ubuntu-20.04
-    needs: [ test-artifact-pkg ]
+    needs: [ test-artifact-pkg, pyright, mypy, flake8 ]
     if: "!startsWith(github.ref, 'refs/tags/v')"
     strategy:
       matrix:
@@ -237,7 +253,7 @@ jobs:
 
   publish-pypi-pkg:
     runs-on: ubuntu-20.04
-    needs: [ test-artifact-pkg ]
+    needs: [ test-artifact-pkg, pyright, mypy, flake8 ]
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]

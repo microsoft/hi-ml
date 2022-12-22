@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from pathlib import Path
 
 import param
+import logging
 from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 from pytorch_lightning import Callback, LightningDataModule, LightningModule
@@ -37,6 +38,7 @@ class LightningContainer(WorkflowParams,
         self._model: Optional[LightningModule] = None
         self._model_name = type(self).__name__
         self.num_nodes = 1
+        self.trained_weights_path: Optional[Path] = None
 
     def validate(self) -> None:
         WorkflowParams.validate(self)
@@ -89,9 +91,17 @@ class LightningContainer(WorkflowParams,
         metric should be monitored.
 
         :param run_config: The ScriptRunConfig object that needs to be passed into the constructor of
-        HyperDriveConfig.
+            HyperDriveConfig.
         """
         raise NotImplementedError("Parameter search is not implemented. Please override 'get_parameter_tuning_config' "
+                                  "in your model container.")
+
+    def get_parameter_tuning_args(self) -> Dict[str, Any]:
+        """
+        Returns a dictionary of hyperperameter argument names and values as expected by a AML SDK v2 job
+        to perform hyperparameter search
+        """
+        raise NotImplementedError("Parameter search is not implemented. Please override 'get_parameter_tuning_args' "
                                   "in your model container.")
 
     def update_experiment_config(self, experiment_config: ExperimentConfig) -> None:
@@ -170,14 +180,32 @@ class LightningContainer(WorkflowParams,
 
     def get_hyperdrive_config(self) -> Optional[HyperDriveConfig]:
         """
-        Returns the HyperDrive config for either hyperparameter tuning or cross validation.
+        Returns the HyperDrive config for either hyperparameter tuning, cross validation, or running with
+        different seeds.
 
         :return: A configuration object for HyperDrive
         """
-        if self.is_crossvalidation_enabled:
-            return self.get_crossval_hyperdrive_config()
         if self.hyperdrive:
             return self.get_parameter_tuning_config(ScriptRunConfig(source_directory=""))
+        if self.is_crossvalidation_enabled:
+            return self.get_crossval_hyperdrive_config()
+        if self.different_seeds > 0:
+            return self.get_different_seeds_hyperdrive_config()
+        return None
+
+    def get_hyperparam_args(self) -> Optional[Dict[str, Any]]:
+        """
+        Returns a dictionary of hyperparameter search arguments that will be passed to an AML v2 command to
+        enable either hyperparameter tuning,  cross validation, or running with different seeds.
+
+        :return: A dictionary of hyperparameter search arguments and values.
+        """
+        if self.hyperdrive:
+            return self.get_parameter_tuning_args()
+        if self.is_crossvalidation_enabled:
+            return self.get_crossval_hyperparam_args_v2()
+        if self.different_seeds > 0:
+            return self.get_grid_hyperparam_args_v2()
         return None
 
     def load_model_checkpoint(self, checkpoint_path: Path) -> None:
@@ -219,6 +247,22 @@ class LightningContainer(WorkflowParams,
         """Returns the name of the AzureML experiment that should be used. This is taken from the commandline
         argument `experiment`, falling back to the model class name if not set."""
         return self.experiment or self.model_name
+
+    def get_additional_aml_run_tags(self) -> Dict[str, str]:
+        """Returns a dictionary of tags that should be added to the AzureML run."""
+        return {}
+
+    def get_additional_environment_variables(self) -> Dict[str, str]:
+        """Returns a dictionary of environment variables that should be added to the AzureML run."""
+        return {}
+
+    def on_run_extra_validation_epoch(self) -> None:
+        if hasattr(self.model, "on_run_extra_validation_epoch"):
+            assert self._model, "Model is not initialized."
+            self.model.on_run_extra_validation_epoch()  # type: ignore
+        else:
+            logging.warning("Hook `on_run_extra_validation_epoch` is not implemented by lightning module."
+                            "The extra validation epoch won't produce any extra outputs.")
 
 
 class LightningModuleWithOptimizer(LightningModule):

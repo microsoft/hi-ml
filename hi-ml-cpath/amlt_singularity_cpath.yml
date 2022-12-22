@@ -1,0 +1,31 @@
+description: Computational Pathology jobs to run on Singularity
+
+environment:
+  image: azureml/openmpi3.1.2-cuda10.2-cudnn7-ubuntu18.04:latest
+  conda_yaml_file: $CONFIG_DIR/environment.yml
+
+code:
+  # local directory of the code. this will be uploaded to the server.
+  # $CONFIG_DIR is expanded to the directory of this config file
+  local_dir: $CONFIG_DIR/../
+
+storage:
+  data:
+    storage_account_name: <storage_account_name>
+    container_name: datasets
+    mount_dir: /mnt/data
+
+
+# list of jobs to run
+jobs:
+- name: TilesPandaImageNetMIL
+  sku: G1
+  command:
+  - python hi-ml/src/health_ml/runner.py --model=health_cpath.TilesPandaImageNetMIL --tune_encoder --batch_size=2
+    --crossval_count=0 --num_top_slides=2 --num_top_tiles=2 --max_bag_size=3 --max_bag_size_inf=3
+    --mount_in_azureml=True --pl_limit_train_batches=2 --pl_limit_val_batches=2 --pl_limit_test_batches=2
+
+- name: SlidesPandaImageNetMIL
+  sku: G1
+  command:
+  - python hi-ml/src/health_ml/runner.py --model=health_cpath.SlidesPandaImageNetMIL --tune_encoder --crossval_count=0 --num_top_slides=2 --num_top_tiles=2 --max_bag_size=3 --max_bag_size_inf=3

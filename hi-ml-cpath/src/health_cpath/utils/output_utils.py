@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  -------------------------------------------------------------------------------------------
 
+from copy import deepcopy
 import shutil
 from itertools import chain
 from pathlib import Path
@@ -14,11 +15,11 @@ import torch
 import logging
 
 from ruamel.yaml import YAML
-from torchmetrics import Accuracy
 from torchmetrics.metric import Metric
 
 from health_azure.utils import replace_directory
 from health_cpath.datasets.base_dataset import SlidesDataset
+from health_cpath.preprocessing.loading import LoadingParams
 from health_cpath.utils.plots_utils import DeepMILPlotsHandler, TilesSelector
 from health_cpath.utils.naming import MetricsKey, ModelKey, PlotOption, ResultsKey
 
@@ -26,6 +27,8 @@ OUTPUTS_CSV_FILENAME = "test_output.csv"
 VAL_OUTPUTS_SUBDIR = "val"
 PREV_VAL_OUTPUTS_SUBDIR = "val_old"
 TEST_OUTPUTS_SUBDIR = "test"
+EXTRA_VAL_OUTPUTS_SUBDIR = "extra_val"
+EXTRA_PREFIX = "extra_"
 
 AML_OUTPUTS_DIR = "outputs"
 AML_LEGACY_TEST_OUTPUTS_CSV = "/".join([AML_OUTPUTS_DIR, OUTPUTS_CSV_FILENAME])
@@ -56,10 +59,18 @@ def validate_class_names(class_names: Optional[Sequence[str]], n_classes: int) -
 def validate_slide_datasets_for_plot_options(
     plot_options: Collection[PlotOption], slides_dataset: Optional[SlidesDataset]
 ) -> None:
-    if PlotOption.SLIDE_THUMBNAIL_HEATMAP in plot_options and not slides_dataset:
-        raise ValueError("You can not plot slide thumbnails and heatmaps without setting a slides_dataset. "
-                         "Please remove `PlotOption.SLIDE_THUMBNAIL_HEATMAP` from your plot options or provide "
-                         "a slide dataset.")
+    """Validate that the specified plot options are compatible with the specified slides dataset.
+
+    :param plot_options: Plot options to validate.
+    :param slides_dataset: Slides dataset to validate against.
+    """
+
+    def _validate_slide_plot_option(plot_option: PlotOption) -> None:
+        if plot_option in plot_options and not slides_dataset:
+            raise ValueError(f"Plot option {plot_option} requires a slides dataset")
+
+    _validate_slide_plot_option(PlotOption.SLIDE_THUMBNAIL)
+    _validate_slide_plot_option(PlotOption.ATTENTION_HEATMAP)
 
 
 def normalize_dict_for_df(dict_old: Dict[ResultsKey, Any]) -> Dict[str, Any]:
@@ -195,7 +206,7 @@ class OutputsPolicy:
         YAML().dump(contents, self.best_metric_file_path)
 
     def should_save_validation_outputs(self, metrics_dict: Mapping[MetricsKey, Metric], epoch: int,
-                                       is_global_rank_zero: bool = True) -> bool:
+                                       is_global_rank_zero: bool = True, on_extra_val: bool = False) -> bool:
         """Determine whether validation outputs should be saved given the current epoch's metrics.
 
         :param metrics_dict: Current epoch's metrics dictionary from
@@ -203,8 +214,11 @@ class OutputsPolicy:
         :param epoch: Current epoch number.
         :param is_global_rank_zero: Whether this is the global rank-0 process in distributed scenarios.
             Set to `True` (default) if running a single process.
+        :param on_extra_val: Whether this is an extra validation epoch (e.g. after training).
         :return: Whether this is the best validation epoch so far.
         """
+        if on_extra_val:
+            return False
         metric = metrics_dict[self.primary_val_metric]
         # If the metric hasn't been updated we don't want to save it
         if not metric._update_called:
@@ -212,10 +226,6 @@ class OutputsPolicy:
             return False
         # The metric needs to be computed on all ranks to allow synchronisation
         metric_value = float(metric.compute())
-
-        # It seems to be necessary to reset the Accuracy metric after computing, else some processes get stuck here
-        if isinstance(metric, Accuracy):
-            metric.reset()
 
         # Validation outputs and best metric should be saved only by the global rank-0 process
         if not is_global_rank_zero:
@@ -246,50 +256,59 @@ class OutputsPolicy:
 class DeepMILOutputsHandler:
     """Class that manages writing validation and test outputs for DeepMIL models."""
 
-    def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, level: int,
+    def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, loading_params: LoadingParams,
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
                  maximise: bool, val_plot_options: Collection[PlotOption],
-                 test_plot_options: Collection[PlotOption]) -> None:
+                 test_plot_options: Collection[PlotOption], val_set_is_dist: bool = True,
+                 save_intermediate_outputs: bool = True) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
         :param tile_size: The size of each tile.
-        :param level: The downsampling level (e.g. 0, 1, 2) of the tiles if available (default=1).
+        :param loading_params: Parameters for loading WSI to create plots. This paramter is passed to PlotsHandler.
         :param class_names: List of class names. For binary (`n_classes == 1`), expects `len(class_names) == 2`.
             If `None`, will return `('0', '1', ...)`.
         :param primary_val_metric: Name of the validation metric to track for saving best epoch outputs.
         :param maximise: Whether higher is better for `primary_val_metric`.
         :param val_plot_options: The desired plot options for validation time.
         :param test_plot_options: The desired plot options for test time.
+        :param val_set_is_dist: If True, the validation set is distributed across processes. Otherwise, the validation
+            set is replicated on each process. This shouldn't affect the results, as we take the mean of the validation
+            set metrics across processes. This is only relevant for the outputs_handler, which needs to know whether to
+            gather the validation set outputs across processes or not before saving them.
+        :param save_intermediate_outputs: Whether to save intermediate outputs (e.g. after each epoch).
         """
         self.outputs_root = outputs_root
         self.n_classes = n_classes
-        self.tile_size = tile_size
-        self.level = level
         self.class_names = validate_class_names(class_names, self.n_classes)
-
         self.outputs_policy = OutputsPolicy(outputs_root=outputs_root,
                                             primary_val_metric=primary_val_metric,
                                             maximise=maximise)
-
+        self.save_intermediate_outputs = save_intermediate_outputs
         self.tiles_selector: Optional[TilesSelector] = None
-
         self.val_plots_handler = DeepMILPlotsHandler(
             plot_options=val_plot_options,
-            level=self.level,
-            tile_size=self.tile_size,
-            class_names=self.class_names
+            tile_size=tile_size,
+            class_names=self.class_names,
+            stage=ModelKey.VAL,
+            loading_params=deepcopy(loading_params),
         )
         self.test_plots_handler = DeepMILPlotsHandler(
             plot_options=test_plot_options,
-            level=self.level,
-            tile_size=self.tile_size,
-            class_names=self.class_names
+            tile_size=tile_size,
+            class_names=self.class_names,
+            stage=ModelKey.TEST,
+            loading_params=deepcopy(loading_params),
         )
+        self.val_set_is_dist = val_set_is_dist
 
     @property
     def validation_outputs_dir(self) -> Path:
         return self.outputs_root / VAL_OUTPUTS_SUBDIR
+
+    @property
+    def extra_validation_outputs_dir(self) -> Path:
+        return self.outputs_root / EXTRA_VAL_OUTPUTS_SUBDIR
 
     @property
     def previous_validation_outputs_dir(self) -> Path:
@@ -305,11 +324,15 @@ class DeepMILOutputsHandler:
         self.test_plots_handler.slides_dataset = slides_dataset
         self.val_plots_handler.slides_dataset = slides_dataset
 
+    def should_gather_tiles(self, plots_handler: DeepMILPlotsHandler) -> bool:
+        return PlotOption.TOP_BOTTOM_TILES in plots_handler.plot_options and self.tiles_selector is not None
+
     def _save_outputs(self, epoch_results: EpochResultsType, outputs_dir: Path, stage: ModelKey = ModelKey.VAL) -> None:
         """Trigger the rendering and saving of DeepMIL outputs and figures.
 
         :param epoch_results: Aggregated results from all epoch batches.
         :param outputs_dir: Specific directory into which outputs should be saved (different for validation and test).
+        :param stage: The stage of the model (e.g. `ModelKey.VAL` or `ModelKey.TEST`).
         """
         # outputs object consists of a list of dictionaries (of metadata and results, including encoded features)
         # It can be indexed as outputs[batch_idx][batch_key][bag_idx][tile_idx]
@@ -326,8 +349,7 @@ class DeepMILOutputsHandler:
         plots_handler.save_plots(outputs_dir, self.tiles_selector, results)
 
     def save_validation_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric],
-                                epoch: int, is_global_rank_zero: bool = True, run_extra_val_epoch: bool = False
-                                ) -> None:
+                                epoch: int, is_global_rank_zero: bool = True, on_extra_val: bool = False) -> None:
         """Render and save validation epoch outputs, according to the configured :py:class:`OutputsPolicy`.
 
         :param epoch_results: Aggregated results from all epoch batches, as passed to :py:meth:`validation_epoch_end()`.
@@ -336,17 +358,19 @@ class DeepMILOutputsHandler:
         :param is_global_rank_zero: Whether this is the global rank-0 process in distributed scenarios.
             Set to `True` (default) if running a single process.
         :param epoch: Current epoch number.
+        :param on_extra_val: Whether this is an extra validation epoch (e.g. after training).
         """
-        # All DDP processes must reach this point to allow synchronising epoch results
-        gathered_epoch_results = gather_results(epoch_results)
-        if PlotOption.TOP_BOTTOM_TILES in self.val_plots_handler.plot_options and self.tiles_selector:
-            self.tiles_selector.gather_selected_tiles_across_devices()
+        # All DDP processes must reach this point to allow synchronising epoch results if val_set_is_dist is True
+        if self.val_set_is_dist:
+            epoch_results = gather_results(epoch_results)
+
+            if self.should_gather_tiles(self.val_plots_handler):
+                self.tiles_selector.gather_selected_tiles_across_devices()  # type: ignore
 
         # Only global rank-0 process should actually render and save the outputs
         # We also want to save the plots of the extra validation epoch
-        if (
-            self.outputs_policy.should_save_validation_outputs(metrics_dict, epoch, is_global_rank_zero)
-            or (run_extra_val_epoch and is_global_rank_zero)
+        if self.save_intermediate_outputs and self.outputs_policy.should_save_validation_outputs(
+            metrics_dict, epoch, is_global_rank_zero, on_extra_val
         ):
             # First move existing outputs to a temporary directory, to avoid mixing
             # outputs of different epochs in case writing fails halfway through
@@ -354,11 +378,17 @@ class DeepMILOutputsHandler:
                 replace_directory(source=self.validation_outputs_dir,
                                   target=self.previous_validation_outputs_dir)
 
-            self._save_outputs(gathered_epoch_results, self.validation_outputs_dir, ModelKey.VAL)
+            self._save_outputs(epoch_results, self.validation_outputs_dir, ModelKey.VAL)
 
             # Writing completed successfully; delete temporary back-up
             if self.previous_validation_outputs_dir.exists():
                 shutil.rmtree(self.previous_validation_outputs_dir, ignore_errors=True)
+        elif on_extra_val and is_global_rank_zero:
+            self._save_outputs(epoch_results, self.extra_validation_outputs_dir, ModelKey.VAL)
+
+        # Reset the top and bottom slides heaps
+        if self.should_gather_tiles(self.val_plots_handler):
+            self.tiles_selector._clear_cached_slides_heaps()  # type: ignore
 
     def save_test_outputs(self, epoch_results: EpochResultsType, is_global_rank_zero: bool = True) -> None:
         """Render and save test epoch outputs.
@@ -370,8 +400,8 @@ class DeepMILOutputsHandler:
         """
         # All DDP processes must reach this point to allow synchronising epoch results
         gathered_epoch_results = gather_results(epoch_results)
-        if PlotOption.TOP_BOTTOM_TILES in self.test_plots_handler.plot_options and self.tiles_selector:
-            self.tiles_selector.gather_selected_tiles_across_devices()
+        if self.should_gather_tiles(self.test_plots_handler):
+            self.tiles_selector.gather_selected_tiles_across_devices()  # type: ignore
 
         # Only global rank-0 process should actually render and save the outputs-
         if self.outputs_policy.should_save_test_outputs(is_global_rank_zero):

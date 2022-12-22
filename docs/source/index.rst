@@ -22,11 +22,18 @@ The `hi-ml` toolbox provides
    azure_setup.md
    authentication.md
    datasets.md
-   hyperdrive.md
+   hyperparameter_search.md
    lowpriority.md
    commandline_tools.md
    downloading.md
    examples.md
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Working with Amulet
+
+   amulet_overview.md
+   amulet_example.rst
 
 .. toctree::
    :maxdepth: 1
@@ -35,6 +42,7 @@ The `hi-ml` toolbox provides
    logging.md
    diagnostics.md
    runner.md
+   checkpoints.md
 
 .. toctree::
    :maxdepth: 1

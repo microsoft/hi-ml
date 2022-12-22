@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-PANDA_DATASET_ID = "PANDA"
+PANDA_DATASET_ID = "panda"
 PANDA_5X_TILES_DATASET_ID = "PANDA_5X_tiles_20220714_134233_level1_224"
 PANDA_20X_TILES_DATASET_ID = "PANDA_20X_tiles_20220714_142937_level0_224"
 

@@ -6,8 +6,8 @@ from contextlib import contextmanager
 import shutil
 import sys
 from pathlib import Path
-from typing import Generator, List, Optional
-from unittest.mock import patch, MagicMock
+from typing import Any, Dict, Generator, List, Optional
+from unittest.mock import patch, MagicMock, DEFAULT, create_autospec
 
 import pytest
 from _pytest.capture import SysCapture
@@ -17,6 +17,7 @@ from health_azure import AzureRunInfo, DatasetConfig
 from health_azure.paths import ENVIRONMENT_YAML_FILE_NAME
 from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.deep_learning_config import WorkflowParams
+from health_ml.experiment_config import DEBUG_DDP_ENV_VAR, DebugDDPOptions
 from health_ml.lightning_container import LightningContainer
 from health_ml.runner import Runner
 from health_ml.utils.common_utils import change_working_directory
@@ -83,6 +84,60 @@ def test_parse_and_load_model(mock_runner: Runner, model_name: Optional[str], cl
             assert mock_runner.lightning_container.model_name == model_name
 
 
+@pytest.mark.parametrize("debug_ddp", ["OFF", "INFO", "DETAIL"])
+def test_ddp_debug_flag(debug_ddp: DebugDDPOptions, mock_runner: Runner) -> None:
+    model_name = "HelloWorld"
+    arguments = ["", f"--debug_ddp={debug_ddp}", f"--model={model_name}"]
+    with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_azure_if_needed:
+        with patch("health_ml.runner.get_workspace"):
+            with patch("health_ml.runner.Runner.run_in_situ"):
+                with patch.object(sys, "argv", arguments):
+                    mock_runner.run()
+        mock_submit_to_azure_if_needed.assert_called_once()
+        assert mock_submit_to_azure_if_needed.call_args[1]["environment_variables"][DEBUG_DDP_ENV_VAR] == debug_ddp
+
+
+def test_additional_aml_run_tags(mock_runner: Runner) -> None:
+    model_name = "HelloWorld"
+    arguments = ["", f"--model={model_name}", "--cluster=foo"]
+    with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_azure_if_needed:
+        with patch("health_ml.runner.check_conda_environment"):
+            with patch("health_ml.runner.get_workspace"):
+                with patch("health_ml.runner.get_ml_client"):
+                    with patch("health_ml.runner.Runner.run_in_situ"):
+                        with patch.object(sys, "argv", arguments):
+                            mock_runner.run()
+        mock_submit_to_azure_if_needed.assert_called_once()
+        assert "commandline_args" in mock_submit_to_azure_if_needed.call_args[1]["tags"]
+        assert "tag" in mock_submit_to_azure_if_needed.call_args[1]["tags"]
+        assert "max_epochs" in mock_submit_to_azure_if_needed.call_args[1]["tags"]
+
+
+def test_additional_environment_variables(mock_runner: Runner) -> None:
+    model_name = "HelloWorld"
+    arguments = ["", f"--model={model_name}", "--cluster=foo"]
+    with patch.multiple(
+        "health_ml.runner",
+        submit_to_azure_if_needed=DEFAULT,
+        check_conda_environment=DEFAULT,
+        get_workspace=DEFAULT,
+        get_ml_client=DEFAULT,
+    ) as mocks:
+        with patch("health_ml.runner.Runner.run_in_situ"):
+            with patch("health_ml.runner.Runner.parse_and_load_model"):
+                with patch("health_ml.runner.Runner.validate"):
+                    with patch.object(sys, "argv", arguments):
+                        mock_container = create_autospec(LightningContainer)
+                        mock_container.get_additional_environment_variables = MagicMock(return_value={"foo": "bar"})
+                        mock_runner.lightning_container = mock_container
+                        mock_runner.run()
+        mocks["submit_to_azure_if_needed"].assert_called_once()
+        mock_env_vars = mocks["submit_to_azure_if_needed"].call_args[1]["environment_variables"]
+        assert DEBUG_DDP_ENV_VAR in mock_env_vars
+        assert "foo" in mock_env_vars
+        assert mock_env_vars["foo"] == "bar"
+
+
 def test_run(mock_runner: Runner) -> None:
     model_name = "HelloWorld"
     arguments = ["", f"--model={model_name}"]
@@ -105,7 +160,10 @@ def test_submit_to_azureml_if_needed(mock_get_workspace: MagicMock,
                                      mock_get_env_files: MagicMock,
                                      mock_runner: Runner
                                      ) -> None:
-    def _mock_dont_submit_to_aml(input_datasets: List[DatasetConfig], submit_to_azureml: bool  # type: ignore
+    def _mock_dont_submit_to_aml(input_datasets: List[DatasetConfig],
+                                 submit_to_azureml: bool, strictly_aml_v1: bool,  # type: ignore
+                                 environment_variables: Dict[str, Any],  # type: ignore
+                                 default_datastore: Optional[str],  # type: ignore
                                  ) -> AzureRunInfo:
         datasets_input = [d.target_folder for d in input_datasets] if input_datasets else []
         return AzureRunInfo(input_datasets=datasets_input,
@@ -175,6 +233,7 @@ def test_crossval_config() -> None:
         assert isinstance(crossval_config, HyperDriveConfig)
 
 
+@pytest.mark.fast
 def test_crossval_argument_names() -> None:
     """
     Cross validation uses hardcoded argument names, check if they match the field names
@@ -182,26 +241,51 @@ def test_crossval_argument_names() -> None:
     container = HelloWorld()
     crossval_count = 8
     crossval_index = 5
+    random_seed = 4711
     container.crossval_count = crossval_count
     container.crossval_index = crossval_index
+    container.random_seed = random_seed
     assert getattr(container, container.CROSSVAL_INDEX_ARG_NAME) == crossval_index
+    assert getattr(container, container.RANDOM_SEED_ARG_NAME) == random_seed
 
 
 def test_submit_to_azure_hyperdrive(mock_runner: Runner) -> None:
     """
-    Test if the hyperdrive configurations are passed to the submission function.
+    Test if the hyperdrive configurations are passed to the submission function if using cross validation.
     """
-    model_name = "HelloWorld"
     crossval_count = 2
-    arguments = ["", f"--model={model_name}", "--cluster=foo", "--crossval_count", str(crossval_count)]
+    _test_hyperdrive_submission(mock_runner,
+                                commandline_arg=f"--crossval_count={crossval_count}",
+                                expected_argument_name=WorkflowParams.CROSSVAL_INDEX_ARG_NAME,
+                                expected_argument_values=list(map(str, range(crossval_count))))
+
+
+def test_submit_to_azure_differents_seeds(mock_runner: Runner) -> None:
+    """
+    Test if the hyperdrive configurations are passed to the submission function if running with dfferent seeds.
+    """
+    num_seeds = 2
+    _test_hyperdrive_submission(mock_runner,
+                                commandline_arg=f"--different_seeds={num_seeds}",
+                                expected_argument_name=WorkflowParams.RANDOM_SEED_ARG_NAME,
+                                expected_argument_values=list(map(str, range(num_seeds))))
+
+
+def _test_hyperdrive_submission(mock_runner: Runner,
+                                commandline_arg: str,
+                                expected_argument_name: str,
+                                expected_argument_values: List[str]) -> None:
+    model_name = "HelloWorld"
+    arguments = ["", f"--model={model_name}", "--cluster=foo", commandline_arg, "--strictly_aml_v1=True"]
     # Use a special simplified environment file only for the tests here. Copy that to a temp folder, then let the runner
     # start in that temp folder.
     with change_working_folder_and_add_environment(mock_runner.project_root):
         with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
             with patch("health_ml.runner.get_workspace"):
-                with patch.object(sys, "argv", arguments):
-                    with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
-                        mock_runner.run()
+                with patch("health_ml.runner.get_ml_client"):
+                    with patch.object(sys, "argv", arguments):
+                        with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
+                            mock_runner.run()
             mock_run_in_situ.assert_called_once()
             mock_submit_to_aml.assert_called_once()
             # call_args is a tuple of (args, kwargs)
@@ -212,7 +296,8 @@ def test_submit_to_azure_hyperdrive(mock_runner: Runner) -> None:
             # Check details of the Hyperdrive config
             hyperdrive_config = call_kwargs["hyperdrive_config"]
             parameter_space = hyperdrive_config._generator_config["parameter_space"]
-            assert parameter_space[WorkflowParams.CROSSVAL_INDEX_ARG_NAME] == ["choice", [list(range(crossval_count))]]
+            assert expected_argument_name in parameter_space
+            assert parameter_space[expected_argument_name] == ["choice", [expected_argument_values]]
 
 
 def test_submit_to_azure_docker(mock_runner: Runner) -> None:
@@ -226,10 +311,11 @@ def test_submit_to_azure_docker(mock_runner: Runner) -> None:
     # start in that temp folder.
     with change_working_folder_and_add_environment(mock_runner.project_root):
         with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
-            with patch("health_ml.runner.get_workspace"):
-                with patch.object(sys, "argv", arguments):
-                    with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
-                        mock_runner.run()
+            with patch("health_ml.runner.get_ml_client"):
+                with patch("health_ml.runner.get_workspace"):
+                    with patch.object(sys, "argv", arguments):
+                        with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
+                            mock_runner.run()
             mock_run_in_situ.assert_called_once()
             mock_submit_to_aml.assert_called_once()
             # call_args is a tuple of (args, kwargs)
@@ -289,3 +375,16 @@ def test_invalid_profiler(mock_runner: Runner) -> None:
         with pytest.raises(ValueError) as ex:
             mock_runner.run()
         assert "Unsupported profiler." in str(ex)
+
+
+def test_custom_datastore_outside_aml(mock_runner: Runner) -> None:
+    model_name = "HelloWorld"
+    datastore = "foo"
+    arguments = ["", f"--datastore={datastore}", f"--model={model_name}"]
+    with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_azure_if_needed:
+        with patch("health_ml.runner.get_workspace"):
+            with patch("health_ml.runner.Runner.run_in_situ"):
+                with patch.object(sys, "argv", arguments):
+                    mock_runner.run()
+        mock_submit_to_azure_if_needed.assert_called_once()
+        assert mock_submit_to_azure_if_needed.call_args[1]["default_datastore"] == datastore

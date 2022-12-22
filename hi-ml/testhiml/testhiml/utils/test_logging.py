@@ -19,15 +19,10 @@ from _pytest.logging import LogCaptureFixture
 from azureml._restclient.constants import RunStatus
 from azureml.core import Run
 
-from health_azure import RUN_CONTEXT, create_aml_run_object
+from health_azure import RUN_CONTEXT
 from health_ml.utils import AzureMLLogger, AzureMLProgressBar, log_learning_rate, log_on_epoch
+from health_ml.utils.logging import _preprocess_hyperparams
 from testhiml.utils_testhiml import DEFAULT_WORKSPACE
-
-
-def create_unittest_run_object(snapshot_directory: Optional[Path] = None) -> Run:
-    return create_aml_run_object(experiment_name="himl-tests",
-                                 workspace=DEFAULT_WORKSPACE.workspace,
-                                 snapshot_directory=snapshot_directory or ".")
 
 
 def test_log_on_epoch() -> None:
@@ -240,8 +235,7 @@ def test_azureml_logger_hyperparams_processing() -> None:
     """
     hyperparams = {"A long list": ["foo", 1.0, "abc"],
                    "foo": 1.0}
-    logger = AzureMLLogger(enable_logging_outside_azure_ml=False)
-    actual = logger._preprocess_hyperparams(hyperparams)
+    actual = _preprocess_hyperparams(hyperparams)
     assert actual == {"A long list": "['foo', 1.0, 'abc']", "foo": "1.0"}
 
 
@@ -295,7 +289,9 @@ def test_azureml_logger_actual_run() -> None:
     """
     When running outside of AzureML, a new run should be created.
     """
-    logger = AzureMLLogger(enable_logging_outside_azure_ml=True, workspace=DEFAULT_WORKSPACE.workspace)
+    logger = AzureMLLogger(enable_logging_outside_azure_ml=True,
+                           workspace=DEFAULT_WORKSPACE.workspace,
+                           run_name="test_azureml_logger_actual_run")
     assert not logger.is_running_in_azure_ml
     assert logger.run is not None
     assert logger.run != RUN_CONTEXT

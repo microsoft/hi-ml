@@ -16,17 +16,16 @@ from pathlib import Path
 from typing import Sequence, List, Any, Dict, Optional, Union, Tuple
 
 from monai.data.dataset import Dataset
-from monai.data.image_reader import WSIReader
 from torch.utils.data import DataLoader
-
+from health_cpath.datasets.panda_dataset import PandaDataset
+from health_cpath.preprocessing.loading import LoadingParams, ROIType, WSIBackend
 from health_cpath.utils.naming import SlideKey
 from health_cpath.utils.naming import ResultsKey
 from health_cpath.utils.heatmap_utils import location_selected_tiles
 from health_cpath.utils.tiles_selection_utils import SlideNode
-from health_cpath.datasets.panda_dataset import PandaDataset, LoadPandaROId
 
 
-def load_image_dict(sample: dict, level: int, margin: int) -> Dict[SlideKey, Any]:
+def load_image_dict(sample: dict, loading_params: LoadingParams) -> Dict[SlideKey, Any]:
     """
     Load image from metadata dictionary
     :param sample: dict describing image metadata. Example:
@@ -36,11 +35,9 @@ def load_image_dict(sample: dict, level: int, margin: int) -> Dict[SlideKey, Any
          'data_provider': ['karolinska'],
          'isup_grade': tensor([0]),
          'gleason_score': ['0+0']}
-    :param level: level of resolution to be loaded
-    :param margin: margin to be included
-    :return: a dict containing the image data and metadata
+    :param loading_params: LoadingParams object that contains the parameters to load the image.
     """
-    loader = LoadPandaROId(WSIReader("cuCIM"), level=level, margin=margin)
+    loader = loading_params.get_load_roid_transform()
     img = loader(sample)
     return img
 
@@ -67,7 +64,8 @@ def plot_panda_data_sample(
         slide_id = dict_images[SlideKey.SLIDE_ID]
         title = dict_images[SlideKey.METADATA][title_key]
         print(f">>> Slide {slide_id}")
-        img = load_image_dict(dict_images, level=level, margin=margin)
+        loading_params = LoadingParams(level=level, margin=margin, backend=WSIBackend.CUCIM, roi_type=ROIType.MASK)
+        img = load_image_dict(dict_images, loading_params)
         ax.imshow(img[SlideKey.IMAGE].transpose(1, 2, 0))
         ax.set_title(title)
     fig.tight_layout()
@@ -76,7 +74,7 @@ def plot_panda_data_sample(
 def plot_scores_hist(
     results: Dict, prob_col: str = ResultsKey.CLASS_PROBS, gt_col: str = ResultsKey.TRUE_LABEL
 ) -> plt.Figure:
-    """Plot scores as a historgram.
+    """Plot scores as a histogram.
 
     :param results: List that contains slide_level dicts
     :param prob_col: column name that contains the scores
@@ -93,6 +91,18 @@ def plot_scores_hist(
     ax.set_xlabel("Predicted Score")
     ax.legend()
     return fig
+
+
+def _get_histo_plot_title(case: str, slide_node: SlideNode) -> str:
+    """Return the standard title for histopathology plots.
+
+    :param case: case id e.g., TP, FN, FP, TN
+    :param slide_node: SlideNode object that encapsulates the slide information
+    """
+    return (
+        f"{case}: {slide_node.slide_id} P={slide_node.pred_prob_score:.2f} \n Predicted label: {slide_node.pred_label} "
+        f"True label: {slide_node.true_label}"
+    )
 
 
 def plot_attention_tiles(
@@ -116,11 +126,7 @@ def plot_attention_tiles(
         return None
 
     fig, axs = plt.subplots(nrows=num_rows, ncols=num_columns, figsize=figsize)
-    fig.suptitle(
-        f"{case}: {slide_node.slide_id} P={abs(slide_node.prob_score):.2f} \n Predicted label: {slide_node.pred_label} "
-        f"True label: {slide_node.true_label}"
-    )
-
+    fig.suptitle(_get_histo_plot_title(case, slide_node))
     for ax, tile_node in zip(axs.flat, tile_nodes):
         ax.imshow(np.transpose(tile_node.data.numpy(), (1, 2, 0)), clim=(0, 255), cmap="gray")
         ax.set_title("%.6f" % tile_node.attn)
@@ -141,10 +147,7 @@ def plot_slide(case: str, slide_node: SlideNode, slide_image: np.ndarray, scale:
     fig, ax = plt.subplots()
     slide_image = slide_image.transpose(1, 2, 0)
     ax.imshow(slide_image)
-    fig.suptitle(
-        f"{case}: {slide_node.slide_id} P={abs(slide_node.prob_score):.2f} \n Predicted label: {slide_node.pred_label} "
-        f"True label: {slide_node.true_label}"
-    )
+    fig.suptitle(_get_histo_plot_title(case, slide_node))
     ax.set_axis_off()
     original_size = fig.get_size_inches()
     fig.set_size_inches((original_size[0] * scale, original_size[1] * scale))
@@ -154,55 +157,45 @@ def plot_slide(case: str, slide_node: SlideNode, slide_image: np.ndarray, scale:
 def plot_heatmap_overlay(
     case: str,
     slide_node: SlideNode,
-    slide_image: np.ndarray,
+    slide_dict: Dict[SlideKey, Any],
     results: Dict[ResultsKey, List[Any]],
-    location_bbox: List[int],
     tile_size: int = 224,
-    level: int = 1,
+    should_upscale_coords: bool = True,
 ) -> plt.Figure:
     """Plots heatmap of selected tiles (e.g. tiles in a bag) overlay on the corresponding slide.
 
     :param case: The report case (e.g., TP, FN, ...)
     :param slide_node: The slide node that encapsulates the slide metadata.
-    :param slide_image: Numpy array of the slide image (shape: [3, H, W]).
+    :param slide_dict: Dictionary of the slide image (shape: [3, H, W]) containing the slide image and metadata: the
+        location of the bouding box of the slide and the scale factor to convert the heatmap coordinates to the slide
+        level.
     :param results: Dict containing ResultsKey keys (e.g. slide id) and values as lists of output slides.
     :param tile_size: Size of each tile. Default 224.
-    :param level: Magnification at which tiles are available (e.g. PANDA levels are 0 for original,
-    1 for 4x downsampled, 2 for 16x downsampled). Default 1.
-    :param location_bbox: Location of the bounding box of the slide.
+    :param should_upscale_coords: If True, upscales the heatmap coordinates to the slide level. Default True.
     :return: matplotlib figure of the heatmap of the given tiles on slide.
     """
     fig, ax = plt.subplots()
-    fig.suptitle(
-        f"{case}: {slide_node.slide_id} P={abs(slide_node.prob_score):.2f} \n Predicted label: {slide_node.pred_label} "
-        f"True label: {slide_node.true_label}"
-    )
+    fig.suptitle(_get_histo_plot_title(case, slide_node))
+    slide_image = slide_dict[SlideKey.IMAGE]
+    assert isinstance(slide_image, np.ndarray), f"slide image must be a numpy array, got {type(slide_image)}"
     slide_image = slide_image.transpose(1, 2, 0)
+
     ax.imshow(slide_image)
     ax.set_xlim(0, slide_image.shape[1])
     ax.set_ylim(slide_image.shape[0], 0)
 
-    coords_list = []
     slide_ids = [item[0] for item in results[ResultsKey.SLIDE_ID]]
     slide_idx = slide_ids.index(slide_node.slide_id)
     attentions = results[ResultsKey.BAG_ATTN][slide_idx]
 
-    # for each tile in the bag
-    for tile_idx in range(len(results[ResultsKey.IMAGE_PATH][slide_idx])):
-        tile_coords = np.transpose(
-            np.array(
-                [
-                    results[ResultsKey.TILE_LEFT][slide_idx][tile_idx].cpu().numpy(),
-                    results[ResultsKey.TILE_TOP][slide_idx][tile_idx].cpu().numpy(),
-                ]
-            )
-        )
-        coords_list.append(tile_coords)
-
-    coords = np.array(coords_list)
+    coords = np.transpose([results[ResultsKey.TILE_LEFT][slide_idx].cpu().numpy(),
+                           results[ResultsKey.TILE_TOP][slide_idx].cpu().numpy()])
     attentions = np.array(attentions.cpu()).reshape(-1)
 
-    sel_coords = location_selected_tiles(tile_coords=coords, location_bbox=location_bbox, level=level)
+    sel_coords = location_selected_tiles(tile_coords=coords,
+                                         location_bbox=slide_dict[SlideKey.ORIGIN],
+                                         scale_factor=slide_dict[SlideKey.SCALE],
+                                         should_upscale_coords=should_upscale_coords)
     cmap = plt.cm.get_cmap("Reds")
 
     tile_xs, tile_ys = sel_coords.T

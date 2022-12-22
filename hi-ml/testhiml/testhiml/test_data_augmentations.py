@@ -16,6 +16,7 @@ dummy_img = torch.Tensor(
        [0.8717, 0.9098]],
       [[0.1592, 0.7216],
        [0.8305, 0.1127]]]])
+dummy_bag = torch.stack([dummy_img.squeeze(0), dummy_img.squeeze(0)])
 
 
 def _test_data_augmentation(data_augmentation: Callable[[Tensor], Tensor],
@@ -59,21 +60,38 @@ def test_stain_normalization() -> None:
           [0.8706, 0.4863]],
          [[0.8235, 0.5294],
           [0.8275, 0.7725]]]])
+    expected_output_bag = torch.stack([expected_output_img.squeeze(0), expected_output_img.squeeze(0)])
 
     _test_data_augmentation(data_augmentation, dummy_img, expected_output_img, stochastic=False)
+    _test_data_augmentation(data_augmentation, dummy_bag, expected_output_bag, stochastic=False)
+
+    # Test tiling on the fly (i.e. when the input image does not have a batch dimension)
+    _test_data_augmentation(data_augmentation, dummy_img.squeeze(0), expected_output_img.squeeze(0), stochastic=False)
 
 
 def test_hed_jitter() -> None:
     data_augmentation = HEDJitter(0.05)
-    expected_output_img = torch.Tensor(
-        [[[[0.6241, 0.1635],
-          [0.9993, 1.0000]],
-         [[1.0000, 1.0000],
-          [1.0000, 1.0000]],
-         [[0.2232, 0.8028],
-          [0.9117, 0.1742]]]])
+    expected_output_img1 = torch.Tensor(
+        [[[[0.9639, 0.4130],
+          [0.9134, 1.0000]],
+         [[0.3125, 0.0000],
+          [0.4474, 0.1820]],
+         [[0.9195, 0.5265],
+          [0.9118, 0.8291]]]])
+    expected_output_img2 = torch.Tensor(
+        [[[[0.8411, 0.2361],
+          [0.7857, 0.8766]],
+         [[0.7075, 0.0000],
+          [1.0000, 0.4138]],
+         [[0.9694, 0.4674],
+          [0.9577, 0.8476]]]])
+    expected_output_bag = torch.vstack([expected_output_img1,
+                                        expected_output_img2])
 
-    _test_data_augmentation(data_augmentation, dummy_img, expected_output_img, stochastic=True)
+    _test_data_augmentation(data_augmentation,
+                            dummy_bag,
+                            expected_output_bag,
+                            stochastic=True)
 
 
 def test_gaussian_blur() -> None:

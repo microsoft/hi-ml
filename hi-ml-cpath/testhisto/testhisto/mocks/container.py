@@ -4,33 +4,33 @@
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
 from typing import Any, Optional, Set
+from health_cpath.preprocessing.loading import ROIType, WSIBackend
 
 from health_ml.networks.layers.attention_layers import AttentionLayer
 from health_cpath.configs.classification.DeepSMILEPanda import DeepSMILESlidesPanda, DeepSMILETilesPanda
 from health_cpath.datasets.panda_dataset import PandaDataset
-from health_cpath.models.encoders import ImageNetEncoder
+from health_cpath.models.encoders import Resnet18
 from health_cpath.datamodules.base_module import CacheMode, CacheLocation
 from health_cpath.utils.naming import PlotOption
 
 
 class MockDeepSMILETilesPanda(DeepSMILETilesPanda):
-    def __init__(self, tmp_path: Path, **kwargs: Any) -> None:
+    def __init__(self, tmp_path: Path, analyse_loss: bool = False, **kwargs: Any) -> None:
         default_kwargs = dict(
             # Model parameters:
             pool_type=AttentionLayer.__name__,
             pool_hidden_dim=16,
             num_transformer_pool_layers=1,
             num_transformer_pool_heads=1,
-            is_finetune=False,
-            class_names=["ISUP 0", "ISUP 1", "ISUP 2", "ISUP 3", "ISUP 4", "ISUP 5"],
             # Encoder parameters
-            encoder_type=ImageNetEncoder.__name__,
+            encoder_type=Resnet18.__name__,
             tile_size=28,
             # Data Module parameters
             batch_size=2,
-            max_bag_size=4,
-            max_bag_size_inf=4,
+            batch_size_inf=2,
             encoding_chunk_size=4,
+            max_bag_size=4,
+            max_bag_size_inf=0,
             cache_mode=CacheMode.NONE,
             precache_location=CacheLocation.NONE,
             # declared in DatasetParams:
@@ -38,6 +38,13 @@ class MockDeepSMILETilesPanda(DeepSMILETilesPanda):
             # declared in TrainerParams:
             max_epochs=2,
             crossval_count=1,
+            ssl_checkpoint=None,
+            analyse_loss=analyse_loss,
+            # Loading parameters
+            level=0,
+            backend=WSIBackend.CUCIM,
+            roi_type=ROIType.FOREGROUND,
+            foreground_threshold=255,
         )
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
@@ -62,15 +69,13 @@ class MockDeepSMILESlidesPanda(DeepSMILESlidesPanda):
             pool_hidden_dim=16,
             num_transformer_pool_layers=1,
             num_transformer_pool_heads=1,
-            is_finetune=True,
-            class_names=["ISUP 0", "ISUP 1", "ISUP 2", "ISUP 3", "ISUP 4", "ISUP 5"],
             # Encoder parameters
-            encoder_type=ImageNetEncoder.__name__,
+            encoder_type=Resnet18.__name__,
             tile_size=28,
             # Data Module parameters
             batch_size=2,
+            batch_size_inf=2,
             encoding_chunk_size=4,
-            level=0,
             max_bag_size=4,
             max_bag_size_inf=0,
             # declared in DatasetParams:
@@ -78,6 +83,11 @@ class MockDeepSMILESlidesPanda(DeepSMILESlidesPanda):
             # declared in TrainerParams:
             max_epochs=2,
             crossval_count=1,
+            # Loading parameters
+            level=0,
+            backend=WSIBackend.CUCIM,
+            roi_type=ROIType.FOREGROUND,
+            foreground_threshold=255,
         )
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
