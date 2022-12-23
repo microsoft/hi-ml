@@ -103,7 +103,7 @@ jobs:
         with:
             flags: ${{ env.folder }}
 
-  pytest_gpu:
+  cpath-pytest-gpu:
     runs-on: ubuntu-20.04
     needs: [ cancel-azureml ]
     steps:
@@ -306,10 +306,10 @@ jobs:
   cpath-publish-pypi-package:
     runs-on: ubuntu-20.04
     needs: [
-      flake8,
-      mypy,
-      pytest,
-      pytest_gpu,
+      cpath-flake8,
+      cpath-mypy,
+      cpath-pytest,
+      cpath-pytest-gpu,
       smoke_test_cucim_slidespandaimagenetmil,
       smoke_test_openslide_slidespandaimagenetmil,
       smoke_test_tilespandaimagenetmil,

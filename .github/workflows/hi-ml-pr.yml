@@ -134,7 +134,7 @@ jobs:
 
   build-python:
     runs-on: ubuntu-20.04
-    needs: [ pytest_fast ]
+    needs: [ himl-pytest-fast ]
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
@@ -221,7 +221,7 @@ jobs:
 
   himl-publish-testpypi-pkg:
     runs-on: ubuntu-20.04
-    needs: [ test-artifact-pkg, pyright, mypy, flake8 ]
+    needs: [ test-artifact-pkg, pyright, himl-mypy, himl-flake8 ]
     if: "!startsWith(github.ref, 'refs/tags/v')"
     strategy:
       matrix:
@@ -253,7 +253,7 @@ jobs:
 
   himl-publish-pypi-pkg:
     runs-on: ubuntu-20.04
-    needs: [ test-artifact-pkg, pyright, mypy, flake8 ]
+    needs: [ test-artifact-pkg, pyright, himl-mypy, himl-flake8 ]
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
@@ -278,7 +278,7 @@ jobs:
 
   himl-test-pypi-pkg:
     runs-on: ubuntu-20.04
-    needs: [ publish-pypi-pkg ]
+    needs: [ himl-publish-pypi-pkg ]
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
