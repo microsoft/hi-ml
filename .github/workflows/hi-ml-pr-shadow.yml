@@ -1,10 +1,6 @@
 # This is a 'shadow' pipeline designed purely to allow status checks to be run on PRs that use path filtering
 name: HI-ML HI-ML-Azure PR
 on:
-  push:
-    branches: [ main ]
-    tags:
-      - '*'
   pull_request:
     branches: [ main ]
     paths-ignore:
@@ -29,14 +25,13 @@ jobs:
     steps:
       - run: 'echo "No build required" '
 
-  himl-pytest_fast:
+  himl-pytest-fast:
     runs-on: ubuntu-20.04
     steps:
       - run: 'echo "No build required" '
 
   build-python:
     runs-on: ubuntu-20.04
-    needs: [ pytest_fast ]
     steps:
       - run: 'echo "No build required" '
 
@@ -46,22 +41,7 @@ jobs:
     steps:
       - run: 'echo "No build required" '
 
-  himl-publish-testpypi-pkg:
-    runs-on: ubuntu-20.04
-    needs: [ test-artifact-pkg ]
-    if: "!startsWith(github.ref, 'refs/tags/v')"
-    steps:
-      - run: 'echo "No build required" '
-
-  himl-publish-pypi-pkg:
-    runs-on: ubuntu-20.04
-    needs: [ test-artifact-pkg ]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    steps:
-      - run: 'echo "No build required" '
-
   himl-test-pypi-pkg:
     runs-on: ubuntu-20.04
-    needs: [ publish-pypi-pkg ]
     steps:
       - run: 'echo "No build required" '

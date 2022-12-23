@@ -1,9 +1,5 @@
 name: Pathology PR
 on:
-  push:
-    branches: [ main ]
-    tags:
-      - '*'
   pull_request:
     branches: [ main ]
     paths-ignore:
@@ -52,13 +48,5 @@ jobs:
 
   cpath-publish-pypi-package:
     runs-on: ubuntu-20.04
-    needs: [
-      flake8,
-      mypy,
-      pytest,
-      smoke_test_slidespandaimagenetmil,
-      smoke_test_tilespandaimagenetmil,
-      smoke_test_crck_simclr_aml
-      ]
     steps:
       - run: 'echo "No build required" '
