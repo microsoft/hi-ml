@@ -12,17 +12,17 @@ on:
 
 jobs:
 
-  flake8:
+  multimodal-flake8:
     runs-on: ubuntu-20.04
     steps:
       - run: 'echo "No build required" '
 
-  mypy:
+  multimodal-mypy:
     runs-on: ubuntu-20.04
     steps:
       - run: 'echo "No build required" '
 
-  pytest:
+  multimodal-pytest:
     runs-on: ubuntu-20.04
     steps:
       - run: 'echo "No build required" '

@@ -41,7 +41,7 @@ jobs:
       - name: Cancel previous AzureML runs
         uses: ./.github/actions/cancel_azureml_jobs
 
-  flake8:
+  cpath-flake8:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -59,7 +59,7 @@ jobs:
           make pip_test
           make flake8
 
-  mypy:
+  cpath-mypy:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -77,7 +77,7 @@ jobs:
           make pip_test
           make mypy
 
-  pytest:
+  cpath-pytest:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -303,7 +303,7 @@ jobs:
           cd ${{ env.folder }}
           make smoke_test_tiles_panda_no_ddp_sampler_aml
 
-  publish:
+  cpath-publish-pypi-package:
     runs-on: ubuntu-20.04
     needs: [
       flake8,

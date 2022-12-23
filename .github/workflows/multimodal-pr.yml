@@ -23,7 +23,7 @@ env:
 
 jobs:
 
-  flake8:
+  multimodal-flake8:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -41,7 +41,7 @@ jobs:
           make pip_test
           make flake8
 
-  mypy:
+  multimodal-mypy:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -59,7 +59,7 @@ jobs:
           make pip
           make mypy
 
-  pytest:
+  mutlimodal-pytest:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3

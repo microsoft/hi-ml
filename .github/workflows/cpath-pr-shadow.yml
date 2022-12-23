@@ -15,17 +15,17 @@ on:
 
 jobs:
 
-  flake8:
+  cpath-flake8:
     runs-on: ubuntu-20.04
     steps:
       - run: 'echo "No build required" '
 
-  mypy:
+  cpath-mypy:
     runs-on: ubuntu-20.04
     steps:
       - run: 'echo "No build required" '
 
-  pytest:
+  cpath-pytest:
     runs-on: ubuntu-20.04
     steps:
       - run: 'echo "No build required" '
@@ -50,7 +50,7 @@ jobs:
     steps:
       - run: 'echo "No build required" '
 
-  publish:
+  cpath-publish-pypi-package:
     runs-on: ubuntu-20.04
     needs: [
       flake8,

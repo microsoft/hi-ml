@@ -14,12 +14,12 @@ on:
 
 jobs:
 
-  flake8:
+  himl-flake8:
     runs-on: ubuntu-20.04
     steps:
       - run: 'echo "No build required" '
 
-  mypy:
+  himl-mypy:
     runs-on: ubuntu-20.04
     steps:
       - run: 'echo "No build required" '
@@ -29,58 +29,39 @@ jobs:
     steps:
       - run: 'echo "No build required" '
 
-  pytest_fast:
+  himl-pytest_fast:
     runs-on: ubuntu-20.04
-    strategy:
-      matrix:
-        folder: [ hi-ml, hi-ml-azure ]
-      fail-fast: false
     steps:
       - run: 'echo "No build required" '
 
   build-python:
     runs-on: ubuntu-20.04
     needs: [ pytest_fast ]
-    strategy:
-      matrix:
-        folder: [ hi-ml, hi-ml-azure ]
     steps:
       - run: 'echo "No build required" '
 
   test-artifact-pkg:
     runs-on: ubuntu-20.04
     needs: [ build-python ]
-    strategy:
-      matrix:
-        folder: [ hi-ml, hi-ml-azure ]
     steps:
       - run: 'echo "No build required" '
 
-  publish-testpypi-pkg:
+  himl-publish-testpypi-pkg:
     runs-on: ubuntu-20.04
     needs: [ test-artifact-pkg ]
     if: "!startsWith(github.ref, 'refs/tags/v')"
-    strategy:
-      matrix:
-        folder: [ hi-ml, hi-ml-azure ]
     steps:
       - run: 'echo "No build required" '
 
-  publish-pypi-pkg:
+  himl-publish-pypi-pkg:
     runs-on: ubuntu-20.04
     needs: [ test-artifact-pkg ]
-    strategy:
-      matrix:
-        folder: [ hi-ml, hi-ml-azure ]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
       - run: 'echo "No build required" '
 
-  test-pypi-pkg:
+  himl-test-pypi-pkg:
     runs-on: ubuntu-20.04
     needs: [ publish-pypi-pkg ]
-    strategy:
-      matrix:
-        folder: [ hi-ml, hi-ml-azure ]
     steps:
       - run: 'echo "No build required" '

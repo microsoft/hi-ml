@@ -43,7 +43,7 @@ jobs:
       - name: Cancel previous AzureML runs
         uses: ./.github/actions/cancel_azureml_jobs
 
-  flake8:
+  himl-flake8:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -58,7 +58,7 @@ jobs:
       - name: flake8
         run: make flake8
 
-  mypy:
+  himl-mypy:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -89,7 +89,7 @@ jobs:
           conda info
           make pyright
 
-  pytest_fast:
+  himl-pytest-fast:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
@@ -219,7 +219,7 @@ jobs:
         with:
             flags: ${{ matrix.folder }}
 
-  publish-testpypi-pkg:
+  himl-publish-testpypi-pkg:
     runs-on: ubuntu-20.04
     needs: [ test-artifact-pkg, pyright, mypy, flake8 ]
     if: "!startsWith(github.ref, 'refs/tags/v')"
@@ -251,7 +251,7 @@ jobs:
           echo "Install this package version via:"
           echo "pip install --extra-""index-url https://test.pypi.org/simple ${{ steps.download.outputs.package_version }}"
 
-  publish-pypi-pkg:
+  himl-publish-pypi-pkg:
     runs-on: ubuntu-20.04
     needs: [ test-artifact-pkg, pyright, mypy, flake8 ]
     strategy:
@@ -276,7 +276,7 @@ jobs:
           password: ${{ env.PYPI_API_TOKEN }}
           packages_dir: ${{ matrix.folder }}/dist/
 
-  test-pypi-pkg:
+  himl-test-pypi-pkg:
     runs-on: ubuntu-20.04
     needs: [ publish-pypi-pkg ]
     strategy:
