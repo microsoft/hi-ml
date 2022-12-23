@@ -1,5 +1,5 @@
 # This is a 'shadow' pipeline designed purely to allow status checks to be run on PRs that use path filtering
-name: HI-ML HI-ML-Azure PR
+name: HI-ML HI-ML-Azure PR Shadow
 on:
   pull_request:
     branches: [ main ]

@@ -1,4 +1,5 @@
-name: Multimodal PR
+# This is a 'shadow' pipeline designed purely to allow status checks to be run on PRs that use path filtering
+name: Multimodal PR Shadow
 on:
   pull_request:
     branches: [ main ]
