@@ -1700,3 +1700,53 @@ def test_experiment_name() -> None:
     with mock.patch.dict(os.environ, {ENV_EXPERIMENT_NAME: "name_from_env"}):
         assert himl.effective_experiment_name("explicit", Path()) == "name_from_env"
         assert himl.effective_experiment_name("", Path("from_script.py")) == "name_from_env"
+
+
+@pytest.mark.fast
+def test_submit_to_azure_v2_distributed() -> None:
+    dummy_input_datasets: List[Optional[Path]] = []
+    dummy_mount_contexts: List[MountContext] = []
+
+    with patch.multiple(
+        "health_azure.himl",
+        _package_setup=DEFAULT,
+        get_workspace=DEFAULT,
+        get_ml_client=DEFAULT,
+        create_run_configuration=DEFAULT,
+        create_script_run=DEFAULT,
+        append_to_amlignore=DEFAULT,
+        exit=DEFAULT
+    ) as mocks:
+
+        with patch("health_azure.himl.setup_local_datasets") as mock_setup_datasets:
+            mock_setup_datasets.return_value = dummy_input_datasets, dummy_mount_contexts
+            with patch("health_azure.himl.submit_run_v2") as mock_submit_run_v2:
+                # If num_nodes and processes_per_node are set, they wont appear in the kwargs sent to submit_run_v2
+                _ = himl.submit_to_azure_if_needed(
+                    workspace_config_file="mockconfig.json",
+                    snapshot_root_directory="dummy",
+                    submit_to_azureml=True,
+                    strictly_aml_v1=False
+                )
+                call_args = mock_submit_run_v2.call_args
+                call_args_kwargs = call_args.kwargs
+                assert "num_nodes" not in call_args_kwargs
+                assert "processes_per_node" not in call_args_kwargs
+
+                # If num_nodes and processes_per_node are both set, they should be passed to submit_run_v2
+                num_nodes = 1
+                processes_per_node = 1
+                _ = himl.submit_to_azure_if_needed(
+                    workspace_config_file="mockconfig.json",
+                    snapshot_root_directory="dummy",
+                    submit_to_azureml=True,
+                    strictly_aml_v1=False,
+                    num_nodes=num_nodes,
+                    processes_per_node_v2=processes_per_node
+                )
+                call_args, call_kwargs = mock_submit_run_v2.call_args
+                print(call_args)
+                print(call_kwargs)
+                assert call_kwargs.get("num_nodes") == num_nodes
+                assert call_kwargs.get("processes_per_node") == processes_per_node
+

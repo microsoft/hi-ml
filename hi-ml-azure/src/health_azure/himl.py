@@ -464,7 +464,10 @@ def submit_run_v2(workspace: Optional[Workspace],
                   wait_for_completion_show_output: bool = False,
                   workspace_config_path: Optional[PathOrString] = None,
                   ml_client: Optional[MLClient] = None,
-                  hyperparam_args: Optional[Dict[str, Any]] = None) -> Job:
+                  hyperparam_args: Optional[Dict[str, Any]] = None,
+                  num_nodes: int = 1,
+                  processes_per_node: int = 1
+                  ) -> Job:
     """
     Starts a v2 AML Job on a given workspace by submitting a command
 
@@ -491,6 +494,8 @@ def submit_run_v2(workspace: Optional[Workspace],
         config
     :param ml_client: An Azure MLClient object for interacting with Azure resources.
     :param hyperparam_args: A dictionary of hyperparameter search args to pass into a sweep job.
+    :param num_nodes: The number of nodes to use for the job in AzureML.
+    :param processes_per_node: The number of processes per node to use for the job in AzureML.
     :return: An AzureML Run object.
     """
     if ml_client is None:
@@ -536,6 +541,10 @@ def submit_run_v2(workspace: Optional[Workspace],
             input_datasets_v2[sample_param] = choices.values[0]
             cmd += f" --{sample_param}=" + "${{inputs." + sample_param + "}}"
 
+        # number of nodes and processes per node cannot be less than one
+        num_nodes = num_nodes if num_nodes >= 1 else 1
+        processes_per_node_v2 = processes_per_node_v2 if processes_per_node_v2 >= 1 else 1
+
         command_job = command(
             code=str(snapshot_root_directory),
             command=cmd,
@@ -547,9 +556,16 @@ def submit_run_v2(workspace: Optional[Workspace],
             tags=tags or {},
             shm_size=docker_shm_size,
             display_name=display_name,
-            environment_variables={
-                "JOB_EXECUTION_MODE": "Basic",
-            }
+            # environment_variables={
+            #     "JOB_EXECUTION_MODE": "Basic",
+            # },
+            instance_count=num_nodes,  # In this, only 2 node cluster was created.
+            distribution={
+                "type": "PyTorch",
+                # set process count to the number of gpus per node
+                # NV6 has only 1 GPU
+                "process_count_per_instance": processes_per_node,
+            },
         )
 
         del hyperparam_args[PARAM_SAMPLING_ARG]
@@ -754,6 +770,7 @@ def submit_to_azure_if_needed(  # type: ignore
         hyperparam_args: Optional[Dict[str, Any]] = None,
         create_output_folders: bool = True,
         strictly_aml_v1: bool = False,
+        processes_per_node_v2: int = 1,
 ) -> AzureRunInfo:  # pragma: no cover
     """
     Submit a folder to Azure, if needed and run it.
@@ -809,6 +826,7 @@ def submit_to_azure_if_needed(  # type: ignore
     :param hyperdrive_config: A configuration object for Hyperdrive (hyperparameter search).
     :param create_output_folders: If True (default), create folders "outputs" and "logs" in the current working folder.
     :param strictly_aml_v1: If True, use Azure ML SDK v1. Otherwise, attempt to use Azure ML SDK v2.
+    :param processes_per_node_v2: The number of processes per node to use in distributed training on AzureML SDK v2.
     :return: If the script is submitted to AzureML then we terminate python as the script should be executed in AzureML,
         otherwise we return a AzureRunInfo object.
     """
@@ -941,7 +959,9 @@ def submit_to_azure_if_needed(  # type: ignore
                                 docker_shm_size=docker_shm_size,
                                 wait_for_completion=wait_for_completion,
                                 wait_for_completion_show_output=wait_for_completion_show_output,
-                                hyperparam_args=hyperparam_args
+                                hyperparam_args=hyperparam_args,
+                                num_nodes=num_nodes,
+                                processes_per_node=processes_per_node_v2,
                                 )
 
     if after_submission is not None and strictly_aml_v1:
