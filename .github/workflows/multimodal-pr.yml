@@ -71,18 +71,18 @@ jobs:
         with:
           python-version: ${{ env.pythonVersion }}
 
-      - name: Upgrade PIP
+      - name: Run tests and compute coverage
         run: |
           cd ${{ env.folder }}
-          make pip_upgrade
-
-      - name: Test with pytest
-        run: |
-          cd ${{ env.folder }}
-
-          # Run tests
           make pip
-          make pytest
+          make pytest_coverage
+
+      - name: Upload coverage reports to Codecov
+        # Coverage should also be uploaded even if tests fail
+        if: always()
+        uses: codecov/codecov-action@v3
+        with:
+          flags: ${{ env.folder }}
 
   notebooks:
     runs-on: ubuntu-20.04
@@ -105,9 +105,13 @@ jobs:
         run: |
           cd ${{ env.folder }}
           ipython kernel install --name "python3" --user
-          PIP_SOURCE="git+https://github.com/microsoft/hi-ml.git@${BRANCH_NAME}#subdirectory=hi-ml-multimodal"
+          REPO_URL="https://github.com/microsoft/hi-ml.git"
+          SUBDIR_STR="subdirectory=${{ env.folder }}"
+          PIP_SOURCE="git+${REPO_URL}@${BRANCH_NAME}#${SUBDIR_STR}"
+          IN_NB_PATH="notebooks/phrase_grounding.ipynb"
+          OUT_NB_PATH="/tmp/phrase_grounding_output.ipynb"
           echo "The package will be installed from: $PIP_SOURCE"
           papermill \
             --parameters pip_source $PIP_SOURCE \
-            notebooks/phrase_grounding.ipynb \
-            /tmp/phrase_grounding_output.ipynb
+            $IN_NB_PATH \
+            $OUT_NB_PATH

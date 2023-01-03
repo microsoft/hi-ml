@@ -2,13 +2,15 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  -------------------------------------------------------------------------------------------
+import datetime
 import logging
+import os
 import sys
 import time
 from contextlib import contextmanager
 from typing import Generator, Optional, Union
 
-from health_azure.utils import check_is_any_of
+from health_azure.utils import ENV_LOCAL_RANK, check_is_any_of, is_global_rank_zero
 
 logging_stdout_handler: Optional[logging.StreamHandler] = None
 logging_to_file_handler: Optional[logging.StreamHandler] = None
@@ -29,14 +31,16 @@ def logging_to_stdout(log_level: Union[int, str] = logging.INFO) -> None:
     # logging lines.
     global logging_stdout_handler
     if not logging_stdout_handler:
-        print("Setting up logging to stdout.")
+        if is_global_rank_zero():
+            print("Setting up logging to stdout.")
         # At startup, logging has one handler set, that writes to stderr, with a log level of 0 (logging.NOTSET)
         if len(logger.handlers) == 1:
             logger.removeHandler(logger.handlers[0])
         logging_stdout_handler = logging.StreamHandler(stream=sys.stdout)
         _add_formatter(logging_stdout_handler)
         logger.addHandler(logging_stdout_handler)
-    print(f"Setting logging level to {log_level}")
+    if is_global_rank_zero():
+        print(f"Setting logging level to {log_level}")
     logging_stdout_handler.setLevel(log_level)
     logger.setLevel(log_level)
 
@@ -64,6 +68,23 @@ def _add_formatter(handler: logging.StreamHandler) -> None:
     handler.setFormatter(formatter)
 
 
+def format_time_from_seconds(time_in_seconds: float) -> str:
+    """Formats a time in seconds as a string, e.g. 1.5 hours, 2.5 minutes, 3.5 seconds.
+
+    :param time_in_seconds: time in seconds.
+    :return: string expressing the time. If the time is more than an hour, it is expressed in hours, to 2 decimal
+        places. If the time is more than a minute, it is expressed in minutes, to 2 decimal places. Otherwise, it is
+        rounded to 2 decimal places and expressed in seconds.
+    """
+    if time_in_seconds >= 3600:
+        time_expr = f"{time_in_seconds / 3600:0.2f} hours"
+    elif time_in_seconds >= 60:
+        time_expr = f"{time_in_seconds / 60:0.2f} minutes"
+    else:
+        time_expr = f"{time_in_seconds:0.2f} seconds"
+    return time_expr
+
+
 @contextmanager
 def logging_section(gerund: str) -> Generator:
     """
@@ -84,12 +105,26 @@ def logging_section(gerund: str) -> Generator:
     yield
     elapsed = time() - start_time
     logging.info("")
-    if elapsed >= 3600:
-        time_expr = f"{elapsed / 3600:0.2f} hours"
-    elif elapsed >= 60:
-        time_expr = f"{elapsed / 60:0.2f} minutes"
-    else:
-        time_expr = f"{elapsed:0.2f} seconds"
+    time_expr = format_time_from_seconds(elapsed)
     msg = f"**** FINISHED: {gerund} after {time_expr} "
     logging.info(msg + (100 - len(msg)) * "*")
     logging.info("")
+
+
+def print_message_with_rank_pid(message: str = '') -> None:
+    """Prints a message with the rank and PID of the current process."""
+    print(f"{datetime.datetime.utcnow()} DEBUG    Rank {os.getenv(ENV_LOCAL_RANK)} - PID {os.getpid()} - {message}")
+
+
+@contextmanager
+def elapsed_timer(message: str, format_seconds: bool = False) -> Generator:
+    """Context manager to print the elapsed time for a block of code in addition to its local rank and PID.
+    Usage:
+    with elapsed_timer("doing this and that"):
+        print("doing this and that")
+    """
+    start = time.time()
+    yield
+    elapsed = time.time() - start
+    time_expr = format_time_from_seconds(elapsed) if format_seconds else f"{elapsed:0.2f} seconds"
+    print_message_with_rank_pid(f"{message} took {time_expr}")

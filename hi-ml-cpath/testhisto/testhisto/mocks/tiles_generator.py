@@ -55,6 +55,9 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
             self.ISUP_GRADE,
             self.GLEASON_SCORE,
         ]
+        if self.tiling_version == 1:
+            csv_columns.append(TileKey.TILE_RIGHT)
+            csv_columns.append(TileKey.TILE_BOTTOM)
         mock_metadata: dict = {col: [] for col in csv_columns}
 
         n_tiles_side = self.img_size // self.tile_size
@@ -91,6 +94,9 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
                 mock_metadata[self.MASK_COLUMN].append(f"_{slide_id}/train_label_masks/{tile_x}x_{tile_y}y_mask.png")
                 mock_metadata[x_column].append(tile_x)
                 mock_metadata[y_column].append(tile_y)
+                if self.tiling_version == 1:
+                    mock_metadata[TileKey.TILE_RIGHT].append(tile_x + self.tile_size)
+                    mock_metadata[TileKey.TILE_BOTTOM].append(tile_y + self.tile_size)
 
                 mock_metadata[self.OCCUPANCY].append(1.0)
                 mock_metadata[self.DATA_PROVIDER].append(data_provider)

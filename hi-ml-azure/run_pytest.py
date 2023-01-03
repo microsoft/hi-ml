@@ -75,7 +75,7 @@ class RunPytestConfig(param.Parameterized):
         default="",
         doc="A folder name that should be added to sys.path. The folder name should be relative to repository root."
     )
-    strictly_aml_v1: bool = param.Boolean(default=True, doc="If True, use AzureML v1 SDK. If False (default), use "
+    strictly_aml_v1: bool = param.Boolean(default=True, doc="If True (default), use AzureML v1 SDK. If False, use "
                                           "the v2 of the SDK")
 
 
@@ -188,6 +188,7 @@ if __name__ == "__main__":
                 max_run_duration=config.max_run_duration,
                 after_submission=pytest_after_submission_hook,
                 docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
+                docker_shm_size="40g",
                 strictly_aml_v1=config.strictly_aml_v1,
             )
     run_pytest(folder_to_test=config.folder, pytest_mark=config.mark, coverage_module=config.coverage_module)

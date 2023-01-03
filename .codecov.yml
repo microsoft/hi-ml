@@ -14,3 +14,7 @@ flags:
     paths:
       - hi-ml-cpath
     carryforward: true
+  hi-ml-multimodal:
+    paths:
+      - hi-ml-multimodal
+    carryforward: true

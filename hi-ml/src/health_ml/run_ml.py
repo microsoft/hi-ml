@@ -338,10 +338,6 @@ class MLRunner:
         if self.container.has_custom_test_step():
             # Run Lightning's built-in test procedure if the `test_step` method has been overridden
             logging.info("Running inference via the LightningModule.test_step method")
-            # We run inference on a single device because distributed strategies such as DDP use DistributedSampler
-            # internally, which replicates some samples to make sure all devices have some batch size in case of
-            # uneven inputs.
-            self.container.max_num_gpus = 1
 
             checkpoint_path = (
                 self.checkpoint_handler.get_checkpoint_to_test() if self.container.run_inference_only else None
@@ -408,6 +404,9 @@ class MLRunner:
                 with logging_section("Model training"):
                     self.run_training()
 
+                # Kill all processes besides rank 0
+                self.after_ddp_cleanup(old_environ)
+
                 # load model checkpoint for custom inference or additional validation step
                 if self.container.has_custom_test_step() or self.container.run_extra_val_epoch:
                     self.load_model_checkpoint()
@@ -416,10 +415,6 @@ class MLRunner:
                 if self.container.run_extra_val_epoch:
                     with logging_section("Model Validation to save plots on validation set"):
                         self.run_validation()
-
-                # Kill all processes besides rank 0
-                self.after_ddp_cleanup(old_environ)
-
             # Run inference on a single device
             with logging_section("Model inference"):
                 self.run_inference()

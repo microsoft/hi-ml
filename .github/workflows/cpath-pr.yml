@@ -13,18 +13,33 @@ on:
       - "hi-ml-azure/**"
       - "hi-ml/**"
 
+# Cancel previous runs of this workflow that are still in progress.
+concurrency:
+  group: ${{ github.ref }}/cpath-pr
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
 env:
   pythonVersion: 3.9
   folder: hi-ml-cpath
-  module_for_coverage_reporting: health_cpath
   HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
   HIML_RESOURCE_GROUP: ${{ secrets.HIML_RESOURCE_GROUP }}
   HIML_SUBSCRIPTION_ID: ${{ secrets.HIML_SUBSCRIPTION_ID }}
   HIML_WORKSPACE_NAME: ${{ secrets.HIML_WORKSPACE_NAME }}
   HIML_SERVICE_PRINCIPAL_ID: ${{ secrets.HIML_SERVICE_PRINCIPAL_ID }}
   HIML_SERVICE_PRINCIPAL_PASSWORD: ${{ secrets.HIML_SERVICE_PRINCIPAL_PASSWORD }}
+  # Set the AML experiment name for all AML jobs submitted during tests. Github.ref looks like
+  # "refs/pull/123/merge" for PR builds.
+  HIML_EXPERIMENT_NAME: ${{ github.ref }}
 
 jobs:
+
+  cancel-azureml:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Cancel previous AzureML runs
+        uses: ./.github/actions/cancel_azureml_jobs
 
   flake8:
     runs-on: ubuntu-20.04
@@ -80,26 +95,41 @@ jobs:
           make pip_test
           make pytest_coverage
 
-      - name: Run GPU tests
-        # GPU tests should be run even if other tests fail
-        if: always()
-        shell: bash -l {0}
-        run: |
-          branch_prefix="refs/heads/"
-          full_branch_name=$GITHUB_REF
-          branch_name_without_prefix=${full_branch_name#$branch_prefix}
-          python hi-ml-azure/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ env.folder }}/environment.yml --folder=${{ env.folder }} --coverage_module=${{ env.module_for_coverage_reporting }} --experiment="$branch_name_without_prefix"
-
       - name: Upload coverage reports to Codecov
         # Coverage should also be uploaded if tests still fail.
-        # This will pick up both the files coverage.xml (from the normal tests) and pytest_gpu_coverage.xml (from the GPU tests).
+        # This will pick up the file coverage.xml from the test run
         if: always()
         uses: codecov/codecov-action@v3
         with:
             flags: ${{ env.folder }}
 
-  smoke_test_slidespandaimagenetmil:
+  pytest_gpu:
     runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Prepare Conda environment
+        uses: ./.github/actions/prepare_cpath_environment
+
+      - name: Run GPU tests
+        run: |
+          cd ${{ env.folder }}
+          make pytest_gpu
+
+      - name: Upload coverage reports to Codecov
+        # Coverage should also be uploaded if tests still fail.
+        # This will pick up the file pytest_gpu_coverage.xml from the GPU tests.
+        if: always()
+        uses: codecov/codecov-action@v3
+        with:
+            flags: ${{ env.folder }}
+
+  smoke_test_cucim_slidespandaimagenetmil:
+    runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -111,10 +141,27 @@ jobs:
       - name: smoke test
         run: |
           cd ${{ env.folder }}
-          make smoke_test_slidespandaimagenetmil_aml
+          make smoke_test_cucim_slidespandaimagenetmil_aml
+
+  smoke_test_openslide_slidespandaimagenetmil:
+    runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Prepare Conda environment
+        uses: ./.github/actions/prepare_cpath_environment
+
+      - name: smoke test
+        run: |
+          cd ${{ env.folder }}
+          make smoke_test_openslide_slidespandaimagenetmil_aml
 
   smoke_test_tilespandaimagenetmil:
     runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -130,6 +177,7 @@ jobs:
 
   smoke_test_tcgacrckimagenetmil:
     runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -145,6 +193,7 @@ jobs:
 
   smoke_test_tcgacrcksslmil:
     runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -160,6 +209,7 @@ jobs:
 
   smoke_test_crck_simclr:
     runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -175,6 +225,7 @@ jobs:
 
   smoke_test_crck_flexible_finetuning:
     runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -190,6 +241,7 @@ jobs:
 
   smoke_test_crck_loss_analysis:
     runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -205,6 +257,7 @@ jobs:
 
   smoke_test_slides_panda_loss_analysis:
     runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -220,6 +273,7 @@ jobs:
 
   smoke_test_slides_panda_no_ddp_sampler:
     runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -235,6 +289,7 @@ jobs:
 
   smoke_test_tiles_panda_no_ddp_sampler:
     runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -254,7 +309,9 @@ jobs:
       flake8,
       mypy,
       pytest,
-      smoke_test_slidespandaimagenetmil,
+      pytest_gpu,
+      smoke_test_cucim_slidespandaimagenetmil,
+      smoke_test_openslide_slidespandaimagenetmil,
       smoke_test_tilespandaimagenetmil,
       smoke_test_tcgacrckimagenetmil,
       smoke_test_tcgacrcksslmil,

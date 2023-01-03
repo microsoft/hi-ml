@@ -5,17 +5,21 @@
 
 import os
 from pathlib import Path
-from typing import Callable, Sequence, Union
+import time
+from typing import Any, Callable, Dict, Sequence, Union
 import numpy as np
-
+from _pytest.capture import SysCapture
 import pytest
 import torch
+from monai.data.meta_tensor import MetaTensor
 from monai.data.dataset import CacheDataset, Dataset, PersistentDataset
 from monai.transforms import Compose
+from monai.utils.enums import WSIPatchKeys
 from torch.utils.data import Dataset as TorchDataset
 from torch.utils.data import Subset
 from torchvision.transforms import RandomHorizontalFlip
-
+from health_cpath.preprocessing.loading import ROIType
+from health_cpath.utils.naming import SlideKey, TileKey
 from health_ml.utils.bag_utils import BagDataset
 from health_ml.utils.data_augmentations import HEDJitter
 
@@ -23,9 +27,8 @@ from health_cpath.datasets.default_paths import TCGA_CRCK_DATASET_DIR
 from health_cpath.datasets.panda_tiles_dataset import PandaTilesDataset
 from health_cpath.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
 from health_cpath.models.encoders import Resnet18
-from health_cpath.models.transforms import (EncodeTilesBatchd, LoadTiled, LoadTilesBatchd, Subsampled,
-                                            transform_dict_adaptor)
-
+from health_cpath.models.transforms import (EncodeTilesBatchd, ExtractCoordinatesd, LoadTiled, TimerWrapper,
+                                            LoadTilesBatchd, MetaTensorToTensord, Subsampled, transform_dict_adaptor)
 from testhisto.utils.utils_testhisto import assert_dicts_equal
 
 
@@ -258,3 +261,105 @@ def test_transform_dict_adaptor() -> None:
     assert output_dict1 == input_dict
     assert output_dict2 == expected_output_dict2
     assert output_dict3 == input_dict
+
+
+def _get_sample(wsi_is_cropped: bool = False) -> Dict:
+    torch.manual_seed(42)
+    bag_size = 2
+    h, w = 16, 16
+    tiles = torch.randint(0, 254, (bag_size, 3, h, w))
+    xs = torch.randint(0, w, (bag_size,))
+    ys = torch.randint(0, h, (bag_size,))
+    coords = torch.stack([ys, xs], dim=0)
+    metadata = {WSIPatchKeys.LOCATION: coords, WSIPatchKeys.COUNT: bag_size}
+    sample: Dict[str, Any] = {SlideKey.IMAGE: MetaTensor(tiles, meta=metadata),
+                              SlideKey.LABEL: 0,
+                              SlideKey.SLIDE_ID: "0"}
+    if wsi_is_cropped:
+        sample[SlideKey.ORIGIN] = (2, 3)
+        sample[SlideKey.SCALE] = 4
+    return sample
+
+
+def test_extract_coordinates_from_non_metatensor() -> None:
+    sample = _get_sample(wsi_is_cropped=False)
+    sample[SlideKey.IMAGE] = sample[SlideKey.IMAGE].as_tensor()
+    transform = ExtractCoordinatesd(tile_size=16, image_key=SlideKey.IMAGE)
+    with pytest.raises(AssertionError, match="Expected MetaTensor"):
+        _ = transform(sample)
+
+
+@pytest.mark.parametrize('wsi_is_cropped', [True, False])
+def test_extract_scale_factor(wsi_is_cropped: bool) -> None:
+    sample = _get_sample(wsi_is_cropped=wsi_is_cropped)
+    transform = ExtractCoordinatesd(tile_size=16, image_key=SlideKey.IMAGE)
+    scale = transform.extract_scale_factor(sample)
+    assert scale == (4 if wsi_is_cropped else 1)
+
+
+@pytest.mark.parametrize('wsi_is_cropped', [True, False])
+def test_extract_offset(wsi_is_cropped: bool) -> None:
+    sample = _get_sample(wsi_is_cropped=wsi_is_cropped)
+    transform = ExtractCoordinatesd(tile_size=16, image_key=SlideKey.IMAGE)
+    offset = transform.extract_offset(sample)
+    assert offset == ((2, 3) if wsi_is_cropped else (0, 0))
+
+
+@pytest.mark.parametrize('roi_type', [r for r in ROIType])
+def test_extract_coordinates_d_transform(roi_type: ROIType) -> None:
+    tile_size = 16
+    bag_size = 2
+    wsi_is_cropped = (roi_type != ROIType.WHOLE)
+    sample = _get_sample(wsi_is_cropped=wsi_is_cropped)
+
+    transform = ExtractCoordinatesd(tile_size=tile_size, image_key=SlideKey.IMAGE)
+    new_sample = transform(sample)
+
+    offset_y, offset_x = (2, 3) if wsi_is_cropped else (0, 0)
+    scale = 4 if wsi_is_cropped else 1
+
+    # Check that the coordinates are correct
+    ys, xs = sample[SlideKey.IMAGE].meta[WSIPatchKeys.LOCATION]
+    assert torch.equal(new_sample[TileKey.TILE_LEFT], xs * scale + offset_x)
+    assert torch.equal(new_sample[TileKey.TILE_TOP], ys * scale + offset_y)
+    assert torch.equal(new_sample[TileKey.TILE_RIGHT], new_sample[TileKey.TILE_LEFT] + tile_size * scale)
+    assert torch.equal(new_sample[TileKey.TILE_BOTTOM], new_sample[TileKey.TILE_TOP] + tile_size * scale)
+
+    # Check that the image and label are tensors
+    assert isinstance(new_sample[SlideKey.IMAGE], torch.Tensor)
+    assert isinstance(new_sample[SlideKey.LABEL], torch.Tensor)
+
+    # Check that the image and label are the same as the original
+    assert torch.equal(new_sample[SlideKey.IMAGE], sample[SlideKey.IMAGE].as_tensor())
+    assert new_sample[SlideKey.LABEL] == sample[SlideKey.LABEL]
+
+    # Check that the tile_ids and slide_ids are set correctly
+    assert TileKey.TILE_ID in new_sample
+    assert SlideKey.SLIDE_ID in new_sample
+    assert len(new_sample[TileKey.TILE_ID]) == bag_size
+    assert len(new_sample[TileKey.SLIDE_ID]) == bag_size
+
+
+def test_metatensor_to_tensor_d_transform() -> None:
+    sample = _get_sample()
+    transform = MetaTensorToTensord(keys=SlideKey.IMAGE)
+    new_sample = transform(sample)
+    assert isinstance(new_sample[SlideKey.IMAGE], torch.Tensor)
+    with pytest.raises(AssertionError, match="Expected MetaTensor"):
+        _ = transform(new_sample)
+
+
+def test_timer_wrapper_transform(capsys: SysCapture) -> None:
+    sample = {"a": 1, SlideKey.SLIDE_ID: "0"}
+
+    class DummyTransform:
+        def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+            time.sleep(0.1)
+            return data
+
+    transform = TimerWrapper(DummyTransform())
+    out = transform(sample)
+    assert out == sample
+    message = capsys.readouterr().out  # type: ignore
+    assert "Rank " in message
+    assert "DummyTransform, Slide 0 took 0.10 seconds" in message

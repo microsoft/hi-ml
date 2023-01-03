@@ -19,6 +19,7 @@ from health_azure.utils import RUN_CONTEXT, is_running_in_azure_ml
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils import AzureMLProgressBar
 from health_ml.utils.common_utils import AUTOSAVE_CHECKPOINT_FILE_NAME, EXPERIMENT_SUMMARY_FILE
+from health_ml.utils.diagnostics import TrainingDiagnoticsCallback
 from health_ml.utils.lightning_loggers import StoringLogger, HimlMLFlowLogger
 
 
@@ -150,6 +151,8 @@ def create_lightning_trainer(container: LightningContainer,
         # TODO antonsc: Remove after fixing the callback.
         raise NotImplementedError("Monitoring batch loading times has been temporarily disabled.")
         # callbacks.append(BatchTimeCallback())
+    if container.monitor_training:
+        callbacks.append(TrainingDiagnoticsCallback())
     if num_gpus > 0 and container.monitor_gpu:
         logging.info("Adding monitoring for GPU utilization")
         callbacks.append(GPUStatsMonitor(intra_step_time=True, inter_step_time=True))

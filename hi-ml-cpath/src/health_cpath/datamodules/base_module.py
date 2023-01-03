@@ -3,27 +3,24 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import torch
-import numpy as np
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, Generic, Optional, Sequence, Tuple, TypeVar, Union
+from typing import Any, Callable, Dict, Generic, List, Optional, Sequence, Tuple, TypeVar, Union
 
-from monai.data.dataset import CacheDataset, Dataset, PersistentDataset
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, DistributedSampler
+from health_cpath.preprocessing.loading import LoadingParams
 
 from health_ml.utils.bag_utils import BagDataset, multibag_collate
 from health_ml.utils.common_utils import _create_generator
 
-from health_cpath.utils.wsi_utils import image_collate
+from health_cpath.utils.wsi_utils import TilingParams, image_collate
 from health_cpath.models.transforms import LoadTilesBatchd
 from health_cpath.datasets.base_dataset import SlidesDataset, TilesDataset
 from health_cpath.utils.naming import ModelKey
 
-from monai.transforms.compose import Compose
-from monai.transforms.io.dictionary import LoadImaged
-from monai.apps.pathology.transforms import TileOnGridd
-from monai.data.image_reader import WSIReader
+from monai.data.dataset import CacheDataset, Dataset, PersistentDataset
+from monai.transforms import Compose
 
 
 _SlidesOrTilesDataset = TypeVar('_SlidesOrTilesDataset', SlidesDataset, TilesDataset)
@@ -65,12 +62,12 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         :param batch_size_inf: Number of slides to load per batch during inference. If None, use batch_size.
         :param max_bag_size: Upper bound on number of tiles in each loaded bag during training stage. If 0 (default),
         will return all samples in each bag. If > 0 , bags larger than `max_bag_size` will yield
-        random subsets of instances. For SlideDataModule, this parameter is used in TileOnGridd Transform to set the
-        tile_count used for tiling on the fly at training time.
+        random subsets of instances. For SlideDataModule, this parameter is used in Rand/GridPatchd Transform to set the
+        num_patches used for tiling on the fly at training time.
         :param max_bag_size_inf: Upper bound on number of tiles in each loaded bag during validation and test stages.
         If 0 (default), will return all samples in each bag. If > 0 , bags larger than `max_bag_size_inf` will yield
-        random subsets of instances. For SlideDataModule, this parameter is used in TileOnGridd Transform to set the
-        tile_count used for tiling on the fly at validation and test time.
+        random subsets of instances. For SlideDataModule, this parameter is used in Rand/GridPatchd Transform to set the
+        num_patches used for tiling on the fly at validation and test time.
         :param seed: pseudorandom number generator seed to use for shuffling instances and bags. Note that randomness in
         train/val/test splits is handled independently in `get_splits()`. (default: `None`)
         :param transforms_dict: A dictionary that contains transform, or a composition of transforms using
@@ -275,84 +272,22 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
 
     def __init__(
         self,
-        level: int = 1,
-        tile_size: int = 224,
-        step: Optional[int] = None,
-        random_offset: bool = True,
-        pad_full: bool = False,
-        background_val: int = 255,
-        filter_mode: str = 'min',
-        backend: str = 'cuCIM',
-        wsi_reader_args: Dict[str, Any] = {},
+        loading_params: LoadingParams,
+        tiling_params: TilingParams,
         **kwargs: Any,
     ) -> None:
         """
-        :param level: the whole slide image level at which the image is extracted, defaults to 1
-        this param is passed to the LoadImaged monai transform that loads a WSI with cucim backend by default
-        :param tile_size: size of the square tile, defaults to 224
-        this param is passed to TileOnGridd monai transform for tiling on the fly.
-        :param step: step size to create overlapping tiles, defaults to None (same as tile_size)
-        Use a step < tile_size to create overlapping tiles, analogousely a step > tile_size will skip some chunks in
-        the wsi. This param is passed to TileOnGridd monai transform for tiling on the fly.
-        :param random_offset: randomize position of the grid, instead of starting from the top-left corner,
-        defaults to True. This param is passed to TileOnGridd monai transform for tiling on the fly.
-        :param pad_full: pad image to the size evenly divisible by tile_size, defaults to False
-        This param is passed to TileOnGridd monai transform for tiling on the fly.
-        :param background_val: the background constant to ignore background tiles (e.g. 255 for white background),
-        defaults to 255. This param is passed to TileOnGridd monai transform for tiling on the fly.
-        :param filter_mode: mode must be in ["min", "max", "random"]. If total number of tiles is greater than
-        tile_count, then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for
-        random) subset, defaults to "min" (which assumes background is high value). This param is passed to TileOnGridd
-        monai transform for tiling on the fly.
-        :param backend: the WSI reader backend, defaults to "cuCIM". This param is passed to LoadImaged monai transform
-        :param wsi_reader_args: Additional arguments to pass to the WSIReader, defaults to {}. Multi processing is
-        enabled since monai 1.0.0 by specifying num_workers > 0 with CuCIM backend only.
+        :param tiling_params: the tiling on the fly parameters.
+        :param loading_params: the loading parameters.
+        :param kwargs: additional parameters to pass to the parent class HistoDataModule
         """
         super().__init__(**kwargs)
-        # Tiling on the fly params
-        self.tile_size = tile_size
-        self.step = step
-        self.random_offset = random_offset
-        self.pad_full = pad_full
-        self.background_val = background_val
-        self.filter_mode = filter_mode
-        # WSIReader params
-        self.level = level
-        self.backend = backend
-        self.wsi_reader_args = wsi_reader_args
-        # TileOnGridd transform expects None to select all foreground tile so we hardcode max_bag_size and
-        # max_bag_size_inf to None if set to 0
-        for stage_key, max_bag_size in self.bag_sizes.items():
-            if max_bag_size == 0:
-                self.bag_sizes[stage_key] = None  # type: ignore
+        self.tiling_params = tiling_params
+        self.loading_params = loading_params
 
     def _load_dataset(self, slides_dataset: SlidesDataset, stage: ModelKey) -> Dataset:
-        base_transform = Compose(
-            [
-                LoadImaged(
-                    keys=slides_dataset.IMAGE_COLUMN,
-                    reader=WSIReader,
-                    dtype=np.uint8,
-                    image_only=True,
-                    level=self.level,
-                    backend=self.backend,
-                    **self.wsi_reader_args,
-                ),
-                TileOnGridd(
-                    keys=slides_dataset.IMAGE_COLUMN,
-                    tile_count=self.bag_sizes[stage],
-                    tile_size=self.tile_size,
-                    step=self.step,
-                    random_offset=self.random_offset if stage == ModelKey.TRAIN else False,
-                    pad_full=self.pad_full,
-                    background_val=self.background_val,
-                    filter_mode=self.filter_mode,
-                    return_list_of_dicts=True,
-                ),
-            ]
-        )
+        base_transform = Compose(self.get_tiling_transforms(stage=stage))
         if self.transforms_dict and self.transforms_dict[stage]:
-
             transforms = Compose([base_transform, self.transforms_dict[stage]]).flatten()
         else:
             transforms = base_transform
@@ -376,3 +311,13 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
             generator=generator,
             **dataloader_kwargs,
         )
+
+    def get_tiling_transforms(self, stage: ModelKey) -> List[Callable]:
+        """Returns the list of transforms to apply to the dataset to perform tiling on the fly. The transforms are
+        applied in the order they are returned by this method. To add additional transforms, override this method."""
+        return [
+            self.loading_params.get_load_roid_transform(),
+            self.tiling_params.get_tiling_transform(bag_size=self.bag_sizes[stage], stage=stage),
+            self.tiling_params.get_extract_coordinates_transform(),
+            self.tiling_params.get_split_transform(),
+        ]

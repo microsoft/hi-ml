@@ -28,9 +28,13 @@ for package, subpackages in packages.items():
         sys.path.insert(0, str(himl_root / package / subpackage))
 
 from health_ml.utils.fixed_paths import OutputFolderForTests  # noqa: E402
+from health_ml.utils.logging import package_setup_and_hacks  # noqa: E402
 from testhisto.mocks.base_data_generator import MockHistoDataType  # noqa: E402
 from testhisto.mocks.tiles_generator import MockPandaTilesGenerator  # noqa: E402
 from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPositioningType  # noqa: E402
+
+# Reduce logging noise in DEBUG mode
+package_setup_and_hacks()
 
 
 def remove_and_create_folder(folder: Path) -> None:

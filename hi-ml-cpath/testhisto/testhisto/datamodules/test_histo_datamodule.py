@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import time
 import pytest
 import torch
 from pathlib import Path
@@ -12,7 +13,9 @@ from torch.utils.data import DataLoader, DistributedSampler, RandomSampler, Sequ
 from health_cpath.datamodules.base_module import HistoDataModule
 from health_cpath.datamodules.panda_module import PandaSlidesDataModule, PandaTilesDataModule
 from health_cpath.utils.naming import ModelKey, SlideKey
+from health_cpath.utils.wsi_utils import TilingParams
 from health_ml.utils.common_utils import is_gpu_available
+from testhisto.datamodules.test_slides_datamodule import get_loading_params
 from testhisto.utils.utils_testhisto import run_distributed
 
 
@@ -62,11 +65,9 @@ def test_slides_datamodule_different_bag_sizes(
         batch_size=2,
         max_bag_size=max_bag_size,
         max_bag_size_inf=max_bag_size_inf,
-        tile_size=28,
-        level=0,
+        tiling_params=TilingParams(tile_size=28),
+        loading_params=get_loading_params(level=0),
     )
-    # To account for the fact that slides datamodule fomats 0 to None so that it's compatible with TileOnGrid transform
-    max_bag_size_inf = max_bag_size_inf if max_bag_size_inf != 0 else None  # type: ignore
     # For slides datamodule, the true bag sizes [4, 4] are the same as requested to TileOnGrid transform
     _assert_correct_bag_sizes(datamodule, max_bag_size, max_bag_size_inf, true_bag_sizes=[4, 4])
 
@@ -98,8 +99,8 @@ def test_slides_datamodule_different_batch_sizes(
         batch_size_inf=batch_size_inf,
         max_bag_size=16,
         max_bag_size_inf=16,
-        tile_size=28,
-        level=0,
+        tiling_params=TilingParams(tile_size=28),
+        loading_params=get_loading_params(level=0),
     )
     _assert_correct_batch_sizes(datamodule, batch_size, batch_size_inf)
 
@@ -135,6 +136,8 @@ def _test_datamodule_pl_ddp_sampler_true(
     datamodule: HistoDataModule, rank: int = 0, world_size: int = 1, device: str = "cpu"
 ) -> None:
     datamodule.setup()
+    if rank == 0:
+        time.sleep(15)  # slow down rank 0 to avoid concurrent file access
     _validate_sampler_type(datamodule, [ModelKey.TRAIN, ModelKey.VAL, ModelKey.TEST], expected_none=True)
 
 
@@ -142,6 +145,8 @@ def _test_datamodule_pl_ddp_sampler_false(
     datamodule: HistoDataModule, rank: int = 0, world_size: int = 1, device: str = "cpu"
 ) -> None:
     datamodule.setup()
+    if rank == 0:
+        time.sleep(15)  # slow down rank 0 to avoid concurrent file access
     _validate_sampler_type(datamodule, [ModelKey.VAL, ModelKey.TEST], expected_none=True)
     _validate_sampler_type(datamodule, [ModelKey.TRAIN], expected_none=False)
 
@@ -152,13 +157,13 @@ def _test_datamodule_pl_ddp_sampler_false(
 def test_slides_datamodule_pl_replace_sampler_ddp(mock_panda_slides_root_dir: Path) -> None:
     slides_datamodule = PandaSlidesDataModule(root_path=mock_panda_slides_root_dir,
                                               pl_replace_sampler_ddp=True,
-                                              seed=42)
+                                              seed=42, tiling_params=TilingParams(),
+                                              loading_params=get_loading_params())
     run_distributed(_test_datamodule_pl_ddp_sampler_true, [slides_datamodule], world_size=2)
     slides_datamodule.pl_replace_sampler_ddp = False
     run_distributed(_test_datamodule_pl_ddp_sampler_false, [slides_datamodule], world_size=2)
 
 
-@pytest.mark.skip(reason="Test fails with Broken Pipe Error. To be fixed.")
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
 @pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
 @pytest.mark.gpu
@@ -174,6 +179,7 @@ def test_assertion_error_missing_seed(mock_panda_slides_root_dir: Path) -> None:
         with patch("torch.distributed.is_initialized", return_value=True):
             with patch("torch.distributed.get_world_size", return_value=2):
                 slides_datamodule = PandaSlidesDataModule(
-                    root_path=mock_panda_slides_root_dir, pl_replace_sampler_ddp=False
+                    root_path=mock_panda_slides_root_dir, pl_replace_sampler_ddp=False,
+                    tiling_params=TilingParams(), loading_params=get_loading_params()
                 )
                 slides_datamodule._get_ddp_sampler(MagicMock(), ModelKey.TRAIN)

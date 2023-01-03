@@ -13,13 +13,12 @@ from typing import Any, Dict, Iterable, Optional, Tuple, Union
 import numpy as np
 import PIL
 from monai.data import Dataset
-from monai.data.image_reader import WSIReader
 from tqdm import tqdm
 from health_ml.utils.box_utils import Box
 
 from health_cpath.datasets.base_dataset import SlidesDataset
 from health_cpath.preprocessing import tiling
-from health_cpath.preprocessing.loading import LoadROId, segment_foreground
+from health_cpath.preprocessing.loading import LoadROId, WSIBackend, segment_foreground
 from health_cpath.utils.naming import SlideKey, TileKey
 
 
@@ -177,7 +176,7 @@ def process_slide(sample: Dict[SlideKey, Any], level: int, margin: int, tile_siz
             failed_tiles_file.write('tile_id' + '\n')
 
             print(f"Loading slide {slide_id} ...")
-            loader = LoadROId(WSIReader('cuCIM'), level=level, margin=margin,
+            loader = LoadROId(backend=WSIBackend.CUCIM, level=level, margin=margin,
                               foreground_threshold=foreground_threshold)
             sample = loader(sample)  # load 'image' from disk
 
@@ -243,7 +242,7 @@ def merge_dataset_csv_files(dataset_dir: Path) -> Path:
 def main(slides_dataset: SlidesDataset, root_output_dir: Union[str, Path],
          level: int, tile_size: int, margin: int, foreground_threshold: Optional[float],
          occupancy_threshold: float, parallel: bool = False, overwrite: bool = False,
-         n_slides: Optional[int] = None) -> None:
+         n_slides: Optional[int] = 0, only: Optional[str] = None) -> None:
     """Process a slides dataset to produce a tiles dataset.
 
     :param slides_dataset: Input tiles dataset object.
@@ -258,11 +257,18 @@ def main(slides_dataset: SlidesDataset, root_output_dir: Union[str, Path],
     :param overwrite: Whether to overwrite an existing output tiles dataset. If `True`, will delete
     and recreate `root_output_dir`, otherwise will resume by skipping already processed slides.
     :param n_slides: If given, limit the total number of slides for debugging.
+    :param only: Id of a single slide for debugging.
     """
 
     # Ignoring some types here because mypy is getting confused with the MONAI Dataset class
     # to select a subsample use keyword n_slides
-    dataset = Dataset(slides_dataset)[:n_slides]  # type: ignore
+    if only:
+        slides_dataset.dataset_df = slides_dataset.dataset_df.filter(items=[only], axis=0)
+    dataset = Dataset(slides_dataset)  # type: ignore
+
+    if n_slides > 0:  # type: ignore
+        dataset = dataset[:n_slides]
+
     output_dir = Path(root_output_dir)
 
     print(f"Creating dataset of level-{level} {tile_size}x{tile_size} "
@@ -300,8 +306,9 @@ if __name__ == '__main__':
     # Example set up for an existing slides dataset:
     main(slides_dataset=TcgaPradDataset("/tmp/datasets/TCGA-PRAD_20220712"),
          root_output_dir="/tmp/datasets/TCGA-PRAD_10X_tiles_level1_224",
-         n_slides=5,
-         level=1,
+         n_slides=2,
+         only=None,
+         level=0,
          tile_size=224,
          margin=0,
          foreground_threshold=None,

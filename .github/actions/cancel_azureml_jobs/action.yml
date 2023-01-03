@@ -1,0 +1,50 @@
+name: 'Cancel environment setup'
+description: 'Set up environment hi-ml-cpath workflows'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Create AzureML config.json file
+      shell: bash
+      run: ./create_config.sh
+
+    # Use a cache action to save the full conda environment, so that we don't have to reinstall it every time.
+    # Paths are tied to the location of the miniconda installation, and may need adjustment on a different OS.
+    - name: Retrieve cached Conda environment
+      id: cache-conda
+      uses: actions/cache@v3
+      with:
+        path: /usr/share/miniconda/envs/AzureML_SDK
+        key: azureml-conda-${{ hashFiles('.github/actions/cancel_azureml_jobs/azureml-env.yml') }}
+
+    # If the cache action didn't find a cache, then install the conda environment afresh.
+    - name: Build Conda environment from scratch
+      uses: conda-incubator/setup-miniconda@v2
+      if: steps.cache-conda.outputs.cache-hit != 'true'
+      with:
+        environment-file: .github/actions/cancel_azureml_jobs/azureml-env.yml
+        activate-environment: AzureML_SDK
+
+    # Modify the path to point to the new or cached Conda environment.
+    # This is effectively also what `conda activate` does.
+    - name: Activate environment
+      shell: bash
+      run: |
+        echo "Adding Conda bin folder to path"
+        echo "/usr/share/miniconda/envs/AzureML_SDK/bin" >> $GITHUB_PATH
+
+    - name: Conda info
+      shell: bash
+      run: conda info
+
+    - name: Show active Python path
+      shell: bash
+      run: which python
+
+    # The AzureML experiment where the jobs are deleted is read from
+    # the environment variable HIML_EXPERIMENT_NAME set in the workflow file.
+    - name: Cancel AzureML jobs
+      shell: bash
+      run: |
+        echo "Cancelling all unfinished AzureML jobs for this PR."
+        python .github/actions/cancel_azureml_jobs/cancel_aml_jobs.py

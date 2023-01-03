@@ -35,17 +35,22 @@ from azure.core.exceptions import ClientAuthenticationError, ResourceNotFoundErr
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
 import health_azure.utils as util
-from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore
+from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore, effective_experiment_name
 from health_azure.utils import (ENV_MASTER_ADDR, ENV_MASTER_PORT, MASTER_PORT_DEFAULT,
-                                PackageDependency, create_argparser, get_credential)
+                                PackageDependency, create_argparser, get_credential, download_file_if_necessary)
 from testazure.test_himl import RunTarget, render_and_run_test_script
-from testazure.utils_testazure import (DEFAULT_IGNORE_FOLDERS, DEFAULT_WORKSPACE, MockRun, change_working_directory,
-                                       himl_azure_root, repository_root)
+from testazure.utils_testazure import (DEFAULT_IGNORE_FOLDERS,
+                                       DEFAULT_WORKSPACE,
+                                       MockRun,
+                                       change_working_directory,
+                                       create_unittest_run_object,
+                                       experiment_for_unittests,
+                                       himl_azure_root,
+                                       repository_root)
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
 EXPERIMENT_NAME = "fancy-experiment"
-AML_TESTS_EXPERIMENT = "test_experiment"
 
 
 def oh_no() -> None:
@@ -1103,16 +1108,16 @@ def test_get_latest_aml_run_from_experiment(num_runs: int, tags: Dict[str, str],
             assert len(aml_runs) == expected_num_returned
 
 
-def test_get_latest_aml_run_from_experiment_remote(tmp_path: Path) -> None:
+def test_get_latest_aml_run_from_experiment_remote() -> None:
     """
     Test that a remote run with particular tags can be correctly retrieved, ignoring any more recent
     experiments which do not have the correct tags. Note: this test will instantiate 2 new Runs in the
-    workspace described in your config.json file, under an experiment defined by AML_TESTS_EXPERIMENT
+    workspace described in your config.json file, under an experiment defined by experiment_for_unittests()
     """
     ws = DEFAULT_WORKSPACE.workspace
     assert True
 
-    experiment = Experiment(ws, AML_TESTS_EXPERIMENT)
+    experiment = Experiment(ws, experiment_for_unittests())
     config = ScriptRunConfig(
         source_directory=".",
         command=["cd ."],  # command that does nothing
@@ -1123,6 +1128,7 @@ def test_get_latest_aml_run_from_experiment_remote(tmp_path: Path) -> None:
             amlignore=Path("") / AML_IGNORE_FILE,
             lines_to_append=DEFAULT_IGNORE_FOLDERS):
         first_run = experiment.submit(config)
+        first_run.diplay_name = "test_get_latest_aml_run_from_experiment_remote"
     tags = {"experiment_type": "great_experiment"}
     first_run.set_tags(tags)
     first_run.wait_for_completion()
@@ -1136,7 +1142,7 @@ def test_get_latest_aml_run_from_experiment_remote(tmp_path: Path) -> None:
         second_run.remove_tags(tags)
 
     # Retrieve latest run with given tags (expect first_run to be returned)
-    retrieved_runs = util.get_latest_aml_runs_from_experiment(AML_TESTS_EXPERIMENT, tags=tags, aml_workspace=ws)
+    retrieved_runs = util.get_latest_aml_runs_from_experiment(experiment_for_unittests(), tags=tags, aml_workspace=ws)
     assert len(retrieved_runs) == 1
     assert retrieved_runs[0].id == first_run.id
     assert retrieved_runs[0].get_tags() == tags
@@ -1258,7 +1264,7 @@ def test_download_file_from_run(tmp_path: Path, dummy_env_vars: Dict[str, str], 
 def test_download_file_from_run_remote(tmp_path: Path) -> None:
     # This test will create a Run in your workspace (using only local compute)
     ws = DEFAULT_WORKSPACE.workspace
-    experiment = Experiment(ws, AML_TESTS_EXPERIMENT)
+    experiment = Experiment(ws, experiment_for_unittests())
     config = ScriptRunConfig(
         source_directory=".",
         command=["cd ."],  # command that does nothing
@@ -1268,6 +1274,7 @@ def test_download_file_from_run_remote(tmp_path: Path) -> None:
             amlignore=Path("") / AML_IGNORE_FILE,
             lines_to_append=DEFAULT_IGNORE_FOLDERS):
         run = experiment.submit(config)
+        run.diplay_name = "test_download_file_from_run_remote"
 
     file_to_upload = tmp_path / "dummy_file.txt"
     file_contents = "Hello world"
@@ -1308,7 +1315,7 @@ def test_download_run_file_during_run(tmp_path: Path) -> None:
     information about the workspace to use, but pick up the current workspace.
     """
     # Create a run that contains a simple txt file
-    experiment_name = "himl-tests"
+    experiment_name = effective_experiment_name("himl-tests")
     run_to_download_from = util.create_aml_run_object(experiment_name=experiment_name,
                                                       workspace=DEFAULT_WORKSPACE.workspace)
     file_contents = "Hello World!"
@@ -1582,7 +1589,7 @@ def test_checkpoint_download_remote(tmp_path: Path) -> None:
     prefix = "outputs/checkpoints/"
 
     ws = DEFAULT_WORKSPACE.workspace
-    experiment = Experiment(ws, AML_TESTS_EXPERIMENT)
+    experiment = Experiment(ws, experiment_for_unittests())
     config = ScriptRunConfig(
         source_directory=".",
         command=["cd ."],  # command that does nothing
@@ -1592,6 +1599,7 @@ def test_checkpoint_download_remote(tmp_path: Path) -> None:
             amlignore=Path("") / AML_IGNORE_FILE,
             lines_to_append=DEFAULT_IGNORE_FOLDERS):
         run = experiment.submit(config)
+        run.display_name = "test_checkpoint_download_remote"
 
     file_contents = "Hello world"
     file_name = ""  # for pyright
@@ -2341,8 +2349,8 @@ def test_create_run() -> None:
     """
     Test if we can create an AML run object here in the test suite, write logs and read them back in.
     """
-    run_name = "foo"
-    experiment_name = "himl-tests"
+    run_name = "test_create_run"
+    experiment_name = effective_experiment_name("himl-tests")
     run: Optional[Run] = None
     try:
         run = util.create_aml_run_object(experiment_name=experiment_name, run_name=run_name,
@@ -2507,3 +2515,74 @@ def test_filter_v2_input_output_args() -> None:
     expected_filtered = ["--input_0=input0", "--a=foo"]
     actual_filtered = util.filter_v2_input_output_args(args_to_filter)
     _compare_args(expected_filtered, actual_filtered)
+
+
+def test_download_from_run(tmp_path: Path) -> None:
+    """Test if a file can be downloaded from a run, and if download is skipped on ranks other than zero."""
+    path_on_aml = "outputs/test.txt"
+    local_file = tmp_path / "test.txt"
+    local_content = "mock content"
+    local_file.write_text(local_content)
+    run = create_unittest_run_object()
+    try:
+        run.upload_file(path_on_aml, str(local_file))
+        run.flush()
+        download_path = tmp_path / "downloaded.txt"
+        with mock.patch("health_azure.utils.is_local_rank_zero", return_value=True):
+            download_file_if_necessary(run, path_on_aml, download_path)
+        assert download_path.is_file(), "File was not downloaded"
+        assert download_path.read_text() == local_content, "Downloaded file content is incorrect"
+
+        download_path2 = tmp_path / "downloaded2.txt"
+        with mock.patch("health_azure.utils.is_local_rank_zero", return_value=False):
+            download_file_if_necessary(run, path_on_aml, download_path2)
+        assert not download_path2.is_file(), "No file should have been downloaded"
+    finally:
+        run.complete()
+
+
+@pytest.mark.parametrize('overwrite', [False, True])
+def test_download_from_run_if_necessary(tmp_path: Path, overwrite: bool) -> None:
+    """Test if downloading a file from a run works. """
+    filename = "test_output.csv"
+    download_dir = tmp_path
+    remote_filename = "outputs/" + filename
+    expected_local_path = download_dir / filename
+
+    def create_mock_file(name: str, output_file_path: str, _validate_checksum: bool) -> None:
+        output_path = Path(output_file_path)
+        print(f"Writing mock content to file {output_path}")
+        output_path.write_text("mock content")
+
+    run = MagicMock()
+    run.download_file.side_effect = create_mock_file
+
+    with mock.patch("health_azure.utils.is_local_rank_zero", return_value=True):
+        local_path = download_file_if_necessary(run, remote_filename, expected_local_path)
+        run.download_file.assert_called_once()
+        assert local_path == expected_local_path
+        assert local_path.exists()
+
+        run.reset_mock()
+        new_local_path = download_file_if_necessary(run, remote_filename, expected_local_path, overwrite=overwrite)
+        if overwrite:
+            run.download_file.assert_called_once()
+        else:
+            run.download_file.assert_not_called()
+        assert new_local_path == local_path
+        assert new_local_path.exists()
+
+
+def test_download_from_run_if_necessary_rank_nonzero(tmp_path: Path) -> None:
+    filename = "test_output.csv"
+    download_dir = tmp_path
+    remote_filename = "outputs/" + filename
+    expected_local_path = download_dir / filename
+
+    run = MagicMock()
+    run.download_file.side_effect = ValueError
+
+    with mock.patch("health_azure.utils.is_local_rank_zero", return_value=False):
+        local_path = download_file_if_necessary(run, remote_filename, expected_local_path)
+        assert local_path is not None
+        run.download_file.assert_not_called()

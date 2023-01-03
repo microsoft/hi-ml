@@ -7,7 +7,7 @@ import shutil
 import sys
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, DEFAULT, create_autospec
 
 import pytest
 from _pytest.capture import SysCapture
@@ -113,6 +113,31 @@ def test_additional_aml_run_tags(mock_runner: Runner) -> None:
         assert "max_epochs" in mock_submit_to_azure_if_needed.call_args[1]["tags"]
 
 
+def test_additional_environment_variables(mock_runner: Runner) -> None:
+    model_name = "HelloWorld"
+    arguments = ["", f"--model={model_name}", "--cluster=foo"]
+    with patch.multiple(
+        "health_ml.runner",
+        submit_to_azure_if_needed=DEFAULT,
+        check_conda_environment=DEFAULT,
+        get_workspace=DEFAULT,
+        get_ml_client=DEFAULT,
+    ) as mocks:
+        with patch("health_ml.runner.Runner.run_in_situ"):
+            with patch("health_ml.runner.Runner.parse_and_load_model"):
+                with patch("health_ml.runner.Runner.validate"):
+                    with patch.object(sys, "argv", arguments):
+                        mock_container = create_autospec(LightningContainer)
+                        mock_container.get_additional_environment_variables = MagicMock(return_value={"foo": "bar"})
+                        mock_runner.lightning_container = mock_container
+                        mock_runner.run()
+        mocks["submit_to_azure_if_needed"].assert_called_once()
+        mock_env_vars = mocks["submit_to_azure_if_needed"].call_args[1]["environment_variables"]
+        assert DEBUG_DDP_ENV_VAR in mock_env_vars
+        assert "foo" in mock_env_vars
+        assert mock_env_vars["foo"] == "bar"
+
+
 def test_run(mock_runner: Runner) -> None:
     model_name = "HelloWorld"
     arguments = ["", f"--model={model_name}"]
@@ -138,6 +163,7 @@ def test_submit_to_azureml_if_needed(mock_get_workspace: MagicMock,
     def _mock_dont_submit_to_aml(input_datasets: List[DatasetConfig],
                                  submit_to_azureml: bool, strictly_aml_v1: bool,  # type: ignore
                                  environment_variables: Dict[str, Any],  # type: ignore
+                                 default_datastore: Optional[str],  # type: ignore
                                  ) -> AzureRunInfo:
         datasets_input = [d.target_folder for d in input_datasets] if input_datasets else []
         return AzureRunInfo(input_datasets=datasets_input,
@@ -349,3 +375,16 @@ def test_invalid_profiler(mock_runner: Runner) -> None:
         with pytest.raises(ValueError) as ex:
             mock_runner.run()
         assert "Unsupported profiler." in str(ex)
+
+
+def test_custom_datastore_outside_aml(mock_runner: Runner) -> None:
+    model_name = "HelloWorld"
+    datastore = "foo"
+    arguments = ["", f"--datastore={datastore}", f"--model={model_name}"]
+    with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_azure_if_needed:
+        with patch("health_ml.runner.get_workspace"):
+            with patch("health_ml.runner.Runner.run_in_situ"):
+                with patch.object(sys, "argv", arguments):
+                    mock_runner.run()
+        mock_submit_to_azure_if_needed.assert_called_once()
+        assert mock_submit_to_azure_if_needed.call_args[1]["default_datastore"] == datastore

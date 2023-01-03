@@ -81,6 +81,15 @@ pytest:
 pytest_coverage:
 	pytest --cov=health_cpath --cov SSL --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc
 
+# run pytest using GPUs via an AzureML job
+pytest_gpu:
+	python ../hi-ml-azure/run_pytest.py \
+		--mark=gpu --cluster=pr-gpu \
+		--conda_env=environment.yml \
+		--folder=hi-ml-cpath \
+		--coverage_module=health_cpath \
+		--strictly_aml_v1=True
+
 SSL_CKPT_RUN_ID_CRCK := CRCK_SimCLR_1655731022_85790606
 SRC_CKPT_RUN_ID_CRCK := TcgaCrckSSLMIL_1667832811_4e855804
 
@@ -160,11 +169,11 @@ define DEFAULT_SMOKE_TEST_ARGS
 endef
 
 define AML_ONE_DEVICE_ARGS
---cluster=testing-nc6 --wait_for_completion --num_nodes=1 --max_num_gpus=1
+--cluster=testing-nc6 --wait_for_completion --num_nodes=1 --max_num_gpus=1 --strictly_aml_v1=True --max_run_duration=1h
 endef
 
 define AML_MULTIPLE_DEVICE_ARGS
---cluster=dedicated-nc24s-v2 --wait_for_completion
+--cluster=dedicated-nc24s-v2 --wait_for_completion --strictly_aml_v1=True --max_run_duration=1h
 endef
 
 define DEEPSMILEDEFAULT_SMOKE_TEST_ARGS
@@ -194,15 +203,27 @@ define DDP_SAMPLER_ARGS
 --pl_replace_sampler_ddp=False
 endef
 
+define OPENSLIDE_BACKEND_ARGS
+--backend=OpenSlide
+endef
+
 # The following test takes around 5 minutes
-smoke_test_slidespandaimagenetmil_local:
+smoke_test_cucim_slidespandaimagenetmil_local:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDASLIDES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
 	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS};}
 
 # Once running in AML the following test takes around 6 minutes
-smoke_test_slidespandaimagenetmil_aml:
+smoke_test_cucim_slidespandaimagenetmil_aml:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDASLIDES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
-	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS} ${AML_MULTIPLE_DEVICE_ARGS};}
+	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS} ${AML_MULTIPLE_DEVICE_ARGS} --tag smoke_test_cucim_slidespandaimagenetmil_aml;}
+
+smoke_test_openslide_slidespandaimagenetmil_local:
+	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDASLIDES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
+	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS} ${OPENSLIDE_BACKEND_ARGS};}
+
+smoke_test_openslide_slidespandaimagenetmil_aml:
+	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDASLIDES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
+	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS} ${OPENSLIDE_BACKEND_ARGS} ${AML_MULTIPLE_DEVICE_ARGS} --tag smoke_test_openslide_slidespandaimagenetmil_aml;}
 
 # The following test takes about 6 minutes
 smoke_test_tilespandaimagenetmil_local:
@@ -211,7 +232,7 @@ smoke_test_tilespandaimagenetmil_local:
 
 smoke_test_tilespandaimagenetmil_aml:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDATILES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
-	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS}  ${AML_MULTIPLE_DEVICE_ARGS};}
+	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS}  ${AML_MULTIPLE_DEVICE_ARGS} --tag smoke_test_tilespandaimagenetmil_aml;}
 
 # The following test takes about 30 seconds
 smoke_test_tcgacrcksslmil_local:
@@ -220,7 +241,7 @@ smoke_test_tcgacrcksslmil_local:
 
 smoke_test_tcgacrcksslmil_aml:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${TCGACRCKSSLMIL_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
-	${TCGACRCKSSLMIL_SMOKE_TEST_ARGS} ${AML_MULTIPLE_DEVICE_ARGS};}
+	${TCGACRCKSSLMIL_SMOKE_TEST_ARGS} ${AML_MULTIPLE_DEVICE_ARGS} --tag smoke_test_tcgacrcksslmil_aml;}
 
 smoke_test_tcgacrckimagenetmil_local:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${TCGACRCKIMANEGETMIL_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
@@ -228,7 +249,7 @@ smoke_test_tcgacrckimagenetmil_local:
 
 smoke_test_tcgacrckimagenetmil_aml:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${TCGACRCKIMANEGETMIL_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
-	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS} ${AML_MULTIPLE_DEVICE_ARGS};}
+	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS} ${AML_MULTIPLE_DEVICE_ARGS} --tag smoke_test_tcgacrckimagenetmil_aml;}
 
 # The following test takes about 3 minutes
 smoke_test_crck_simclr_local:
@@ -237,7 +258,7 @@ smoke_test_crck_simclr_local:
 
 smoke_test_crck_simclr_aml:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${CRCKSIMCLR_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
-	${CRCKSIMCLR_SMOKE_TEST_ARGS} ${AML_MULTIPLE_DEVICE_ARGS};}
+	${CRCKSIMCLR_SMOKE_TEST_ARGS} ${AML_MULTIPLE_DEVICE_ARGS} --tag smoke_test_crck_simclr_aml;}
 
 smoke_test_crck_flexible_finetuning_local:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${TCGACRCKSSLMIL_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
@@ -245,7 +266,7 @@ smoke_test_crck_flexible_finetuning_local:
 
 smoke_test_crck_flexible_finetuning_aml:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${TCGACRCKSSLMIL_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
-	${TCGACRCKSSLMIL_SMOKE_TEST_ARGS} ${AML_MULTIPLE_DEVICE_ARGS} ${CRCK_TUNING_ARGS};}
+	${TCGACRCKSSLMIL_SMOKE_TEST_ARGS} ${AML_MULTIPLE_DEVICE_ARGS} ${CRCK_TUNING_ARGS} --tag smoke_test_crck_flexible_finetuning_aml;}
 
 smoke_test_crck_loss_analysis_local:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${TCGACRCKSSLMIL_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
@@ -253,7 +274,7 @@ smoke_test_crck_loss_analysis_local:
 
 smoke_test_crck_loss_analysis_aml:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${TCGACRCKSSLMIL_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
-	${TCGACRCKSSLMIL_SMOKE_TEST_ARGS} ${AML_MULTIPLE_DEVICE_ARGS} ${LOSS_ANALYSIS_ARGS};}
+	${TCGACRCKSSLMIL_SMOKE_TEST_ARGS} ${AML_MULTIPLE_DEVICE_ARGS} ${LOSS_ANALYSIS_ARGS} --tag smoke_test_crck_loss_analysis_aml;}
 
 smoke_test_slides_panda_loss_analysis_local:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDASLIDES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
@@ -261,7 +282,7 @@ smoke_test_slides_panda_loss_analysis_local:
 
 smoke_test_slides_panda_loss_analysis_aml:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDASLIDES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
-	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS} ${LOSS_ANALYSIS_ARGS} ${AML_MULTIPLE_DEVICE_ARGS};}
+	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS} ${LOSS_ANALYSIS_ARGS} ${AML_MULTIPLE_DEVICE_ARGS} --tag smoke_test_slides_panda_loss_analysis_aml;}
 
 smoke_test_slides_panda_no_ddp_sampler_local:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDASLIDES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
@@ -269,7 +290,7 @@ smoke_test_slides_panda_no_ddp_sampler_local:
 
 smoke_test_slides_panda_no_ddp_sampler_aml:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDASLIDES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
-	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS} ${DDP_SAMPLER_ARGS} ${AML_MULTIPLE_DEVICE_ARGS};}
+	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS} ${DDP_SAMPLER_ARGS} ${AML_MULTIPLE_DEVICE_ARGS} --tag smoke_test_slides_panda_no_ddp_sampler_aml;}
 
 smoke_test_tiles_panda_no_ddp_sampler_local:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDATILES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
@@ -277,8 +298,8 @@ smoke_test_tiles_panda_no_ddp_sampler_local:
 
 smoke_test_tiles_panda_no_ddp_sampler_aml:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDATILES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
-	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS} ${DDP_SAMPLER_ARGS} ${AML_MULTIPLE_DEVICE_ARGS};}
+	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS} ${DDP_SAMPLER_ARGS} ${AML_MULTIPLE_DEVICE_ARGS} --tag smoke_test_tiles_panda_no_ddp_sampler_aml;}
 
-smoke tests local: smoke_test_slidespandaimagenetmil_local smoke_test_tilespandaimagenetmil_local smoke_test_tcgacrcksslmil_local smoke_test_crck_simclr_local smoke_test_crck_flexible_finetuning_local smoke_test_tcgacrckimagenetmil_local smoke_test_crck_loss_analysis_local smoke_test_slides_panda_loss_analysis_local smoke_test_slides_panda_no_ddp_sampler_local smoke_test_tiles_panda_no_ddp_sampler_local
+smoke tests local: smoke_test_cucim_slidespandaimagenetmil_local smoke_test_openslide_slidespandaimagenetmil_local smoke_test_tilespandaimagenetmil_local smoke_test_tcgacrcksslmil_local smoke_test_crck_simclr_local smoke_test_crck_flexible_finetuning_local smoke_test_tcgacrckimagenetmil_local smoke_test_crck_loss_analysis_local smoke_test_slides_panda_loss_analysis_local smoke_test_slides_panda_no_ddp_sampler_local smoke_test_tiles_panda_no_ddp_sampler_local
 
-smoke tests AML: smoke_test_slidespandaimagenetmil_aml smoke_test_tilespandaimagenetmil_aml smoke_test_tcgacrcksslmil_aml smoke_test_crck_simclr_aml smoke_test_crck_flexible_finetuning_aml smoke_test_tcgacrckimagenetmil_aml smoke_test_crck_loss_analysis_aml smoke_test_slides_panda_loss_analysis_aml smoke_test_slides_panda_no_ddp_sampler_aml smoke_test_tiles_panda_no_ddp_sampler_aml
+smoke tests AML: smoke_test_cucim_slidespandaimagenetmil_aml smoke_test_openslide_slidespandaimagenetmil_aml smoke_test_tilespandaimagenetmil_aml smoke_test_tcgacrcksslmil_aml smoke_test_crck_simclr_aml smoke_test_crck_flexible_finetuning_aml smoke_test_tcgacrckimagenetmil_aml smoke_test_crck_loss_analysis_aml smoke_test_slides_panda_loss_analysis_aml smoke_test_slides_panda_no_ddp_sampler_aml smoke_test_tiles_panda_no_ddp_sampler_aml

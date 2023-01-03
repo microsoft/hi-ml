@@ -77,6 +77,9 @@ ENV_LOCAL_RANK = "LOCAL_RANK"
 ENV_RANK = "RANK"
 MASTER_PORT_DEFAULT = 6105
 
+# Environment variables that affect job submission, in particular in builds
+ENV_EXPERIMENT_NAME = "HIML_EXPERIMENT_NAME"
+
 # Other Azure ML related variables
 ENVIRONMENT_VERSION = "1"
 FINAL_MODEL_FOLDER = "final_model"
@@ -102,8 +105,6 @@ DEFAULT_ENVIRONMENT_VARIABLES = {
     "MKL_SERVICE_FORCE_INTEL": "1",
     # Switching to a new software stack in AML for mounting datasets
     "RSLEX_DIRECT_VOLUME_MOUNT": "true",
-    "RSLEX_DIRECT_VOLUME_MOUNT_MAX_CACHE_SIZE": "1",
-    "DATASET_MOUNT_CACHE_SIZE": "1",
 }
 
 
@@ -1560,7 +1561,6 @@ def download_file_if_necessary(run: Run, filename: str, output_file: Path, overw
     else:
         output_file.parent.mkdir(exist_ok=True, parents=True)
         _download_file_from_run(run, filename, output_file, validate_checksum=True)
-        assert output_file.exists()
         logging.info(f"File is downloaded at {output_file}")
     return output_file
 

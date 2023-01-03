@@ -7,6 +7,7 @@ import torch
 import torch.distributed
 import torch.multiprocessing
 from ruamel.yaml import YAML
+from health_cpath.preprocessing.loading import LoadingParams
 from health_cpath.utils.tiles_selection_utils import TilesSelector
 from testhisto.utils.utils_testhisto import run_distributed
 from torch.testing import assert_close
@@ -31,7 +32,7 @@ def _create_outputs_handler(outputs_root: Path) -> DeepMILOutputsHandler:
         outputs_root=outputs_root,
         n_classes=1,
         tile_size=224,
-        level=1,
+        loading_params=LoadingParams(level=1),
         class_names=None,
         primary_val_metric=_PRIMARY_METRIC_KEY,
         maximise=True,

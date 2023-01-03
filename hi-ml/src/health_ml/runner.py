@@ -6,13 +6,11 @@
 #  ------------------------------------------------------------------------------------------
 import argparse
 import logging
-import os
 import param
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
-import matplotlib
 from azureml.core import Workspace, Run
 
 # Add hi-ml packages to sys.path so that AML can find them if we are using the runner directly from the git repo
@@ -33,7 +31,7 @@ from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
 from health_azure.utils import (get_workspace, get_ml_client, is_local_rank_zero,  # noqa: E402
                                 is_running_in_azure_ml, set_environment_variables_for_multi_node,
                                 create_argparser, parse_arguments, ParserResult, apply_overrides,
-                                filter_v2_input_output_args)
+                                filter_v2_input_output_args, is_global_rank_zero)
 
 from health_ml.experiment_config import DEBUG_DDP_ENV_VAR, ExperimentConfig  # noqa: E402
 from health_ml.lightning_container import LightningContainer  # noqa: E402
@@ -42,6 +40,7 @@ from health_ml.utils import fixed_paths  # noqa: E402
 from health_ml.utils.common_utils import (check_conda_environment,  # noqa: E402
                                           choose_conda_env_file, is_linux)
 from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
+from health_ml.utils.logging import package_setup_and_hacks  # noqa: E402
 
 
 # We change the current working directory before starting the actual training. However, this throws off starting
@@ -64,34 +63,6 @@ def initialize_rpdb() -> None:
     # For some reason, os.getpid() does not return the ID of what appears to be the currently running process.
     logging.info("rpdb is handling traps. To debug: identify the main runner.py process, then as root: "
                  f"kill -TRAP <process_id>; nc 127.0.0.1 {rpdb_port}")
-
-
-def package_setup_and_hacks() -> None:
-    """
-    Set up the Python packages where needed. In particular, reduce the logging level for some of the used
-    libraries, which are particularly talkative in DEBUG mode. Usually when running in DEBUG mode, we want
-    diagnostics about the model building itself, but not for the underlying libraries.
-    It also adds workarounds for known issues in some packages.
-    """
-    # Numba code generation is extremely talkative in DEBUG mode, disable that.
-    logging.getLogger('numba').setLevel(logging.WARNING)
-    # Matplotlib is also very talkative in DEBUG mode, filling half of the log file in a PR build.
-    logging.getLogger('matplotlib').setLevel(logging.INFO)
-    # Urllib3 prints out connection information for each call to write metrics, etc
-    logging.getLogger('urllib3').setLevel(logging.INFO)
-    logging.getLogger('msrest').setLevel(logging.INFO)
-    # AzureML prints too many details about logging metrics
-    logging.getLogger('azureml').setLevel(logging.INFO)
-    # Jupyter notebook report generation
-    logging.getLogger('papermill').setLevel(logging.INFO)
-    logging.getLogger('nbconvert').setLevel(logging.INFO)
-    # This is working around a spurious error message thrown by MKL, see
-    # https://github.com/pytorch/pytorch/issues/37377
-    os.environ['MKL_THREADING_LAYER'] = 'GNU'
-    # Workaround for issues with matplotlib on some X servers, see
-    # https://stackoverflow.com/questions/45993879/matplot-lib-fatal-io-error-25-inappropriate-ioctl-for-device-on-x
-    # -server-loc
-    matplotlib.use('Agg')
 
 
 def create_runner_parser() -> argparse.ArgumentParser:
@@ -181,6 +152,12 @@ class Runner:
             **self.lightning_container.get_additional_aml_run_tags()
         }
 
+    def additional_environment_variables(self) -> Dict[str, str]:
+        return {
+            DEBUG_DDP_ENV_VAR: self.experiment_config.debug_ddp.value,
+            **self.lightning_container.get_additional_environment_variables()
+        }
+
     def run(self) -> Tuple[LightningContainer, AzureRunInfo]:
         """
         The main entry point for training and testing models from the commandline. This chooses a model to train
@@ -222,16 +199,14 @@ class Runner:
         entry_script = Path(sys.argv[0]).resolve()
         script_params = sys.argv[1:]
 
-        # TODO: Update environment variables
-        environment_variables: Dict[str, Any] = {}
-        environment_variables[DEBUG_DDP_ENV_VAR] = self.experiment_config.debug_ddp.value
+        environment_variables = self.additional_environment_variables()
 
         # Get default datastore from the provided workspace. Authentication can take a few seconds, hence only do
         # that if we are really submitting to AzureML.
         workspace: Optional[Workspace] = None
         if self.experiment_config.cluster:
             try:
-                workspace = get_workspace()
+                workspace = get_workspace(workspace_config_path=self.experiment_config.workspace_config_path)
             except ValueError:
                 raise ValueError("Unable to submit the script to AzureML because no workspace configuration file "
                                  "(config.json) was found.")
@@ -262,7 +237,7 @@ class Runner:
             else:
                 hyperparam_args = self.lightning_container.get_hyperparam_args()
                 hyperdrive_config = None
-            ml_client = get_ml_client()
+            ml_client = get_ml_client() if not self.experiment_config.strictly_aml_v1 else None
 
             env_file = choose_conda_env_file(env_file=self.experiment_config.conda_env)
             logging.info(f"Using this Conda environment definition: {env_file}")
@@ -282,6 +257,7 @@ class Runner:
                 input_datasets=input_datasets,  # type: ignore
                 num_nodes=self.experiment_config.num_nodes,
                 wait_for_completion=self.experiment_config.wait_for_completion,
+                max_run_duration=self.experiment_config.max_run_duration,
                 ignored_folders=[],
                 submit_to_azureml=bool(self.experiment_config.cluster),
                 docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
@@ -299,6 +275,7 @@ class Runner:
                 submit_to_azureml=False,
                 environment_variables=environment_variables,
                 strictly_aml_v1=self.experiment_config.strictly_aml_v1,
+                default_datastore=datastore,
             )
         if azure_run_info.run:
             # This code is only reached inside Azure. Set display name again - this will now affect
@@ -355,7 +332,8 @@ def run(project_root: Path) -> Tuple[LightningContainer, AzureRunInfo]:
     :return: If submitting to AzureML, returns the model configuration that was used for training,
     including commandline overrides applied (if any). For details on the arguments, see the constructor of Runner.
     """
-    print(f"project root: {project_root}")
+    if is_global_rank_zero():
+        print(f"project root: {project_root}")
     runner = Runner(project_root)
     return runner.run()
 

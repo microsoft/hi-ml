@@ -12,6 +12,7 @@ from torchvision.transforms import Compose, Resize, CenterCrop
 from azureml.core import Run
 
 from health_azure import object_to_yaml, create_aml_run_object
+from health_azure.himl import effective_experiment_name
 from health_azure.utils import is_running_in_azure_ml
 from health_ml.utils.serialization import ModelInfo
 from testazure.utils_testazure import DEFAULT_WORKSPACE
@@ -107,7 +108,7 @@ def test_serialization_roundtrip() -> None:
 def test_get_metadata() -> None:
     """Test if model metadata is read correctly from the AzureML run."""
     run_name = "foo"
-    experiment_name = "himl-tests"
+    experiment_name = effective_experiment_name("himl-tests")
     run: Optional[Run] = None
     try:
         run = create_aml_run_object(

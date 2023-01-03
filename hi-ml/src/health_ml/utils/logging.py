@@ -13,6 +13,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, Optional, Union
 
+import matplotlib
+import os
 import torch
 from azureml.core import Run, Workspace
 from pytorch_lightning import LightningModule, Trainer
@@ -402,3 +404,31 @@ def log_learning_rate(module: LightningModule, name: str = "learning_rate") -> N
             full_name = name if singleton_lr else f"{name}/{i}/{j}"
             logged[full_name] = lr_j
     log_on_epoch(module, metrics=logged)
+
+
+def package_setup_and_hacks() -> None:
+    """
+    Set up the Python packages where needed. In particular, reduce the logging level for some of the used
+    libraries, which are particularly talkative in DEBUG mode. Usually when running in DEBUG mode, we want
+    diagnostics about the model building itself, but not for the underlying libraries.
+    It also adds workarounds for known issues in some packages.
+    """
+    # Numba code generation is extremely talkative in DEBUG mode, disable that.
+    logging.getLogger('numba').setLevel(logging.WARNING)
+    # Matplotlib is also very talkative in DEBUG mode, filling half of the log file in a PR build.
+    logging.getLogger('matplotlib').setLevel(logging.INFO)
+    # Urllib3 prints out connection information for each call to write metrics, etc
+    logging.getLogger('urllib3').setLevel(logging.INFO)
+    logging.getLogger('msrest').setLevel(logging.INFO)
+    # AzureML prints too many details about logging metrics
+    logging.getLogger('azureml').setLevel(logging.INFO)
+    # Jupyter notebook report generation
+    logging.getLogger('papermill').setLevel(logging.INFO)
+    logging.getLogger('nbconvert').setLevel(logging.INFO)
+    # This is working around a spurious error message thrown by MKL, see
+    # https://github.com/pytorch/pytorch/issues/37377
+    os.environ['MKL_THREADING_LAYER'] = 'GNU'
+    # Workaround for issues with matplotlib on some X servers, see
+    # https://stackoverflow.com/questions/45993879/matplot-lib-fatal-io-error-25-inappropriate-ioctl-for-device-on-x
+    # -server-loc
+    matplotlib.use('Agg')

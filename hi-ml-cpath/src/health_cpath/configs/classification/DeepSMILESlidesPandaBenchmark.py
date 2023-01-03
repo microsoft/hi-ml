@@ -9,6 +9,9 @@ from torch import optim
 from monai.transforms import Compose, ScaleIntensityRanged, RandRotate90d, RandFlipd
 from health_cpath.configs.run_ids import innereye_ssl_checkpoint_binary
 from health_azure.utils import create_from_matching_params
+from health_cpath.models.transforms import MetaTensorToTensord
+from health_cpath.preprocessing.loading import LoadingParams
+from health_cpath.utils.wsi_utils import TilingParams
 from health_ml.networks.layers.attention_layers import (
     TransformerPooling,
     TransformerPoolingBenchmark
@@ -24,15 +27,15 @@ from health_cpath.models.encoders import (
     SSLEncoder,
 )
 from health_cpath.configs.classification.DeepSMILEPanda import DeepSMILESlidesPanda
-from health_cpath.models.deepmil import SlidesDeepMILModule
+from health_cpath.models.deepmil import DeepMILModule
 from health_cpath.utils.deepmil_utils import ClassifierParams, EncoderParams, PoolingParams
 from health_cpath.utils.naming import MetricsKey, ModelKey, SlideKey
 
 
-class PandaSlidesDeepMILModuleBenchmark(SlidesDeepMILModule):
+class PandaSlidesDeepMILModuleBenchmark(DeepMILModule):
     """
     Myronenko et al. 2021 uses a cosine LR scheduler which needs to be defined in the PL module
-    Hence, inherited `PandaSlidesDeepMILModuleBenchmark` from `SlidesDeepMILModule`
+    Hence, inherited `PandaSlidesDeepMILModuleBenchmark` from `DeepMILModule`
     """
 
     def __init__(self, n_epochs: int, **kwargs: Any) -> None:
@@ -90,10 +93,11 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             RandFlipd(keys=image_key, spatial_axis=0, prob=0.5),
             RandFlipd(keys=image_key, spatial_axis=1, prob=0.5),
             RandRotate90d(keys=image_key, prob=0.5),
-            ScaleIntensityRanged(keys=image_key, a_min=0.0, a_max=255.0)
+            ScaleIntensityRanged(keys=image_key, a_min=0.0, a_max=255.0),
+            MetaTensorToTensord(keys=image_key),  # rotate transforms add some metadata to affine matrix
         ])
         transform_inf = Compose([
-            ScaleIntensityRanged(keys=image_key, a_min=0.0, a_max=255.0)
+            ScaleIntensityRanged(keys=image_key, a_min=0.0, a_max=255.0),
         ])
         return {ModelKey.TRAIN: transform_train, ModelKey.VAL: transform_inf, ModelKey.TEST: transform_inf}
 
@@ -106,14 +110,9 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             batch_size_inf=self.batch_size_inf,
             max_bag_size=self.max_bag_size,
             max_bag_size_inf=self.max_bag_size_inf,
-            level=self.level,
-            tile_size=self.tile_size,
-            step=self.step,
-            random_offset=self.random_offset,
+            tiling_params=create_from_matching_params(self, TilingParams),
+            loading_params=create_from_matching_params(self, LoadingParams),
             seed=self.get_effective_random_seed(),
-            pad_full=self.pad_full,
-            background_val=self.background_val,
-            filter_mode=self.filter_mode,
             transforms_dict=self.get_transforms_dict(PandaDataset.IMAGE_COLUMN),
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
@@ -121,7 +120,7 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             pl_replace_sampler_ddp=self.pl_replace_sampler_ddp,
         )
 
-    def create_model(self) -> SlidesDeepMILModule:
+    def create_model(self) -> DeepMILModule:
         self.data_module = self.get_data_module()
         outputs_handler = self.get_outputs_handler()
         deepmil_module = PandaSlidesDeepMILModuleBenchmark(
