@@ -26,10 +26,12 @@ from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, MockHisto
 no_gpu = not is_gpu_available()
 
 
-def get_loading_params(level: int = 0, roi_type: ROIType = ROIType.FOREGROUND) -> LoadingParams:
+def get_loading_params(
+    level: int = 0, roi_type: ROIType = ROIType.FOREGROUND, backend: WSIBackend = WSIBackend.CUCIM
+) -> LoadingParams:
     return LoadingParams(
         level=level,
-        backend=WSIBackend.CUCIM,
+        backend=backend,
         roi_type=roi_type,
         foreground_threshold=255,
         margin=0,
@@ -91,8 +93,9 @@ def get_original_tile(mock_dir: Path, wsi_id: str) -> np.ndarray:
 
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
-@pytest.mark.parametrize("roi_type", [ROIType.FOREGROUND, ROIType.WHOLE])
-def test_tiling_on_the_fly(roi_type: ROIType, mock_panda_slides_root_dir_diagonal: Path) -> None:
+@pytest.mark.parametrize('roi_type', [ROIType.FOREGROUND, ROIType.WHOLE])
+@pytest.mark.parametrize('backend', [WSIBackend.CUCIM, WSIBackend.OPENSLIDE])
+def test_tiling_on_the_fly(roi_type: ROIType, backend: WSIBackend, mock_panda_slides_root_dir_diagonal: Path) -> None:
     batch_size = 1
     tile_count = 16
     tile_size = 28
@@ -103,7 +106,7 @@ def test_tiling_on_the_fly(roi_type: ROIType, mock_panda_slides_root_dir_diagona
         batch_size=batch_size,
         max_bag_size=tile_count,
         tiling_params=TilingParams(tile_size=28),
-        loading_params=get_loading_params(level=0, roi_type=roi_type),
+        loading_params=get_loading_params(level=0, roi_type=roi_type, backend=backend),
     )
     dataloader = datamodule.train_dataloader()
     for sample in dataloader:
