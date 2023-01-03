@@ -923,7 +923,8 @@ def submit_to_azure_if_needed(  # type: ignore
             )
             if entry_script is None:
                 entry_script = Path(sys.argv[0])
-            script_params = script_params or sys.argv[1:]
+
+            script_params = script_params or [param for param in sys.argv[1:] if param != AZUREML_COMMANDLINE_FLAG]
 
             ml_client = get_ml_client(ml_client=ml_client, aml_workspace=workspace)
             registered_env = register_environment_v2(environment, ml_client)
