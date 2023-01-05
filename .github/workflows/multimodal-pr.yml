@@ -8,7 +8,7 @@ on:
     branches: [ main ]
     paths:
       - "hi-ml-multimodal/**"
-      - ".github/workflows/multimodal-pr.yml"
+      - ".github/workflows/multimodal-*.yml"
 
 env:
   pythonVersion: 3.7
@@ -59,7 +59,7 @@ jobs:
           make pip
           make mypy
 
-  mutlimodal-pytest:
+  multimodal-pytest:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -115,3 +115,10 @@ jobs:
             --parameters pip_source $PIP_SOURCE \
             $IN_NB_PATH \
             $OUT_NB_PATH
+
+  multimodal-pr:
+    runs-on: ubuntu-20.04
+    needs: [multimodal-flake8, multimodal-mypy, multimodal-pytest, notebooks]
+    steps:
+      - name: Final job
+        run: echo "All tests passed"
