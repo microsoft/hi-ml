@@ -120,5 +120,6 @@ jobs:
     runs-on: ubuntu-20.04
     needs: [multimodal-flake8, multimodal-mypy, multimodal-pytest, notebooks]
     steps:
-      - name: Final job
-        run: echo "All tests passed"
+      - name: Final PR Job
+        run: |
+          echo "All multimodal PR jobs have passed"

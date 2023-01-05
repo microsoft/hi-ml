@@ -320,3 +320,11 @@ jobs:
 
           # Test with pytest, fast only
           make pytest_fast
+
+  hi-ml-pr:
+    runs-on: ubuntu-20.04
+    needs: [ himl-test-pypi-pkg, test-artifact-pkg, pyright, himl-mypy, himl-flake8 ]
+    steps:
+      - name: Final PR Job
+        run: |
+          echo "All hi-ml PR jobs have passed"

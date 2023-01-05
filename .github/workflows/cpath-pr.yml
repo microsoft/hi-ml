@@ -363,3 +363,11 @@ jobs:
           password: ${{ secrets.PYPI_API_TOKEN }}
           packages_dir: ${{ env.folder }}/dist/
           verbose: true
+
+  cpath-pr:
+    runs-on: ubuntu-20.04
+    needs: [ cpath-publish-pypi-package ]
+    steps:
+      - name: Final PR Job
+        run: |
+          echo "All cpath PR jobs have passed."
