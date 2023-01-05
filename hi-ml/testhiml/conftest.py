@@ -1,8 +1,6 @@
 import sys
-from typing import Generator
 
 from pathlib import Path
-import pytest
 
 
 root = Path(__file__).parent.parent.parent
