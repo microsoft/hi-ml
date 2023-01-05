@@ -9,4 +9,4 @@ pytest==6.2.2
 pytest-cov==2.11.1
 pytest-rerunfailures==10.2
 pytest-timeout==2.0.1
-setuptools==59.5.0
+setuptools==65.5.1
