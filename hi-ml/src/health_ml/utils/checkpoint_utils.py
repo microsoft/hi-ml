@@ -383,7 +383,7 @@ class CheckpointParser:
                     file.write(chunk)
         return checkpoint_path
 
-    def get_path(self, download_dir: Path) -> Path:
+    def get_or_download_checkpoint(self, download_dir: Path) -> Path:
         """Returns the path to the checkpoint file. If the checkpoint is a URL, it will be downloaded to the checkpoints
         folder. If the checkpoint is an AzureML run ID, it will be downloaded from the run to the checkpoints folder.
         If the checkpoint is a local file, it will be returned as is.
