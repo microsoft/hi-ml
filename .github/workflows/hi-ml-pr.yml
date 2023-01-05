@@ -323,7 +323,7 @@ jobs:
 
   hi-ml-pr:
     runs-on: ubuntu-20.04
-    needs: [ himl-test-pypi-pkg, test-artifact-pkg, pyright, himl-mypy, himl-flake8 ]
+    needs: [ test-artifact-pkg, pyright, himl-mypy, himl-flake8 ]
     steps:
       - name: Final PR Job
         run: |
