@@ -73,7 +73,7 @@ jobs:
       - name: mypy
         run: make mypy
 
-  pyright:
+  himl-pyright:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -132,7 +132,7 @@ jobs:
           # Run fast tests
           make pytest_fast
 
-  build-python:
+  himl-build-python:
     runs-on: ubuntu-20.04
     needs: [ himl-pytest-fast ]
     strategy:
@@ -158,9 +158,9 @@ jobs:
         with:
           folder: ${{ matrix.folder }}
 
-  test-artifact-pkg:
+  himl-test-artifact-pkg:
     runs-on: ubuntu-20.04
-    needs: [ build-python, cancel-azureml ]
+    needs: [ himl-build-python, cancel-azureml ]
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
@@ -221,7 +221,7 @@ jobs:
 
   himl-publish-testpypi-pkg:
     runs-on: ubuntu-20.04
-    needs: [ test-artifact-pkg, pyright, himl-mypy, himl-flake8 ]
+    needs: [ himl-test-artifact-pkg, himl-pyright, himl-mypy, himl-flake8 ]
     if: "!startsWith(github.ref, 'refs/tags/v')"
     strategy:
       matrix:
@@ -253,7 +253,7 @@ jobs:
 
   himl-publish-pypi-pkg:
     runs-on: ubuntu-20.04
-    needs: [ test-artifact-pkg, pyright, himl-mypy, himl-flake8 ]
+    needs: [ himl-test-artifact-pkg, himl-pyright, himl-mypy, himl-flake8 ]
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
@@ -321,7 +321,7 @@ jobs:
           # Test with pytest, fast only
           make pytest_fast
 
-  hi-ml-pr:
+  hi-ml-pr-completed:
     runs-on: ubuntu-20.04
     if: "!startsWith(github.ref, 'refs/tags/v')"
     needs: [ himl-publish-testpypi-pkg ]

@@ -9,7 +9,7 @@ on:
       - ".github/workflows/hi-ml-pr.yml"
 
 jobs:
-  hi-ml-pr:
+  hi-ml-pr-completed:
     runs-on: ubuntu-20.04
     steps:
       - name: Final PR Job

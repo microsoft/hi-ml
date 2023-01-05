@@ -11,7 +11,7 @@ on:
       - "hi-ml/**"
 
 jobs:
-  cpath-pr:
+  cpath-pr-completed:
     runs-on: ubuntu-20.04
     steps:
       - name: Final PR Job

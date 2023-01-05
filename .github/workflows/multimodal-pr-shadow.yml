@@ -8,7 +8,7 @@ on:
       - ".github/workflows/multimodal-pr.yml"
 
 jobs:
-  multimodal-pr:
+  multimodal-pr-completed:
     runs-on: ubuntu-20.04
     steps:
       - name: Final PR Job

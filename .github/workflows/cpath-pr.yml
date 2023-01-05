@@ -364,7 +364,7 @@ jobs:
           packages_dir: ${{ env.folder }}/dist/
           verbose: true
 
-  cpath-pr:
+  cpath-pr-completed:
     runs-on: ubuntu-20.04
     if: "!startsWith(github.ref, 'refs/tags/v')"
     needs: [ cpath-publish-pypi-package ]
