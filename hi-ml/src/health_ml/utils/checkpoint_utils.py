@@ -143,7 +143,7 @@ def find_recovery_checkpoint_on_disk_or_cloud(path: Path) -> Optional[Path]:
     recovery_checkpoint = find_local_recovery_checkpoint(path)
     if recovery_checkpoint is None and is_running_in_azure_ml():
         logging.info(
-            "No checkpoints available in the checkpoint folder. Trying to find checkpoints in AzureML.")
+            "No recovery checkpoints available in the checkpoint folder. Trying to find checkpoints in AzureML.")
         # Download checkpoints from AzureML, then try to find recovery checkpoints among those.
         # Downloads should go to a temporary folder because downloading the files to the checkpoint
         # folder might cause artifact conflicts later.
