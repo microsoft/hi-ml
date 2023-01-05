@@ -323,7 +323,8 @@ jobs:
 
   hi-ml-pr:
     runs-on: ubuntu-20.04
-    needs: [ test-artifact-pkg, pyright, himl-mypy, himl-flake8 ]
+    if: "!startsWith(github.ref, 'refs/tags/v')"
+    needs: [ himl-publish-testpypi-pkg ]
     steps:
       - name: Final PR Job
         run: |
