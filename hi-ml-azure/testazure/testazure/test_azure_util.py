@@ -2594,8 +2594,16 @@ def test_download_from_run_if_necessary_rank_nonzero(tmp_path: Path) -> None:
         run.download_file.assert_not_called()
 
 
-@pytest.mark.parametrize('files', [[], ["a.txt", "b.txt", "c.txt"]])
-def test_download_files_by_suffix(tmp_path: Path, files: List[str]) -> None:
+@pytest.mark.parametrize(['files', 'expected_downloaded'], [
+    ([], []),
+    (["a.txt", "b.txt"], ["a.txt", "b.txt"]),
+    (["e.txt", "f.csv"], ["e.txt"])])
+def test_download_files_by_suffix(tmp_path: Path, files: List[str], expected_downloaded: List[str]) -> None:
+    """Test downloading files from a run returning a Generator
+
+    :param files: The files that should be available in the mocked run.
+    :param expected_downloaded: The names of the files that should be downloaded (filtered)
+    """
     def mock_download(run: Run, file: str, output_file: Path, validate_checksum: bool) -> None:
         output_file.write_text("mock content")
 
@@ -2604,7 +2612,8 @@ def test_download_files_by_suffix(tmp_path: Path, files: List[str]) -> None:
             downloaded = download_files_by_suffix("outputs", tmp_path, ".txt")
             assert isinstance(downloaded, Generator)
             downloaded_list = list(downloaded)
-            assert len(downloaded_list) == len(files)
+            assert len(downloaded_list) == len(expected_downloaded)
             for f in downloaded_list:
                 assert f.is_file()
-                assert str(f).startswith(str(tmp_path))
+            downloaded_filenames = [f.name for f in downloaded_list]
+            assert downloaded_filenames == expected_downloaded
