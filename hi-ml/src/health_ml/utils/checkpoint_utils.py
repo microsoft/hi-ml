@@ -22,7 +22,8 @@ from health_azure.utils import (
     _download_files_from_run,
     get_run_file_names,
     is_running_in_azure_ml,
-    is_local_rank_zero)
+    is_local_rank_zero,
+    download_files_by_suffix)
 from health_ml.utils.common_utils import (
     AUTOSAVE_CHECKPOINT_CANDIDATES,
     CHECKPOINT_FOLDER,
@@ -129,6 +130,25 @@ def download_checkpoints_from_run(run: Run, tmp_folder: Optional[Path] = None) -
             run.download_file(file, output_file_path=str(tmp_folder / file))
     torch_barrier()
     return tmp_folder
+
+
+def download_highest_epoch_checkpoint(run: Run, checkpoint_suffix: str, output_folder: Path) -> Optional[Path]:
+    """Downloads all checkpoint files from the run that have a given suffix, and returns the local path to the
+    downloaded checkpoint with the highest epoch. Checkpoints are downloaded one-by-one and delete right away
+    if they are not the highest epoch.
+
+    :param run: The AzureML run from where the files should be downloaded.
+    :param checkpoint_suffix: The suffix for all files that should be returned.
+    :param output_folder: The folder to download the checkpoints to.
+    :return: The path to the downloaded file that has the highest epoch. Returns None if no suitable checkpoint
+        was found, or if the epoch information could not be extracted.
+    """
+    files_from_run = download_files_by_suffix(
+        run=run,
+        suffix=str(checkpoint_suffix),
+        output_folder=output_folder,
+        validate_checksum=True)
+    return find_checkpoint_with_highest_epoch(files_from_run, delete_files=True)
 
 
 def find_recovery_checkpoint_on_disk_or_cloud(path: Path) -> Optional[Path]:

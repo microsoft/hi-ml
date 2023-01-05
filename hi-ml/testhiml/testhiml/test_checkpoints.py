@@ -20,6 +20,7 @@ from health_ml.utils.checkpoint_utils import (
     CheckpointParser,
     _get_checkpoint_files,
     download_checkpoints_from_run,
+    download_highest_epoch_checkpoint,
     find_checkpoint_with_highest_epoch,
     find_recovery_checkpoint_in_downloaded_files,
     find_recovery_checkpoint_on_disk_or_cloud,
@@ -311,13 +312,23 @@ def test_download_inference_checkpoint(tmp_path: Path) -> None:
     file1 = write_empty_checkpoint_file(tmp_path, 1, "epoch1")
     file100 = write_empty_checkpoint_file(tmp_path, highest_epoch, "epoch100")
 
+    checkpoint_filename = Path(CHECKPOINT_FOLDER) / LAST_CHECKPOINT_FILE_NAME
+
     # Create an AzureML run, upload the files, download again, and check that the highest epoch is returned.
     run = create_unittest_run_object()
     try:
+        run.flush()
+        # The file presently has no checkpoint files. If we try to download a checkpoint, we should get None back.
+        highest_epoch_checkpoint = download_highest_epoch_checkpoint(
+            run,
+            checkpoint_suffix=str(checkpoint_filename),
+            output_folder=tmp_path / "downloaded_checkpoints")
+        assert highest_epoch_checkpoint is None
+
         output_folder = Path(DEFAULT_AML_UPLOAD_DIR)
+        # Now start to upload files to the run.
         # Create 2 files in the run: one in the default folder, an invalid checkpoint file in retry folder 001
         # (that one should be ignored) and one in retry folder 002.
-        checkpoint_filename = Path(CHECKPOINT_FOLDER) / LAST_CHECKPOINT_FILE_NAME
         highest_epoch_file = output_folder / "retry_002" / checkpoint_filename
         files_to_upload = [
             (file1, output_folder / checkpoint_filename),
@@ -328,12 +339,12 @@ def test_download_inference_checkpoint(tmp_path: Path) -> None:
             run.upload_file(name=str(name), path_or_stream=str(file))
         run.flush()
 
-        highest_epoch_checkpoint = find_checkpoint_with_highest_epoch(
+        # Check if we can download all those files to a local folder, and choose the right checkpoint
+        highest_epoch_checkpoint = download_highest_epoch_checkpoint(
             run,
-            filename=checkpoint_filename,
-            download_to=tmp_path)
+            checkpoint_suffix=str(checkpoint_filename),
+            output_folder=tmp_path / "downloaded_checkpoints")
         assert _load_epoch_from_checkpoint(highest_epoch_checkpoint) == highest_epoch
-
 
     finally:
         run.complete()
