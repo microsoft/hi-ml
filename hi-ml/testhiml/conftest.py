@@ -1,4 +1,3 @@
-import logging
 import sys
 from typing import Generator
 
@@ -20,9 +19,5 @@ for folder in paths_to_add:
 
 from health_ml.utils import package_setup  # noqa: E402
 
-
-@pytest.fixture(autouse=True, scope='session')
-def test_suite_setup() -> Generator:
-    package_setup()
-    # run the entire test suite
-    yield
+# Reduce logging noise in DEBUG mode
+package_setup()

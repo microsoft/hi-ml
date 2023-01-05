@@ -27,19 +27,15 @@ for package, subpackages in packages.items():
         logging.info(f"Adding {himl_root / package / subpackage} to sys path")
         sys.path.insert(0, str(himl_root / package / subpackage))
 
-from health_ml.utils import package_setup  # noqa: E402
+from health_cpath.utils import package_setup  # noqa: E402
 from health_ml.utils.fixed_paths import OutputFolderForTests  # noqa: E402
 from testhisto.mocks.base_data_generator import MockHistoDataType  # noqa: E402
 from testhisto.mocks.tiles_generator import MockPandaTilesGenerator  # noqa: E402
 from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPositioningType  # noqa: E402
 
 
-@pytest.fixture(autouse=True, scope='session')
-def test_suite_setup() -> Generator:
-    # Reduce logging noise in DEBUG mode
-    package_setup()
-    # run the entire test suite
-    yield
+# Reduce logging noise in DEBUG mode
+package_setup()
 
 
 def remove_and_create_folder(folder: Path) -> None:

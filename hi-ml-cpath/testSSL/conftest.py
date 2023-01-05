@@ -25,12 +25,15 @@ sys.path.insert(0, str(himl_package_root))
 himl_azure_package_root = himl_root / "hi-ml-azure" / "src"
 logging.info(f"Adding {str(himl_azure_package_root)} to path")
 sys.path.insert(0, str(himl_azure_package_root))
-from health_ml.utils import package_setup  # noqa: E402
+from health_cpath.utils import package_setup  # noqa: E402
 from health_ml.utils.fixed_paths import OutputFolderForTests  # noqa: E402
 from testSSL.test_ssl_containers import create_cxr_test_dataset  # noqa: E402
 
 
 TEST_OUTPUTS_PATH = testSSL_root_dir / "test_outputs"
+
+# Reduce logging noise in DEBUG mode
+package_setup()
 
 
 def remove_and_create_folder(folder: Path) -> None:
@@ -46,8 +49,6 @@ def remove_and_create_folder(folder: Path) -> None:
 
 @pytest.fixture(autouse=True, scope='session')
 def test_suite_setup() -> Generator:
-    # Reduce logging noise in DEBUG mode
-    package_setup()
     # create a default outputs root for all tests
     remove_and_create_folder(TEST_OUTPUTS_PATH)
     # run the entire test suite

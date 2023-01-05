@@ -13,8 +13,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, Optional, Union
 
-import matplotlib
-import os
 import torch
 from azureml.core import Run, Workspace
 from pytorch_lightning import LightningModule, Trainer

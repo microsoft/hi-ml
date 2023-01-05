@@ -9,7 +9,7 @@ import os
 from health_azure import package_setup as health_azure_setup
 
 
-def spackage_setup() -> None:
+def package_setup() -> None:
     """
     Set up the Python packages where needed. In particular, reduce the logging level for some of the used
     libraries, which are particularly talkative in DEBUG mode. Usually when running in DEBUG mode, we want
@@ -22,6 +22,8 @@ def spackage_setup() -> None:
     logging.getLogger('numba').setLevel(logging.WARNING)
     # Matplotlib is also very talkative in DEBUG mode, filling half of the log file in a PR build.
     logging.getLogger('matplotlib').setLevel(logging.INFO)
+    # DEBUG level info when opening checkpoint and other files
+    logging.getLogger('fsspec').setLevel(logging.INFO)
     # Jupyter notebook report generation
     logging.getLogger('papermill').setLevel(logging.INFO)
     logging.getLogger('nbconvert').setLevel(logging.INFO)
