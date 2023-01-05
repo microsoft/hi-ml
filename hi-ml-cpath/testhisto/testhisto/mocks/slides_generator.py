@@ -9,7 +9,7 @@ from typing import Any, Optional, Tuple, List, Union
 import numpy as np
 import pandas as pd
 import torch
-from tifffile import TiffWriter
+from tifffile.tifffile import TiffWriter, PHOTOMETRIC, COMPRESSION
 from torch import Tensor
 from health_cpath.datasets.panda_dataset import PandaDataset
 from testhisto.mocks.base_data_generator import MockHistoDataGenerator, MockHistoDataType, PANDA_N_CLASSES
@@ -178,7 +178,13 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         :param wsi_levels: List of whole slide images of different resolution levels in channels_last format.
         """
         with TiffWriter(file_path, bigtiff=True) as tif:
-            options = dict(photometric="rgb", compression="zlib")
+            options = dict(
+                software='tifffile',
+                metadata={'axes': 'YXC'},
+                photometric=PHOTOMETRIC.RGB,
+                compression=COMPRESSION.ADOBE_DEFLATE,  # ADOBE_DEFLATE aka ZLIB lossless compression
+                tile=(16, 16),
+            )
             for i, wsi_level in enumerate(wsi_levels):
                 # the subfiletype parameter is a bitfield that determines if the wsi_level is a reduced version of
                 # another image.
