@@ -32,7 +32,8 @@ class CheckpointHandler:
         This is called at the start of training.
         """
         if self.container.src_checkpoint:
-            self.trained_weights_path = self.container.src_checkpoint.get_or_download_checkpoint(self.container.checkpoint_folder)
+            self.trained_weights_path = self.container.src_checkpoint.get_or_download_checkpoint(
+                download_dir=self.container.checkpoint_folder)
             self.container.trained_weights_path = self.trained_weights_path
 
     def additional_training_done(self) -> None:
