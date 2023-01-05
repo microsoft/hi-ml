@@ -11,43 +11,9 @@ on:
       - "hi-ml/**"
 
 jobs:
-
-  cpath-flake8:
+  cpath-pr:
     runs-on: ubuntu-20.04
     steps:
-      - run: 'echo "No build required" '
-
-  cpath-mypy:
-    runs-on: ubuntu-20.04
-    steps:
-      - run: 'echo "No build required" '
-
-  cpath-pytest:
-    runs-on: ubuntu-20.04
-    steps:
-      - run: 'echo "No build required" '
-
-  smoke_test_slidespandaimagenetmil:
-    runs-on: ubuntu-20.04
-    steps:
-      - run: 'echo "No build required" '
-
-  smoke_test_tilespandaimagenetmil:
-    runs-on: ubuntu-20.04
-    steps:
-      - run: 'echo "No build required" '
-
-  smoke_test_tcgacrcksslmil_aml:
-    runs-on: ubuntu-20.04
-    steps:
-      - run: 'echo "No build required" '
-
-  smoke_test_crck_simclr_aml:
-    runs-on: ubuntu-20.04
-    steps:
-      - run: 'echo "No build required" '
-
-  cpath-publish-pypi-package:
-    runs-on: ubuntu-20.04
-    steps:
-      - run: 'echo "No build required" '
+      - name: Final PR Job
+        run: |
+          echo "Running cpath shadow PR job"

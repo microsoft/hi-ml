@@ -8,23 +8,9 @@ on:
       - ".github/workflows/multimodal-pr.yml"
 
 jobs:
-
-  multimodal-flake8:
+  multimodal-pr:
     runs-on: ubuntu-20.04
     steps:
-      - run: 'echo "No build required" '
-
-  multimodal-mypy:
-    runs-on: ubuntu-20.04
-    steps:
-      - run: 'echo "No build required" '
-
-  multimodal-pytest:
-    runs-on: ubuntu-20.04
-    steps:
-      - run: 'echo "No build required" '
-
-  notebooks:
-    runs-on: ubuntu-20.04
-    steps:
-      - run: 'echo "No build required" '
+      - name: Final PR Job
+        run: |
+          echo "Running multimodal shadow PR job"

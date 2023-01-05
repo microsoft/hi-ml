@@ -9,39 +9,9 @@ on:
       - ".github/workflows/hi-ml-pr.yml"
 
 jobs:
-
-  himl-flake8:
+  hi-ml-pr:
     runs-on: ubuntu-20.04
     steps:
-      - run: 'echo "No build required" '
-
-  himl-mypy:
-    runs-on: ubuntu-20.04
-    steps:
-      - run: 'echo "No build required" '
-
-  pyright:
-    runs-on: ubuntu-20.04
-    steps:
-      - run: 'echo "No build required" '
-
-  himl-pytest-fast:
-    runs-on: ubuntu-20.04
-    steps:
-      - run: 'echo "No build required" '
-
-  build-python:
-    runs-on: ubuntu-20.04
-    steps:
-      - run: 'echo "No build required" '
-
-  test-artifact-pkg:
-    runs-on: ubuntu-20.04
-    needs: [ build-python ]
-    steps:
-      - run: 'echo "No build required" '
-
-  himl-test-pypi-pkg:
-    runs-on: ubuntu-20.04
-    steps:
-      - run: 'echo "No build required" '
+      - name: Final PR Job
+        run: |
+          echo "Running hi-ml shadow PR job"
