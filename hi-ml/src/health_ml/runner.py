@@ -39,7 +39,7 @@ from health_ml.utils import fixed_paths  # noqa: E402
 from health_ml.utils.common_utils import (DEFAULT_DOCKER_BASE_IMAGE, check_conda_environment,  # noqa: E402
                                           choose_conda_env_file, is_linux)
 from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
-from health_ml.utils.logging import package_setup_and_hacks  # noqa: E402
+from health_ml.utils import package_setup  # noqa: E402
 
 
 # We change the current working directory before starting the actual training. However, this throws off starting
@@ -302,7 +302,7 @@ class Runner:
         # build itself, but not the tons of debug information that AzureML submissions create.
         # Suppress the logging from all processes but the one for GPU 0 on each node, to make log files more readable
         logging_to_stdout("INFO" if is_local_rank_zero() else "ERROR")
-        package_setup_and_hacks()
+        package_setup()
         prepare_amulet_job()
 
         # Add tags and arguments to Amulet runs

@@ -15,7 +15,7 @@ if full_folder not in sys.path:
     print(f"Adding to sys.path for running hi-ml-azure: {full_folder}")
     sys.path.insert(0, str(full_folder))
 
-from health_azure.himl import _package_setup  # noqa: E402
+from health_azure import package_setup  # noqa: E402
 
 
 def outputs_for_tests() -> Path:
@@ -38,7 +38,7 @@ def remove_and_create_folder(folder: Path) -> None:
 
 @pytest.fixture(autouse=True, scope='session')
 def test_suite_setup() -> Generator:
-    _package_setup()
+    package_setup()
     # create a default outputs root for all tests
     remove_and_create_folder(outputs_for_tests())
     # run the entire test suite
