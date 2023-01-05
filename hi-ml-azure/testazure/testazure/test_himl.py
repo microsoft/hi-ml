@@ -67,7 +67,7 @@ from testazure.utils_testazure import (
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXPECTED_QUEUED = "This command will be run in AzureML:"
 GITHUB_SHIBBOLETH = "GITHUB_RUN_ID"  # https://docs.github.com/en/actions/reference/environment-variables
-AZUREML_FLAG = "--azureml"
+AZUREML_FLAG = himl.AZUREML_FLAG
 
 logger = logging.getLogger('test.health_azure')
 logger.setLevel(logging.DEBUG)

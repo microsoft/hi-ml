@@ -50,7 +50,7 @@ logger = logging.getLogger('health_azure')
 logger.setLevel(logging.DEBUG)
 
 AML_IGNORE_FILE = ".amlignore"
-AZUREML_COMMANDLINE_FLAG = "--azureml"
+AZUREML_FLAG = "--azureml"
 CONDA_ENVIRONMENT_FILE = "environment.yml"
 LOGS_FOLDER = "logs"
 OUTPUT_FOLDER = "outputs"
@@ -338,9 +338,11 @@ def create_crossval_hyperparam_args_v2(num_splits: int,
                                           metric_name=metric_name)
 
 
-def create_script_run(snapshot_root_directory: Optional[Path] = None,
-                      entry_script: Optional[PathOrString] = None,
-                      script_params: Optional[List[str]] = None) -> ScriptRunConfig:
+def create_script_run(
+    script_params: List[str],
+    snapshot_root_directory: Optional[Path] = None,
+    entry_script: Optional[PathOrString] = None,
+) -> ScriptRunConfig:
     """
     Creates an AzureML ScriptRunConfig object, that holds the information about the snapshot, the entry script, and
     its arguments.
@@ -371,7 +373,6 @@ def create_script_run(snapshot_root_directory: Optional[Path] = None,
                              f"Snapshot root: {snapshot_root_directory}, entry script: {entry_script}")
     else:
         entry_script_relative = str(entry_script)
-    script_params = _get_script_params(script_params)
     print(f"This command will be run in AzureML: {entry_script_relative} {' '.join(script_params)}")
     return ScriptRunConfig(
         source_directory=str(snapshot_root_directory),
@@ -832,7 +833,7 @@ def submit_to_azure_if_needed(  # type: ignore
     # This codepath is reached when executing outside AzureML. Here we first check if a script submission to AzureML
     # is necessary. If not, return to the caller for local execution.
     if submit_to_azureml is None:
-        submit_to_azureml = AZUREML_COMMANDLINE_FLAG in sys.argv[1:]
+        submit_to_azureml = AZUREML_FLAG in sys.argv[1:]
     if not submit_to_azureml:
         # Set the environment variables for local execution.
         environment_variables = {
@@ -879,6 +880,7 @@ def submit_to_azure_if_needed(  # type: ignore
 
     amlignore_path = snapshot_root_directory / AML_IGNORE_FILE
     lines_to_append = [str(path) for path in (ignored_folders or [])]
+    script_params = _get_script_params(script_params)
 
     with append_to_amlignore(amlignore=amlignore_path, lines_to_append=lines_to_append):
         if strictly_aml_v1:
@@ -897,6 +899,7 @@ def submit_to_azure_if_needed(  # type: ignore
                 input_datasets=cleaned_input_datasets,
                 output_datasets=cleaned_output_datasets,
             )
+
             script_run_config = create_script_run(snapshot_root_directory=snapshot_root_directory,
                                                   entry_script=entry_script,
                                                   script_params=script_params)
@@ -923,8 +926,6 @@ def submit_to_azure_if_needed(  # type: ignore
             )
             if entry_script is None:
                 entry_script = Path(sys.argv[0])
-
-            script_params = script_params or [param for param in sys.argv[1:] if param != AZUREML_COMMANDLINE_FLAG]
 
             ml_client = get_ml_client(ml_client=ml_client, aml_workspace=workspace)
             registered_env = register_environment_v2(environment, ml_client)
@@ -1011,7 +1012,7 @@ def _get_script_params(script_params: Optional[List[str]] = None) -> List[str]:
     """
     if script_params:
         return script_params
-    return [p for p in sys.argv[1:] if p != AZUREML_COMMANDLINE_FLAG]
+    return [p for p in sys.argv[1:] if p != AZUREML_FLAG]
 
 
 def _generate_azure_datasets(
