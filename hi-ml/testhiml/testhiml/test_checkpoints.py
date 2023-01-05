@@ -20,6 +20,7 @@ from health_ml.utils.checkpoint_utils import (
     CheckpointParser,
     _get_checkpoint_files,
     download_checkpoints_from_run,
+    find_checkpoint_with_highest_epoch,
     find_recovery_checkpoint_in_downloaded_files,
     find_recovery_checkpoint_on_disk_or_cloud,
     _load_epoch_from_checkpoint)
@@ -215,6 +216,29 @@ def test_get_checkpoint_filenames_non_matching() -> None:
     assert _get_checkpoint_files([file]) == []
 
 
+def test_find_recovery_checkpoint_in_downloaded_files(tmp_path: Path) -> None:
+    """Test the logic to find the checkpoints with highest epoch.
+    """
+    highest_epoch = 100
+    # Write 3 files, check that the highest epoch is returned.
+    file1 = write_empty_checkpoint_file(tmp_path, 1, "epoch1")
+    file2 = write_empty_checkpoint_file(tmp_path, 2, "epoch2")
+    file100 = write_empty_checkpoint_file(tmp_path, highest_epoch, "epoch100")
+
+    checkpoint_highest = find_recovery_checkpoint_in_downloaded_files(tmp_path)
+    assert checkpoint_highest is not None
+    assert checkpoint_highest == file100
+    assert _load_epoch_from_checkpoint(checkpoint_highest) == highest_epoch
+
+    # When supplying the `delete_files` argument, all files apart from the one with the highest epoch should be deleted.
+    checkpoint_highest2 = find_checkpoint_with_highest_epoch([file1, file2, file100], delete_files=True)
+    assert checkpoint_highest2 is not None
+    assert checkpoint_highest == file100
+    assert checkpoint_highest.is_file()
+    assert not file1.is_file()
+    assert not file2.is_file()
+
+
 def test_find_recovery_checkpoints_in_cloud(tmp_path: Path) -> None:
     """Test if the logic to find recovery checkpoints in AzureML works.
     """
@@ -272,5 +296,44 @@ def test_find_recovery_checkpoints_in_cloud(tmp_path: Path) -> None:
                 recovery_checkpoint = find_recovery_checkpoint_on_disk_or_cloud(empty_temp_folder)
                 assert recovery_checkpoint is not None
                 assert _load_epoch_from_checkpoint(recovery_checkpoint) == highest_epoch
+    finally:
+        run.complete()
+
+
+def test_download_inference_checkpoint(tmp_path: Path) -> None:
+    """Test if we can download the inference checkpoint from an AzureML run when there is an inference checkpoint
+    in multiple retry folders.
+    """
+    empty_file = (tmp_path / "empty.txt")
+    empty_file.touch()
+    highest_epoch = 100
+    # Write checkpoint files that will be later uploaded to AML
+    file1 = write_empty_checkpoint_file(tmp_path, 1, "epoch1")
+    file100 = write_empty_checkpoint_file(tmp_path, highest_epoch, "epoch100")
+
+    # Create an AzureML run, upload the files, download again, and check that the highest epoch is returned.
+    run = create_unittest_run_object()
+    try:
+        output_folder = Path(DEFAULT_AML_UPLOAD_DIR)
+        # Create 2 files in the run: one in the default folder, an invalid checkpoint file in retry folder 001
+        # (that one should be ignored) and one in retry folder 002.
+        checkpoint_filename = Path(CHECKPOINT_FOLDER) / LAST_CHECKPOINT_FILE_NAME
+        highest_epoch_file = output_folder / "retry_002" / checkpoint_filename
+        files_to_upload = [
+            (file1, output_folder / checkpoint_filename),
+            (empty_file, output_folder / "retry_001" / checkpoint_filename),
+            (file100, highest_epoch_file),
+        ]
+        for (file, name) in files_to_upload:
+            run.upload_file(name=str(name), path_or_stream=str(file))
+        run.flush()
+
+        highest_epoch_checkpoint = find_checkpoint_with_highest_epoch(
+            run,
+            filename=checkpoint_filename,
+            download_to=tmp_path)
+        assert _load_epoch_from_checkpoint(highest_epoch_checkpoint) == highest_epoch
+
+
     finally:
         run.complete()

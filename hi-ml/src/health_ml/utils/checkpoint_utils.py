@@ -12,7 +12,7 @@ import requests
 import torch
 
 from pathlib import Path
-from typing import List, Optional
+from typing import Iterable, List, Optional
 from urllib.parse import urlparse
 from azureml.core import Run
 
@@ -164,11 +164,14 @@ def _load_epoch_from_checkpoint(path: Optional[Path]) -> int:
     return checkpoint[CHECKPOINT_EPOCH_KEY]
 
 
-def find_checkpoint_with_highest_epoch(files: List[Path]) -> Optional[Path]:
+def find_checkpoint_with_highest_epoch(files: Iterable[Path], delete_files: bool = False) -> Optional[Path]:
     """Loads the epoch numbers from the given checkpoint files, and returns the one with the
     highest epoch number. If no files can be loaded, or the list is empty, None is returned.
+    If the `delete_files` flag is set to True, all files apart from the one with the highest epoch are deleted.
 
     :param files: A list of checkpoint files.
+    :param delete_files: If True, all files apart from the one with the highest epoch are deleted. If False,
+        no files are deleted.
     :return: The checkpoint file with the highest epoch number, or None if no such file was found."""
     highest_epoch: Optional[int] = None
     file_with_highest_epoch: Optional[Path] = None
@@ -178,6 +181,9 @@ def find_checkpoint_with_highest_epoch(files: List[Path]) -> Optional[Path]:
                 epoch = _load_epoch_from_checkpoint(file)
                 logging.info(f"Checkpoint for epoch {epoch} in {file}")
                 if (highest_epoch is None) or (epoch > highest_epoch):
+                    if file_with_highest_epoch is not None and delete_files:
+                        logging.debug(f"Deleting checkpoint file {file_with_highest_epoch}")
+                        file_with_highest_epoch.unlink()
                     highest_epoch = epoch
                     file_with_highest_epoch = file
             except Exception as ex:
@@ -204,7 +210,7 @@ def find_recovery_checkpoint_in_downloaded_files(path: Path) -> Optional[Path]:
     :param path: The folder to search in.
     :return: The checkpoint file with the highest epoch number, or None if no such file was found.
     """
-    candidates = list(path.glob(f"**/*{CHECKPOINT_SUFFIX}"))
+    candidates = path.glob(f"**/*{CHECKPOINT_SUFFIX}")
     return find_checkpoint_with_highest_epoch(candidates)
 
 
