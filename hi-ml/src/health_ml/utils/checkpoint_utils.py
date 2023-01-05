@@ -211,7 +211,7 @@ def find_recovery_checkpoint_in_downloaded_files(path: Path) -> Optional[Path]:
     :return: The checkpoint file with the highest epoch number, or None if no such file was found.
     """
     candidates = path.glob(f"**/*{CHECKPOINT_SUFFIX}")
-    return find_checkpoint_with_highest_epoch(candidates)
+    return find_checkpoint_with_highest_epoch(candidates, delete_files=False)
 
 
 def cleanup_checkpoints(ckpt_folder: Path) -> None:
