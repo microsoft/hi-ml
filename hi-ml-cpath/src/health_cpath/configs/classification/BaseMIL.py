@@ -183,31 +183,11 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
     def get_checkpoint_to_test(self) -> Path:
         """
         Returns the full path to a checkpoint file that was found to be best during training, whatever criterion
-        was applied there. This is necessary since for some models the checkpoint is in a subfolder of the checkpoint
-        folder.
+        was applied there. Note that the checkpoint file might not (yet) exist, for example in the case of
+        preempted jobs.
         """
-        # absolute path is required for registering the model.
-        absolute_checkpoint_path = Path(fixed_paths.repository_root_directory(),
-                                        DEFAULT_AML_CHECKPOINT_DIR,
-                                        self.best_checkpoint_filename_with_suffix)
-        if absolute_checkpoint_path.is_file():
-            return absolute_checkpoint_path
-
-        absolute_checkpoint_path_parent = Path(fixed_paths.repository_root_directory().parent,
-                                               DEFAULT_AML_CHECKPOINT_DIR,
-                                               self.best_checkpoint_filename_with_suffix)
-        if absolute_checkpoint_path_parent.is_file():
-            return absolute_checkpoint_path_parent
-
         checkpoint_path = Path(self.checkpoint_folder, self.best_checkpoint_filename_with_suffix)
-        if checkpoint_path.is_file():
-            return checkpoint_path
-
-        checkpoint_path = get_best_checkpoint_path(self.checkpoint_folder)
-        if checkpoint_path.is_file():
-            return checkpoint_path
-
-        raise ValueError("Path to best checkpoint not found")
+        return checkpoint_path
 
     def get_dataloader_kwargs(self) -> dict:
         num_cpus = os.cpu_count()
