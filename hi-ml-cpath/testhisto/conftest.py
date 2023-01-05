@@ -21,10 +21,10 @@ TEST_OUTPUTS_PATH = testhisto_root_dir / "test_outputs"
 
 # temporary workaround until these hi-ml package release
 himl_root = testhisto_root_dir.parent.parent
-packages = {"hi-ml": ["src", "testhiml"], "hi-ml-azure": ["src", "testazure"]}
+packages = {"hi-ml": ["src", "testhiml"], "hi-ml-azure": ["src", "testazure"], "hi-ml-cpath": ["src"]}
 for package, subpackages in packages.items():
     for subpackage in subpackages:
-        logging.info(f"Adding {himl_root / package / subpackage} to sys path")
+        print(f"Adding {himl_root / package / subpackage} to sys path")
         sys.path.insert(0, str(himl_root / package / subpackage))
 
 from health_cpath.utils import package_setup  # noqa: E402
