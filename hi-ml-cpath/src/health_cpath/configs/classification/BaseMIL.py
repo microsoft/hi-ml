@@ -19,11 +19,9 @@ from health_cpath.preprocessing.loading import LoadingParams
 from health_cpath.utils.callbacks import LossAnalysisCallback, LossCallbackParams
 from health_cpath.utils.wsi_utils import TilingParams
 
-from health_ml.utils import fixed_paths
 from health_ml.deep_learning_config import OptimizerParams
 from health_ml.lightning_container import LightningContainer
-from health_ml.utils.checkpoint_utils import get_best_checkpoint_path, CheckpointParser
-from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
+from health_ml.utils.checkpoint_utils import CheckpointParser
 
 from health_cpath.datamodules.base_module import CacheLocation, CacheMode, HistoDataModule
 from health_cpath.datasets.base_dataset import SlidesDataset
