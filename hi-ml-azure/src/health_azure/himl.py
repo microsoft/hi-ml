@@ -13,7 +13,6 @@ import logging
 import os
 import re
 import sys
-import warnings
 from argparse import ArgumentParser
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -35,6 +34,7 @@ from azureml.train.hyperdrive import HyperDriveConfig, GridParameterSampling, Pr
 from azureml.dataprep.fuse.daemon import MountContext
 
 from health_azure.amulet import (ENV_AMLT_DATAREFERENCE_DATA, ENV_AMLT_DATAREFERENCE_OUTPUT, is_amulet_job)
+from health_azure.package_setup import health_azure_package_setup
 from health_azure.utils import (ENV_EXPERIMENT_NAME, create_python_environment, create_run_recovery_id,
                                 find_file_in_parent_to_pythonpath,
                                 is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
@@ -812,7 +812,7 @@ def submit_to_azure_if_needed(  # type: ignore
     :return: If the script is submitted to AzureML then we terminate python as the script should be executed in AzureML,
         otherwise we return a AzureRunInfo object.
     """
-    _package_setup()
+    health_azure_package_setup()
     workspace_config_path = _str_to_path(workspace_config_file)
     snapshot_root_directory = _str_to_path(snapshot_root_directory)
     cleaned_input_datasets = _replace_string_datasets(input_datasets or [],
@@ -1118,26 +1118,6 @@ def append_to_amlignore(lines_to_append: List[str], amlignore: Optional[Path] = 
         amlignore.write_text(old_contents)
     elif new_text:
         amlignore.unlink()
-
-
-def _package_setup() -> None:
-    """
-    Set up the Python packages where needed. In particular, reduce the logging level for some of the used
-    libraries, which are particularly talkative in DEBUG mode. Usually when running in DEBUG mode, we want
-    diagnostics about the model building itself, but not for the underlying libraries.
-    It also adds workarounds for known issues in some packages.
-    """
-    # The adal package creates a logging.info line each time it gets an authentication token, avoid that.
-    logging.getLogger('adal-python').setLevel(logging.WARNING)
-    # Azure core prints full HTTP requests even in INFO mode
-    logging.getLogger('azure').setLevel(logging.WARNING)
-    # PyJWT prints out warnings that are beyond our control
-    warnings.filterwarnings("ignore", category=DeprecationWarning, module="jwt")
-    # Urllib3 prints out connection information for each call to write metrics, etc
-    logging.getLogger('urllib3').setLevel(logging.INFO)
-    logging.getLogger('msrest').setLevel(logging.INFO)
-    # AzureML prints too many details about logging metrics
-    logging.getLogger('azureml').setLevel(logging.INFO)
 
 
 def main() -> None:

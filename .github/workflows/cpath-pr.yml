@@ -41,7 +41,7 @@ jobs:
       - name: Cancel previous AzureML runs
         uses: ./.github/actions/cancel_azureml_jobs
 
-  flake8:
+  cpath-flake8:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -59,7 +59,7 @@ jobs:
           make pip_test
           make flake8
 
-  mypy:
+  cpath-mypy:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -77,7 +77,7 @@ jobs:
           make pip_test
           make mypy
 
-  pytest:
+  cpath-pytest:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -103,7 +103,7 @@ jobs:
         with:
             flags: ${{ env.folder }}
 
-  pytest_gpu:
+  cpath-pytest-gpu:
     runs-on: ubuntu-20.04
     needs: [ cancel-azureml ]
     steps:
@@ -303,13 +303,13 @@ jobs:
           cd ${{ env.folder }}
           make smoke_test_tiles_panda_no_ddp_sampler_aml
 
-  publish:
+  cpath-publish-pypi-package:
     runs-on: ubuntu-20.04
     needs: [
-      flake8,
-      mypy,
-      pytest,
-      pytest_gpu,
+      cpath-flake8,
+      cpath-mypy,
+      cpath-pytest,
+      cpath-pytest-gpu,
       smoke_test_cucim_slidespandaimagenetmil,
       smoke_test_openslide_slidespandaimagenetmil,
       smoke_test_tilespandaimagenetmil,
@@ -363,3 +363,12 @@ jobs:
           password: ${{ secrets.PYPI_API_TOKEN }}
           packages_dir: ${{ env.folder }}/dist/
           verbose: true
+
+  cpath-pr-completed:
+    runs-on: ubuntu-20.04
+    if: "!startsWith(github.ref, 'refs/tags/v')"
+    needs: [ cpath-publish-pypi-package ]
+    steps:
+      - name: Final PR Job
+        run: |
+          echo "All cpath PR jobs have passed."
