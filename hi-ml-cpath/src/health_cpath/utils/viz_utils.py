@@ -201,7 +201,7 @@ def plot_heatmap_overlay(
     tile_xs, tile_ys = sel_coords.T
     rects = [patches.Rectangle(xy, tile_size, tile_size) for xy in zip(tile_xs, tile_ys)]
 
-    pc = collection.PatchCollection(rects, match_original=True, cmap=cmap, alpha=0.7, edgecolor="face")
+    pc = collection.PatchCollection(rects, match_original=True, cmap=cmap, alpha=0.5, linewidth=0)
     pc.set_array(np.array(attentions))
     ax.add_collection(pc)
     plt.colorbar(pc, ax=ax)
@@ -221,7 +221,7 @@ def plot_attention_histogram(case: str, slide_node: SlideNode, results: Dict[Res
     attentions = results[ResultsKey.BAG_ATTN][slide_idx]
     fig, ax = plt.subplots()
     fig.suptitle(f"Attention Scores {_get_histo_plot_title(case, slide_node)}")
-    ax.hist(attentions.cpu().numpy(), alpha=0.5)
+    ax.hist(attentions.cpu().numpy(), alpha=0.5, bins=20)
     return fig
 
 
