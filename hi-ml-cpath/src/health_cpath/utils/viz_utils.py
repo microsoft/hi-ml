@@ -175,11 +175,11 @@ def plot_heatmap_overlay(
     :param should_upscale_coords: If True, upscales the heatmap coordinates to the slide level. Default True.
     :return: matplotlib figure of the heatmap of the given tiles on slide.
     """
-    gs = GridSpec(nrows=4, ncols=2, width_ratios=(1, .02))
+    gs = GridSpec(nrows=2, ncols=2, width_ratios=(1, .02))
     fig = plt.figure()
-    ax0 = fig.add_subplot(gs[0:2, 0])
-    ax1 = fig.add_subplot(gs[2:4, 0], sharex=ax0)
-    cax = fig.add_subplot(gs[2:4, 1])
+    ax0 = fig.add_subplot(gs[0, 0])
+    ax1 = fig.add_subplot(gs[1, 0], sharex=ax0)
+    cax = fig.add_subplot(gs[1, 1])
     fig.suptitle(_get_histo_plot_title(case, slide_node))
 
     slide_image = slide_dict[SlideKey.IMAGE]
