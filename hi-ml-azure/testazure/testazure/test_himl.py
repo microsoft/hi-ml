@@ -1587,7 +1587,7 @@ def test_submit_to_azure_if_needed_v2() -> None:
 
     with patch.multiple(
         "health_azure.himl",
-        _package_setup=DEFAULT,
+        health_azure_package_setup=DEFAULT,
         get_workspace=DEFAULT,
         get_ml_client=DEFAULT,
         create_run_configuration=DEFAULT,
