@@ -515,13 +515,15 @@ def test_invalid_entry_script(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError) as e:
         himl.create_script_run(
+            script_params=[],
             entry_script=problem_entry_script,
             snapshot_root_directory=snapshot_dir,
-            script_params=[])
+        )
     assert "entry script must be inside of the snapshot root directory" in str(e)
 
     with mock.patch("sys.argv", ["foo"]):
-        script_run = himl.create_script_run()
+        script_params = himl._get_script_params()
+        script_run = himl.create_script_run(script_params)
         assert script_run.source_directory == str(Path.cwd())
         assert script_run.script == "foo"
         assert script_run.arguments == []

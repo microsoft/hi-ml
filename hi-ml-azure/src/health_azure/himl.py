@@ -347,11 +347,12 @@ def create_script_run(
     Creates an AzureML ScriptRunConfig object, that holds the information about the snapshot, the entry script, and
     its arguments.
 
-    :param entry_script: The script that should be run in AzureML.
+    :param script_params: A list of parameter to pass on to the script as it runs in AzureML. Required arg. Script
+        parameters can be generated using the ``_get_script_params()`` function.
     :param snapshot_root_directory: The directory that contains all code that should be packaged and sent to AzureML.
         All Python code that the script uses must be copied over.
-    :param script_params: A list of parameter to pass on to the script as it runs in AzureML. If empty (or None, the
-        default) these will be copied over from sys.argv, omitting the --azureml flag.
+    :param entry_script: The script that should be run in AzureML. If None, the current main Python file will be
+        executed.
     :return:
     """
     if snapshot_root_directory is None:
@@ -900,9 +901,11 @@ def submit_to_azure_if_needed(  # type: ignore
                 output_datasets=cleaned_output_datasets,
             )
 
-            script_run_config = create_script_run(snapshot_root_directory=snapshot_root_directory,
-                                                  entry_script=entry_script,
-                                                  script_params=script_params)
+            script_run_config = create_script_run(
+                script_params=script_params,
+                snapshot_root_directory=snapshot_root_directory,
+                entry_script=entry_script,
+            )
             script_run_config.run_config = run_config
 
             if hyperdrive_config:
