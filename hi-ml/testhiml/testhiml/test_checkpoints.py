@@ -364,7 +364,7 @@ def test_download_inference_checkpoint(tmp_path: Path) -> None:
     relative_checkpoint_path = f"{CHECKPOINT_FOLDER}/{LAST_CHECKPOINT_FILE_NAME}"
     assert str(handler.get_relative_inference_checkpoint_path()) == relative_checkpoint_path
     # This test is not running in AzureML, so trying to download inference checkpoints from the current run should
-    # be a no-ope.
+    # be a no-op.
     handler.download_inference_checkpoint()
 
     with mock.patch.multiple("health_ml.utils.checkpoint_handler",
