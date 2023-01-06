@@ -6,10 +6,10 @@ import logging
 import matplotlib
 import os
 
-from health_azure import package_setup as health_azure_setup, set_logging_levels
+from health_azure import health_azure_package_setup, set_logging_levels
 
 
-def package_setup() -> None:
+def health_ml_package_setup() -> None:
     """
     Set up the Python packages where needed. In particular, reduce the logging level for some of the used
     libraries, which are particularly talkative in DEBUG mode. Usually when running in DEBUG mode, we want
@@ -17,7 +17,7 @@ def package_setup() -> None:
 
     It also adds workarounds for known issues in some packages.
     """
-    health_azure_setup()
+    health_azure_package_setup()
     module_levels = {
         # DEBUG level info when opening checkpoint and other files
         'fsspec': logging.INFO,

@@ -27,7 +27,7 @@ for package, subpackages in packages.items():
         print(f"Adding {himl_root / package / subpackage} to sys path")
         sys.path.insert(0, str(himl_root / package / subpackage))
 
-from health_cpath.utils import package_setup  # noqa: E402
+from health_cpath.utils import health_cpath_package_setup  # noqa: E402
 from health_ml.utils.fixed_paths import OutputFolderForTests  # noqa: E402
 from testhisto.mocks.base_data_generator import MockHistoDataType  # noqa: E402
 from testhisto.mocks.tiles_generator import MockPandaTilesGenerator  # noqa: E402
@@ -35,7 +35,7 @@ from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPosi
 
 
 # Reduce logging noise in DEBUG mode
-package_setup()
+health_cpath_package_setup()
 
 
 def remove_and_create_folder(folder: Path) -> None:

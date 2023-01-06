@@ -16,7 +16,7 @@ def set_logging_levels(levels: Dict[str, int]) -> None:
         logging.getLogger(module).setLevel(level)
 
 
-def package_setup() -> None:
+def health_azure_package_setup() -> None:
     """
     Set up the Python packages where needed. In particular, reduce the logging level for some of the used
     libraries, which are particularly talkative in DEBUG mode. Usually when running in DEBUG mode, we want

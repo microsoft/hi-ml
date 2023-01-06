@@ -15,7 +15,7 @@ for folder in paths_to_add:
         print(f"Adding to sys.path for running hi-ml: {full_folder}")
         sys.path.insert(0, full_folder)
 
-from health_ml.utils import package_setup  # noqa: E402
+from health_ml.utils import health_ml_package_setup  # noqa: E402
 
 # Reduce logging noise in DEBUG mode
-package_setup()
+health_ml_package_setup()

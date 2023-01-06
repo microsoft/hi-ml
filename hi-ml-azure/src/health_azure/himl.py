@@ -34,7 +34,7 @@ from azureml.train.hyperdrive import HyperDriveConfig, GridParameterSampling, Pr
 from azureml.dataprep.fuse.daemon import MountContext
 
 from health_azure.amulet import (ENV_AMLT_DATAREFERENCE_DATA, ENV_AMLT_DATAREFERENCE_OUTPUT, is_amulet_job)
-from health_azure.package_setup import package_setup
+from health_azure.package_setup import health_azure_package_setup
 from health_azure.utils import (ENV_EXPERIMENT_NAME, create_python_environment, create_run_recovery_id,
                                 find_file_in_parent_to_pythonpath,
                                 is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
@@ -812,7 +812,7 @@ def submit_to_azure_if_needed(  # type: ignore
     :return: If the script is submitted to AzureML then we terminate python as the script should be executed in AzureML,
         otherwise we return a AzureRunInfo object.
     """
-    package_setup()
+    health_azure_package_setup()
     workspace_config_path = _str_to_path(workspace_config_file)
     snapshot_root_directory = _str_to_path(snapshot_root_directory)
     cleaned_input_datasets = _replace_string_datasets(input_datasets or [],
