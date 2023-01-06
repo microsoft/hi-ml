@@ -196,16 +196,33 @@ def plot_heatmap_overlay(
                                          location_bbox=slide_dict[SlideKey.ORIGIN],
                                          scale_factor=slide_dict[SlideKey.SCALE],
                                          should_upscale_coords=should_upscale_coords)
-    cmap = plt.cm.get_cmap("Reds")
+    cmap = plt.cm.get_cmap("Spectral_r")
 
     tile_xs, tile_ys = sel_coords.T
     rects = [patches.Rectangle(xy, tile_size, tile_size) for xy in zip(tile_xs, tile_ys)]
 
-    pc = collection.PatchCollection(rects, match_original=True, cmap=cmap, alpha=0.5, edgecolor="black")
+    pc = collection.PatchCollection(rects, match_original=True, cmap=cmap, alpha=0.7, edgecolor="face")
     pc.set_array(np.array(attentions))
     pc.set_clim([0, 1])
     ax.add_collection(pc)
     plt.colorbar(pc, ax=ax)
+    return fig
+
+
+def plot_attention_histogram(case: str, slide_node: SlideNode, results: Dict[ResultsKey, List[Any]]) -> plt.Figure:
+    """Plots a histogram of the attention values of the tiles in a bag.
+
+    :param case: The report case (e.g., TP, FN, ...)
+    :param slide_node: The slide node that encapsulates the slide metadata.
+    :param results: Dict containing ResultsKey keys (e.g. slide id) and values as lists of output slides.
+    :return: matplotlib figure of the histogram of the attention values of the tiles in a bag.
+    """
+    slide_ids = [item[0] for item in results[ResultsKey.SLIDE_ID]]
+    slide_idx = slide_ids.index(slide_node.slide_id)
+    attentions = results[ResultsKey.BAG_ATTN][slide_idx]
+    fig, ax = plt.subplots()
+    fig.suptitle(f"Attention Scores {_get_histo_plot_title(case, slide_node)}")
+    ax.hist(attentions.cpu().numpy(), alpha=0.5)
     return fig
 
 
