@@ -4,7 +4,6 @@
 #  -------------------------------------------------------------------------------------------
 
 import logging
-import shutil
 import tempfile
 from azureml.core import Run
 from pathlib import Path
@@ -81,12 +80,12 @@ class CheckpointHandler:
             # Handling low-priority preemption: If we are recovering from a preemption that appeared after training was
             # finished, there will not be an inference checkpoint available on disk. In that case, we need to download
             # it from the AzureML run.
-            logging.info(f"Trying to find an inference checkpoint in AzureML.")
+            logging.info("Trying to find an inference checkpoint in AzureML.")
             downloaded_checkpoint = self.download_inference_checkpoint()
             if downloaded_checkpoint is not None:
                 logging.info(f"Using a checkpoint found in the AzureML run: {downloaded_checkpoint}")
                 return downloaded_checkpoint
-            raise FileNotFoundError(f"No inference checkpoint file found locally nor in AzureML.")
+            raise FileNotFoundError("No inference checkpoint file found locally nor in AzureML.")
         elif self.trained_weights_path:
             # Model was not trained, check if there is a local weight path.
             logging.info(f"Using pre-trained weights from {self.trained_weights_path}")

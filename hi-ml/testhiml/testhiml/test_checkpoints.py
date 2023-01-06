@@ -389,6 +389,7 @@ def test_download_inference_checkpoint(tmp_path: Path) -> None:
                                  download_highest_epoch_checkpoint=mock_download_highest_epoch_checkpoint):
             downloaded = handler.download_inference_checkpoint(download_folder=tmp_path)
             mock_download_highest_epoch_checkpoint.assert_called_once()
+            assert downloaded is not None
             assert downloaded.is_file()
             assert _load_epoch_from_checkpoint(downloaded) == epoch
 
