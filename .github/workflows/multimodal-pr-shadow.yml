@@ -1,0 +1,16 @@
+# This is a 'shadow' pipeline designed purely to allow status checks to be run on PRs that use path filtering
+name: Multimodal PR Shadow
+on:
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - "hi-ml-multimodal/**"
+      - ".github/workflows/multimodal-pr.yml"
+
+jobs:
+  multimodal-pr-completed:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Final PR Job
+        run: |
+          echo "Running multimodal shadow PR job"
