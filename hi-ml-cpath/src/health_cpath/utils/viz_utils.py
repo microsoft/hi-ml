@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.collections as collection
+from matplotlib.gridspec import GridSpec
 
 from math import ceil
 from pathlib import Path
@@ -174,15 +175,22 @@ def plot_heatmap_overlay(
     :param should_upscale_coords: If True, upscales the heatmap coordinates to the slide level. Default True.
     :return: matplotlib figure of the heatmap of the given tiles on slide.
     """
-    fig, ax = plt.subplots()
+    gs = GridSpec(nrows=4, ncols=2, width_ratios=(1, .02))
+    fig = plt.figure()
+    ax0 = fig.add_subplot(gs[0:2, 0])
+    ax1 = fig.add_subplot(gs[2:4, 0], sharex=ax0)
+    cax = fig.add_subplot(gs[2:4, 1])
     fig.suptitle(_get_histo_plot_title(case, slide_node))
+
     slide_image = slide_dict[SlideKey.IMAGE]
     assert isinstance(slide_image, np.ndarray), f"slide image must be a numpy array, got {type(slide_image)}"
     slide_image = slide_image.transpose(1, 2, 0)
 
-    ax.imshow(slide_image)
-    ax.set_xlim(0, slide_image.shape[1])
-    ax.set_ylim(slide_image.shape[0], 0)
+    for ax in (ax0, ax1):
+        ax.imshow(slide_image)
+        ax.set_xlim(0, slide_image.shape[1])
+        ax.set_ylim(slide_image.shape[0], 0)
+        ax.set_xticks([])
 
     slide_ids = [item[0] for item in results[ResultsKey.SLIDE_ID]]
     slide_idx = slide_ids.index(slide_node.slide_id)
@@ -203,8 +211,8 @@ def plot_heatmap_overlay(
 
     pc = collection.PatchCollection(rects, match_original=True, cmap=cmap, alpha=0.5, linewidth=0)
     pc.set_array(np.array(attentions))
-    ax.add_collection(pc)
-    plt.colorbar(pc, ax=ax)
+    ax1.add_collection(pc)
+    plt.colorbar(pc, cax=cax)
     return fig
 
 
@@ -220,8 +228,9 @@ def plot_attention_histogram(case: str, slide_node: SlideNode, results: Dict[Res
     slide_idx = slide_ids.index(slide_node.slide_id)
     attentions = results[ResultsKey.BAG_ATTN][slide_idx]
     fig, ax = plt.subplots()
-    fig.suptitle(f"Attention Scores {_get_histo_plot_title(case, slide_node)}")
-    ax.hist(attentions.cpu().numpy(), alpha=0.5, bins=20)
+    ax.set_xlabel("Attention scores")
+    fig.suptitle({_get_histo_plot_title(case, slide_node)})
+    ax.hist(attentions.cpu().numpy(), alpha=0.5)
     return fig
 
 
