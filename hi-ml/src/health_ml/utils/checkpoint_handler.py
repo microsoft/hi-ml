@@ -117,4 +117,4 @@ class CheckpointHandler:
             else:
                 destination = self.container.get_checkpoint_to_test()
                 destination.parent.mkdir(parents=True, exist_ok=True)
-                shutil.move(highest_epoch_checkpoint, destination)
+                shutil.move(str(highest_epoch_checkpoint), str(destination))
