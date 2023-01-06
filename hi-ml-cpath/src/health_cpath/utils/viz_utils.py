@@ -203,7 +203,6 @@ def plot_heatmap_overlay(
 
     pc = collection.PatchCollection(rects, match_original=True, cmap=cmap, alpha=0.7, edgecolor="face")
     pc.set_array(np.array(attentions))
-    pc.set_clim([0, 1])
     ax.add_collection(pc)
     plt.colorbar(pc, ax=ax)
     return fig
