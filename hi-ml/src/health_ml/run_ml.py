@@ -309,7 +309,7 @@ class MLRunner:
         # is put into the right place in AzureML (only the contents of the "outputs" folder is treated as a result file)
         with change_working_directory(self.container.outputs_folder):
             assert self.trainer, "Trainer should be initialized before training. Call self.init_training() first."
-            self.trainer.fit(self.container.model, datamodule=self.data_module)
+            self.trainer.fit(self.container.model, datamodule=self.container.get_data_module())
 
         for logger in self.trainer.loggers:
             assert logger is not None
@@ -322,7 +322,7 @@ class MLRunner:
         self.container.on_run_extra_validation_epoch()
         trainer = self.get_trainer_for_inference(checkpoint_path=None)
         with change_working_directory(self.container.outputs_folder):
-            trainer.validate(self.container.model, datamodule=self.data_module)
+            trainer.validate(self.container.model, datamodule=self.container.get_data_module())
 
     def validate_model_weights(self) -> None:
         logging.info("Validating model weights.")
