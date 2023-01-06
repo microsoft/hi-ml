@@ -153,10 +153,6 @@ class MLRunner:
 
         # configure recovery container if provided
         self.checkpoint_handler.download_recovery_checkpoints_or_weights()  # type: ignore
-        # Handling low-priority preemption: If we are recovering from a preemption that appeared after training was
-        # finished, there will not be an inference checkpoint available on disk. In that case, we need to download
-        # it from the AzureML run.
-        self.checkpoint_handler.download_inference_checkpoint()
 
         self.container.setup()
         self.container.create_lightning_module_and_store()

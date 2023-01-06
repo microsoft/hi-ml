@@ -365,7 +365,7 @@ def test_download_inference_checkpoint(tmp_path: Path) -> None:
     assert str(handler.get_relative_inference_checkpoint_path()) == relative_checkpoint_path
     # This test is not running in AzureML, so trying to download inference checkpoints from the current run should
     # be a no-op.
-    handler.download_inference_checkpoint()
+    assert handler.download_inference_checkpoint() is None
 
     with mock.patch.multiple("health_ml.utils.checkpoint_handler",
                              is_running_in_azure_ml=MagicMock(return_value=True),
@@ -374,22 +374,49 @@ def test_download_inference_checkpoint(tmp_path: Path) -> None:
         mock_download_highest_epoch_checkpoint = mock.MagicMock(return_value=None)
         with mock.patch.multiple("health_ml.utils.checkpoint_handler",
                                  download_highest_epoch_checkpoint=mock_download_highest_epoch_checkpoint):
-            handler.download_inference_checkpoint(temp_folder=tmp_path)
+            assert handler.download_inference_checkpoint(download_folder=tmp_path) is None
             mock_download_highest_epoch_checkpoint.assert_called_once_with(
                 run=RUN_CONTEXT,
                 checkpoint_suffix=f"{DEFAULT_AML_UPLOAD_DIR}/{relative_checkpoint_path}",
                 output_folder=tmp_path)
-            assert not container.get_checkpoint_to_test().is_file()
 
         # Mock the case where there is at least one checkpoint in the AzureML run.
-        # The checkpoint should be downloaded to the temp folder and then copied to the
-        # container's checkpoint folder.
+        # The checkpoint should be downloaded to the temp folder
         epoch = 123
         checkpoint_file = write_empty_checkpoint_file(tmp_path, epoch)
         mock_download_highest_epoch_checkpoint = mock.MagicMock(return_value=checkpoint_file)
         with mock.patch.multiple("health_ml.utils.checkpoint_handler",
                                  download_highest_epoch_checkpoint=mock_download_highest_epoch_checkpoint):
-            handler.download_inference_checkpoint(temp_folder=tmp_path)
+            downloaded = handler.download_inference_checkpoint(download_folder=tmp_path)
             mock_download_highest_epoch_checkpoint.assert_called_once()
-            assert container.get_checkpoint_to_test().is_file()
-            assert _load_epoch_from_checkpoint(container.get_checkpoint_to_test()) == epoch
+            assert downloaded.is_file()
+            assert _load_epoch_from_checkpoint(downloaded) == epoch
+
+
+def test_checkpoint_download_triggered(tmp_path: Path) -> None:
+    """Test if the download of inference checkpoints from AzureML is triggering, if the local checkpoint folder
+    does not contain a suitable checkpoint.
+    """
+    container = LightningContainer()
+    container.set_output_to(tmp_path)
+    handler = CheckpointHandler(container=container, project_root=tmp_path)
+    assert not container.get_checkpoint_to_test().is_file()
+    with pytest.raises(ValueError, match="Unable to determine which checkpoint should be used for testing"):
+        handler.get_checkpoint_to_test()
+    # Setting the "training done" flag only triggers the check for checkpoints or downloading
+    handler.additional_training_done()
+
+    # Mock that no checkpoint was available in AzureML
+    mock_download = MagicMock(return_value=None)
+    with mock.patch.object(handler, "download_inference_checkpoint", mock_download):
+        with pytest.raises(FileNotFoundError, match="No inference checkpoint file found locally nor in AzureML"):
+            handler.get_checkpoint_to_test()
+        mock_download.assert_called_once()
+
+    # Mock that there was actually a checkpoint available in AzureML:
+    file1 = tmp_path / "file"
+    file1.touch()
+    mock_download = MagicMock(return_value=file1)
+    with mock.patch.object(handler, "download_inference_checkpoint", mock_download):
+        assert handler.get_checkpoint_to_test() == file1
+        mock_download.assert_called_once()

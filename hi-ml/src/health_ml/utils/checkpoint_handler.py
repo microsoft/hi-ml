@@ -77,8 +77,16 @@ class CheckpointHandler:
             if checkpoint_from_current_run.is_file():
                 logging.info(f"Using checkpoint from current run: {checkpoint_from_current_run}")
                 return checkpoint_from_current_run
-            else:
-                raise FileNotFoundError(f"Checkpoint file does not exist: {checkpoint_from_current_run}")
+            logging.warning(f"No inference checkpoint found from the current run: {checkpoint_from_current_run}")
+            # Handling low-priority preemption: If we are recovering from a preemption that appeared after training was
+            # finished, there will not be an inference checkpoint available on disk. In that case, we need to download
+            # it from the AzureML run.
+            logging.info(f"Trying to find an inference checkpoint in AzureML.")
+            downloaded_checkpoint = self.download_inference_checkpoint()
+            if downloaded_checkpoint is not None:
+                logging.info(f"Using a checkpoint found in the AzureML run: {downloaded_checkpoint}")
+                return downloaded_checkpoint
+            raise FileNotFoundError(f"No inference checkpoint file found locally nor in AzureML.")
         elif self.trained_weights_path:
             # Model was not trained, check if there is a local weight path.
             logging.info(f"Using pre-trained weights from {self.trained_weights_path}")
@@ -97,24 +105,28 @@ class CheckpointHandler:
                              f"Checkpoint path: {expected_checkpoint_path}, "
                              f"output folder: {self.container.outputs_folder}")
 
-    def download_inference_checkpoint(self, temp_folder: Optional[Path] = None) -> None:
+    def download_inference_checkpoint(self, download_folder: Optional[Path] = None) -> Optional[Path]:
         """
         For low-priority preemption that occured after training, try to download the inference checkpoint if that
-        is available in the AzureML run from a previous incarnation of the job.
+        is available in the AzureML run from a previous incarnation of the job. Downloads go into the `download_folder`.
+
+        :param download_folder: The folder where the checkpoints should be downloaded to. If not provided, use a
+            temp folder.
+        :return: The path to a downloaded inference checkpoint.
         """
         # This logic will only trigger in AzureML. Download should only happen once per node.
         if is_running_in_azure_ml() and is_global_rank_zero():
-            temp_folder = temp_folder or Path(tempfile.mkdtemp())
+            download_folder = download_folder or Path(tempfile.mkdtemp())
             inference_checkpoint_azureml_path = (
                 Path(DEFAULT_AML_UPLOAD_DIR) / self.get_relative_inference_checkpoint_path()
             ).as_posix()
             highest_epoch_checkpoint = download_highest_epoch_checkpoint(
                 run=RUN_CONTEXT,
                 checkpoint_suffix=inference_checkpoint_azureml_path,
-                output_folder=temp_folder)
+                output_folder=download_folder)
             if highest_epoch_checkpoint is None:
                 logging.info("No inference checkpoint was found in the AzureML run.")
-            else:
-                destination = self.container.get_checkpoint_to_test()
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                shutil.move(str(highest_epoch_checkpoint), str(destination))
+                return None
+            logging.info("An inference checkpoint was found in the AzureML run.")
+            return highest_epoch_checkpoint
+        return None
