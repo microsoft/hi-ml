@@ -6,7 +6,7 @@ import logging
 import matplotlib
 import os
 
-from health_azure import package_setup as health_azure_setup
+from health_azure import package_setup as health_azure_setup, set_logging_levels
 
 
 def package_setup() -> None:
@@ -18,15 +18,21 @@ def package_setup() -> None:
     It also adds workarounds for known issues in some packages.
     """
     health_azure_setup()
-    # Numba code generation is extremely talkative in DEBUG mode, disable that.
-    logging.getLogger('numba').setLevel(logging.WARNING)
-    # Matplotlib is also very talkative in DEBUG mode, filling half of the log file in a PR build.
-    logging.getLogger('matplotlib').setLevel(logging.INFO)
-    # DEBUG level info when opening checkpoint and other files
-    logging.getLogger('fsspec').setLevel(logging.INFO)
-    # Jupyter notebook report generation
-    logging.getLogger('papermill').setLevel(logging.INFO)
-    logging.getLogger('nbconvert').setLevel(logging.INFO)
+    module_levels = {
+        # DEBUG level info when opening checkpoint and other files
+        'fsspec': logging.INFO,
+        # Matplotlib is also very talkative in DEBUG mode, filling half of the log file in a PR build.
+        'matplotlib': logging.INFO,
+        # Jupyter notebook report generation
+        'nbconvert': logging.INFO,
+        # Numba code generation is extremely talkative in DEBUG mode, disable that.
+        'numba': logging.WARNING,
+        # PIL prints out byte-level information when loading PNG files in DEBUG mode
+        "PIL": logging.INFO,
+        # Jupyter notebook report generation
+        'papermill': logging.INFO,
+    }
+    set_logging_levels(module_levels)
     # This is working around a spurious error message thrown by MKL, see
     # https://github.com/pytorch/pytorch/issues/37377
     os.environ['MKL_THREADING_LAYER'] = 'GNU'

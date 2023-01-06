@@ -2,8 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import logging
-
 from health_ml.utils import package_setup as health_ml_setup
 
 
@@ -16,5 +14,3 @@ def package_setup() -> None:
     It also adds workarounds for known issues in some packages.
     """
     health_ml_setup()
-    # PIL prints out byte-level information in DEBUG mode
-    logging.getLogger('PIL').setLevel(logging.INFO)
