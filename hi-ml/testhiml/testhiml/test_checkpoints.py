@@ -5,10 +5,12 @@
 from pathlib import Path
 from typing import Tuple
 from unittest import mock
+from unittest.mock import MagicMock
 import pytest
 
 import torch
 
+from health_azure import RUN_CONTEXT
 from health_ml.configs.hello_world import HelloWorld
 from health_ml.deep_learning_config import WorkflowParams
 from health_ml.lightning_container import LightningContainer
@@ -301,50 +303,93 @@ def test_find_recovery_checkpoints_in_cloud(tmp_path: Path) -> None:
         run.complete()
 
 
+def test_download_highest_epoch_checkpoint_invalid(tmp_path: Path) -> None:
+    """Test logic for downloading the highest epoch checkpoint from a run, when there is no or an invalid checkpoint."""
+
+    # No files on the run: return None.
+    with mock.patch("health_ml.utils.checkpoint_utils.download_files_by_suffix", return_value=[]):
+        assert download_highest_epoch_checkpoint(run=None, checkpoint_suffix="", output_folder=tmp_path) is None
+
+    # There is a file on the run, but it is not a valid checkpoint, and no epoch information can be extracted
+    invalid_checkpoint = tmp_path / "invalid_checkpoint.ckpt"
+    invalid_checkpoint.touch()
+
+    with mock.patch("health_ml.utils.checkpoint_utils.download_files_by_suffix", return_value=[invalid_checkpoint]):
+        assert download_highest_epoch_checkpoint(run=None, checkpoint_suffix="", output_folder=tmp_path) is None
+        # Files that are not checkpoints should not be deleted.
+        assert invalid_checkpoint.is_file()
+
+
+def test_download_highest_epoch_checkpoint(tmp_path: Path) -> None:
+    """Test logic for downloading the highest epoch checkpoint from a run.
+    This is done by mocking the result of downloading checkpoint files one-by-one."""
+
+    # There is a file on the run, and it is a valid checkpoint: Return that.
+    file1 = write_empty_checkpoint_file(tmp_path, 1)
+    with mock.patch("health_ml.utils.checkpoint_utils.download_files_by_suffix", return_value=[file1]):
+        assert download_highest_epoch_checkpoint(run=None, checkpoint_suffix="", output_folder=tmp_path) == file1
+        assert file1.is_file()
+
+    # Create a case where there are multiple files on the run, and the highest epoch is returned. The downloaded
+    # files for the epochs that are not highest should be deleted.
+    file200 = write_empty_checkpoint_file(tmp_path, 200)
+    with mock.patch("health_ml.utils.checkpoint_utils.download_files_by_suffix", return_value=[file1, file200]):
+        assert download_highest_epoch_checkpoint(run=None, checkpoint_suffix="", output_folder=tmp_path) == file200
+        assert file1.is_file()
+        assert file200.is_file()
+
+
+def test_get_relative_checkpoint_path(tmp_path: Path) -> None:
+    """Test if the relative checkpoint path is correct."""
+    container = LightningContainer()
+    container.set_output_to(tmp_path)
+    handler = CheckpointHandler(container=container, project_root=tmp_path)
+    assert str(handler.get_relative_inference_checkpoint_path()) == f"{CHECKPOINT_FOLDER}/{LAST_CHECKPOINT_FILE_NAME}"
+    # Now mock a case where the checkpoint is not in the output folder.
+    # For that, we need to mock both the checkpoint method and the outputs folder separately: get_checkpoint_to_test
+    # would take the modified output folder into account.
+    original_checkpoint_path = container.get_checkpoint_to_test()
+    container.file_system_config.outputs_folder = Path("no_such_folder")
+    with mock.patch.object(container, "get_checkpoint_to_test", return_value=original_checkpoint_path):
+        with pytest.raises(ValueError, match="Inference checkpoint path should be relative to the container's output"):
+            handler.get_relative_inference_checkpoint_path()
+
+
 def test_download_inference_checkpoint(tmp_path: Path) -> None:
-    """Test if we can download the inference checkpoint from an AzureML run when there is an inference checkpoint
-    in multiple retry folders.
-    """
-    empty_file = (tmp_path / "empty.txt")
-    empty_file.touch()
-    highest_epoch = 100
-    # Write checkpoint files that will be later uploaded to AML
-    file1 = write_empty_checkpoint_file(tmp_path, 1, "epoch1")
-    file100 = write_empty_checkpoint_file(tmp_path, highest_epoch, "epoch100")
+    """Test if we can download the inference checkpoint via the CheckpointHandler class."""
+    container = LightningContainer()
+    # Set the output folder to a temporary folder, which will now have a folder output/checkpoints.
+    container.set_output_to(tmp_path)
+    handler = CheckpointHandler(container=container, project_root=tmp_path)
+    relative_checkpoint_path = f"{CHECKPOINT_FOLDER}/{LAST_CHECKPOINT_FILE_NAME}"
+    assert str(handler.get_relative_inference_checkpoint_path()) == relative_checkpoint_path
+    # This test is not running in AzureML, so trying to download inference checkpoints from the current run should
+    # be a no-ope.
+    handler.download_inference_checkpoint()
 
-    checkpoint_filename = Path(CHECKPOINT_FOLDER) / LAST_CHECKPOINT_FILE_NAME
+    with mock.patch.multiple("health_ml.utils.checkpoint_handler",
+                             is_running_in_azure_ml=MagicMock(return_value=True),
+                             is_global_rank_zero=MagicMock(return_value=True)):
+        # Mock the case where there is no checkpoint available in the AzureML run.
+        mock_download_highest_epoch_checkpoint = mock.MagicMock(return_value=None)
+        with mock.patch.multiple("health_ml.utils.checkpoint_handler",
+                                 download_highest_epoch_checkpoint=mock_download_highest_epoch_checkpoint):
+            handler.download_inference_checkpoint(temp_folder=tmp_path)
+            mock_download_highest_epoch_checkpoint.assert_called_once_with(
+                run=RUN_CONTEXT,
+                checkpoint_suffix=f"{DEFAULT_AML_UPLOAD_DIR}/{relative_checkpoint_path}",
+                output_folder=tmp_path)
+            assert not container.get_checkpoint_to_test().is_file()
 
-    # Create an AzureML run, upload the files, download again, and check that the highest epoch is returned.
-    run = create_unittest_run_object()
-    try:
-        run.flush()
-        # The file presently has no checkpoint files. If we try to download a checkpoint, we should get None back.
-        highest_epoch_checkpoint = download_highest_epoch_checkpoint(
-            run,
-            checkpoint_suffix=str(checkpoint_filename),
-            output_folder=tmp_path / "downloaded_checkpoints")
-        assert highest_epoch_checkpoint is None
-
-        output_folder = Path(DEFAULT_AML_UPLOAD_DIR)
-        # Now start to upload files to the run.
-        # Create 2 files in the run: one in the default folder, an invalid checkpoint file in retry folder 001
-        # (that one should be ignored) and one in retry folder 002.
-        highest_epoch_file = output_folder / "retry_002" / checkpoint_filename
-        files_to_upload = [
-            (file1, output_folder / checkpoint_filename),
-            (empty_file, output_folder / "retry_001" / checkpoint_filename),
-            (file100, highest_epoch_file),
-        ]
-        for (file, name) in files_to_upload:
-            run.upload_file(name=str(name), path_or_stream=str(file))
-        run.flush()
-
-        # Check if we can download all those files to a local folder, and choose the right checkpoint
-        highest_epoch_checkpoint = download_highest_epoch_checkpoint(
-            run,
-            checkpoint_suffix=str(checkpoint_filename),
-            output_folder=tmp_path / "downloaded_checkpoints")
-        assert _load_epoch_from_checkpoint(highest_epoch_checkpoint) == highest_epoch
-
-    finally:
-        run.complete()
+        # Mock the case where there is at least one checkpoint in the AzureML run.
+        # The checkpoint should be downloaded to the temp folder and then copied to the
+        # container's checkpoint folder.
+        epoch = 123
+        checkpoint_file = write_empty_checkpoint_file(tmp_path, epoch)
+        mock_download_highest_epoch_checkpoint = mock.MagicMock(return_value=checkpoint_file)
+        with mock.patch.multiple("health_ml.utils.checkpoint_handler",
+                                 download_highest_epoch_checkpoint=mock_download_highest_epoch_checkpoint):
+            handler.download_inference_checkpoint(temp_folder=tmp_path)
+            mock_download_highest_epoch_checkpoint.assert_called_once()
+            assert container.get_checkpoint_to_test().is_file()
+            assert _load_epoch_from_checkpoint(container.get_checkpoint_to_test()) == epoch

@@ -12,6 +12,7 @@ from typing import Optional
 
 from health_azure import RUN_CONTEXT
 from health_azure.utils import is_global_rank_zero, is_running_in_azure_ml
+from health_ml.utils.common_utils import DEFAULT_AML_UPLOAD_DIR
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils.checkpoint_utils import (
     download_highest_epoch_checkpoint,
@@ -104,11 +105,16 @@ class CheckpointHandler:
         # This logic will only trigger in AzureML. Download should only happen once per node.
         if is_running_in_azure_ml() and is_global_rank_zero():
             temp_folder = temp_folder or Path(tempfile.mkdtemp())
+            inference_checkpoint_azureml_path = (
+                Path(DEFAULT_AML_UPLOAD_DIR) / self.get_relative_inference_checkpoint_path()
+            ).as_posix()
             highest_epoch_checkpoint = download_highest_epoch_checkpoint(
                 run=RUN_CONTEXT,
-                checkpoint_suffix=self.get_relative_inference_checkpoint_path().as_posix(),
+                checkpoint_suffix=inference_checkpoint_azureml_path,
                 output_folder=temp_folder)
             if highest_epoch_checkpoint is None:
                 logging.info("No inference checkpoint was found in the AzureML run.")
             else:
-                shutil.move(highest_epoch_checkpoint, self.container.get_checkpoint_to_test())
+                destination = self.container.get_checkpoint_to_test()
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(highest_epoch_checkpoint, destination)
