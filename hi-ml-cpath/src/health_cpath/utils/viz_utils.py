@@ -179,7 +179,7 @@ def plot_heatmap_overlay(
     fig = plt.figure()
     ax0 = fig.add_subplot(gs[0, 0])
     ax1 = fig.add_subplot(gs[1, 0], sharex=ax0)
-    cax = fig.add_subplot(gs[1, 1])
+    cax = fig.add_subplot(gs[1, 1])  # colorbar axis
     fig.suptitle(_get_histo_plot_title(case, slide_node))
 
     slide_image = slide_dict[SlideKey.IMAGE]
@@ -190,7 +190,7 @@ def plot_heatmap_overlay(
         ax.imshow(slide_image)
         ax.set_xlim(0, slide_image.shape[1])
         ax.set_ylim(slide_image.shape[0], 0)
-        ax.set_xticks([])
+        ax.set_xticks([])  # remove x axis ticks as it is shared
 
     slide_ids = [item[0] for item in results[ResultsKey.SLIDE_ID]]
     slide_idx = slide_ids.index(slide_node.slide_id)
@@ -204,15 +204,16 @@ def plot_heatmap_overlay(
                                          location_bbox=slide_dict[SlideKey.ORIGIN],
                                          scale_factor=slide_dict[SlideKey.SCALE],
                                          should_upscale_coords=should_upscale_coords)
-    cmap = plt.cm.get_cmap("Spectral_r")
+    cmap = plt.cm.get_cmap("Spectral_r")  # _r reverse the color map so that the highest attention is red
 
     tile_xs, tile_ys = sel_coords.T
     rects = [patches.Rectangle(xy, tile_size, tile_size) for xy in zip(tile_xs, tile_ys)]
 
+    # line width is set to 0 to avoid the black border around the tiles as the tiles are already colored
     pc = collection.PatchCollection(rects, match_original=True, cmap=cmap, alpha=0.5, linewidth=0)
     pc.set_array(np.array(attentions))
     ax1.add_collection(pc)
-    plt.colorbar(pc, cax=cax)
+    plt.colorbar(pc, cax=cax)  # add colorbar to the right of the plot (cax)
     return fig
 
 
@@ -229,7 +230,7 @@ def plot_attention_histogram(case: str, slide_node: SlideNode, results: Dict[Res
     attentions = results[ResultsKey.BAG_ATTN][slide_idx]
     fig, ax = plt.subplots()
     ax.set_xlabel("Attention scores")
-    fig.suptitle({_get_histo_plot_title(case, slide_node)})
+    fig.suptitle(_get_histo_plot_title(case, slide_node))
     ax.hist(attentions.cpu().numpy(), alpha=0.5)
     return fig
 
