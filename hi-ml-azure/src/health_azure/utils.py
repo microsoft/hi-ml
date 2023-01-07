@@ -116,11 +116,16 @@ PathOrString = Union[Path, str]
 RunOrJob = Union[Run, Job]
 
 
-class JobStatus:
+class JobStatus(Enum):
     """String constants for the status of an AML v2 Job"""
     Completed = "Completed"
     Failed = "Failed"
     Canceled = "Canceled"
+
+    @classmethod
+    def is_finished_state(cls, state_to_check: str) -> bool:
+        """Checks if the given state is a finished state"""
+        return state_to_check in [cls.Completed.value, cls.Failed.value, cls.Canceled.value]
 
 
 class IntTuple(param.NumericTuple):
@@ -1341,16 +1346,16 @@ def wait_for_job_completion(ml_client: MLClient, job_name: str) -> None:
     :param job_name: The name (id) of the job to wait for.
     :raises ValueError: If the job did not complete successfully (any status other than Completed)
     """
-    completed_states = {JobStatus.Completed, JobStatus.Failed, JobStatus.Canceled}
+
     while True:
         # Get the latest job status by reading the whole job info again via the MLClient
         updated_job = ml_client.jobs.get(name=job_name)
-        job_status = updated_job.status
-        if job_status in completed_states:
+        current_job_status = updated_job.status
+        if JobStatus.is_finished_state(current_job_status):
             break
         time.sleep(10)
     if not is_job_completed(updated_job):
-        raise ValueError(f"Job {updated_job.name} jobs failed with status {job_status}.")
+        raise ValueError(f"Job {updated_job.name} jobs failed with status {current_job_status}.")
 
 
 def get_most_recent_run_id(run_recovery_file: Path) -> str:
