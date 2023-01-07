@@ -763,7 +763,6 @@ def submit_to_azure_if_needed(  # type: ignore
         after_submission: Optional[Union[Callable[[Run], None], Callable[[Job, MLClient], None]]] = None,
         hyperdrive_config: Optional[HyperDriveConfig] = None,
         hyperparam_args: Optional[Dict[str, Any]] = None,
-        create_output_folders: bool = True,
         strictly_aml_v1: bool = False,
 ) -> AzureRunInfo:  # pragma: no cover
     """
