@@ -25,14 +25,15 @@ sys.path.insert(0, str(himl_package_root))
 himl_azure_package_root = himl_root / "hi-ml-azure" / "src"
 logging.info(f"Adding {str(himl_azure_package_root)} to path")
 sys.path.insert(0, str(himl_azure_package_root))
+from health_cpath.utils import health_cpath_package_setup  # noqa: E402
 from health_ml.utils.fixed_paths import OutputFolderForTests  # noqa: E402
-from health_ml.utils.logging import package_setup_and_hacks  # noqa: E402
 from testSSL.test_ssl_containers import create_cxr_test_dataset  # noqa: E402
 
-# Reduce logging noise in DEBUG mode
-package_setup_and_hacks()
 
 TEST_OUTPUTS_PATH = testSSL_root_dir / "test_outputs"
+
+# Reduce logging noise in DEBUG mode
+health_cpath_package_setup()
 
 
 def remove_and_create_folder(folder: Path) -> None:
