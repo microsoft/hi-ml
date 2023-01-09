@@ -187,8 +187,9 @@ def plot_heatmap_overlay(
     assert isinstance(slide_image, np.ndarray), f"slide image must be a numpy array, got {type(slide_image)}"
     slide_image = slide_image.transpose(1, 2, 0)
 
+    ax0.imshow(slide_image)
+    ax1.imshow(slide_image, alpha=0.5)
     for ax in (ax0, ax1):
-        ax.imshow(slide_image)
         ax.set_xlim(0, slide_image.shape[1])
         ax.set_ylim(slide_image.shape[0], 0)
     ax0.set_xticks([])  # remove x0 axis ticks as it is shared with x1
