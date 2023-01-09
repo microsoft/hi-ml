@@ -215,6 +215,7 @@ def find_checkpoint_with_highest_epoch(files: Iterable[Path], delete_files: bool
                 logging.debug(f"Deleting checkpoint file {file_with_highest_epoch}")
                 file_with_highest_epoch.unlink()
             return epoch, file
+        assert file_with_highest_epoch is not None
         return highest_epoch, file_with_highest_epoch
 
     highest_epoch: Optional[int] = None
