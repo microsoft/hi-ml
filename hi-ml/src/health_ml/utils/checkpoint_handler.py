@@ -59,7 +59,7 @@ class CheckpointHandler:
         """
         if is_global_rank_zero():
             checkpoints = list(self.container.checkpoint_folder.rglob("*"))
-            logging.info(f"Number of checkpoints in the checkpoint folder: {len(checkpoints)}")
+            logging.info(f"There are {len(checkpoints)} checkpoints in the checkpoint folder:")
             for f in checkpoints:
                 logging.info(f.relative_to(self.container.checkpoint_folder))
         return find_recovery_checkpoint_on_disk_or_cloud(self.container.checkpoint_folder)

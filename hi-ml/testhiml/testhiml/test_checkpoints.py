@@ -157,7 +157,7 @@ def test_custom_checkpoint_for_test(tmp_path: Path) -> None:
     does_not_exist = Path("does_not_exist")
     with mock.patch("health_ml.configs.hello_world.HelloWorld.get_checkpoint_to_test") as mock2:
         mock2.return_value = does_not_exist
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(FileNotFoundError, match="No inference checkpoint file found"):
             checkpoint_handler.get_checkpoint_to_test()
         mock2.assert_called_once()
 
