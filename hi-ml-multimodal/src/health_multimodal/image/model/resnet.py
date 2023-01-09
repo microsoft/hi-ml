@@ -9,6 +9,8 @@ import torch
 from torch.hub import load_state_dict_from_url
 from torchvision.models.resnet import model_urls, ResNet, BasicBlock, Bottleneck
 
+TypeSkipConnections = Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
+
 
 class ResNetHIML(ResNet):
     """Wrapper class of the original torchvision ResNet model.
@@ -21,7 +23,7 @@ class ResNetHIML(ResNet):
         super().__init__(**kwargs)
 
     def forward(self, x: torch.Tensor,
-                return_skip: bool = False) -> Union[torch.Tensor, Tuple[torch.Tensor]]:
+                return_skip: bool = False) -> Union[torch.Tensor, TypeSkipConnections]:
 
         x0 = self.conv1(x)
         x0 = self.bn1(x0)
