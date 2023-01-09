@@ -380,15 +380,19 @@ def test_get_relative_checkpoint_path_fails(tmp_path: Path) -> None:
             handler.get_relative_inference_checkpoint_path()
 
 
-def test_download_inference_checkpoint(tmp_path: Path) -> None:
+def test_download_inference_checkpoint_outside_azureml(tmp_path: Path) -> None:
+    """Test if we can download the inference checkpoint via the CheckpointHandler class.
+    This test is not running in AzureML: downloading inference checkpoints from the current run should be a no-op.
+    """
+    handler = checkpoint_handler_for_hello_world(tmp_path)
+    assert handler.download_inference_checkpoint() is None
+
+
+def test_download_inference_checkpoint_in_azureml(tmp_path: Path) -> None:
     """Test if we can download the inference checkpoint via the CheckpointHandler class."""
     handler = checkpoint_handler_for_hello_world(tmp_path)
     relative_checkpoint_path = f"{CHECKPOINT_FOLDER}/{LAST_CHECKPOINT_FILE_NAME}"
     assert str(handler.get_relative_inference_checkpoint_path()) == relative_checkpoint_path
-    # This test is not running in AzureML, so trying to download inference checkpoints from the current run should
-    # be a no-op.
-    assert handler.download_inference_checkpoint() is None
-
     with mock.patch.multiple("health_ml.utils.checkpoint_handler",
                              is_running_in_azure_ml=MagicMock(return_value=True),
                              is_global_rank_zero=MagicMock(return_value=True)):
@@ -415,14 +419,21 @@ def test_download_inference_checkpoint(tmp_path: Path) -> None:
             assert _load_epoch_from_checkpoint(downloaded) == epoch
 
 
-def test_checkpoint_download_triggered(tmp_path: Path) -> None:
-    """Test if the download of inference checkpoints from AzureML is triggering, if the local checkpoint folder
-    does not contain a suitable checkpoint.
+def test_checkpoint_download_triggered_failed(tmp_path: Path) -> None:
+    """Test if the download of inference checkpoints from AzureML is triggering, when the checkpoint handler
+    is unable to use the pre-trained weights, nor was training done.
     """
     handler = checkpoint_handler_for_hello_world(tmp_path)
     assert not handler.container.get_checkpoint_to_test().is_file()
     with pytest.raises(ValueError, match="Unable to determine which checkpoint should be used for testing"):
         handler.get_checkpoint_to_test()
+
+
+def test_checkpoint_download_triggered(tmp_path: Path) -> None:
+    """Test if the download of inference checkpoints from AzureML is triggering, if the local checkpoint folder
+    does not contain a suitable checkpoint.
+    """
+    handler = checkpoint_handler_for_hello_world(tmp_path)
     # Setting the "training done" flag only triggers the check for checkpoints or downloading
     handler.additional_training_done()
 
