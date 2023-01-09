@@ -192,8 +192,7 @@ def plot_heatmap_overlay(
     for ax in (ax0, ax1):
         ax.set_xlim(0, slide_image.shape[1])
         ax.set_ylim(slide_image.shape[0], 0)
-    ax0.set_xticks([])  # remove x0 axis ticks as it is shared with x1
-
+    ax0.tick_params('x', labelbottom=False)
     slide_ids = [item[0] for item in results[ResultsKey.SLIDE_ID]]
     slide_idx = slide_ids.index(slide_node.slide_id)
     attentions = results[ResultsKey.BAG_ATTN][slide_idx]
@@ -214,11 +213,10 @@ def plot_heatmap_overlay(
     # line width is set to 0 to avoid the black border around the tiles as the tiles are already colored
     pc = collection.PatchCollection(rects, match_original=True, cmap=cmap, alpha=0.5, linewidth=0)
     pc.set_array(np.array(attentions))
-    pc.set_clim(vmin=0)  # set the minimum value of the color map to 0
     ax1.add_collection(pc)
     cb = plt.colorbar(pc, cax=cax)  # add colorbar to the right of the plot (cax)
     mean_loc = attentions.mean()  # add a horizontal line at the mean attention value
-    cb.ax.hlines(mean_loc, 0, attentions.max(), color="k", linewidth=2)
+    cb.ax.hlines(mean_loc, attentions.min(), attentions.max(), color="k", linewidth=2)
     return fig
 
 
