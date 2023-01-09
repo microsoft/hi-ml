@@ -66,9 +66,16 @@ class CheckpointHandler:
 
     def get_checkpoint_to_test(self) -> Path:
         """
-        Find the model checkpoint that should be used for inference. If the model
-        has been training, get the best checkpoint as defined by the container.
-        If the model was not trained in this run, then return the checkpoint from the trained_weights_path.
+        Find the model checkpoint that should be used for inference.
+
+        If the model has been doing training epochs, get the best checkpoint as defined by the container.
+        It is possible that the best checkpoint is not available on disk because the job got preempted. In those
+        cases, try to find the inference checkpoint by going through all inference checkpoints stored in the AzureML
+        run, downloading them and finding the one that has the highest epoch number (that must be the most recent
+        among the possibly multiple retry results).
+
+        If the model has not been doing training, but is set up to use a pre-trained
+        set of weights in `trained_weights_path`, return that.
         """
         if self.has_continued_training:
             # If model was trained, look for the best checkpoint
@@ -77,9 +84,6 @@ class CheckpointHandler:
                 logging.info(f"Using checkpoint from current run: {checkpoint_from_current_run}")
                 return checkpoint_from_current_run
             logging.warning(f"No inference checkpoint found from the current run: {checkpoint_from_current_run}")
-            # Handling low-priority preemption: If we are recovering from a preemption that appeared after training was
-            # finished, there will not be an inference checkpoint available on disk. In that case, we need to download
-            # it from the AzureML run.
             logging.info("Trying to find an inference checkpoint in AzureML.")
             downloaded_checkpoint = self.download_inference_checkpoint()
             if downloaded_checkpoint is not None:
@@ -93,11 +97,12 @@ class CheckpointHandler:
         raise ValueError("Unable to determine which checkpoint should be used for testing.")
 
     def get_relative_inference_checkpoint_path(self) -> Path:
-        """Returns the path of the model's inference checkpoint, relative to the container's output folder."""
+        """Returns the path of the model's inference checkpoint, relative to the container's output folder.
+
+        This will be the path where the inference checkpoint can be found in the AzureML run output (except
+        the `outputs` prefix that has to be added at the start)."""
         expected_checkpoint_path = self.container.get_checkpoint_to_test()
         try:
-            # Find the Unix-style path of the checkpoint relative to the outputs folder, this will be the path
-            # where we find the file in AzureML.
             return expected_checkpoint_path.relative_to(self.container.outputs_folder)
         except ValueError:
             raise ValueError("Inference checkpoint path should be relative to the container's output folder. "

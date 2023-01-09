@@ -134,7 +134,7 @@ def download_checkpoints_from_run(run: Run, tmp_folder: Optional[Path] = None) -
 
 def download_highest_epoch_checkpoint(run: Run, checkpoint_suffix: str, output_folder: Path) -> Optional[Path]:
     """Downloads all checkpoint files from the run that have a given suffix, and returns the local path to the
-    downloaded checkpoint with the highest epoch. Checkpoints are downloaded one-by-one and delete right away
+    downloaded checkpoint with the highest epoch. Checkpoints are downloaded one-by-one and deleted right away
     if they are not the highest epoch.
 
     :param run: The AzureML run from where the files should be downloaded.
