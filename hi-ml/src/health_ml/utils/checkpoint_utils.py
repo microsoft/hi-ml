@@ -193,21 +193,39 @@ def find_checkpoint_with_highest_epoch(files: Iterable[Path], delete_files: bool
     :param delete_files: If True, all files apart from the one with the highest epoch are deleted. If False,
         no files are deleted.
     :return: The checkpoint file with the highest epoch number, or None if no such file was found."""
+
+    def update_file_with_highest_epoch(
+        file: Path,
+        highest_epoch: Optional[int],
+        file_with_highest_epoch: Optional[Path]
+    ) -> None:
+        """Reads the epoch number from the given `file`, and returns updated information about which file
+        has been found to have the highest epoch number.
+
+        :param file: The name of the file to process.
+        :param highest_epoch: The highest epoch number encountered so far, or None if no files processed yet.
+        :param file_with_highest_epoch: The file that contained the highest epoch number so far, or None if no
+            files processed yet.
+        :return: A tuple of updated (`highest_epoch`, `file_with_highest_epoch`) values.
+        """
+        epoch = _load_epoch_from_checkpoint(file)
+        logging.info(f"Checkpoint for epoch {epoch} in {file}")
+        if (highest_epoch is None) or (epoch > highest_epoch):
+            if file_with_highest_epoch is not None and delete_files:
+                logging.debug(f"Deleting checkpoint file {file_with_highest_epoch}")
+                file_with_highest_epoch.unlink()
+            return epoch, file
+        return highest_epoch, file_with_highest_epoch
+
     highest_epoch: Optional[int] = None
     file_with_highest_epoch: Optional[Path] = None
     for file in files:
         if file.is_file():
             try:
-                epoch = _load_epoch_from_checkpoint(file)
-                logging.info(f"Checkpoint for epoch {epoch} in {file}")
-                if (highest_epoch is None) or (epoch > highest_epoch):
-                    if file_with_highest_epoch is not None and delete_files:
-                        logging.debug(f"Deleting checkpoint file {file_with_highest_epoch}")
-                        file_with_highest_epoch.unlink()
-                    highest_epoch = epoch
-                    file_with_highest_epoch = file
+                highest_epoch, file_with_highest_epoch = \
+                    update_file_with_highest_epoch(file, highest_epoch, file_with_highest_epoch)
             except Exception as ex:
-                logging.warning(f"Unable to load checkpoint file {file}: {ex}")
+                logging.warning(f"Unable to handle checkpoint file {file}: {ex}")
     return file_with_highest_epoch
 
 
