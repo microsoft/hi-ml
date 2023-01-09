@@ -347,17 +347,17 @@ def test_download_highest_epoch_checkpoint(tmp_path: Path) -> None:
     This is done by mocking the result of downloading checkpoint files one-by-one."""
 
     # There is a file on the run, and it is a valid checkpoint: Return that.
-    file_1 = write_empty_checkpoint_file(tmp_path, 1)
+    file_1 = write_empty_checkpoint_file(tmp_path, 1, "epoch_1")
     with mock.patch("health_ml.utils.checkpoint_utils.download_files_by_suffix", return_value=[file_1]):
         assert download_highest_epoch_checkpoint(run=None, checkpoint_suffix="", output_folder=tmp_path) == file_1
         assert file_1.is_file()
 
-    # Create a case where there are multiple files on the run, and the highest epoch is returned. The downloaded
-    # files for the epochs that are not highest should be deleted.
-    file_200 = write_empty_checkpoint_file(tmp_path, 200)
+    # Create a case where there are multiple files on the run, and the highest epoch is returned.
+    file_200 = write_empty_checkpoint_file(tmp_path, 200, "epoch_200")
     with mock.patch("health_ml.utils.checkpoint_utils.download_files_by_suffix", return_value=[file_1, file_200]):
         assert download_highest_epoch_checkpoint(run=None, checkpoint_suffix="", output_folder=tmp_path) == file_200
-        assert file_1.is_file()
+        # The file with the highest epoch should be returned, and the other file should be deleted.
+        assert not file_1.is_file()
         assert file_200.is_file()
 
 
@@ -403,7 +403,6 @@ def test_download_inference_checkpoint(tmp_path: Path) -> None:
                 output_folder=tmp_path)
 
         # Mock the case where there is at least one checkpoint in the AzureML run.
-        # The checkpoint should be downloaded to the temp folder
         epoch = 123
         checkpoint_file = write_empty_checkpoint_file(tmp_path, epoch)
         mock_download_highest_epoch_checkpoint = mock.MagicMock(return_value=checkpoint_file)
