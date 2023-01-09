@@ -213,8 +213,11 @@ def plot_heatmap_overlay(
     # line width is set to 0 to avoid the black border around the tiles as the tiles are already colored
     pc = collection.PatchCollection(rects, match_original=True, cmap=cmap, alpha=0.5, linewidth=0)
     pc.set_array(np.array(attentions))
+    pc.set_clim(vmin=0)  # set the minimum value of the color map to 0
     ax1.add_collection(pc)
-    plt.colorbar(pc, cax=cax)  # add colorbar to the right of the plot (cax)
+    cb = plt.colorbar(pc, cax=cax)  # add colorbar to the right of the plot (cax)
+    mean_loc = attentions.mean()  # add a horizontal line at the mean attention value
+    cb.ax.hlines(mean_loc, 0, attentions.max(), color="k", linewidth=2)
     return fig
 
 
