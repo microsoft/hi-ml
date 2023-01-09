@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  -------------------------------------------------------------------------------------------
 
-from typing import Any, List, Type, Union
+from typing import Any, List, Tuple, Type, Union
 
 import torch
 from torch.hub import load_state_dict_from_url
@@ -20,7 +20,9 @@ class ResNetHIML(ResNet):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor,
+                return_skip: bool = False) -> Union[torch.Tensor, Tuple[torch.Tensor]]:
+
         x0 = self.conv1(x)
         x0 = self.bn1(x0)
         x0 = self.relu(x0)
@@ -31,7 +33,10 @@ class ResNetHIML(ResNet):
         x3 = self.layer3(x2)
         x4 = self.layer4(x3)
 
-        return x4
+        if return_skip:
+            return x1, x2, x3, x4
+        else:
+            return x4
 
 
 def _resnet(arch: str, block: Type[Union[BasicBlock, Bottleneck]], layers: List[int],
