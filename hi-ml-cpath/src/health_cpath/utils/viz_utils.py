@@ -178,7 +178,7 @@ def plot_heatmap_overlay(
     gs = fig.add_gridspec(2, 1)
     ax0 = fig.add_subplot(gs[0, 0])
     ax1 = fig.add_subplot(gs[1, 0], sharex=ax0, sharey=ax0)
-    cax = ax1.inset_axes([1.1, 0, 0.03, 1], transform=ax1.transAxes)  # add colorbar axis
+    cax = ax1.inset_axes([1.02, 0, 0.03, 1], transform=ax1.transAxes)  # add colorbar axis
     fig.execute_constrained_layout()
     fig.suptitle(_get_histo_plot_title(case, slide_node))
 
