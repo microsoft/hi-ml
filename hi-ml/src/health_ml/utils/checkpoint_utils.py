@@ -12,7 +12,7 @@ import requests
 import torch
 
 from pathlib import Path
-from typing import List, Optional
+from typing import Iterable, List, Optional, Tuple
 from urllib.parse import urlparse
 from azureml.core import Run
 
@@ -22,7 +22,8 @@ from health_azure.utils import (
     _download_files_from_run,
     get_run_file_names,
     is_running_in_azure_ml,
-    is_local_rank_zero)
+    is_local_rank_zero,
+    download_files_by_suffix)
 from health_ml.utils.common_utils import (
     AUTOSAVE_CHECKPOINT_CANDIDATES,
     CHECKPOINT_FOLDER,
@@ -131,6 +132,25 @@ def download_checkpoints_from_run(run: Run, tmp_folder: Optional[Path] = None) -
     return tmp_folder
 
 
+def download_highest_epoch_checkpoint(run: Run, checkpoint_suffix: str, output_folder: Path) -> Optional[Path]:
+    """Downloads all checkpoint files from the run that have a given suffix, and returns the local path to the
+    downloaded checkpoint with the highest epoch. Checkpoints are downloaded one-by-one and deleted right away
+    if they are not the highest epoch.
+
+    :param run: The AzureML run from where the files should be downloaded.
+    :param checkpoint_suffix: The suffix for all files that should be returned.
+    :param output_folder: The folder to download the checkpoints to.
+    :return: The path to the downloaded file that has the highest epoch. Returns None if no suitable checkpoint
+        was found, or if the epoch information could not be extracted.
+    """
+    files_from_run = download_files_by_suffix(
+        run=run,
+        suffix=str(checkpoint_suffix),
+        output_folder=output_folder,
+        validate_checksum=True)
+    return find_checkpoint_with_highest_epoch(files_from_run, delete_files=True)
+
+
 def find_recovery_checkpoint_on_disk_or_cloud(path: Path) -> Optional[Path]:
     """
     Looks at all the checkpoint files and returns the path to the one that should be used for recovery.
@@ -143,7 +163,7 @@ def find_recovery_checkpoint_on_disk_or_cloud(path: Path) -> Optional[Path]:
     recovery_checkpoint = find_local_recovery_checkpoint(path)
     if recovery_checkpoint is None and is_running_in_azure_ml():
         logging.info(
-            "No checkpoints available in the checkpoint folder. Trying to find checkpoints in AzureML.")
+            "No recovery checkpoints available in the checkpoint folder. Trying to find checkpoints in AzureML.")
         # Download checkpoints from AzureML, then try to find recovery checkpoints among those.
         # Downloads should go to a temporary folder because downloading the files to the checkpoint
         # folder might cause artifact conflicts later.
@@ -164,24 +184,49 @@ def _load_epoch_from_checkpoint(path: Optional[Path]) -> int:
     return checkpoint[CHECKPOINT_EPOCH_KEY]
 
 
-def find_checkpoint_with_highest_epoch(files: List[Path]) -> Optional[Path]:
+def find_checkpoint_with_highest_epoch(files: Iterable[Path], delete_files: bool = False) -> Optional[Path]:
     """Loads the epoch numbers from the given checkpoint files, and returns the one with the
     highest epoch number. If no files can be loaded, or the list is empty, None is returned.
+    If the `delete_files` flag is set to True, all files apart from the one with the highest epoch are deleted.
 
     :param files: A list of checkpoint files.
+    :param delete_files: If True, all files apart from the one with the highest epoch are deleted. If False,
+        no files are deleted.
     :return: The checkpoint file with the highest epoch number, or None if no such file was found."""
+
+    def update_file_with_highest_epoch(
+        file: Path,
+        highest_epoch: Optional[int],
+        file_with_highest_epoch: Optional[Path]
+    ) -> Tuple[int, Path]:
+        """Reads the epoch number from the given `file`, and returns updated information about which file
+        has been found to have the highest epoch number.
+
+        :param file: The name of the file to process.
+        :param highest_epoch: The highest epoch number encountered so far, or None if no files processed yet.
+        :param file_with_highest_epoch: The file that contained the highest epoch number so far, or None if no
+            files processed yet.
+        :return: A tuple of updated (`highest_epoch`, `file_with_highest_epoch`) values.
+        """
+        epoch = _load_epoch_from_checkpoint(file)
+        logging.info(f"Checkpoint for epoch {epoch} in {file}")
+        if (highest_epoch is None) or (epoch > highest_epoch):
+            if file_with_highest_epoch is not None and delete_files:
+                logging.debug(f"Deleting checkpoint file {file_with_highest_epoch}")
+                file_with_highest_epoch.unlink()
+            return epoch, file
+        assert file_with_highest_epoch is not None
+        return highest_epoch, file_with_highest_epoch
+
     highest_epoch: Optional[int] = None
     file_with_highest_epoch: Optional[Path] = None
     for file in files:
         if file.is_file():
             try:
-                epoch = _load_epoch_from_checkpoint(file)
-                logging.info(f"Checkpoint for epoch {epoch} in {file}")
-                if (highest_epoch is None) or (epoch > highest_epoch):
-                    highest_epoch = epoch
-                    file_with_highest_epoch = file
+                highest_epoch, file_with_highest_epoch = \
+                    update_file_with_highest_epoch(file, highest_epoch, file_with_highest_epoch)
             except Exception as ex:
-                logging.warning(f"Unable to load checkpoint file {file}: {ex}")
+                logging.warning(f"Unable to handle checkpoint file {file}: {ex}")
     return file_with_highest_epoch
 
 
@@ -204,8 +249,8 @@ def find_recovery_checkpoint_in_downloaded_files(path: Path) -> Optional[Path]:
     :param path: The folder to search in.
     :return: The checkpoint file with the highest epoch number, or None if no such file was found.
     """
-    candidates = list(path.glob(f"**/*{CHECKPOINT_SUFFIX}"))
-    return find_checkpoint_with_highest_epoch(candidates)
+    candidates = path.glob(f"**/*{CHECKPOINT_SUFFIX}")
+    return find_checkpoint_with_highest_epoch(candidates, delete_files=False)
 
 
 def cleanup_checkpoints(ckpt_folder: Path) -> None:
@@ -383,7 +428,7 @@ class CheckpointParser:
                     file.write(chunk)
         return checkpoint_path
 
-    def get_path(self, download_dir: Path) -> Path:
+    def get_or_download_checkpoint(self, download_dir: Path) -> Path:
         """Returns the path to the checkpoint file. If the checkpoint is a URL, it will be downloaded to the checkpoints
         folder. If the checkpoint is an AzureML run ID, it will be downloaded from the run to the checkpoints folder.
         If the checkpoint is a local file, it will be returned as is.
