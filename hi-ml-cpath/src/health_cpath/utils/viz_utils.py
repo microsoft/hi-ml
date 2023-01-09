@@ -7,6 +7,7 @@ import logging
 import sys
 import math
 import numpy as np
+import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.collections as collection
@@ -229,9 +230,9 @@ def plot_attention_histogram(case: str, slide_node: SlideNode, results: Dict[Res
     slide_idx = slide_ids.index(slide_node.slide_id)
     attentions = results[ResultsKey.BAG_ATTN][slide_idx]
     fig, ax = plt.subplots()
+    ax = sns.distplot(attentions.cpu().numpy().reshape(-1))
     ax.set_xlabel("Attention scores")
     fig.suptitle(_get_histo_plot_title(case, slide_node))
-    ax.hist(attentions.cpu().numpy(), alpha=0.5)
     return fig
 
 
@@ -240,8 +241,6 @@ def plot_normalized_confusion_matrix(cm: np.ndarray, class_names: Sequence[str])
     param cm: Normalized confusion matrix to be plotted.
     param class_names: List of class names.
     """
-    import seaborn as sns
-
     fig, ax = plt.subplots()
     ax = sns.heatmap(cm, annot=True, cmap="Blues", fmt=".2%")
     ax.set_xlabel("Predicted")
