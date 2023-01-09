@@ -728,7 +728,7 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
             raise ValueError("No workspace config file given, nor can we find one.")
 
     if not isinstance(workspace_config_path, Path):
-        raise ValueError("Workspace config path is not a path, check your input.")
+        raise ValueError("Workspace config path is not an instance of Path, check your input.")
     elif workspace_config_path.is_file():
         auth = get_authentication()
         workspace = Workspace.from_config(path=str(workspace_config_path), auth=auth)
@@ -821,6 +821,7 @@ def get_authentication() -> Union[InteractiveLoginAuthentication, ServicePrincip
     tenant_id = get_secret_from_environment(ENV_TENANT_ID, allow_missing=True)
     service_principal_password = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
     if service_principal_id and tenant_id and service_principal_password:
+        logging.info("Found all necessary environment variables for Service Principal authentication.")
         return ServicePrincipalAuthentication(
             tenant_id=tenant_id,
             service_principal_id=service_principal_id,
