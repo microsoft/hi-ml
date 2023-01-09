@@ -1474,12 +1474,12 @@ def download_files_by_suffix(
     :param validate_checksum: Whether to validate the content from HTTP response
     :return: An Iterable with all downloaded files.
     """
-    for f in get_run_file_names(run):
-        if f.endswith(suffix):
-            logging.info(f"Downloading file {f}")
+    for file in get_run_file_names(run):
+        if file.endswith(suffix):
+            logging.info(f"Downloading file {file}")
             output_folder.mkdir(parents=True, exist_ok=True)
-            output_file = output_folder / f
-            _download_file_from_run(run, f, output_file, validate_checksum=validate_checksum)
+            output_file = output_folder / file
+            _download_file_from_run(run, file, output_file, validate_checksum=validate_checksum)
             yield output_file
 
 
