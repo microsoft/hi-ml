@@ -131,35 +131,58 @@ def test_load_model_checkpoints_from_aml_run_id(src_chekpoint_filename: str, tmp
         assert checkpoint_handler.trained_weights_path == expected_weights_path
 
 
-def test_custom_checkpoint_for_test(tmp_path: Path) -> None:
-    """Test if the logic to choose a checkpoint for inference works.
+def checkpoint_handler_for_hello_world(tmp_path: Path) -> CheckpointHandler:
+    """Create a CheckpointHandler for the HelloWorld model. The output is set to `tmp_path`, the checkpoint folder
+    of the container is created.
+
+    :param tmp_path: A temporary path to use as output folder.
+    :return: CheckpointHandler for the HelloWorld model.
     """
-    # Default behaviour: checkpoint handler returns the default inference checkpoint specified by the container.
     container = HelloWorld()
     container.set_output_to(tmp_path)
     container.checkpoint_folder.mkdir(parents=True)
-    last_checkpoint = container.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME
+    return CheckpointHandler(container=container, project_root=tmp_path)
+
+
+def test_custom_checkpoint_for_test_1(tmp_path: Path) -> None:
+    """Test if the logic to choose a checkpoint for inference works if training has been carried out
+    and the inference checkpoint exists: checkpoint handler returns the default inference checkpoint
+    specified by the container.
+    """
+    checkpoint_handler = checkpoint_handler_for_hello_world(tmp_path)
+    last_checkpoint = checkpoint_handler.container.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME
     last_checkpoint.touch()
-    checkpoint_handler = CheckpointHandler(container=container, project_root=tmp_path)
-    checkpoint_handler.additional_training_done()
-    assert container.get_checkpoint_to_test() == last_checkpoint
-    # Now mock a container that has the get_checkpoint_to_test method overridden. If the checkpoint exists,
-    # the checkpoint handler should return it.
+    assert checkpoint_handler.container.get_checkpoint_to_test() == last_checkpoint
+
+
+def test_custom_checkpoint_for_test_2(tmp_path: Path) -> None:
+    """Test if the logic to choose a checkpoint for inference works:
+    Mock a container that has the get_checkpoint_to_test method overridden. If the checkpoint exists,
+    the checkpoint handler should return it.
+    """
+    handler = checkpoint_handler_for_hello_world(tmp_path)
+    handler.additional_training_done()
     mock_checkpoint = tmp_path / "mock.txt"
     mock_checkpoint.touch()
-    with mock.patch("health_ml.configs.hello_world.HelloWorld.get_checkpoint_to_test") as mock1:
-        mock1.return_value = mock_checkpoint
-        assert checkpoint_handler.get_checkpoint_to_test() == mock_checkpoint
-        mock1.assert_called_once()
+    with mock.patch("health_ml.configs.hello_world.HelloWorld.get_checkpoint_to_test") as mock_1:
+        mock_1.return_value = mock_checkpoint
+        assert handler.get_checkpoint_to_test() == mock_checkpoint
+        mock_1.assert_called_once()
 
-    # If the get_checkpoint_to_test method is overridden, and the checkpoint file does not exist, an error should
-    # be raised.
+
+def test_custom_checkpoint_for_test_3(tmp_path: Path) -> None:
+    """Test if the logic to choose a checkpoint for inference works:
+    If the get_checkpoint_to_test method is overridden, and the checkpoint file does not exist, an error should
+    be raised.
+    """
+    handler = checkpoint_handler_for_hello_world(tmp_path)
+    handler.additional_training_done()
     does_not_exist = Path("does_not_exist")
-    with mock.patch("health_ml.configs.hello_world.HelloWorld.get_checkpoint_to_test") as mock2:
-        mock2.return_value = does_not_exist
+    with mock.patch("health_ml.configs.hello_world.HelloWorld.get_checkpoint_to_test") as mock_1:
+        mock_1.return_value = does_not_exist
         with pytest.raises(FileNotFoundError, match="No inference checkpoint file found"):
-            checkpoint_handler.get_checkpoint_to_test()
-        mock2.assert_called_once()
+            handler.get_checkpoint_to_test()
+        mock_1.assert_called_once()
 
 
 def write_empty_checkpoint_file(path: Path, epoch: int, file_name: str = "") -> Path:
@@ -223,22 +246,22 @@ def test_find_recovery_checkpoint_in_downloaded_files(tmp_path: Path) -> None:
     """
     highest_epoch = 100
     # Write 3 files, check that the highest epoch is returned.
-    file1 = write_empty_checkpoint_file(tmp_path, 1, "epoch1")
-    file2 = write_empty_checkpoint_file(tmp_path, 2, "epoch2")
-    file100 = write_empty_checkpoint_file(tmp_path, highest_epoch, "epoch100")
+    file_1 = write_empty_checkpoint_file(tmp_path, 1, "epoch1")
+    file_2 = write_empty_checkpoint_file(tmp_path, 2, "epoch2")
+    file_100 = write_empty_checkpoint_file(tmp_path, highest_epoch, "epoch100")
 
     checkpoint_highest = find_recovery_checkpoint_in_downloaded_files(tmp_path)
     assert checkpoint_highest is not None
-    assert checkpoint_highest == file100
+    assert checkpoint_highest == file_100
     assert _load_epoch_from_checkpoint(checkpoint_highest) == highest_epoch
 
     # When supplying the `delete_files` argument, all files apart from the one with the highest epoch should be deleted.
-    checkpoint_highest2 = find_checkpoint_with_highest_epoch([file1, file2, file100], delete_files=True)
+    checkpoint_highest2 = find_checkpoint_with_highest_epoch([file_1, file_2, file_100], delete_files=True)
     assert checkpoint_highest2 is not None
-    assert checkpoint_highest == file100
+    assert checkpoint_highest == file_100
     assert checkpoint_highest.is_file()
-    assert not file1.is_file()
-    assert not file2.is_file()
+    assert not file_1.is_file()
+    assert not file_2.is_file()
 
 
 def test_find_recovery_checkpoints_in_cloud(tmp_path: Path) -> None:
@@ -248,11 +271,11 @@ def test_find_recovery_checkpoints_in_cloud(tmp_path: Path) -> None:
     empty_file.touch()
     highest_epoch = 100
     # Write 3 files, check that the highest epoch is returned.
-    file1 = write_empty_checkpoint_file(tmp_path, 1, "epoch1")
-    file100 = write_empty_checkpoint_file(tmp_path, highest_epoch, "epoch100")
-    recovery_checkpoint1 = find_recovery_checkpoint_in_downloaded_files(tmp_path)
-    assert recovery_checkpoint1 is not None
-    assert _load_epoch_from_checkpoint(recovery_checkpoint1) == highest_epoch
+    file_1 = write_empty_checkpoint_file(tmp_path, 1, "epoch1")
+    file_100 = write_empty_checkpoint_file(tmp_path, highest_epoch, "epoch100")
+    recovery_checkpoint_1 = find_recovery_checkpoint_in_downloaded_files(tmp_path)
+    assert recovery_checkpoint_1 is not None
+    assert _load_epoch_from_checkpoint(recovery_checkpoint_1) == highest_epoch
 
     # Create an AzureML run, upload the files, download again, and check that the highest epoch is returned.
     run = create_unittest_run_object()
@@ -263,9 +286,9 @@ def test_find_recovery_checkpoints_in_cloud(tmp_path: Path) -> None:
         # checkpoint file in retry folder 002
         highest_epoch_file = output_folder / "retry_002" / CHECKPOINT_FOLDER / LAST_CHECKPOINT_FILE_NAME
         files_to_upload = [
-            (file1, output_folder / CHECKPOINT_FOLDER / AUTOSAVE_CHECKPOINT_CANDIDATES[0]),
+            (file_1, output_folder / CHECKPOINT_FOLDER / AUTOSAVE_CHECKPOINT_CANDIDATES[0]),
             (empty_file, output_folder / "retry_001" / CHECKPOINT_FOLDER / AUTOSAVE_CHECKPOINT_CANDIDATES[1]),
-            (file100, highest_epoch_file),
+            (file_100, highest_epoch_file),
             (empty_file, output_folder / other_file)
         ]
         for (file, name) in files_to_upload:
@@ -302,17 +325,17 @@ def test_find_recovery_checkpoints_in_cloud(tmp_path: Path) -> None:
         run.complete()
 
 
-def test_download_highest_epoch_checkpoint_invalid(tmp_path: Path) -> None:
-    """Test logic for downloading the highest epoch checkpoint from a run, when there is no or an invalid checkpoint."""
-
-    # No files on the run: return None.
+def test_download_highest_epoch_checkpoint_no_checkpoint(tmp_path: Path) -> None:
+    """Test logic for downloading the highest epoch checkpoint from a run, when there is no checkpoint."""
     with mock.patch("health_ml.utils.checkpoint_utils.download_files_by_suffix", return_value=[]):
         assert download_highest_epoch_checkpoint(run=None, checkpoint_suffix="", output_folder=tmp_path) is None
 
+
+def test_download_highest_epoch_checkpoint_invalid(tmp_path: Path) -> None:
+    """Test logic for downloading the highest epoch checkpoint from a run, when there is an invalid checkpoint."""
     # There is a file on the run, but it is not a valid checkpoint, and no epoch information can be extracted
     invalid_checkpoint = tmp_path / "invalid_checkpoint.ckpt"
     invalid_checkpoint.touch()
-
     with mock.patch("health_ml.utils.checkpoint_utils.download_files_by_suffix", return_value=[invalid_checkpoint]):
         assert download_highest_epoch_checkpoint(run=None, checkpoint_suffix="", output_folder=tmp_path) is None
         # Files that are not checkpoints should not be deleted.
@@ -324,42 +347,42 @@ def test_download_highest_epoch_checkpoint(tmp_path: Path) -> None:
     This is done by mocking the result of downloading checkpoint files one-by-one."""
 
     # There is a file on the run, and it is a valid checkpoint: Return that.
-    file1 = write_empty_checkpoint_file(tmp_path, 1)
-    with mock.patch("health_ml.utils.checkpoint_utils.download_files_by_suffix", return_value=[file1]):
-        assert download_highest_epoch_checkpoint(run=None, checkpoint_suffix="", output_folder=tmp_path) == file1
-        assert file1.is_file()
+    file_1 = write_empty_checkpoint_file(tmp_path, 1)
+    with mock.patch("health_ml.utils.checkpoint_utils.download_files_by_suffix", return_value=[file_1]):
+        assert download_highest_epoch_checkpoint(run=None, checkpoint_suffix="", output_folder=tmp_path) == file_1
+        assert file_1.is_file()
 
     # Create a case where there are multiple files on the run, and the highest epoch is returned. The downloaded
     # files for the epochs that are not highest should be deleted.
-    file200 = write_empty_checkpoint_file(tmp_path, 200)
-    with mock.patch("health_ml.utils.checkpoint_utils.download_files_by_suffix", return_value=[file1, file200]):
-        assert download_highest_epoch_checkpoint(run=None, checkpoint_suffix="", output_folder=tmp_path) == file200
-        assert file1.is_file()
-        assert file200.is_file()
+    file_200 = write_empty_checkpoint_file(tmp_path, 200)
+    with mock.patch("health_ml.utils.checkpoint_utils.download_files_by_suffix", return_value=[file_1, file_200]):
+        assert download_highest_epoch_checkpoint(run=None, checkpoint_suffix="", output_folder=tmp_path) == file_200
+        assert file_1.is_file()
+        assert file_200.is_file()
 
 
 def test_get_relative_checkpoint_path(tmp_path: Path) -> None:
     """Test if the relative checkpoint path is correct."""
-    container = LightningContainer()
-    container.set_output_to(tmp_path)
-    handler = CheckpointHandler(container=container, project_root=tmp_path)
+    handler = checkpoint_handler_for_hello_world(tmp_path)
     assert str(handler.get_relative_inference_checkpoint_path()) == f"{CHECKPOINT_FOLDER}/{LAST_CHECKPOINT_FILE_NAME}"
-    # Now mock a case where the checkpoint is not in the output folder.
-    # For that, we need to mock both the checkpoint method and the outputs folder separately: get_checkpoint_to_test
-    # would take the modified output folder into account.
-    original_checkpoint_path = container.get_checkpoint_to_test()
-    container.file_system_config.outputs_folder = Path("no_such_folder")
-    with mock.patch.object(container, "get_checkpoint_to_test", return_value=original_checkpoint_path):
+
+
+def test_get_relative_checkpoint_path_fails(tmp_path: Path) -> None:
+    """Test creating a relative checkpoint path when the checkpoint is not in the output folder.
+    For that, we need to mock both the checkpoint method and the outputs folder separately: get_checkpoint_to_test
+    would take the modified output folder into account.
+    """
+    handler = checkpoint_handler_for_hello_world(tmp_path)
+    original_checkpoint_path = handler.container.get_checkpoint_to_test()
+    handler.container.file_system_config.outputs_folder = Path("no_such_folder")
+    with mock.patch.object(handler.container, "get_checkpoint_to_test", return_value=original_checkpoint_path):
         with pytest.raises(ValueError, match="Inference checkpoint path should be relative to the container's output"):
             handler.get_relative_inference_checkpoint_path()
 
 
 def test_download_inference_checkpoint(tmp_path: Path) -> None:
     """Test if we can download the inference checkpoint via the CheckpointHandler class."""
-    container = LightningContainer()
-    # Set the output folder to a temporary folder, which will now have a folder output/checkpoints.
-    container.set_output_to(tmp_path)
-    handler = CheckpointHandler(container=container, project_root=tmp_path)
+    handler = checkpoint_handler_for_hello_world(tmp_path)
     relative_checkpoint_path = f"{CHECKPOINT_FOLDER}/{LAST_CHECKPOINT_FILE_NAME}"
     assert str(handler.get_relative_inference_checkpoint_path()) == relative_checkpoint_path
     # This test is not running in AzureML, so trying to download inference checkpoints from the current run should
@@ -397,10 +420,8 @@ def test_checkpoint_download_triggered(tmp_path: Path) -> None:
     """Test if the download of inference checkpoints from AzureML is triggering, if the local checkpoint folder
     does not contain a suitable checkpoint.
     """
-    container = LightningContainer()
-    container.set_output_to(tmp_path)
-    handler = CheckpointHandler(container=container, project_root=tmp_path)
-    assert not container.get_checkpoint_to_test().is_file()
+    handler = checkpoint_handler_for_hello_world(tmp_path)
+    assert not handler.container.get_checkpoint_to_test().is_file()
     with pytest.raises(ValueError, match="Unable to determine which checkpoint should be used for testing"):
         handler.get_checkpoint_to_test()
     # Setting the "training done" flag only triggers the check for checkpoints or downloading
@@ -414,9 +435,9 @@ def test_checkpoint_download_triggered(tmp_path: Path) -> None:
         mock_download.assert_called_once()
 
     # Mock that there was actually a checkpoint available in AzureML:
-    file1 = tmp_path / "file"
-    file1.touch()
-    mock_download = MagicMock(return_value=file1)
+    file = tmp_path / "file"
+    file.touch()
+    mock_download = MagicMock(return_value=file)
     with mock.patch.object(handler, "download_inference_checkpoint", mock_download):
-        assert handler.get_checkpoint_to_test() == file1
+        assert handler.get_checkpoint_to_test() == file
         mock_download.assert_called_once()
