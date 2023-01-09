@@ -232,7 +232,7 @@ def plot_attention_histogram(case: str, slide_node: SlideNode, results: Dict[Res
     slide_idx = slide_ids.index(slide_node.slide_id)
     attentions = results[ResultsKey.BAG_ATTN][slide_idx]
     fig, ax = plt.subplots()
-    ax = sns.distplot(attentions.cpu().numpy().reshape(-1))
+    ax = sns.distplot(attentions.cpu().numpy().reshape(-1), kde=False)
     ax.set_xlabel("Attention scores")
     fig.suptitle(_get_histo_plot_title(case, slide_node))
     return fig
