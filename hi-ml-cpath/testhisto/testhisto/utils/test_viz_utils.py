@@ -252,7 +252,7 @@ def test_plot_heatmap_overlay(test_output_dirs: OutputFolderForTests) -> None:
     assert file.exists()
     expected = full_ml_test_data_path("histo_heatmaps") / "heatmap_overlay.png"
     # To update the stored results, uncomment this line:
-    # expected.write_bytes(file.read_bytes())
+    expected.write_bytes(file.read_bytes())
     assert_binary_files_match(file, expected)
 
 

@@ -10,7 +10,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.collections as collection
-from matplotlib.gridspec import GridSpec
 
 from math import ceil
 from pathlib import Path
@@ -175,11 +174,12 @@ def plot_heatmap_overlay(
     :param should_upscale_coords: If True, upscales the heatmap coordinates to the slide level. Default True.
     :return: matplotlib figure of the heatmap of the given tiles on slide.
     """
-    gs = GridSpec(nrows=2, ncols=2, width_ratios=(1, .02))
-    fig = plt.figure()
+    fig = plt.figure(constrained_layout=True)
+    gs = fig.add_gridspec(2, 1)
     ax0 = fig.add_subplot(gs[0, 0])
-    ax1 = fig.add_subplot(gs[1, 0], sharex=ax0)
-    cax = fig.add_subplot(gs[1, 1])  # colorbar axis
+    ax1 = fig.add_subplot(gs[1, 0], sharex=ax0, sharey=ax0)
+    cax = ax1.inset_axes([1.1, 0, 0.03, 1], transform=ax1.transAxes)  # add colorbar axis
+    fig.execute_constrained_layout()
     fig.suptitle(_get_histo_plot_title(case, slide_node))
 
     slide_image = slide_dict[SlideKey.IMAGE]
@@ -190,7 +190,7 @@ def plot_heatmap_overlay(
         ax.imshow(slide_image)
         ax.set_xlim(0, slide_image.shape[1])
         ax.set_ylim(slide_image.shape[0], 0)
-        ax.set_xticks([])  # remove x axis ticks as it is shared
+    ax0.set_xticks([])  # remove x0 axis ticks as it is shared with x1
 
     slide_ids = [item[0] for item in results[ResultsKey.SLIDE_ID]]
     slide_idx = slide_ids.index(slide_node.slide_id)
