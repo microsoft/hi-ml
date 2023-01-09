@@ -114,9 +114,12 @@ class CheckpointHandler:
         For low-priority preemption that occured after training, try to download the inference checkpoint if that
         is available in the AzureML run from a previous incarnation of the job. Downloads go into the `download_folder`.
 
+        The method returns None if no checkpoint was found, or if the
+        current code is executing outside of AzureML and hence can't access previous inference checkpoints in AzureML.
+
         :param download_folder: The folder where the checkpoints should be downloaded to. If not provided, use a
             temp folder.
-        :return: The path to a downloaded inference checkpoint.
+        :return: The path to a downloaded inference checkpoint, or None if no checkpoint was available.
         """
         # This logic will only trigger in AzureML. Download should only happen once per node.
         if is_running_in_azure_ml() and is_global_rank_zero():
