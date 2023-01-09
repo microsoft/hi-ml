@@ -12,7 +12,7 @@ import requests
 import torch
 
 from pathlib import Path
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Optional, Tuple
 from urllib.parse import urlparse
 from azureml.core import Run
 
@@ -198,7 +198,7 @@ def find_checkpoint_with_highest_epoch(files: Iterable[Path], delete_files: bool
         file: Path,
         highest_epoch: Optional[int],
         file_with_highest_epoch: Optional[Path]
-    ) -> None:
+    ) -> Tuple[int, Path]:
         """Reads the epoch number from the given `file`, and returns updated information about which file
         has been found to have the highest epoch number.
 
