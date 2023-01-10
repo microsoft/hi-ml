@@ -23,6 +23,7 @@ dependencies:
       - pytorch-lightning>=1.6.0, <1.7
       - rpdb==0.1.6
       - setuptools==59.5.0
+      - torchvision==0.14.1
       # Run requirements for hi-ml-azure
       - azureml-core==1.47.0
       - azureml-dataset-runtime[fuse]==1.47.0

@@ -12,10 +12,12 @@ dependencies:
   - bzip2=1.0.8=h7b6447c_0
   - ca-certificates=2022.10.11=h06a4308_0
   - cairo=1.16.0=hf32fb01_1
-  - certifi=2022.9.24=py39h06a4308_0
+  - certifi=2022.12.7=py39h06a4308_0
   - cudatoolkit=11.3.1=h2bc3f7f_2
+  - expat=2.4.9=h6a678d5_0
   - ffmpeg=4.2.2=h20bf706_0
-  - fontconfig=2.13.1=hef1e5e3_1
+  - flit-core=3.6.0=pyhd3eb1b0_0
+  - fontconfig=2.14.1=h52c9d5c_1
   - freetype=2.12.1=h4a9f257_0
   - gdk-pixbuf=2.42.6=h04a7f16_0
   - gettext=0.21.0=hf68c758_0
@@ -50,7 +52,7 @@ dependencies:
   - libwebp-base=1.2.4=h5eee18b_0
   - libxcb=1.15=h7f8727e_0
   - libxml2=2.9.14=h74e7548_0
-  - lz4-c=1.9.3=h295c915_1
+  - lz4-c=1.9.4=h6a678d5_0
   - mkl=2021.4.0=h06a4308_640
   - mkl-service=2.4.0=py39h7f8727e_0
   - mkl_fft=1.3.1=py39hd3c417c_0
@@ -63,6 +65,7 @@ dependencies:
   - openslide-python=1.2.0=py39hb9d737c_2
   - openssl=1.1.1s=h7f8727e_0
   - pcre=8.45=h295c915_0
+  - pillow=9.3.0=py39hace64e9_1
   - pip=20.1.1=py_1
   - pixman=0.40.0=h7f8727e_1
   - python=3.9.13
@@ -71,13 +74,12 @@ dependencies:
   - pytorch-mutex=1.0=cuda
   - readline=8.2=h5eee18b_0
   - six=1.16.0=pyhd3eb1b0_1
-  - sqlite=3.40.0=h5082296_0
+  - sqlite=3.40.1=h5082296_0
   - tk=8.6.12=h1ccaba5_0
-  - torchvision=0.11.1=py39_cu113
-  - typing_extensions=4.3.0=py39h06a4308_0
-  - tzdata=2022f=h04d1e81_0
+  - typing_extensions=4.4.0=py39h06a4308_0
+  - tzdata=2022g=h04d1e81_0
   - x264=1!157.20191217=h7b6447c_0
-  - xz=5.2.6=h5eee18b_0
+  - xz=5.2.8=h5eee18b_0
   - zlib=1.2.13=h5eee18b_0
   - zstd=1.5.2=ha4553b6_0
   - pip:
@@ -86,15 +88,15 @@ dependencies:
     - aiohttp==3.8.3
     - aiosignal==1.3.1
     - alabaster==0.7.12
-    - alembic==1.8.1
+    - alembic==1.9.1
     - applicationinsights==0.11.10
     - argcomplete==2.0.0
-    - astroid==2.12.13
+    - astroid==2.13.2
     - async-timeout==4.0.2
     - attrs==21.4.0
-    - azure-ai-ml==1.1.2
+    - azure-ai-ml==1.2.0
     - azure-common==1.1.28
-    - azure-core==1.26.1
+    - azure-core==1.26.2
     - azure-graphrbac==0.61.1
     - azure-identity==1.7.0
     - azure-mgmt-authorization==2.0.0
@@ -111,7 +113,7 @@ dependencies:
     - azureml-dataprep-native==38.0.0
     - azureml-dataprep-rslex==2.11.4
     - azureml-dataset-runtime==1.47.0
-    - azureml-mlflow==1.47.0
+    - azureml-mlflow==1.48.0
     - azureml-telemetry==1.47.0
     - azureml-tensorboard==1.47.0
     - azureml-train-core==1.47.0
@@ -133,10 +135,10 @@ dependencies:
     - conda-merge==0.1.5
     - contextlib2==21.6.0
     - coverage==6.3.2
-    - cryptography==38.0.4
+    - cryptography==39.0.0
     - cucim==22.10.0
     - cycler==0.11.0
-    - databricks-cli==0.17.3
+    - databricks-cli==0.17.4
     - dataclasses-json==0.5.2
     - dill==0.3.6
     - diskcache==5.4.0
@@ -146,7 +148,7 @@ dependencies:
     - docutils==0.16
     - dotnetcore2==3.1.23
     - entrypoints==0.4
-    - filelock==3.8.0
+    - filelock==3.9.0
     - flake8==4.0.1
     - flask==2.2.2
     - frozenlist==1.3.3
@@ -154,25 +156,25 @@ dependencies:
     - fusepy==3.0.1
     - girder-client==3.1.14
     - gitdb==4.0.10
-    - gitpython==3.1.29
-    - google-api-core==2.10.2
+    - gitpython==3.1.30
+    - google-api-core==2.11.0
     - google-auth==1.35.0
     - google-auth-oauthlib==0.4.6
-    - googleapis-common-protos==1.57.0
+    - googleapis-common-protos==1.58.0
     - greenlet==2.0.1
     - grpcio==1.51.1
     - gunicorn==20.1.0
     - hi-ml==0.2.11
     - hi-ml-azure==0.2.11
     - humanfriendly==10.0
-    - identify==2.5.9
+    - identify==2.5.12
     - idna==3.4
-    - imageio==2.22.4
+    - imageio==2.24.0
     - imagesize==1.4.1
     - importlib-metadata==4.2.0
-    - iniconfig==1.1.1
+    - iniconfig==2.0.0
     - isodate==0.6.1
-    - isort==5.10.1
+    - isort==5.11.4
     - itsdangerous==2.1.2
     - jaraco-classes==3.2.3
     - jeepney==0.8.0
@@ -181,13 +183,13 @@ dependencies:
     - joblib==1.2.0
     - jsonpickle==2.2.0
     - jsonschema==4.17.3
-    - keyring==23.11.0
+    - keyring==23.13.1
     - kiwisolver==1.4.4
-    - knack==0.10.0
-    - lazy-object-proxy==1.8.0
+    - knack==0.10.1
+    - lazy-object-proxy==1.9.0
     - lightning-bolts==0.4.0
     - llvmlite==0.39.1
-    - lxml==4.9.1
+    - lxml==4.9.2
     - mako==1.2.4
     - markdown==2.6.8
     - markdown-it-py==1.1.0
@@ -197,20 +199,20 @@ dependencies:
     - matplotlib==3.4.3
     - mccabe==0.6.1
     - mdit-py-plugins==0.2.8
-    - mlflow==2.0.1
-    - mlflow-skinny==2.0.1
+    - mlflow==2.1.1
+    - mlflow-skinny==2.1.1
     - monai==1.0.1
     - more-itertools==8.10.0
     - msal==1.20.0
     - msal-extensions==0.3.1
     - msrest==0.7.1
     - msrestazure==0.6.4
-    - multidict==6.0.2
+    - multidict==6.0.4
     - mypy==0.961
     - mypy-extensions==0.4.3
     - myst-parser==0.15.2
     - ndg-httpsclient==0.5.1
-    - networkx==2.8.8
+    - networkx==3.0
     - nodeenv==1.7.0
     - numba==0.56.4
     - numpy==1.22.0
@@ -219,15 +221,14 @@ dependencies:
     - opencensus-context==0.1.3
     - opencensus-ext-azure==1.1.7
     - opencv-python-headless==4.5.1.48
-    - packaging==21.3
+    - packaging==23.0
     - pandas==1.3.4
     - param==1.12.0
     - paramiko==2.12.0
-    - pathspec==0.10.2
-    - pillow==9.3.0
+    - pathspec==0.10.3
     - pipdeptree==2.2.1
-    - pkginfo==1.9.2
-    - platformdirs==2.5.4
+    - pkginfo==1.9.6
+    - platformdirs==2.6.2
     - pluggy==0.13.1
     - portalocker==2.6.0
     - pre-commit==2.19.0
@@ -240,18 +241,18 @@ dependencies:
     - pycobertura==2.0.1
     - pycodestyle==2.8.0
     - pycparser==2.21
-    - pydash==5.1.1
+    - pydash==5.1.2
     - pydeprecate==0.3.2
     - pydicom==2.3.0
     - pyflakes==2.4.0
-    - pygments==2.13.0
+    - pygments==2.14.0
     - pyjwt==2.6.0
     - pylint==2.15.0
     - pynacl==1.5.0
     - pynndescent==0.5.8
     - pyopenssl==22.1.0
     - pyparsing==3.0.9
-    - pyrsistent==0.19.2
+    - pyrsistent==0.19.3
     - pysocks==1.7.1
     - pytest==6.2.2
     - pytest-cov==2.11.1
@@ -259,7 +260,7 @@ dependencies:
     - pytest-timeout==2.0.1
     - python-dateutil==2.8.2
     - pytorch-lightning==1.6.5
-    - pytz==2022.6
+    - pytz==2022.7
     - pywavelets==1.4.1
     - pyyaml==6.0
     - querystring-parser==1.2.4
@@ -272,7 +273,7 @@ dependencies:
     - rsa==4.9
     - ruamel-yaml==0.16.12
     - scikit-image==0.19.3
-    - scikit-learn==1.1.3
+    - scikit-learn==1.2.0
     - scipy==1.7.3
     - seaborn==0.10.1
     - secretstorage==3.3.3
@@ -286,13 +287,13 @@ dependencies:
     - sphinx-autodoc-typehints==1.12.0
     - sphinx-automodapi==0.13
     - sphinx-rtd-theme==1.0.0
-    - sphinxcontrib-applehelp==1.0.2
+    - sphinxcontrib-applehelp==1.0.3
     - sphinxcontrib-devhelp==1.0.2
     - sphinxcontrib-htmlhelp==2.0.0
     - sphinxcontrib-jsmath==1.0.1
     - sphinxcontrib-qthelp==1.0.3
     - sphinxcontrib-serializinghtml==1.1.5
-    - sqlalchemy==1.4.44
+    - sqlalchemy==1.4.46
     - sqlparse==0.4.3
     - strictyaml==1.6.2
     - stringcase==1.2.0
@@ -306,17 +307,18 @@ dependencies:
     - tomli==2.0.1
     - tomlkit==0.11.6
     - torchmetrics==0.10.2
+    - torchvision==0.14.1
     - tqdm==4.64.1
     - twine==3.3.0
     - typing-inspect==0.8.0
     - umap-learn==0.5.2
     - urllib3==1.26.13
-    - virtualenv==20.17.0
+    - virtualenv==20.17.1
     - webencodings==0.5.1
     - websocket-client==1.4.2
     - werkzeug==2.2.2
-    - wheel==0.36.2
+    - wheel==0.38.1
     - wrapt==1.14.1
     - yacs==0.1.8
-    - yarl==1.8.1
+    - yarl==1.8.2
     - zipp==3.11.0
