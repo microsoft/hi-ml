@@ -735,19 +735,21 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
         if workspace_config_path:
             logging.info(f"Using the workspace config file {str(workspace_config_path.absolute())}")
 
-    has_all_env_variables = False
+    workspace_name = None
+    subscription_id = None
+    resource_group = None
     if workspace_config_path is None:
         logging.info("Trying to load the environment variables that define the workspace.")
         workspace_name = get_secret_from_environment(ENV_WORKSPACE_NAME, allow_missing=True)
         subscription_id = get_secret_from_environment(ENV_SUBSCRIPTION_ID, allow_missing=True)
         resource_group = get_secret_from_environment(ENV_RESOURCE_GROUP, allow_missing=True)
-        has_all_env_variables = bool(workspace_name) & bool(subscription_id) & bool(resource_group)
 
     if workspace_config_path is not None and not workspace_config_path.is_file():
         raise ValueError(f"Workspace config file does not exist: {workspace_config_path}")
 
     auth = get_authentication()
-    if has_all_env_variables:
+    # Check if all 3 environment variables are set
+    if bool(workspace_name) and bool(subscription_id) and bool(resource_group):
         workspace = Workspace.get(
             name=workspace_name, auth=auth, subscription_id=subscription_id, resource_group=resource_group
         )
@@ -842,7 +844,8 @@ def get_authentication() -> Union[InteractiveLoginAuthentication, ServicePrincip
     service_principal_id = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_ID, allow_missing=True)
     tenant_id = get_secret_from_environment(ENV_TENANT_ID, allow_missing=True)
     service_principal_password = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
-    if service_principal_id and tenant_id and service_principal_password:
+    # Check if all 3 environment variables are set
+    if bool(service_principal_id) and bool(tenant_id) and bool(service_principal_password):
         logging.info("Found all necessary environment variables for Service Principal authentication.")
         return ServicePrincipalAuthentication(
             tenant_id=tenant_id,
