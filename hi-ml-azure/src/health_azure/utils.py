@@ -123,7 +123,7 @@ class JobStatus(Enum):
     Canceled = "Canceled"
 
     @classmethod
-    def is_finished_state(cls, state_to_check: str) -> bool:
+    def is_finished_state(cls, state_to_check: Optional[str]) -> bool:
         """Checks if the given state is a finished state"""
         return state_to_check in [cls.Completed.value, cls.Failed.value, cls.Canceled.value]
 
@@ -1335,7 +1335,7 @@ def is_job_completed(job: Job) -> bool:
     """Checks if the given AzureML v2 Job completed successfully.
 
     :return: True if the job completed successfully, False for failures, job still running, etc."""
-    return job.status == "Completed"
+    return job.status == JobStatus.Completed.value
 
 
 def wait_for_job_completion(ml_client: MLClient, job_name: str) -> None:
