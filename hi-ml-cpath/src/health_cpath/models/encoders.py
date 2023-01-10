@@ -5,6 +5,7 @@
 
 from pathlib import Path
 from typing import Callable, Optional, Sequence, Tuple
+from unittest.mock import patch
 
 import numpy as np
 import torch
@@ -115,6 +116,17 @@ class VisionTransformer_NoPreproc(ImageNetEncoder):
         super().__init__(vit_b_16, tile_size, n_channels, apply_imagenet_preprocessing=False)
 
     def _get_encoder(self) -> Tuple[torch.nn.Module, int]:
+        vit = self.create_feature_extractor_fn(pretrained=True)
+
+        def _forward(self, x: torch.Tensor) -> torch.Tensor:
+            # Reshape and permute the input tensor
+            x = self._process_input(x)
+            x = self.encoder(x)
+            x = self.heads(x)
+            return x
+        with patch.object(vit, "forward", side_effect=_forward):
+            return setup_feature_extractor(vit, self.input_dim)
+
         return self.create_feature_extractor_fn(pretrained=True), 1000
 
 
