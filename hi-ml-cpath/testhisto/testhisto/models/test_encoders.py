@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 
 from typing import Callable, Tuple
-from unittest.mock import patch
 import numpy as np
 import pytest
 from pathlib import Path
@@ -16,7 +15,6 @@ from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME, Checkpoi
 from health_cpath.models.encoders import (Resnet18, TileEncoder, HistoSSLEncoder,
                                           ImageNetSimCLREncoder, SSLEncoder)
 from health_cpath.utils.layer_utils import setup_feature_extractor
-from testhiml.utils_testhiml import DEFAULT_WORKSPACE
 
 
 TILE_SIZE = 224
@@ -66,11 +64,9 @@ def _test_encoder(encoder: nn.Module, input_dims: Tuple[int, ...], output_dim: i
                                                ])
 def test_encoder(create_encoder_fn: Callable[[], TileEncoder], tmp_path: Path) -> None:
     if create_encoder_fn == get_ssl_encoder:
-        with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace:
-            download_dir = tmp_path / "ssl_downloaded_weights"
-            download_dir.mkdir()
-            mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
-            encoder = create_encoder_fn(download_dir=download_dir)   # type: ignore
+        download_dir = tmp_path / "ssl_downloaded_weights"
+        download_dir.mkdir()
+        encoder = create_encoder_fn(download_dir=download_dir)   # type: ignore
     else:
         encoder = create_encoder_fn()
     _test_encoder(encoder, input_dims=encoder.input_dim, output_dim=encoder.num_encoding)
