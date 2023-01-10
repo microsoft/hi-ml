@@ -75,6 +75,7 @@ def assert_plot_func_called_if_among_plot_options(
             PlotOption.TOP_BOTTOM_TILES,
             PlotOption.SLIDE_THUMBNAIL,
             PlotOption.ATTENTION_HEATMAP,
+            PlotOption.ATTENTION_HISTOGRAM,
         },
     ],
 )
@@ -91,6 +92,7 @@ def test_plots_handler_plots_only_desired_plot_options(plot_options: Collection[
     patchers: Dict[PlotOption, Any] = {
         PlotOption.SLIDE_THUMBNAIL: patch("health_cpath.utils.plots_utils.save_slide_thumbnail"),
         PlotOption.ATTENTION_HEATMAP: patch("health_cpath.utils.plots_utils.save_attention_heatmap"),
+        PlotOption.ATTENTION_HISTOGRAM: patch("health_cpath.utils.plots_utils.save_attention_histogram"),
         PlotOption.TOP_BOTTOM_TILES: patch("health_cpath.utils.plots_utils.save_top_and_bottom_tiles"),
         PlotOption.CONFUSION_MATRIX: patch("health_cpath.utils.plots_utils.save_confusion_matrix"),
         PlotOption.HISTOGRAM: patch("health_cpath.utils.plots_utils.save_scores_histogram"),
