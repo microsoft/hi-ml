@@ -721,9 +721,7 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
         return aml_workspace
 
     if workspace_config_path is None:
-        print("Starting to look for workspace config file...")
         workspace_config_path = find_file_in_parent_to_pythonpath(WORKSPACE_CONFIG_JSON)
-        print("Finished looking for workspace config file...")
         if workspace_config_path:
             logging.info(f"Using the workspace config file {str(workspace_config_path.absolute())}")
         else:
@@ -732,9 +730,7 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
     if not isinstance(workspace_config_path, Path):
         raise ValueError("Workspace config path is not an instance of Path, check your input.")
     elif workspace_config_path.is_file():
-        print("Starting to get authentication...")
         auth = get_authentication()
-        print("Got authentication...")
         workspace = Workspace.from_config(path=str(workspace_config_path), auth=auth)
         logging.info(f"Logged into AzureML workspace {workspace.name}")
         return workspace
