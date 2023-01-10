@@ -735,12 +735,13 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
         if workspace_config_path:
             logging.info(f"Using the workspace config file {str(workspace_config_path.absolute())}")
 
+    has_all_env_variables = False
     if workspace_config_path is None:
         logging.info("Trying to load the environment variables that define the workspace.")
         workspace_name = get_secret_from_environment(ENV_WORKSPACE_NAME, allow_missing=True)
         subscription_id = get_secret_from_environment(ENV_SUBSCRIPTION_ID, allow_missing=True)
         resource_group = get_secret_from_environment(ENV_RESOURCE_GROUP, allow_missing=True)
-        has_all_env_variables = workspace_name & subscription_id & resource_group
+        has_all_env_variables = bool(workspace_name) & bool(subscription_id) & bool(resource_group)
 
     if workspace_config_path is not None and not workspace_config_path.is_file():
         raise ValueError(f"Workspace config file does not exist: {workspace_config_path}")
