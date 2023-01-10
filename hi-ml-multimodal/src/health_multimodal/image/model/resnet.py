@@ -24,6 +24,12 @@ class ResNetHIML(ResNet):
 
     def forward(self, x: torch.Tensor,
                 return_skip: bool = False) -> Union[torch.Tensor, TypeSkipConnections]:
+        """ResNetHIML forward pass. Optionally returns intermediate layers using the
+        ``return_skip`` argument.
+
+        :param return_skip: If ``True``, return layers x0-x4 as a tuple, otherwise
+            return x4 only.
+        """
 
         x0 = self.conv1(x)
         x0 = self.bn1(x0)
