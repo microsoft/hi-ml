@@ -747,7 +747,7 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
 
     auth = get_authentication()
     if has_all_env_variables:
-        workspace= Workspace.get(
+        workspace = Workspace.get(
             name=workspace_name, auth=auth, subscription_id=subscription_id, resource_group=resource_group
         )
     elif workspace_config_path is not None:
