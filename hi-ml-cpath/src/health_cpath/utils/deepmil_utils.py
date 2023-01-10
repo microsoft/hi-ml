@@ -12,6 +12,8 @@ from health_cpath.models.encoders import (
     HistoSSLEncoder,
     ImageNetSimCLREncoder,
     SSLEncoder,
+    SwinTransformer_NoPreproc,
+    VisionTransformer_NoPreproc,
     TileEncoder,
     Resnet18,
     Resnet50,
@@ -88,6 +90,12 @@ class EncoderParams(param.Parameterized):
 
         elif self.encoder_type == Resnet50_NoPreproc.__name__:
             encoder = Resnet50_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
+
+        elif self.encoder_type == SwinTransformer_NoPreproc.__name__:
+            encoder = SwinTransformer_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
+
+        elif self.encoder_type == VisionTransformer_NoPreproc.__name__:
+            encoder = VisionTransformer_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
 
         elif self.encoder_type == ImageNetSimCLREncoder.__name__:
             encoder = ImageNetSimCLREncoder(tile_size=self.tile_size, n_channels=self.n_channels)

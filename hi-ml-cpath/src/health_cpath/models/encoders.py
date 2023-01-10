@@ -10,7 +10,7 @@ import numpy as np
 import torch
 from pl_bolts.models.self_supervised import SimCLR
 from torch import Tensor as T, nn
-from torchvision.models import resnet18, resnet50
+from torchvision.models import resnet18, resnet50, swin_t, vit_b_16
 from monai.transforms import Compose
 
 from health_cpath.utils.layer_utils import (get_imagenet_preprocessing,
@@ -103,6 +103,19 @@ class Resnet50(ImageNetEncoder):
 class Resnet50_NoPreproc(ImageNetEncoder):
     def __init__(self, tile_size: int, n_channels: int = 3) -> None:
         super().__init__(resnet50, tile_size, n_channels, apply_imagenet_preprocessing=False)
+
+
+class SwinTransformer_NoPreproc(ImageNetEncoder):
+    def __init__(self, tile_size: int, n_channels: int = 3) -> None:
+        super().__init__(swin_t, tile_size, n_channels, apply_imagenet_preprocessing=False)
+
+
+class VisionTransformer_NoPreproc(ImageNetEncoder):
+    def __init__(self, tile_size: int, n_channels: int = 3) -> None:
+        super().__init__(vit_b_16, tile_size, n_channels, apply_imagenet_preprocessing=False)
+
+    def _get_encoder(self) -> Tuple[torch.nn.Module, int]:
+        return self.create_feature_extractor_fn(pretrained=True), 1000
 
 
 class ImageNetSimCLREncoder(TileEncoder):
