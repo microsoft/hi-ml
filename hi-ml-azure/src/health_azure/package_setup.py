@@ -35,7 +35,7 @@ def health_azure_package_setup() -> None:
         "msal": logging.INFO,
         "msrest": logging.INFO,
         # Urllib3 prints out connection information for each call to write metrics, etc
-        "urlib3": logging.INFO,
+        "urllib3": logging.INFO,
     }
     set_logging_levels(module_levels)
     # PyJWT prints out warnings that are beyond our control

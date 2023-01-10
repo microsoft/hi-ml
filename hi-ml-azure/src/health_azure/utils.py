@@ -1500,6 +1500,31 @@ def download_files_from_run_id(
     torch_barrier()
 
 
+def download_files_by_suffix(
+    run: Run,
+    output_folder: Path,
+    suffix: str,
+    validate_checksum: bool = False
+) -> Iterable[Path]:
+    """Downloads all files from an AzureML run that have a given suffix, into a folder. The function returns an
+    Iterable, where a file path is emitted right after it has been downloaded.
+
+    :param run: The AzureML run from where the files should be downloaded.
+    :param suffix: The suffix for all files that should be returned.
+    :param output_folder: The folder where the files should be downloaded to. If a file `foo/bar.txt` is downloaded,
+        it will be downloaded as `<output_folder>/foo/bar.txt`.
+    :param validate_checksum: Whether to validate the content from HTTP response
+    :return: An Iterable with all downloaded files.
+    """
+    for file in get_run_file_names(run):
+        if file.endswith(suffix):
+            logging.info(f"Downloading file {file}")
+            output_folder.mkdir(parents=True, exist_ok=True)
+            output_file = output_folder / file
+            _download_file_from_run(run, file, output_file, validate_checksum=validate_checksum)
+            yield output_file
+
+
 def get_driver_log_file_text(run: Run, download_file: bool = True) -> Optional[str]:
     """
     Returns text stored in run log driver file.
