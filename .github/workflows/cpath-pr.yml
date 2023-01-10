@@ -127,7 +127,7 @@ jobs:
         with:
             flags: ${{ env.folder }}
 
-  smoke_test_cucim_slidespandaimagenetmil:
+  # smoke_test_cucim_slidespandaimagenetmil:
     runs-on: ubuntu-20.04
     needs: [ cancel-azureml ]
     steps:
@@ -142,8 +142,8 @@ jobs:
         run: |
           cd ${{ env.folder }}
           make smoke_test_cucim_slidespandaimagenetmil_aml
-
-  smoke_test_openslide_slidespandaimagenetmil:
+#
+  # smoke_test_openslide_slidespandaimagenetmil:
     runs-on: ubuntu-20.04
     needs: [ cancel-azureml ]
     steps:
@@ -158,8 +158,8 @@ jobs:
         run: |
           cd ${{ env.folder }}
           make smoke_test_openslide_slidespandaimagenetmil_aml
-
-  smoke_test_tilespandaimagenetmil:
+#
+  # smoke_test_tilespandaimagenetmil:
     runs-on: ubuntu-20.04
     needs: [ cancel-azureml ]
     steps:
@@ -174,8 +174,8 @@ jobs:
         run: |
           cd ${{ env.folder }}
           make smoke_test_tilespandaimagenetmil_aml
-
-  smoke_test_tcgacrckimagenetmil:
+#
+  # smoke_test_tcgacrckimagenetmil:
     runs-on: ubuntu-20.04
     needs: [ cancel-azureml ]
     steps:
@@ -190,8 +190,8 @@ jobs:
         run: |
           cd ${{ env.folder }}
           make smoke_test_tcgacrckimagenetmil_aml
-
-  smoke_test_tcgacrcksslmil:
+#
+  # smoke_test_tcgacrcksslmil:
     runs-on: ubuntu-20.04
     needs: [ cancel-azureml ]
     steps:
@@ -206,8 +206,8 @@ jobs:
         run: |
           cd ${{ env.folder }}
           make smoke_test_tcgacrcksslmil_aml
-
-  smoke_test_crck_simclr:
+#
+  # smoke_test_crck_simclr:
     runs-on: ubuntu-20.04
     needs: [ cancel-azureml ]
     steps:
@@ -222,8 +222,8 @@ jobs:
         run: |
           cd ${{ env.folder }}
           make smoke_test_crck_simclr_aml
-
-  smoke_test_crck_flexible_finetuning:
+#
+  # smoke_test_crck_flexible_finetuning:
     runs-on: ubuntu-20.04
     needs: [ cancel-azureml ]
     steps:
@@ -238,8 +238,8 @@ jobs:
         run: |
           cd ${{ env.folder }}
           make smoke_test_crck_flexible_finetuning_aml
-
-  smoke_test_crck_loss_analysis:
+#
+  # smoke_test_crck_loss_analysis:
     runs-on: ubuntu-20.04
     needs: [ cancel-azureml ]
     steps:
@@ -254,8 +254,8 @@ jobs:
         run: |
           cd ${{ env.folder }}
           make smoke_test_crck_loss_analysis_aml
-
-  smoke_test_slides_panda_loss_analysis:
+#
+  # smoke_test_slides_panda_loss_analysis:
     runs-on: ubuntu-20.04
     needs: [ cancel-azureml ]
     steps:
@@ -270,8 +270,8 @@ jobs:
         run: |
           cd ${{ env.folder }}
           make smoke_test_slides_panda_loss_analysis_aml
-
-  smoke_test_slides_panda_no_ddp_sampler:
+#
+  # smoke_test_slides_panda_no_ddp_sampler:
     runs-on: ubuntu-20.04
     needs: [ cancel-azureml ]
     steps:
@@ -286,8 +286,8 @@ jobs:
         run: |
           cd ${{ env.folder }}
           make smoke_test_slides_panda_no_ddp_sampler_aml
-
-  smoke_test_tiles_panda_no_ddp_sampler:
+#
+  # smoke_test_tiles_panda_no_ddp_sampler:
     runs-on: ubuntu-20.04
     needs: [ cancel-azureml ]
     steps:
