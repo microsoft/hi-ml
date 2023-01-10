@@ -15,8 +15,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path, PosixPath
 from random import randint
-from ruamel import yaml
-from ruamel.yaml.comments import CommentedMap as OrderedDict, CommentedSeq as OrderedList
+from ruamel.yaml import YAML
 from typing import Any, Dict, List, Optional, Tuple
 from unittest import mock
 from unittest.mock import MagicMock, create_autospec, patch, DEFAULT
@@ -404,13 +403,14 @@ def test_create_run_configuration(
 
 def create_empty_conda_env(tmp_path: Path) -> Path:
     """Create an empty conda environment in a given folder, and returns its path."""
-    conda_env_spec = OrderedDict({"name": "dummy_env",
-                                  "channels": OrderedList("default"),
-                                  "dependencies": OrderedList(["- pip=20.1.1", "- python=3.7.3"])})
-
+    conda_env_spec = dict(
+        name="dummy_env",
+        channels=["default"],
+        dependencies=["pip=20.1.1", "python=3.7.3"]
+    )
     conda_env_path = tmp_path / "dummy_conda_env.yml"
-    with open(conda_env_path, "w+") as f_path:
-        yaml.dump(conda_env_spec, f_path)
+    yaml = YAML()
+    yaml.dump(conda_env_spec, conda_env_path)
     assert conda_env_path.is_file()
     return conda_env_path
 
@@ -463,13 +463,15 @@ def test_create_run_configuration_correct_env(mock_create_environment: MagicMock
             assert mock_environment_get.call_count == 2
 
     # Assert that a Conda env spec with no python version raises an exception
-    conda_env_spec = OrderedDict({"name": "dummy_env",
-                                  "channels": OrderedList("default"),
-                                  "dependencies": OrderedList(["- pip=20.1.1"])})
+    conda_env_spec = dict(
+        name="dummy_env",
+        channels=["default"],
+        dependencies=["pip=20.1.1"],
+    )
 
     conda_env_path = tmp_path / "dummy_conda_env_no_python.yml"
-    with open(conda_env_path, "w+") as f_path:
-        yaml.dump(conda_env_spec, f_path)
+    yaml = YAML()
+    yaml.dump(conda_env_spec, conda_env_path)
     assert conda_env_path.is_file()
 
     with patch.object(mock_environment, "register") as mock_register:
@@ -1730,7 +1732,7 @@ def test_submitting_script_with_sdk_v2(tmp_path: Path) -> None:
         assert isinstance(job, Job)
         assert isinstance(ml_client, MLClient)
         # We waited for completion of the job, so it's status should now be "Completed"
-        assert job.status == JobStatus.Completed
+        assert job.status == JobStatus.Completed.value
 
     with check_config_json(tmp_path, shared_config_json=shared_config_json),\
             change_working_directory(tmp_path), \
