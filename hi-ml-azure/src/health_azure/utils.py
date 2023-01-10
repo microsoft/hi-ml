@@ -699,27 +699,28 @@ def find_file_in_parent_to_pythonpath(file_name: str) -> Optional[Path]:
 
 def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_path: Optional[Path] = None) -> Workspace:
     """
-    Retrieve an Azure ML Workspace from one of several places:
-      1. If the function has been called during an AML run (i.e. on an Azure agent), returns the associated workspace
+    Retrieve an Azure ML Workspace by going through the following steps:
 
-      2. If a Workspace object has been provided by the user, return that
+      1. If the function has been called from inside a run in AzureML, it returns the current AzureML workspace.
 
-      3. If a path to a Workspace config file has been provided, load the workspace according to that.
+      2. If a Workspace object has been provided in the `aml_workspace` argument, return that.
+
+      3. If a path to a Workspace config file has been provided, load the workspace according to that config file.
 
       4. If a Workspace config file is present in the current working directory or one of its parents, load the
-        workspace according to that.
+        workspace according to that config file.
 
       5. If 3 environment variables are found, use them to identify the workspace (`HIML_RESOURCE_GROUP`,
         `HIML_SUBSCRIPTION_ID`, `HIML_WORKSPACE_NAME`)
 
-    If not running inside AML and neither a workspace nor the config file are provided, the code will try to locate a
-    config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
-    file will be used to instantiate the workspace.
+    If none of the above succeeds, an exception is raised.
 
     :param aml_workspace: If provided this is returned as the AzureML Workspace.
     :param workspace_config_path: If not provided with an AzureML Workspace, then load one given the information in this
         config
     :return: An AzureML workspace.
+    :raises: ValueError if neither of the available options for accessing the workspace succeeds.
+    :raises FileNotFoundError: If the workspace config file is given in `workspace_config_path`, but is not present.
     """
     if is_running_in_azure_ml(RUN_CONTEXT):
         return RUN_CONTEXT.experiment.workspace
@@ -745,7 +746,7 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
         resource_group = get_secret_from_environment(ENV_RESOURCE_GROUP, allow_missing=True)
 
     if workspace_config_path is not None and not workspace_config_path.is_file():
-        raise ValueError(f"Workspace config file does not exist: {workspace_config_path}")
+        raise FileNotFoundError(f"Workspace config file does not exist: {workspace_config_path}")
 
     auth = get_authentication()
     # Check if all 3 environment variables are set
