@@ -80,18 +80,12 @@ pyright: conda call_pyright
 check: flake8 mypy
 
 # run pytest on package, assuming test requirements already installed
-call_pytest:
-	$(call call_packages,call_pytest)
-
-# install test requirements and run tests
-pytest: pip_test call_pytest
+pytest:
+	$(call call_packages,pytest)
 
 # run pytest fast subset on package, assuming test requirements already installed
-call_pytest_fast:
-	$(call call_packages,call_pytest_fast)
-
-# install test requirements and run pytest fast subset
-pytest_fast: pip_test call_pytest_fast
+pytest_fast:
+	$(call call_packages,pytest_fast)
 
 # run pytest with coverage on package, and format coverage output as a text file, assuming test requirements already installed
 call_pytest_and_coverage:
