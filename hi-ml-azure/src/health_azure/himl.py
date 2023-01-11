@@ -13,7 +13,6 @@ import logging
 import os
 import re
 import sys
-import warnings
 from argparse import ArgumentParser
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -35,6 +34,7 @@ from azureml.train.hyperdrive import HyperDriveConfig, GridParameterSampling, Pr
 from azureml.dataprep.fuse.daemon import MountContext
 
 from health_azure.amulet import (ENV_AMLT_DATAREFERENCE_DATA, ENV_AMLT_DATAREFERENCE_OUTPUT, is_amulet_job)
+from health_azure.package_setup import health_azure_package_setup
 from health_azure.utils import (ENV_EXPERIMENT_NAME, create_python_environment, create_run_recovery_id,
                                 find_file_in_parent_to_pythonpath,
                                 is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
@@ -50,7 +50,7 @@ logger = logging.getLogger('health_azure')
 logger.setLevel(logging.DEBUG)
 
 AML_IGNORE_FILE = ".amlignore"
-AZUREML_COMMANDLINE_FLAG = "--azureml"
+AZUREML_FLAG = "--azureml"
 CONDA_ENVIRONMENT_FILE = "environment.yml"
 LOGS_FOLDER = "logs"
 OUTPUT_FOLDER = "outputs"
@@ -338,18 +338,21 @@ def create_crossval_hyperparam_args_v2(num_splits: int,
                                           metric_name=metric_name)
 
 
-def create_script_run(snapshot_root_directory: Optional[Path] = None,
-                      entry_script: Optional[PathOrString] = None,
-                      script_params: Optional[List[str]] = None) -> ScriptRunConfig:
+def create_script_run(
+    script_params: List[str],
+    snapshot_root_directory: Optional[Path] = None,
+    entry_script: Optional[PathOrString] = None,
+) -> ScriptRunConfig:
     """
     Creates an AzureML ScriptRunConfig object, that holds the information about the snapshot, the entry script, and
     its arguments.
 
-    :param entry_script: The script that should be run in AzureML.
+    :param script_params: A list of parameter to pass on to the script as it runs in AzureML. Required arg. Script
+        parameters can be generated using the ``_get_script_params()`` function.
     :param snapshot_root_directory: The directory that contains all code that should be packaged and sent to AzureML.
         All Python code that the script uses must be copied over.
-    :param script_params: A list of parameter to pass on to the script as it runs in AzureML. If empty (or None, the
-        default) these will be copied over from sys.argv, omitting the --azureml flag.
+    :param entry_script: The script that should be run in AzureML. If None, the current main Python file will be
+        executed.
     :return:
     """
     if snapshot_root_directory is None:
@@ -371,7 +374,6 @@ def create_script_run(snapshot_root_directory: Optional[Path] = None,
                              f"Snapshot root: {snapshot_root_directory}, entry script: {entry_script}")
     else:
         entry_script_relative = str(entry_script)
-    script_params = _get_script_params(script_params)
     print(f"This command will be run in AzureML: {entry_script_relative} {' '.join(script_params)}")
     return ScriptRunConfig(
         source_directory=str(snapshot_root_directory),
@@ -812,7 +814,7 @@ def submit_to_azure_if_needed(  # type: ignore
     :return: If the script is submitted to AzureML then we terminate python as the script should be executed in AzureML,
         otherwise we return a AzureRunInfo object.
     """
-    _package_setup()
+    health_azure_package_setup()
     workspace_config_path = _str_to_path(workspace_config_file)
     snapshot_root_directory = _str_to_path(snapshot_root_directory)
     cleaned_input_datasets = _replace_string_datasets(input_datasets or [],
@@ -831,6 +833,8 @@ def submit_to_azure_if_needed(  # type: ignore
             return _generate_v2_azure_datasets(cleaned_input_datasets, cleaned_output_datasets)
     # This codepath is reached when executing outside AzureML. Here we first check if a script submission to AzureML
     # is necessary. If not, return to the caller for local execution.
+    if submit_to_azureml is None:
+        submit_to_azureml = AZUREML_FLAG in sys.argv[1:]
     if not submit_to_azureml:
         # Set the environment variables for local execution.
         environment_variables = {
@@ -877,6 +881,7 @@ def submit_to_azure_if_needed(  # type: ignore
 
     amlignore_path = snapshot_root_directory / AML_IGNORE_FILE
     lines_to_append = [str(path) for path in (ignored_folders or [])]
+    script_params = _get_script_params(script_params)
 
     with append_to_amlignore(amlignore=amlignore_path, lines_to_append=lines_to_append):
         if strictly_aml_v1:
@@ -895,9 +900,12 @@ def submit_to_azure_if_needed(  # type: ignore
                 input_datasets=cleaned_input_datasets,
                 output_datasets=cleaned_output_datasets,
             )
-            script_run_config = create_script_run(snapshot_root_directory=snapshot_root_directory,
-                                                  entry_script=entry_script,
-                                                  script_params=script_params)
+
+            script_run_config = create_script_run(
+                script_params=script_params,
+                snapshot_root_directory=snapshot_root_directory,
+                entry_script=entry_script,
+            )
             script_run_config.run_config = run_config
 
             if hyperdrive_config:
@@ -921,7 +929,6 @@ def submit_to_azure_if_needed(  # type: ignore
             )
             if entry_script is None:
                 entry_script = Path(sys.argv[0])
-            script_params = script_params or sys.argv[1:]
 
             ml_client = get_ml_client(ml_client=ml_client, aml_workspace=workspace)
             registered_env = register_environment_v2(environment, ml_client)
@@ -1008,7 +1015,7 @@ def _get_script_params(script_params: Optional[List[str]] = None) -> List[str]:
     """
     if script_params:
         return script_params
-    return [p for p in sys.argv[1:] if p != AZUREML_COMMANDLINE_FLAG]
+    return [p for p in sys.argv[1:] if p != AZUREML_FLAG]
 
 
 def _generate_azure_datasets(
@@ -1118,26 +1125,6 @@ def append_to_amlignore(lines_to_append: List[str], amlignore: Optional[Path] = 
         amlignore.write_text(old_contents)
     elif new_text:
         amlignore.unlink()
-
-
-def _package_setup() -> None:
-    """
-    Set up the Python packages where needed. In particular, reduce the logging level for some of the used
-    libraries, which are particularly talkative in DEBUG mode. Usually when running in DEBUG mode, we want
-    diagnostics about the model building itself, but not for the underlying libraries.
-    It also adds workarounds for known issues in some packages.
-    """
-    # The adal package creates a logging.info line each time it gets an authentication token, avoid that.
-    logging.getLogger('adal-python').setLevel(logging.WARNING)
-    # Azure core prints full HTTP requests even in INFO mode
-    logging.getLogger('azure').setLevel(logging.WARNING)
-    # PyJWT prints out warnings that are beyond our control
-    warnings.filterwarnings("ignore", category=DeprecationWarning, module="jwt")
-    # Urllib3 prints out connection information for each call to write metrics, etc
-    logging.getLogger('urllib3').setLevel(logging.INFO)
-    logging.getLogger('msrest').setLevel(logging.INFO)
-    # AzureML prints too many details about logging metrics
-    logging.getLogger('azureml').setLevel(logging.INFO)
 
 
 def main() -> None:

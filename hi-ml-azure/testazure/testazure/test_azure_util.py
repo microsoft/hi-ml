@@ -13,7 +13,7 @@ import time
 from argparse import ArgumentParser, Namespace, ArgumentError
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, Generator, List, Optional, Set, Tuple, Union
 from unittest import mock
 from unittest.mock import DEFAULT, MagicMock, patch
 from uuid import uuid4
@@ -36,8 +36,14 @@ from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
 import health_azure.utils as util
 from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore, effective_experiment_name
-from health_azure.utils import (ENV_MASTER_ADDR, ENV_MASTER_PORT, MASTER_PORT_DEFAULT,
-                                PackageDependency, create_argparser, get_credential, download_file_if_necessary)
+from health_azure.utils import (ENV_MASTER_ADDR,
+                                ENV_MASTER_PORT,
+                                MASTER_PORT_DEFAULT,
+                                PackageDependency,
+                                create_argparser,
+                                download_files_by_suffix,
+                                get_credential,
+                                download_file_if_necessary)
 from testazure.test_himl import RunTarget, render_and_run_test_script
 from testazure.utils_testazure import (DEFAULT_IGNORE_FOLDERS,
                                        DEFAULT_WORKSPACE,
@@ -2586,3 +2592,28 @@ def test_download_from_run_if_necessary_rank_nonzero(tmp_path: Path) -> None:
         local_path = download_file_if_necessary(run, remote_filename, expected_local_path)
         assert local_path is not None
         run.download_file.assert_not_called()
+
+
+@pytest.mark.parametrize(['files', 'expected_downloaded'], [
+    ([], []),
+    (["a.txt", "b.txt"], ["a.txt", "b.txt"]),
+    (["e.txt", "f.csv"], ["e.txt"])])
+def test_download_files_by_suffix(tmp_path: Path, files: List[str], expected_downloaded: List[str]) -> None:
+    """Test downloading files from a run returning a Generator
+
+    :param files: The files that should be available in the mocked run.
+    :param expected_downloaded: The names of the files that should be downloaded (filtered)
+    """
+    def mock_download(run: Run, file: str, output_file: Path, validate_checksum: bool) -> None:
+        output_file.write_text("mock content")
+
+    with mock.patch("health_azure.utils.get_run_file_names", return_value=files):
+        with mock.patch("health_azure.utils._download_file_from_run", side_effect=mock_download):
+            downloaded = download_files_by_suffix("outputs", tmp_path, ".txt")
+            assert isinstance(downloaded, Generator)
+            downloaded_list = list(downloaded)
+            assert len(downloaded_list) == len(expected_downloaded)
+            for f in downloaded_list:
+                assert f.is_file()
+            downloaded_filenames = [f.name for f in downloaded_list]
+            assert downloaded_filenames == expected_downloaded

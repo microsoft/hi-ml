@@ -15,6 +15,7 @@ from health_cpath.preprocessing.loading import LoadingParams
 from health_cpath.utils.viz_utils import (
     plot_attention_tiles,
     plot_heatmap_overlay,
+    plot_attention_histogram,
     plot_normalized_confusion_matrix,
     plot_scores_hist,
     plot_slide,
@@ -164,6 +165,18 @@ def save_attention_heatmap(
     save_figure(fig=fig, figpath=figures_dir / f"{slide_node.slide_id}_heatmap.png")
 
 
+def save_attention_histogram(case: str, slide_node: SlideNode, results: ResultsType, figures_dir: Path) -> None:
+    """Plots a histogram of the attention values of the tiles in a bag.
+
+    :param case: The report case (e.g., TP, FN, ...)
+    :param slide_node: The slide node that encapsulates the slide metadata.
+    :param results: Dict containing ResultsKey keys (e.g. slide id) and values as lists of output slides.
+    :param figures_dir: The path to the directory where to save the plot.
+    """
+    fig = plot_attention_histogram(case=case, slide_node=slide_node, results=results)
+    save_figure(fig=fig, figpath=figures_dir / f"{slide_node.slide_id}_histogram.png")
+
+
 def make_figure_dirs(subfolder: str, parent_dir: Path) -> Path:
     """Create the figure directory"""
     figures_dir = parent_dir / subfolder
@@ -222,6 +235,9 @@ class DeepMILPlotsHandler:
 
         if PlotOption.TOP_BOTTOM_TILES in self.plot_options:
             save_top_and_bottom_tiles(case, slide_node, case_dir, self.num_columns, self.figsize)
+
+        if PlotOption.ATTENTION_HISTOGRAM in self.plot_options:
+            save_attention_histogram(case, slide_node, results, case_dir)
 
         if PlotOption.ATTENTION_HEATMAP in self.plot_options or PlotOption.SLIDE_THUMBNAIL in self.plot_options:
             slide_dict = self.get_slide_dict(slide_node=slide_node)
