@@ -29,7 +29,6 @@ from _pytest.logging import LogCaptureFixture
 from azure.identity import (ClientSecretCredential, DeviceCodeCredential, DefaultAzureCredential)
 from azure.storage.blob import ContainerClient
 from azureml.core import Experiment, Run, ScriptRunConfig, Workspace
-from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.environment import CondaDependencies
 from azure.core.exceptions import ClientAuthenticationError, ResourceNotFoundError
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
@@ -48,10 +47,8 @@ from testazure.test_himl import RunTarget, render_and_run_test_script
 from testazure.utils_testazure import (DEFAULT_IGNORE_FOLDERS,
                                        DEFAULT_WORKSPACE,
                                        MockRun,
-                                       change_working_directory,
                                        create_unittest_run_object,
                                        experiment_for_unittests,
-                                       himl_azure_root,
                                        repository_root)
 
 RUN_ID = uuid4().hex
@@ -64,68 +61,6 @@ def oh_no() -> None:
     Raise a simple exception. To be used as a side_effect for mocks.
     """
     raise ValueError("Throwing an exception")
-
-
-@pytest.mark.fast()
-def test_find_file_in_parent_folders(caplog: LogCaptureFixture) -> None:
-    current_file_path = Path(__file__)
-    # If no start_at arg is provided, will start looking for file at current working directory.
-    # First mock this to be the hi-ml-azure root
-    himl_az_root = himl_azure_root()
-    himl_azure_test_root = himl_az_root / "testazure" / "testazure"
-    with patch("health_azure.utils.Path.cwd", return_value=himl_azure_test_root):
-        # current_working_directory = Path.cwd()
-        found_file_path = util.find_file_in_parent_folders(
-            file_name=current_file_path.name,
-            stop_at_path=[himl_az_root]
-        )
-        last_caplog_msg = caplog.messages[-1]
-        assert found_file_path == current_file_path
-        assert f"Searching for file {current_file_path.name} in {himl_azure_test_root}" in last_caplog_msg
-
-        # Now try to search for a nonexistent path in the same folder. This should return None
-        nonexistent_path = himl_az_root / "idontexist.py"
-        assert not nonexistent_path.is_file()
-        assert util.find_file_in_parent_folders(
-            file_name=nonexistent_path.name,
-            stop_at_path=[himl_az_root]
-        ) is None
-
-        # Try to find the first path (i.e. current file name) when starting in a different folder.
-        # This should not work
-        assert util.find_file_in_parent_folders(
-            file_name=current_file_path.name,
-            stop_at_path=[himl_az_root],
-            start_at_path=himl_az_root
-        ) is None
-
-    # Try to find the first path (i.e. current file name) when current working directory is not the testazure
-    # folder. This should not work
-    with patch("health_azure.utils.Path.cwd", return_value=himl_az_root):
-        assert not (himl_az_root / current_file_path.name).is_file()
-        assert util.find_file_in_parent_folders(
-            file_name=current_file_path.name,
-            stop_at_path=[himl_az_root.parent]
-        ) is None
-
-
-@pytest.mark.fast
-def test_find_file_in_parent_to_pythonpath(tmp_path: Path) -> None:
-    file_name = "some_file.json"
-    file = tmp_path / file_name
-    file.touch()
-    python_root = tmp_path / "python_root"
-    python_root.mkdir(exist_ok=False)
-    start_path = python_root / "starting_directory"
-    start_path.mkdir(exist_ok=False)
-    where_are_we_now = Path.cwd()
-    os.chdir(start_path)
-    found_file = util.find_file_in_parent_to_pythonpath(file_name)
-    assert found_file
-    with mock.patch.dict(os.environ, {"PYTHONPATH": str(python_root)}):
-        found_file = util.find_file_in_parent_to_pythonpath(file_name)
-        assert not found_file
-    os.chdir(where_are_we_now)
 
 
 def test_is_running_in_azureml() -> None:
@@ -143,49 +78,6 @@ def test_is_running_in_azureml() -> None:
         # We can't try that with the default argument because of Python's handling of mutable default arguments
         # (default argument value has been assigned already before mocking)
         assert util.is_running_in_azure_ml(util.RUN_CONTEXT)
-
-
-@pytest.mark.fast
-@patch("health_azure.utils.Workspace.from_config")
-@patch("health_azure.utils.get_authentication")
-@patch("health_azure.utils.Workspace")
-def test_get_workspace(
-        mock_workspace: mock.MagicMock,
-        mock_get_authentication: mock.MagicMock,
-        mock_from_config: mock.MagicMock,
-        tmp_path: Path) -> None:
-    # Test the case when running on AML
-    with patch("health_azure.utils.RUN_CONTEXT") as mock_run_context:
-        mock_run_context.experiment = MagicMock(workspace=mock_workspace)
-        workspace = util.get_workspace(None, None)
-        assert workspace == mock_workspace
-
-    # Test the case when a workspace object is provided. The test always runs outside AzureML, and should return the
-    # workspace object unchanged
-    mock_workspace2 = "foo"
-    workspace = util.get_workspace(mock_workspace2, None)  # type: ignore
-    assert workspace == mock_workspace2
-
-    # Test the case when a workspace config path is provided
-    mock_get_authentication.return_value = "auth"
-    _ = util.get_workspace(None, Path(__file__))
-    mock_from_config.assert_called_once_with(path=__file__, auth="auth")
-
-    # Work off a temporary directory: No config file is present
-    with change_working_directory(tmp_path):
-        with pytest.raises(ValueError) as ex:
-            util.get_workspace(None, None)
-        assert "No workspace config file given" in str(ex)
-
-    # Workspace config file is set to a file that does not exist
-    with pytest.raises(ValueError) as ex:
-        util.get_workspace(None, workspace_config_path=tmp_path / "does_not_exist")
-    assert "Workspace config file does not exist" in str(ex)
-
-    # Workspace config file is set to a wrong type
-    with pytest.raises(ValueError) as ex:
-        util.get_workspace(None, workspace_config_path=1)  # type: ignore
-    assert "Workspace config path is not a path" in str(ex)
 
 
 @patch("health_azure.utils.Run")
@@ -229,40 +121,6 @@ def test_fetch_run_for_experiment(get_run: MagicMock, mock_experiment: MagicMock
         util.fetch_run_for_experiment(mock_experiment, RUN_ID)
     exp = f"Run {RUN_ID} not found for experiment: {EXPERIMENT_NAME}. Available runs are: {RUN_ID}, {RUN_ID}, {RUN_ID}"
     assert str(e.value) == exp
-
-
-@patch("health_azure.utils.InteractiveLoginAuthentication")
-def test_get_authentication(mock_interactive_authentication: MagicMock) -> None:
-    with mock.patch.dict(os.environ, {}, clear=True):
-        util.get_authentication()
-        assert mock_interactive_authentication.called
-    service_principal_id = "1"
-    tenant_id = "2"
-    service_principal_password = "3"
-    with mock.patch.dict(
-            os.environ,
-            {
-                util.ENV_SERVICE_PRINCIPAL_ID: service_principal_id,
-                util.ENV_TENANT_ID: tenant_id,
-                util.ENV_SERVICE_PRINCIPAL_PASSWORD: service_principal_password
-            },
-            clear=True):
-        spa = util.get_authentication()
-        assert isinstance(spa, ServicePrincipalAuthentication)
-        assert spa._service_principal_id == service_principal_id
-        assert spa._tenant_id == tenant_id
-        assert spa._service_principal_password == service_principal_password
-
-
-def test_get_secret_from_environment() -> None:
-    env_variable_name = uuid4().hex.upper()
-    env_variable_value = "42"
-    with pytest.raises(ValueError) as e:
-        util.get_secret_from_environment(env_variable_name)
-    assert str(e.value) == f"There is no value stored for the secret named '{env_variable_name}'"
-    assert util.get_secret_from_environment(env_variable_name, allow_missing=True) is None
-    with mock.patch.dict(os.environ, {env_variable_name: env_variable_value}):
-        assert util.get_secret_from_environment(env_variable_name) == env_variable_value
 
 
 def test_to_azure_friendly_string() -> None:
