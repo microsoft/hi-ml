@@ -55,10 +55,12 @@ DEFAULT_UPLOAD_TIMEOUT_SECONDS: int = 36_000  # 10 Hours
 # name, hence version will always be fixed
 ENVIRONMENT_VERSION = "1"
 
-# Environment variables used for authentication and workspace selection
+# Environment variables used for authentication
 ENV_SERVICE_PRINCIPAL_ID = "HIML_SERVICE_PRINCIPAL_ID"
 ENV_SERVICE_PRINCIPAL_PASSWORD = "HIML_SERVICE_PRINCIPAL_PASSWORD"
 ENV_TENANT_ID = "HIML_TENANT_ID"
+
+# Environment variables used for workspace selection
 ENV_RESOURCE_GROUP = "HIML_RESOURCE_GROUP"
 ENV_SUBSCRIPTION_ID = "HIML_SUBSCRIPTION_ID"
 ENV_WORKSPACE_NAME = "HIML_WORKSPACE_NAME"
@@ -736,32 +738,29 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
         if workspace_config_path:
             logging.info(f"Using the workspace config file {str(workspace_config_path.absolute())}")
 
-    workspace_name = None
-    subscription_id = None
-    resource_group = None
-    if workspace_config_path is None:
-        logging.info("Trying to load the environment variables that define the workspace.")
-        workspace_name = get_secret_from_environment(ENV_WORKSPACE_NAME, allow_missing=True)
-        subscription_id = get_secret_from_environment(ENV_SUBSCRIPTION_ID, allow_missing=True)
-        resource_group = get_secret_from_environment(ENV_RESOURCE_GROUP, allow_missing=True)
-
-    if workspace_config_path is not None and not workspace_config_path.is_file():
-        raise FileNotFoundError(f"Workspace config file does not exist: {workspace_config_path}")
-
     auth = get_authentication()
-    # Check if all 3 environment variables are set
+    if workspace_config_path is not None:
+        if not workspace_config_path.is_file():
+            raise FileNotFoundError(f"Workspace config file does not exist: {workspace_config_path}")
+        workspace = Workspace.from_config(path=str(workspace_config_path), auth=auth)
+        logging.info(f"Logged into AzureML workspace {workspace.name} as specified in config file "
+                     f"{workspace_config_path}")
+        return workspace
+
+    logging.info("Trying to load the environment variables that define the workspace.")
+    workspace_name = get_secret_from_environment(ENV_WORKSPACE_NAME, allow_missing=True)
+    subscription_id = get_secret_from_environment(ENV_SUBSCRIPTION_ID, allow_missing=True)
+    resource_group = get_secret_from_environment(ENV_RESOURCE_GROUP, allow_missing=True)
     if bool(workspace_name) and bool(subscription_id) and bool(resource_group):
         workspace = Workspace.get(
             name=workspace_name, auth=auth, subscription_id=subscription_id, resource_group=resource_group
         )
-    elif workspace_config_path is not None:
-        workspace = Workspace.from_config(path=str(workspace_config_path), auth=auth)
-    else:
-        raise ValueError("Tried all ways of identifying the workspace, but failed. Please provide a workspace config "
-                         f"file {WORKSPACE_CONFIG_JSON} or set the environment variables {ENV_RESOURCE_GROUP}, "
-                         f"{ENV_SUBSCRIPTION_ID}, and {ENV_WORKSPACE_NAME}.")
-    logging.info(f"Logged into AzureML workspace {workspace.name}")
-    return workspace
+        logging.info(f"Logged into AzureML workspace {workspace.name} as specified by environment variables")
+        return workspace
+
+    raise ValueError("Tried all ways of identifying the workspace, but failed. Please provide a workspace config "
+                     f"file {WORKSPACE_CONFIG_JSON} or set the environment variables {ENV_RESOURCE_GROUP}, "
+                     f"{ENV_SUBSCRIPTION_ID}, and {ENV_WORKSPACE_NAME}.")
 
 
 def create_run_recovery_id(run: Run) -> str:
