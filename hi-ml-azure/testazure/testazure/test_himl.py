@@ -46,6 +46,7 @@ from health_azure.datasets import (
 from health_azure.utils import (
     DEFAULT_ENVIRONMENT_VARIABLES,
     ENV_EXPERIMENT_NAME,
+    ENV_WORKSPACE_NAME,
     ENVIRONMENT_VERSION,
     EXPERIMENT_RUN_SEPARATOR,
     WORKSPACE_CONFIG_JSON,
@@ -1036,7 +1037,9 @@ def render_and_run_test_script(path: Path,
 def test_invoking_hello_world_no_config(run_target: RunTarget, tmp_path: Path) -> None:
     """
     Test invoking rendered 'simple' / 'hello_world_template.txt' when there is no config file in the current working
-    directory. This should pass fine for local runs, but fail when trying to submit to AzureML.
+    directory, and no workspace is specified via environment variables. This should pass fine for local runs,
+    but fail when trying to submit to AzureML.
+
     :param run_target: Where to run the script.
     :param tmp_path: PyTest test fixture for temporary path.
     """
@@ -1049,16 +1052,19 @@ def test_invoking_hello_world_no_config(run_target: RunTarget, tmp_path: Path) -
     }
     extra_args = [f"--message={message_guid}"]
     expected_output = f"The message was: {message_guid}"
-    if run_target == RunTarget.LOCAL:
-        output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args,
-                                            expected_pass=True,
-                                            suppress_config_creation=True)
-        assert expected_output in output
-    else:
-        response = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args,
-                                              expected_pass=False,
-                                              suppress_config_creation=True)
-        assert "No workspace config file given" in response
+    # Setting only one of the environment variables to an empty string should trigger the failure when submitting
+    with patch.dict(os.environ, {ENV_WORKSPACE_NAME: ""}):
+        if run_target == RunTarget.LOCAL:
+            output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args,
+                                                expected_pass=True,
+                                                suppress_config_creation=True)
+            assert expected_output in output
+        else:
+            output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args,
+                                                expected_pass=False,
+                                                suppress_config_creation=True)
+            assert "Tried all ways of identifying the workspace" in output
+            assert expected_output not in output
 
 
 @pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])
