@@ -61,18 +61,12 @@ call_build:
 build: pip_build call_build
 
 # run flake8, assuming test requirements already installed
-call_flake8:
-	$(call call_packages,call_flake8)
-
-# pip install test requirements and run flake8
-flake8: pip_test call_flake8
+flake8:
+	$(call call_packages,flake8)
 
 # run mypy, assuming test requirements already installed
-call_mypy:
-	$(call call_packages,call_mypy)
-
-# pip install test requirements and run mypy
-mypy: pip_test call_mypy
+mypy:
+	$(call call_packages,mypy)
 
 # run pyright, assuming test requirements already installed
 call_pyright:
@@ -82,25 +76,16 @@ call_pyright:
 # conda install test requirements and run pyright
 pyright: conda call_pyright
 
-# run basic checks
-call_check: call_flake8 call_mypy
-
-# install test requirements and run basic checks
-check: pip_test call_check
+# run basic checks, assuming test requirements already installed
+check: flake8 mypy
 
 # run pytest on package, assuming test requirements already installed
-call_pytest:
-	$(call call_packages,call_pytest)
-
-# install test requirements and run tests
-pytest: pip_test call_pytest
+pytest:
+	$(call call_packages,pytest)
 
 # run pytest fast subset on package, assuming test requirements already installed
-call_pytest_fast:
-	$(call call_packages,call_pytest_fast)
-
-# install test requirements and run pytest fast subset
-pytest_fast: pip_test call_pytest_fast
+pytest_fast:
+	$(call call_packages,pytest_fast)
 
 # run pytest with coverage on package, and format coverage output as a text file, assuming test requirements already installed
 call_pytest_and_coverage:
