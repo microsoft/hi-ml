@@ -303,72 +303,72 @@ jobs:
 #          cd ${{ env.folder }}
 #          make smoke_test_tiles_panda_no_ddp_sampler_aml
 
-#  cpath-publish-pypi-package:
-#    runs-on: ubuntu-20.04
-#    needs: [
-#      cpath-flake8,
-#      cpath-mypy,
-#      cpath-pytest,
-#      cpath-pytest-gpu,
-#      smoke_test_cucim_slidespandaimagenetmil,
-#      smoke_test_openslide_slidespandaimagenetmil,
-#      smoke_test_tilespandaimagenetmil,
-#      smoke_test_tcgacrckimagenetmil,
-#      smoke_test_tcgacrcksslmil,
-#      smoke_test_crck_simclr,
-#      smoke_test_crck_flexible_finetuning,
-#      smoke_test_crck_loss_analysis,
-#      smoke_test_slides_panda_loss_analysis,
-#      smoke_test_slides_panda_no_ddp_sampler,
-#      smoke_test_tiles_panda_no_ddp_sampler,
-#      ]
-#    steps:
-#      - uses: actions/checkout@v3
-#        with:
-#          lfs: true
-#
-#      - name: Set up Python ${{ env.pythonVersion }}
-#        uses: actions/setup-python@v4
-#        with:
-#          python-version: ${{ env.pythonVersion }}
-#
-#      - name: Install build tools
-#        run: make pip_build
-#
-#      - name: Build a binary wheel and a source tarball
-#        run: |
-#          cd ${{ env.folder }}
-#          make build
-#
-#      - name: Test the binary wheel
-#        run: |
-#          cd ${{ env.folder }}
-#          make test_wheel
-#
-#      - name: Publish package to TestPyPI
-#        uses: pypa/gh-action-pypi-publish@v1.5.0
-#        with:
-#          user: __token__
-#          password: ${{ secrets.PYPI_TEST_API_TOKEN }}
-#          packages_dir: ${{ env.folder }}/dist/
-#          repository_url: https://test.pypi.org/legacy/
-#          verbose: true
-#          skip_existing: true
-#
-#      - name: Publish package to PyPI
-#        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-#        uses: pypa/gh-action-pypi-publish@v1.5.0
-#        with:
-#          user: __token__
-#          password: ${{ secrets.PYPI_API_TOKEN }}
-#          packages_dir: ${{ env.folder }}/dist/
-#          verbose: true
-#
-#  cpath-pr-completed:
-#    runs-on: ubuntu-20.04
-#    if: "!startsWith(github.ref, 'refs/tags/v')"
-#    needs: [ cpath-publish-pypi-package ]
-#    steps:
-#      - name: Final PR Job
-#        run: |
-#          echo "All cpath PR jobs have passed."
+  cpath-publish-pypi-package:
+    runs-on: ubuntu-20.04
+    needs: [
+      cpath-flake8,
+      cpath-mypy,
+      cpath-pytest,
+      cpath-pytest-gpu,
+      smoke_test_cucim_slidespandaimagenetmil,
+      smoke_test_openslide_slidespandaimagenetmil,
+      smoke_test_tilespandaimagenetmil,
+      smoke_test_tcgacrckimagenetmil,
+      smoke_test_tcgacrcksslmil,
+      smoke_test_crck_simclr,
+      smoke_test_crck_flexible_finetuning,
+      smoke_test_crck_loss_analysis,
+      smoke_test_slides_panda_loss_analysis,
+      smoke_test_slides_panda_no_ddp_sampler,
+      smoke_test_tiles_panda_no_ddp_sampler,
+      ]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: Install build tools
+        run: make pip_build
+
+      - name: Build a binary wheel and a source tarball
+        run: |
+          cd ${{ env.folder }}
+          make build
+
+      - name: Test the binary wheel
+        run: |
+          cd ${{ env.folder }}
+          make test_wheel
+
+      - name: Publish package to TestPyPI
+        uses: pypa/gh-action-pypi-publish@v1.5.0
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_TEST_API_TOKEN }}
+          packages_dir: ${{ env.folder }}/dist/
+          repository_url: https://test.pypi.org/legacy/
+          verbose: true
+          skip_existing: true
+
+      - name: Publish package to PyPI
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        uses: pypa/gh-action-pypi-publish@v1.5.0
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          packages_dir: ${{ env.folder }}/dist/
+          verbose: true
+
+  cpath-pr-completed:
+    runs-on: ubuntu-20.04
+    if: "!startsWith(github.ref, 'refs/tags/v')"
+    needs: [ cpath-publish-pypi-package ]
+    steps:
+      - name: Final PR Job
+        run: |
+          echo "All cpath PR jobs have passed."
