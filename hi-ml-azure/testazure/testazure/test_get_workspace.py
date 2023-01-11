@@ -162,43 +162,42 @@ def test_get_workspace_loads_env_variables() -> None:
     subscription = "sub"
     group = "group"
 
-    def mock_get_secret(name: str, allow_missing: bool) -> str:
-        if name == ENV_WORKSPACE_NAME:
-            return workspace_name
-        if name == ENV_SUBSCRIPTION_ID:
-            return subscription
-        if name == ENV_RESOURCE_GROUP:
-            return group
-        raise ValueError(f"Unexpected secret name {name}")
-
     auth = "auth"
     mock_auth = MagicMock(return_value=auth)
     workspace = MagicMock(name="workspace")
     mock_workspace_get = MagicMock(return_value=workspace)
     mock_workspace = MagicMock(get=mock_workspace_get)
-    with patch.multiple(
-        "health_azure.utils",
-        find_file_in_parent_to_pythonpath=MagicMock(return_value=None),
-        get_secret_from_environment=mock_get_secret,
-        get_authentication=mock_auth,
-        Workspace=mock_workspace
-    ):
-        assert get_workspace(None, None) == workspace
-        mock_auth.assert_called_once_with()
-        mock_workspace_get.assert_called_once_with(
-            name=workspace_name,
-            auth=auth,
-            subscription_id=subscription,
-            resource_group=group)
+    with patch.dict(os.environ,
+                    {
+                        ENV_WORKSPACE_NAME: workspace_name,
+                        ENV_SUBSCRIPTION_ID: subscription,
+                        ENV_RESOURCE_GROUP: group
+                    }):
+        with patch.multiple(
+            "health_azure.utils",
+            find_file_in_parent_to_pythonpath=MagicMock(return_value=None),
+            get_authentication=mock_auth,
+            Workspace=mock_workspace
+        ):
+            assert get_workspace(None, None) == workspace
+            mock_auth.assert_called_once_with()
+            mock_workspace_get.assert_called_once_with(
+                name=workspace_name,
+                auth=auth,
+                subscription_id=subscription,
+                resource_group=group)
 
 
 @pytest.mark.fast
 def test_get_workspace_env_variables_missing() -> None:
     """get_workspace should access environment variables for workspace details,
-    and fail if one of them is missing"""
+    and fail if one of them is missing. Missing environment variables are mocked via
+    get_secret_from_environment returning None"""
     with patch.multiple(
         "health_azure.utils",
+        # This ensures that no config file is found
         find_file_in_parent_to_pythonpath=MagicMock(return_value=None),
+        # This ensures that no environment variables are found
         get_secret_from_environment=MagicMock(return_value=None),
         get_authentication=MagicMock(return_value="auth")
     ):

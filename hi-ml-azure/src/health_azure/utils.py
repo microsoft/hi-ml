@@ -757,8 +757,9 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
     elif workspace_config_path is not None:
         workspace = Workspace.from_config(path=str(workspace_config_path), auth=auth)
     else:
-        raise ValueError("Tried all ways of identifying the workspace, but failed.")
-
+        raise ValueError("Tried all ways of identifying the workspace, but failed. Please provide a workspace config "
+                         f"file {WORKSPACE_CONFIG_JSON} or set the environment variables {ENV_RESOURCE_GROUP}, "
+                         f"{ENV_SUBSCRIPTION_ID}, and {ENV_WORKSPACE_NAME}.")
     logging.info(f"Logged into AzureML workspace {workspace.name}")
     return workspace
 

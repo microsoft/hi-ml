@@ -76,34 +76,17 @@ logger.setLevel(logging.DEBUG)
 # region Small fast local unit tests
 
 @pytest.mark.fast
-def test_submit_to_azure_if_needed_returns_immediately(tmp_path: Path) -> None:
+def test_submit_to_azure_if_needed_returns_immediately() -> None:
     """
-    Test that himl.submit_to_azure_if_needed can be called, and returns immediately.
+    Test that himl.submit_to_azure_if_needed can be called, and returns immediately if not submitting anything
+    to AzureML.
     """
-    shared_config_json = get_shared_config_json()
-    with check_config_json(tmp_path, shared_config_json=shared_config_json):
-
-        with pytest.raises(Exception) as ex:
-            himl.submit_to_azure_if_needed(
-                aml_workspace=None,
-                workspace_config_file=None,
-                entry_script=Path(__file__),
-                compute_cluster_name="foo",
-                snapshot_root_directory=Path(__file__).parent,
-                submit_to_azureml=True)
-        # N.B. This assert may fail when run locally since we may find a workspace_config_file through the call to
-        # _find_file(CONDA_ENVIRONMENT_FILE) in submit_to_azure_if_needed
-        if _is_running_in_github_pipeline():
-            assert "No workspace config file given, nor can we find one" in str(ex)
-
-        with mock.patch("sys.argv", [""]):
-            result = himl.submit_to_azure_if_needed(
-                entry_script=Path(__file__),
-                compute_cluster_name="foo",
-                conda_environment_file=shared_config_json)
-            assert isinstance(result, himl.AzureRunInfo)
-            assert not result.is_running_in_azure_ml
-            assert result.run is None
+    result = himl.submit_to_azure_if_needed(
+        entry_script=Path(__file__),
+        compute_cluster_name="foo")
+    assert isinstance(result, himl.AzureRunInfo)
+    assert not result.is_running_in_azure_ml
+    assert result.run is None
 
 
 def _is_running_in_github_pipeline() -> bool:
@@ -542,22 +525,6 @@ def test_get_script_params() -> None:
         assert expected_params == himl._get_script_params()
     with mock.patch("sys.argv", ["", "a string"]):
         assert expected_params == himl._get_script_params()
-
-
-@pytest.mark.fast
-@patch("health_azure.utils.is_running_in_azure_ml")
-def test_get_workspace_no_config(
-        mock_is_running_in_azure: mock.MagicMock,
-        tmp_path: Path) -> None:
-    """
-    Test if the workspace config path setting is ignored if a workspace is already given, and there is no config.json
-    file in the current directory.
-    """
-    mock_is_running_in_azure.return_value = False
-    with change_working_directory(tmp_path):
-        with pytest.raises(ValueError) as ex:
-            himl.submit_to_azure_if_needed(compute_cluster_name="foo", submit_to_azureml=True)
-        assert "No workspace config file given" in str(ex)
 
 
 @pytest.mark.fast
