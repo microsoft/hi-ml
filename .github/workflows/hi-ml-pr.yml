@@ -56,7 +56,9 @@ jobs:
           python-version: ${{ env.pythonVersion }}
 
       - name: flake8
-        run: make flake8
+        run: |
+          make pip_test
+          make flake8
 
   himl-mypy:
     runs-on: ubuntu-20.04
@@ -71,7 +73,9 @@ jobs:
           python-version: ${{ env.pythonVersion }}
 
       - name: mypy
-        run: make mypy
+        run: |
+          make pip_test
+          make mypy
 
   himl-pyright:
     runs-on: ubuntu-20.04

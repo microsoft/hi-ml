@@ -61,18 +61,12 @@ call_build:
 build: pip_build call_build
 
 # run flake8, assuming test requirements already installed
-call_flake8:
-	$(call call_packages,call_flake8)
-
-# pip install test requirements and run flake8
-flake8: pip_test call_flake8
+flake8:
+	$(call call_packages,flake8)
 
 # run mypy, assuming test requirements already installed
-call_mypy:
-	$(call call_packages,call_mypy)
-
-# pip install test requirements and run mypy
-mypy: pip_test call_mypy
+mypy:
+	$(call call_packages,mypy)
 
 # run pyright, assuming test requirements already installed
 call_pyright:
@@ -82,11 +76,8 @@ call_pyright:
 # conda install test requirements and run pyright
 pyright: conda call_pyright
 
-# run basic checks
-call_check: call_flake8 call_mypy
-
-# install test requirements and run basic checks
-check: pip_test call_check
+# run basic checks, assuming test requirements already installed
+check: flake8 mypy
 
 # run pytest on package, assuming test requirements already installed
 call_pytest:

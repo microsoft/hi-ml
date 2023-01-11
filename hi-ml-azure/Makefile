@@ -46,26 +46,17 @@ call_build:
 build: pip_build call_build
 
 # run flake8, assuming test requirements already installed
-call_flake8:
+flake8:
 	flake8 --count --statistics .
 
-# pip install test requirements and run flake8
-flake8: pip_test call_flake8
-
 # run mypy, assuming test requirements already installed
-call_mypy:
+mypy:
 	mypy --install-types --show-error-codes --non-interactive setup.py
 	mypy --install-types --show-error-codes --non-interactive --package health_azure
 	mypy --install-types --show-error-codes --non-interactive --package testazure
 
-# pip install test requirements and run mypy
-mypy: pip_test call_mypy
-
-# run basic checks
-call_check: call_flake8 call_mypy
-
-# install test requirements and run basic checks
-check: pip_test call_check
+# run basic checks, assuming test requirements already installed
+check: flake8 mypy
 
 # run pytest on package, assuming test requirements already installed
 call_pytest:
