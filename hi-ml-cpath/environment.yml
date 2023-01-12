@@ -83,7 +83,7 @@ dependencies:
   - six=1.16.0=pyhd3eb1b0_1
   - sqlite=3.40.1=h5082296_0
   - tk=8.6.12=h1ccaba5_0
-  - torchvision=0.14.0=py39_cpu
+  - torchvision=0.14.1=py39_cpu
   - typing_extensions=4.4.0=py39h06a4308_0
   - tzdata=2022g=h04d1e81_0
   - urllib3=1.26.13=py39h06a4308_0
