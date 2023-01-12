@@ -316,7 +316,10 @@ class MLRunner:
         Run validation on the validation set for all models to save time/memory consuming outputs.
         """
         self.container.on_run_extra_validation_epoch()
-        trainer = self.get_trainer_for_inference(checkpoint_path=None)
+        checkpoint_path = (
+            self.checkpoint_handler.get_checkpoint_to_test() if self.container.run_inference_only else None
+        )
+        trainer = self.get_trainer_for_inference(checkpoint_path)
         with change_working_directory(self.container.outputs_folder):
             trainer.validate(self.container.model, datamodule=self.container.get_data_module())
 
@@ -411,10 +414,11 @@ class MLRunner:
                 if self.container.has_custom_test_step() or self.container.run_extra_val_epoch:
                     self.load_model_checkpoint()
 
-                # Run extra validation epoch if enabled
-                if self.container.run_extra_val_epoch:
-                    with logging_section("Model Validation to save plots on validation set"):
-                        self.run_validation()
+            # Run extra validation epoch if enabled
+            if self.container.run_extra_val_epoch:
+                with logging_section("Model Validation to save plots on validation set"):
+                    self.run_validation()
+
             # Run inference on a single device
             with logging_section("Model inference"):
                 self.run_inference()
