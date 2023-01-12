@@ -274,6 +274,16 @@ class MLRunner:
             return self.container.crossval_index == 0
         return True
 
+    def validate_model_weights(self) -> None:
+        logging.info("Validating model weights.")
+        weights = torch.load(self.checkpoint_handler.get_checkpoint_to_test())["state_dict"]
+        number_mismatch = 0
+        for name, param in self.container.model.named_parameters():
+            if not torch.allclose(weights[name].cpu(), param):
+                logging.warning(f"Parameter {name} does not match between model and checkpoint.")
+                number_mismatch += 1
+        logging.info(f"Number of mismatched parameters: {number_mismatch}")
+
     def get_trainer_for_inference(self, checkpoint_path: Optional[Path] = None) -> Trainer:
         # We run inference on a single device because distributed strategies such as DDP use DistributedSampler
         # internally, which replicates some samples to make sure all devices have the same batch size in case of
@@ -315,7 +325,6 @@ class MLRunner:
         """
         Run validation on the validation set for all models to save time/memory consuming outputs.
         """
-        self.container.on_run_extra_validation_epoch()
         checkpoint_path = (
             self.checkpoint_handler.get_checkpoint_to_test() if self.container.run_inference_only else None
         )
@@ -323,21 +332,10 @@ class MLRunner:
         with change_working_directory(self.container.outputs_folder):
             trainer.validate(self.container.model, datamodule=self.container.get_data_module())
 
-    def validate_model_weights(self) -> None:
-        logging.info("Validating model weights.")
-        weights = torch.load(self.checkpoint_handler.get_checkpoint_to_test())["state_dict"]
-        number_mismatch = 0
-        for name, param in self.container.model.named_parameters():
-            if not torch.allclose(weights[name].cpu(), param):
-                logging.warning(f"Parameter {name} does not match between model and checkpoint.")
-                number_mismatch += 1
-        logging.info(f"Number of mismatched parameters: {number_mismatch}")
-
     def run_inference(self) -> None:
         """
         Run inference on the test set for all models.
         """
-
         if self.container.has_custom_test_step():
             # Run Lightning's built-in test procedure if the `test_step` method has been overridden
             logging.info("Running inference via the LightningModule.test_step method")
@@ -399,6 +397,7 @@ class MLRunner:
         self.setup()
         try:
             self.init_training()
+
             if not self.container.run_inference_only:
                 # Backup the environment variables in case we need to run a second training in the unit tests.
                 old_environ = dict(os.environ)
@@ -410,12 +409,13 @@ class MLRunner:
                 # Kill all processes besides rank 0
                 self.after_ddp_cleanup(old_environ)
 
-                # load model checkpoint for custom inference or additional validation step
-                if self.container.has_custom_test_step() or self.container.run_extra_val_epoch:
-                    self.load_model_checkpoint()
+            # load model checkpoint for custom inference or additional validation step
+            if self.container.has_custom_test_step() or self.container.run_extra_val_epoch:
+                self.load_model_checkpoint()
 
             # Run extra validation epoch if enabled
             if self.container.run_extra_val_epoch:
+                self.container.on_run_extra_validation_epoch()
                 with logging_section("Model Validation to save plots on validation set"):
                     self.run_validation()
 
