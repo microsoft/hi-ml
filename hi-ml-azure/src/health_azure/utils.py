@@ -721,7 +721,7 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
     :param workspace_config_path: If not provided with an AzureML Workspace, then load one given the information in this
         config
     :return: An AzureML workspace.
-    :raises: ValueError if neither of the available options for accessing the workspace succeeds.
+    :raises ValueError: If none of the available options for accessing the workspace succeeds.
     :raises FileNotFoundError: If the workspace config file is given in `workspace_config_path`, but is not present.
     """
     if is_running_in_azure_ml(RUN_CONTEXT):

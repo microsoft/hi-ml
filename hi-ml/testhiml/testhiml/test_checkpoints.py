@@ -36,7 +36,6 @@ from health_ml.utils.common_utils import (
     DEFAULT_AML_UPLOAD_DIR)
 from testazure.utils_testazure import create_unittest_run_object
 from testhiml.utils.fixed_paths_for_tests import full_test_data_path, mock_run_id
-from testhiml.utils_testhiml import DEFAULT_WORKSPACE
 
 
 def test_checkpoint_downloader_run_id() -> None:
