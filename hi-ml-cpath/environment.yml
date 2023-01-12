@@ -77,13 +77,13 @@ dependencies:
   - pysocks=1.7.1=py39h06a4308_0
   - python=3.9.13
   - python_abi=3.9=2_cp39
-  - pytorch-mutex=1.0=cpu
+  - pytorch-mutex=1.0=cuda
   - readline=8.2=h5eee18b_0
   - requests=2.28.1=py39h06a4308_0
   - six=1.16.0=pyhd3eb1b0_1
   - sqlite=3.40.1=h5082296_0
   - tk=8.6.12=h1ccaba5_0
-  - torchvision=0.14.1=py39_cpu
+  - torchvision=0.13.0=py39_cu113
   - typing_extensions=4.4.0=py39h06a4308_0
   - tzdata=2022g=h04d1e81_0
   - urllib3=1.26.13=py39h06a4308_0
