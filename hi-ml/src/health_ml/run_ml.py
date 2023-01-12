@@ -397,7 +397,6 @@ class MLRunner:
         self.setup()
         try:
             self.init_training()
-
             if not self.container.run_inference_only:
                 # Backup the environment variables in case we need to run a second training in the unit tests.
                 old_environ = dict(os.environ)
@@ -409,9 +408,9 @@ class MLRunner:
                 # Kill all processes besides rank 0
                 self.after_ddp_cleanup(old_environ)
 
-            # load model checkpoint for custom inference or additional validation step
-            if self.container.has_custom_test_step() or self.container.run_extra_val_epoch:
-                self.load_model_checkpoint()
+                # load model checkpoint for custom inference or additional validation step
+                if self.container.has_custom_test_step() or self.container.run_extra_val_epoch:
+                    self.load_model_checkpoint()
 
             # Run extra validation epoch if enabled
             if self.container.run_extra_val_epoch:
