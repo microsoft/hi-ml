@@ -36,7 +36,6 @@ from health_ml.utils.common_utils import (
     DEFAULT_AML_UPLOAD_DIR)
 from testazure.utils_testazure import create_unittest_run_object
 from testhiml.utils.fixed_paths_for_tests import full_test_data_path, mock_run_id
-from testhiml.utils_testhiml import DEFAULT_WORKSPACE
 
 
 def test_checkpoint_downloader_run_id() -> None:
@@ -112,23 +111,21 @@ def test_load_model_checkpoints_from_local_file(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("src_chekpoint_filename", ["", "best_val_loss.ckpt", "custom/path/model.ckpt"])
 def test_load_model_checkpoints_from_aml_run_id(src_chekpoint_filename: str, tmp_path: Path) -> None:
-    with mock.patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace:
-        mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
-        run_id = mock_run_id(id=0)
-        src_checkpoint = f"{run_id}:{src_chekpoint_filename}" if src_chekpoint_filename else run_id
-        container, checkpoint_handler = get_checkpoint_handler(tmp_path, src_checkpoint)
-        checkpoint_path = "custom/path" if "custom" in src_checkpoint else DEFAULT_AML_CHECKPOINT_DIR
-        src_checkpoint_filename = (
-            src_chekpoint_filename.split("/")[-1]
-            if src_chekpoint_filename
-            else LAST_CHECKPOINT_FILE_NAME
-        )
-        expected_weights_path = container.checkpoint_folder / run_id / checkpoint_path / src_checkpoint_filename
-        assert container.src_checkpoint.is_aml_run_id
-        checkpoint_handler.download_recovery_checkpoints_or_weights()
-        assert checkpoint_handler.trained_weights_path
-        assert checkpoint_handler.trained_weights_path.exists()
-        assert checkpoint_handler.trained_weights_path == expected_weights_path
+    run_id = mock_run_id(id=0)
+    src_checkpoint = f"{run_id}:{src_chekpoint_filename}" if src_chekpoint_filename else run_id
+    container, checkpoint_handler = get_checkpoint_handler(tmp_path, src_checkpoint)
+    checkpoint_path = "custom/path" if "custom" in src_checkpoint else DEFAULT_AML_CHECKPOINT_DIR
+    src_checkpoint_filename = (
+        src_chekpoint_filename.split("/")[-1]
+        if src_chekpoint_filename
+        else LAST_CHECKPOINT_FILE_NAME
+    )
+    expected_weights_path = container.checkpoint_folder / run_id / checkpoint_path / src_checkpoint_filename
+    assert container.src_checkpoint.is_aml_run_id
+    checkpoint_handler.download_recovery_checkpoints_or_weights()
+    assert checkpoint_handler.trained_weights_path
+    assert checkpoint_handler.trained_weights_path.exists()
+    assert checkpoint_handler.trained_weights_path == expected_weights_path
 
 
 def checkpoint_handler_for_hello_world(tmp_path: Path) -> CheckpointHandler:

@@ -37,7 +37,6 @@ def test_get_load_roid_transform(backend: WSIBackend, roi_type: ROIType) -> None
         assert isinstance(transform.reader.reader, reader_type[backend])  # type: ignore
 
 
-@pytest.mark.skip(reason="This test is failing because of issue #655")
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 def test_load_slide(tmp_path: Path) -> None:

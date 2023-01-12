@@ -10,11 +10,6 @@ import pydicom
 import SimpleITK as sitk
 from SSL.data.io_util import PhotometricInterpretation
 
-ENV_RESOURCE_GROUP = "HIML_RESOURCE_GROUP"
-ENV_SUBSCRIPTION_ID = "HIML_SUBSCRIPTION_ID"
-ENV_WORKSPACE_NAME = "HIML_WORKSPACE_NAME"
-WORKSPACE_CONFIG_JSON = "config.json"
-
 
 TEST_OUTPUTS_PATH = Path(__file__).parent.parent / "test_outputs"
 
