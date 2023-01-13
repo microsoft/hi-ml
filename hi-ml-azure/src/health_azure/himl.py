@@ -556,14 +556,9 @@ def submit_run_v2(workspace: Optional[Workspace],
             tags=tags or {},
             shm_size=docker_shm_size,
             display_name=display_name,
-            # environment_variables={
-            #     "JOB_EXECUTION_MODE": "Basic",
-            # },
-            instance_count=num_nodes,  # In this, only 2 node cluster was created.
+            instance_count=num_nodes,
             distribution={
                 "type": "PyTorch",
-                # set process count to the number of gpus per node
-                # NV6 has only 1 GPU
                 "process_count_per_instance": processes_per_node,
             },
         )
@@ -596,14 +591,9 @@ def submit_run_v2(workspace: Optional[Workspace],
             tags=tags or {},
             shm_size=docker_shm_size,
             display_name=display_name,
-            # environment_variables={
-            #     "JOB_EXECUTION_MODE": "Basic",
-            # }
-            instance_count=num_nodes,  # In this, only 2 node cluster was created.
+            instance_count=num_nodes,
             distribution={
                 "type": "PyTorch",
-                # set process count to the number of gpus per node
-                # NV6 has only 1 GPU
                 "process_count_per_instance": processes_per_node,
             },
         )
