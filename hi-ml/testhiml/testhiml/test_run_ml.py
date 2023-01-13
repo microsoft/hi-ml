@@ -161,12 +161,52 @@ def test_run_training() -> None:
             mock_trainer.loggers[0].finalize.assert_called_once()
 
 
+@pytest.mark.parametrize("run_inference_only", [True, False])
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
-def test_run_validation(run_extra_val_epoch: bool) -> None:
+def test_init_inference(
+    ml_runner_with_run_id: MLRunner, run_extra_val_epoch: bool, run_inference_only: bool
+) -> None:
+    """Test that inference is initialized correctly"""
+    ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
+    ml_runner_with_run_id.container.run_inference_only = run_inference_only
+    ml_runner_with_run_id.init_training()
+    with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+        with patch.multiple(ml_runner_with_run_id,
+                            validate_model_weights=mock.DEFAULT,
+                            load_model_checkpoint=mock.DEFAULT,
+                            ) as runner_mocks:
+            with patch.multiple(ml_runner_with_run_id.container,
+                                on_run_extra_validation_epoch=mock.DEFAULT,
+                                get_data_module=mock.DEFAULT,
+                                ) as container_mocks:
+                mock_trainer = MagicMock()
+                mock_create_trainer.return_value = mock_trainer, MagicMock()
+                ml_runner_with_run_id.init_inference()
+                container_mocks["on_run_extra_validation_epoch"].assert_called_once()
+                if run_inference_only:
+                    expected_ckpt_path = str(ml_runner_with_run_id.checkpoint_handler.trained_weights_path)
+                    assert ml_runner_with_run_id.inference_ckpt == expected_ckpt_path
+                    runner_mocks["load_model_checkpoint"].assert_not_called()
+                    runner_mocks["validate_model_weights"].assert_not_called()
+                elif run_extra_val_epoch:
+                    runner_mocks["load_model_checkpoint"].assert_called_once()
+                    runner_mocks["validate_model_weights"].assert_called_once()
+                    assert ml_runner_with_run_id.inference_ckpt is None
+
+                mock_create_trainer.assert_called_once()
+                assert ml_runner_with_run_id.trainer == mock_trainer
+                container_mocks["get_data_module"].assert_called_once()
+
+
+@pytest.mark.parametrize("run_inference_only", [True, False])
+@pytest.mark.parametrize("run_extra_val_epoch", [True, False])
+def test_run_validation(ml_runner_with_run_id: MLRunner, run_extra_val_epoch: bool, run_inference_only: bool) -> None:
+
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     container.create_lightning_module_and_store()
     container.run_extra_val_epoch = run_extra_val_epoch
+    container.run_inference_only = run_inference_only
     runner = MLRunner(experiment_config=experiment_config, container=container)
 
     with patch.object(container, "get_data_module"):
@@ -304,6 +344,7 @@ def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with
             run_training=mock.DEFAULT,
             run_validation=mock.DEFAULT,
             run_inference=mock.DEFAULT,
+            after_ddp_cleanup=mock.DEFAULT,
         ) as mocks:
             mock_create_trainer.return_value = MagicMock(), MagicMock()
             ml_runner_with_container.run()
@@ -317,18 +358,21 @@ def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with
             assert ml_runner_with_container.checkpoint_handler.has_continued_training != run_inference_only
 
             assert mocks["run_training"].called != run_inference_only
-            assert mocks["run_validation"].called == (not run_inference_only and run_extra_val_epoch)
+            assert mocks["after_ddp_cleanup"].called != run_inference_only
+            assert mocks["run_validation"].called == run_extra_val_epoch or run_inference_only
             mocks["run_inference"].assert_called_once()
 
 
-def test_run_inference_only(ml_runner_with_run_id: MLRunner) -> None:
+@pytest.mark.parametrize("run_extra_val_epoch", [True, False])
+def test_run_inference_only(run_extra_val_epoch: bool, ml_runner_with_run_id: MLRunner) -> None:
+    """Test inference only mode. Validation should be run regardless of run_extra_val_epoch status."""
     ml_runner_with_run_id.container.run_inference_only = True
+    ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
     assert ml_runner_with_run_id.checkpoint_handler.trained_weights_path
     with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
         with patch.multiple(
             ml_runner_with_run_id,
             run_training=mock.DEFAULT,
-            run_validation=mock.DEFAULT,
             validate_model_weights=mock.DEFAULT
         ) as mocks:
             mock_trainer = MagicMock()
@@ -338,8 +382,8 @@ def test_run_inference_only(ml_runner_with_run_id: MLRunner) -> None:
             recovery_checkpoint = mock_create_trainer.call_args[1]["resume_from_checkpoint"]
             assert recovery_checkpoint == ml_runner_with_run_id.checkpoint_handler.trained_weights_path
             mocks["run_training"].assert_not_called()
-            mocks["run_validation"].assert_not_called()
             mocks["validate_model_weights"].assert_not_called()
+            mock_trainer.validate.assert_called_once()
             mock_trainer.test.assert_called_once()
 
 

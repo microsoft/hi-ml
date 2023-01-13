@@ -288,7 +288,7 @@ class MLRunner:
                 number_mismatch += 1
         logging.info(f"Number of mismatched parameters: {number_mismatch}")
 
-    def set_trainer_for_inference(self) -> Trainer:
+    def set_trainer_for_inference(self) -> None:
         """ Set the runner's trainer for inference: validation or test.
         We run inference on a single device because distributed strategies such as DDP use DistributedSampler
         internally, which replicates some samples to make sure all devices have the same batch size in case of
