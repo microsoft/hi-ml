@@ -24,7 +24,6 @@ def cancel_running_and_queued_jobs() -> None:
         resource_group=os.environ["HIML_RESOURCE_GROUP"]
     )
     experiment_name = os.environ["HIML_EXPERIMENT_NAME"]
-    # replace special characters, spaces and multiple consecutive underscores with single underscores
     experiment_name = re.sub("_+", "_", re.sub(r"\W+", "_", experiment_name))
     print(f"Experiment: {experiment_name}")
     experiment = Experiment(workspace, name=experiment_name)
