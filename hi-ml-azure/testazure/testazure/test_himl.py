@@ -788,9 +788,8 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 tags=dummy_tags,
                 shm_size=dummy_docker_shm_size,
                 display_name=dummy_display_name,
-                environment_variables={
-                    "JOB_EXECUTION_MODE": "Basic",
-                }
+                distribution={"type": "PyTorch", "process_count_per_instance": 1},
+                instance_count=1
             )
 
             # job with hyperparameter sampling:
@@ -849,9 +848,8 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 tags=dummy_tags,
                 shm_size=dummy_docker_shm_size,
                 display_name=dummy_display_name,
-                environment_variables={
-                    "JOB_EXECUTION_MODE": "Basic",
-                }
+                distribution={"type": "PyTorch", "process_count_per_instance": 1},
+                instance_count=1
             )
 
             mock_command.assert_any_call(**param_sampling)
