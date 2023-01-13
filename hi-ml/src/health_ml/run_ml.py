@@ -80,6 +80,7 @@ class MLRunner:
         Driver class to run a ML experiment. Note that the project root argument MUST be supplied when using hi-ml
         as a package!
 
+        :param experiment_config: The ExperimentConfig object to use for training.
         :param container: The LightningContainer object to use for training.
         :param project_root: Project root. This should only be omitted if calling run_ml from the test suite. Supplying
         it is crucial when using hi-ml as a package or submodule!
@@ -96,6 +97,7 @@ class MLRunner:
         self.trainer: Optional[Trainer] = None
         self.azureml_run_for_logging: Optional[Run] = None
         self.mlflow_run_for_logging: Optional[str] = None
+        self.inference_ckpt: Optional[str] = None  # Passed to trainer.validate and trainer.test in inference mode
 
     def set_run_tags_from_parent(self) -> None:
         """
@@ -165,9 +167,9 @@ class MLRunner:
             self.set_run_tags_from_parent()
 
     def get_multiple_trainloader_mode(self) -> str:
-        # Workaround for a bug in PL 1.5.5: We need to pass the cycle mode for the training data as a trainer argument
-        # because training data that uses a CombinedLoader is not split correctly in DDP. This flag cannot be passed
-        # through the get_trainer_arguments method of the container because cycle mode is not yet available.
+        """Workaround for a bug in PL 1.5.5: We need to pass the cycle mode for the training data as a trainer argument
+        because training data that uses a CombinedLoader is not split correctly in DDP. This flag cannot be passed
+        through the get_trainer_arguments method of the container because cycle mode is not yet available."""
         multiple_trainloader_mode = "max_size_cycle"
         try:
             from SSL.data.datamodules import CombinedDataModule  # type: ignore
@@ -229,14 +231,6 @@ class MLRunner:
             )
             logging.info(f"Environment variables: {rank_info}. trainer.global_rank: {self.trainer.global_rank}")
 
-    def load_model_checkpoint(self) -> None:
-        if not self.container.run_inference_only:
-            self.checkpoint_handler.additional_training_done()
-        checkpoint_path_for_inference = self.checkpoint_handler.get_checkpoint_to_test()
-        self.container.load_model_checkpoint(checkpoint_path_for_inference)
-        best_epoch = torch.load(checkpoint_path_for_inference).get("epoch", -1)
-        logging.info(f"Checkpoint saved at epoch: {best_epoch}")
-
     def after_ddp_cleanup(self, old_environ: Dict) -> None:
         """
         Run processes cleanup after ddp context to prepare for single device inference.
@@ -274,57 +268,17 @@ class MLRunner:
             return self.container.crossval_index == 0
         return True
 
-    def get_trainer_for_inference(self, checkpoint_path: Optional[Path] = None) -> Trainer:
-        # We run inference on a single device because distributed strategies such as DDP use DistributedSampler
-        # internally, which replicates some samples to make sure all devices have the same batch size in case of
-        # uneven inputs.
-        mlflow_run_id = get_mlflow_run_id_from_previous_loggers(self.trainer)
-        self.container.max_num_gpus = 1
-
-        if self.container.run_inference_only:
-            assert checkpoint_path is not None
-        else:
-            self.validate_model_weights()
-
-        trainer, _ = create_lightning_trainer(
-            container=self.container,
-            resume_from_checkpoint=checkpoint_path,
-            num_nodes=1,
-            azureml_run_for_logging=self.azureml_run_for_logging,
-            mlflow_run_for_logging=mlflow_run_id
-        )
-        return trainer
-
-    def run_training(self) -> None:
-        """
-        The main training loop. It creates the Pytorch model based on the configuration options passed in,
-        creates a Pytorch Lightning trainer, and trains the model.
-        If a checkpoint was specified, then it loads the checkpoint before resuming training.
-        """
-        # Change to the outputs folder so that the model can write to current working directory, and still everything
-        # is put into the right place in AzureML (only the contents of the "outputs" folder is treated as a result file)
-        with change_working_directory(self.container.outputs_folder):
-            assert self.trainer, "Trainer should be initialized before training. Call self.init_training() first."
-            self.trainer.fit(self.container.model, datamodule=self.container.get_data_module())
-
-        for logger in self.trainer.loggers:
-            assert logger is not None
-            logger.finalize('success')
-
-    def run_validation(self) -> None:
-        """
-        Run validation on the validation set for all models to save time/memory consuming outputs.
-        """
-        checkpoint_path = (
-            self.checkpoint_handler.get_checkpoint_to_test() if self.container.run_inference_only else None
-        )
-        trainer = self.get_trainer_for_inference(checkpoint_path)
-        with change_working_directory(self.container.outputs_folder):
-            trainer.validate(
-                self.container.model, datamodule=self.container.get_data_module(), ckpt_path=str(checkpoint_path)
-            )
+    def load_model_checkpoint(self) -> None:
+        """ Load the model checkpoint. """
+        if not self.container.run_inference_only:
+            self.checkpoint_handler.additional_training_done()
+        checkpoint_path_for_inference = self.checkpoint_handler.get_checkpoint_to_test()
+        self.container.load_model_checkpoint(checkpoint_path_for_inference)
+        best_epoch = torch.load(checkpoint_path_for_inference).get("epoch", -1)
+        logging.info(f"Checkpoint saved at epoch: {best_epoch}")
 
     def validate_model_weights(self) -> None:
+        """ Validate that the model weights match the checkpoint weights."""
         logging.info("Validating model weights.")
         weights = torch.load(self.checkpoint_handler.get_checkpoint_to_test())["state_dict"]
         number_mismatch = 0
@@ -334,27 +288,79 @@ class MLRunner:
                 number_mismatch += 1
         logging.info(f"Number of mismatched parameters: {number_mismatch}")
 
-    def run_inference(self) -> None:
-        """
-        Run inference on the test set for all models.
-        """
+    def set_trainer_for_inference(self) -> Trainer:
+        """ Set the runner's trainer for inference: validation or test.
+        We run inference on a single device because distributed strategies such as DDP use DistributedSampler
+        internally, which replicates some samples to make sure all devices have the same batch size in case of
+        uneven inputs which biases the results."""
+        mlflow_run_id = get_mlflow_run_id_from_previous_loggers(self.trainer)
+        self.container.max_num_gpus = 1
+        self.trainer, _ = create_lightning_trainer(
+            container=self.container,
+            num_nodes=1,
+            azureml_run_for_logging=self.azureml_run_for_logging,
+            mlflow_run_for_logging=mlflow_run_id
+        )
 
-        if self.container.has_custom_test_step():
-            # Run Lightning's built-in test procedure if the `test_step` method has been overridden
-            logging.info("Running inference via the LightningModule.test_step method")
+    def init_inference(self) -> None:
+        """ Prepare the runner for inference: validation or test. The following steps are performed:
+        1. Turn on extra validation mode if needed.
+        2. If running inference only, get the checkpoint to test. Otherwise, load the checkpoint and validate the model
+        3. Create a new trainer instance for inference.
+        4. Create a new data module instance for inference to account for any requested changes in the dataloading
+           parameters like batch size, max number of workers, etc.
+        """
+        self.container.on_run_extra_validation_epoch()
+        if self.container.run_inference_only:
+            self.inference_ckpt = str(self.checkpoint_handler.get_checkpoint_to_test())
+        elif self.container.has_custom_test_step() or self.container.run_extra_val_epoch:
+            self.load_model_checkpoint()
+            self.validate_model_weights()
+        self.set_trainer_for_inference()
+        self.data_module = self.container.get_data_module()
 
-            checkpoint_path = (
-                self.checkpoint_handler.get_checkpoint_to_test() if self.container.run_inference_only else None
-            )
-            trainer = self.get_trainer_for_inference(checkpoint_path)
-            # Change to the outputs folder so that the model can write to current working directory, and still
-            # everything is put into the right place in AzureML (there, only the contents of the "outputs" folder
-            # retained)
+    def run_training(self) -> None:
+        """
+        The main training loop. It creates the Pytorch model based on the configuration options passed in,
+        creates a Pytorch Lightning trainer, and trains the model.
+        If a checkpoint was specified, then it loads the checkpoint before resuming training.
+        The cwd is changed to the outputs folder so that the model can write to current working directory, and still
+        everything is put into the right place in AzureML (only the contents of the "outputs" folder is treated as a
+        result file).
+        """
+        with change_working_directory(self.container.outputs_folder):
+            assert self.trainer, "Trainer should be initialized before training. Call self.init_training() first."
+            self.trainer.fit(self.container.model, datamodule=self.data_module)
+        for logger in self.trainer.loggers:
+            assert logger is not None
+            logger.finalize('success')
+
+    def run_validation(self) -> None:
+        """Run validation on the validation set for all models to save time/memory consuming outputs. This is done in
+        inference only mode or when the user has requested an extra validation epoch. The cwd is changed to the outputs
+        folder """
+        if self.container.run_extra_val_epoch or self.container.run_inference_only:
             with change_working_directory(self.container.outputs_folder):
-                _ = trainer.test(
-                    self.container.model, datamodule=self.container.get_data_module(), ckpt_path=str(checkpoint_path)
+                assert self.trainer, "Trainer should be initialized before validation. Call self.init_inference()."
+                self.trainer.validate(
+                    self.container.model, datamodule=self.data_module, ckpt_path=self.inference_ckpt
                 )
+        else:
+            logging.info("Skipping extra validation because the user has not requested it.")
 
+    def run_inference(self) -> None:
+        """Run inference on the test set for all models. This is done by calling the LightningModule.test_step method.
+        If the LightningModule.test_step method is not overridden, then this method does nothing. The cwd is changed to
+        the outputs folder so that the model can write to current working directory, and still everything is put into
+        the right place in AzureML (there, only the contents of the "outputs" folder is treated as a result file).
+        """
+        if self.container.has_custom_test_step():
+            logging.info("Running inference via the LightningModule.test_step method")
+            with change_working_directory(self.container.outputs_folder):
+                assert self.trainer, "Trainer should be initialized before inference. Call self.init_inference()."
+                _ = self.trainer.test(
+                    self.container.model, datamodule=self.data_module, ckpt_path=self.inference_ckpt
+                )
         else:
             logging.warning("None of the suitable test methods is overridden. Skipping inference completely.")
 
@@ -402,28 +408,21 @@ class MLRunner:
         self.setup()
         try:
             self.init_training()
+
             if not self.container.run_inference_only:
                 # Backup the environment variables in case we need to run a second training in the unit tests.
                 old_environ = dict(os.environ)
-
-                # do training
+                # Do training
                 with logging_section("Model training"):
                     self.run_training()
-
-                # Kill all processes besides rank 0
+                # Kill all processes besides rank 0 after training is done to start inference on a single device
                 self.after_ddp_cleanup(old_environ)
 
-                # load model checkpoint for custom inference or additional validation step
-                if self.container.has_custom_test_step() or self.container.run_extra_val_epoch:
-                    self.load_model_checkpoint()
+            self.init_inference()
 
-            # Run extra validation epoch if enabled
-            if self.container.run_extra_val_epoch:
-                self.container.on_run_extra_validation_epoch()
-                with logging_section("Model Validation to save plots on validation set"):
-                    self.run_validation()
+            with logging_section("Model Validation to save plots on validation set"):
+                self.run_validation()
 
-            # Run inference on a single device
             with logging_section("Model inference"):
                 self.run_inference()
 
