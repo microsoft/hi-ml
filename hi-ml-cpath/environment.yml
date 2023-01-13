@@ -2,7 +2,6 @@
 # To update, please modify 'primary_deps.yml' and then run the locking script 'create_and_lock_environment.sh'
 name: HimlHisto
 channels:
-  - pytorch
   - conda-forge
   - defaults
 dependencies:
@@ -10,30 +9,26 @@ dependencies:
   - _openmp_mutex=4.5=2_gnu
   - blas=1.0=mkl
   - brotlipy=0.7.0=py39h27cfd23_1003
-  - bzip2=1.0.8=h7b6447c_0
   - ca-certificates=2022.10.11=h06a4308_0
   - cairo=1.16.0=hf32fb01_1
   - certifi=2022.12.7=py39h06a4308_0
   - cffi=1.15.1=py39h74dc2b5_0
   - charset-normalizer=2.0.4=pyhd3eb1b0_0
   - cryptography=38.0.4=py39h9ce1e76_0
-  - cudatoolkit=11.3.1=h2bc3f7f_2
+  - cudatoolkit=11.6.0=hecad31d_11
   - expat=2.4.9=h6a678d5_0
-  - ffmpeg=4.2.2=h20bf706_0
   - flit-core=3.6.0=pyhd3eb1b0_0
   - fontconfig=2.14.1=h52c9d5c_1
   - freetype=2.12.1=h4a9f257_0
+  - future=0.18.2=py39h06a4308_1
   - gdk-pixbuf=2.42.6=h04a7f16_0
   - gettext=0.21.0=hf68c758_0
   - giflib=5.2.1=h7b6447c_0
   - glib=2.68.2=h36276a3_0
-  - gmp=6.2.1=h295c915_3
-  - gnutls=3.6.15=he1e5248_0
   - icu=58.2=he6710b0_3
   - idna=3.4=py39h06a4308_0
   - intel-openmp=2021.4.0=h06a4308_3561
   - jpeg=9e=h7f8727e_0
-  - lame=3.100=h7b6447c_0
   - lcms2=2.12=h3be6417_0
   - ld_impl_linux-64=2.38=h1181459_1
   - lerc=3.0=h295c915_0
@@ -43,15 +38,10 @@ dependencies:
   - libglib=2.68.2=h3e27bee_0
   - libgomp=12.2.0=h65d4601_19
   - libiconv=1.16=h7f8727e_2
-  - libidn2=2.3.2=h7f8727e_0
-  - libopus=1.3.1=h7b6447c_0
   - libpng=1.6.37=hbc83047_0
-  - libstdcxx-ng=11.2.0=h1234567_1
-  - libtasn1=4.16.0=h27cfd23_0
+  - libstdcxx-ng=12.2.0=h46fd767_19
   - libtiff=4.4.0=hecacb30_2
-  - libunistring=0.9.10=h27cfd23_0
   - libuuid=1.41.5=h5eee18b_0
-  - libvpx=1.7.0=h439df22_0
   - libwebp=1.2.4=h11a3e52_0
   - libwebp-base=1.2.4=h5eee18b_0
   - libxcb=1.15=h7f8727e_0
@@ -62,8 +52,8 @@ dependencies:
   - mkl_fft=1.3.1=py39hd3c417c_0
   - mkl_random=1.2.2=py39h51133e4_0
   - ncurses=6.3=h5eee18b_3
-  - nettle=3.7.3=hbbd107a_1
-  - openh264=2.1.1=h4ff587b_0
+  - ninja=1.10.2=h06a4308_5
+  - ninja-base=1.10.2=hd09550d_5
   - openjpeg=2.4.0=h3ad879b_0
   - openslide=3.4.1=h978ee9a_4
   - openslide-python=1.2.0=py39hb9d737c_2
@@ -77,18 +67,19 @@ dependencies:
   - pysocks=1.7.1=py39h06a4308_0
   - python=3.9.13
   - python_abi=3.9=2_cp39
-  - pytorch-mutex=1.0=cuda
+  - pyyaml=6.0=py39h5eee18b_1
   - readline=8.2=h5eee18b_0
   - requests=2.28.1=py39h06a4308_0
   - six=1.16.0=pyhd3eb1b0_1
   - sqlite=3.40.1=h5082296_0
   - tk=8.6.12=h1ccaba5_0
-  - torchvision=0.13.0=py39_cu113
+  - torchvision=0.13.1=cpu_py39h164cc8f_0
+  - typing-extensions=4.4.0=py39h06a4308_0
   - typing_extensions=4.4.0=py39h06a4308_0
   - tzdata=2022g=h04d1e81_0
   - urllib3=1.26.13=py39h06a4308_0
-  - x264=1!157.20191217=h7b6447c_0
   - xz=5.2.8=h5eee18b_0
+  - yaml=0.2.5=h7b6447c_0
   - zlib=1.2.13=h5eee18b_0
   - zstd=1.5.2=ha4553b6_0
   - pip:
@@ -96,7 +87,7 @@ dependencies:
     - adal==1.2.7
     - aiohttp==3.8.3
     - aiosignal==1.3.1
-    - alabaster==0.7.12
+    - alabaster==0.7.13
     - alembic==1.9.1
     - applicationinsights==0.11.10
     - argcomplete==2.0.0
@@ -264,7 +255,6 @@ dependencies:
     - pytorch-lightning==1.6.5
     - pytz==2022.7
     - pywavelets==1.4.1
-    - pyyaml==6.0
     - querystring-parser==1.2.4
     - readme-renderer==37.3
     - requests-oauthlib==1.3.1
