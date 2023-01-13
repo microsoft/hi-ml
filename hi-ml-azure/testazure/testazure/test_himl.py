@@ -1746,4 +1746,3 @@ def test_submit_to_azure_v2_distributed() -> None:
                 print(call_kwargs)
                 assert call_kwargs.get("num_nodes") == num_nodes
                 assert call_kwargs.get("processes_per_node") == processes_per_node
-
