@@ -8,7 +8,7 @@ on:
     branches: [ main ]
     paths:
       - "hi-ml-multimodal/**"
-      - ".github/workflows/multimodal-pr.yml"
+      - ".github/workflows/multimodal-*.yml"
 
 env:
   pythonVersion: 3.7
@@ -23,7 +23,7 @@ env:
 
 jobs:
 
-  flake8:
+  multimodal-flake8:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -41,7 +41,7 @@ jobs:
           make pip_test
           make flake8
 
-  mypy:
+  multimodal-mypy:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -59,7 +59,7 @@ jobs:
           make pip
           make mypy
 
-  pytest:
+  multimodal-pytest:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -71,20 +71,20 @@ jobs:
         with:
           python-version: ${{ env.pythonVersion }}
 
-      - name: Upgrade PIP
+      - name: Run tests and compute coverage
         run: |
           cd ${{ env.folder }}
-          make pip_upgrade
-
-      - name: Test with pytest
-        run: |
-          cd ${{ env.folder }}
-
-          # Run tests
           make pip
-          make pytest
+          make pytest_coverage
 
-  notebooks:
+      - name: Upload coverage reports to Codecov
+        # Coverage should also be uploaded even if tests fail
+        if: always()
+        uses: codecov/codecov-action@v3
+        with:
+          flags: ${{ env.folder }}
+
+  multimodal-notebooks:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -105,9 +105,22 @@ jobs:
         run: |
           cd ${{ env.folder }}
           ipython kernel install --name "python3" --user
-          PIP_SOURCE="git+https://github.com/microsoft/hi-ml.git@${BRANCH_NAME}#subdirectory=hi-ml-multimodal"
+          REPO_URL="https://github.com/microsoft/hi-ml.git"
+          SUBDIR_STR="subdirectory=${{ env.folder }}"
+          PIP_SOURCE="git+${REPO_URL}@${BRANCH_NAME}#${SUBDIR_STR}"
+          IN_NB_PATH="notebooks/phrase_grounding.ipynb"
+          OUT_NB_PATH="/tmp/phrase_grounding_output.ipynb"
           echo "The package will be installed from: $PIP_SOURCE"
           papermill \
             --parameters pip_source $PIP_SOURCE \
-            notebooks/phrase_grounding.ipynb \
-            /tmp/phrase_grounding_output.ipynb
+            $IN_NB_PATH \
+            $OUT_NB_PATH
+
+  multimodal-pr-completed:
+    runs-on: ubuntu-20.04
+    if: "!startsWith(github.ref, 'refs/tags/v')"
+    needs: [multimodal-flake8, multimodal-mypy, multimodal-pytest, multimodal-notebooks]
+    steps:
+      - name: Final PR Job
+        run: |
+          echo "All multimodal PR jobs have passed"

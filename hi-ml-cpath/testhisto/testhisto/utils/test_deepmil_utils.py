@@ -32,7 +32,7 @@ def test_load_ssl_checkpoint_from_local_file(tmp_path: Path) -> None:
         encoder_type=SSLEncoder.__name__, ssl_checkpoint=CheckpointParser(str(local_checkpoint_path))
     )
     assert encoder_params.ssl_checkpoint.is_local_file
-    ssl_checkpoint_path = encoder_params.ssl_checkpoint.get_path(tmp_path)
+    ssl_checkpoint_path = encoder_params.ssl_checkpoint.get_or_download_checkpoint(tmp_path)
     assert ssl_checkpoint_path.exists()
     assert ssl_checkpoint_path == local_checkpoint_path
     with patch("health_cpath.models.encoders.SSLEncoder._get_encoder") as mock_get_encoder:
@@ -41,7 +41,6 @@ def test_load_ssl_checkpoint_from_local_file(tmp_path: Path) -> None:
         assert isinstance(encoder, SSLEncoder)
 
 
-@pytest.mark.skip(reason="This test is failing because of issue #655")
 def test_load_ssl_checkpoint_from_url(tmp_path: Path) -> None:
     blob_url = get_checkpoint_url_from_aml_run(
         run_id=TEST_SSL_RUN_ID,
@@ -50,21 +49,18 @@ def test_load_ssl_checkpoint_from_url(tmp_path: Path) -> None:
         aml_workspace=DEFAULT_WORKSPACE.workspace)
     encoder_params = EncoderParams(encoder_type=SSLEncoder.__name__, ssl_checkpoint=CheckpointParser(blob_url))
     assert encoder_params.ssl_checkpoint.is_url
-    ssl_checkpoint_path = encoder_params.ssl_checkpoint.get_path(tmp_path)
+    ssl_checkpoint_path = encoder_params.ssl_checkpoint.get_or_download_checkpoint(tmp_path)
     assert ssl_checkpoint_path.exists()
     assert ssl_checkpoint_path == tmp_path / MODEL_WEIGHTS_DIR_NAME / LAST_CHECKPOINT_FILE_NAME
     encoder = encoder_params.get_encoder(tmp_path)
     assert isinstance(encoder, SSLEncoder)
 
 
-@pytest.mark.skip(reason="This test is failing because of issue #655")
 def test_load_ssl_checkpoint_from_run_id(tmp_path: Path) -> None:
     encoder_params = EncoderParams(encoder_type=SSLEncoder.__name__, ssl_checkpoint=CheckpointParser(TEST_SSL_RUN_ID))
     assert encoder_params.ssl_checkpoint.is_aml_run_id
-    with patch("health_ml.utils.checkpoint_utils.get_workspace") as mock_get_workspace:
-        mock_get_workspace.return_value = DEFAULT_WORKSPACE.workspace
-        ssl_checkpoint_path = encoder_params.ssl_checkpoint.get_path(tmp_path)
-        assert ssl_checkpoint_path.exists()
-        assert ssl_checkpoint_path == tmp_path / TEST_SSL_RUN_ID / LAST_CHECKPOINT
-        encoder = encoder_params.get_encoder(tmp_path)
-        assert isinstance(encoder, SSLEncoder)
+    ssl_checkpoint_path = encoder_params.ssl_checkpoint.get_or_download_checkpoint(tmp_path)
+    assert ssl_checkpoint_path.exists()
+    assert ssl_checkpoint_path == tmp_path / TEST_SSL_RUN_ID / LAST_CHECKPOINT
+    encoder = encoder_params.get_encoder(tmp_path)
+    assert isinstance(encoder, SSLEncoder)

@@ -7,7 +7,7 @@ import shutil
 import sys
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, DEFAULT, create_autospec
 
 import pytest
 from _pytest.capture import SysCapture
@@ -111,6 +111,31 @@ def test_additional_aml_run_tags(mock_runner: Runner) -> None:
         assert "commandline_args" in mock_submit_to_azure_if_needed.call_args[1]["tags"]
         assert "tag" in mock_submit_to_azure_if_needed.call_args[1]["tags"]
         assert "max_epochs" in mock_submit_to_azure_if_needed.call_args[1]["tags"]
+
+
+def test_additional_environment_variables(mock_runner: Runner) -> None:
+    model_name = "HelloWorld"
+    arguments = ["", f"--model={model_name}", "--cluster=foo"]
+    with patch.multiple(
+        "health_ml.runner",
+        submit_to_azure_if_needed=DEFAULT,
+        check_conda_environment=DEFAULT,
+        get_workspace=DEFAULT,
+        get_ml_client=DEFAULT,
+    ) as mocks:
+        with patch("health_ml.runner.Runner.run_in_situ"):
+            with patch("health_ml.runner.Runner.parse_and_load_model"):
+                with patch("health_ml.runner.Runner.validate"):
+                    with patch.object(sys, "argv", arguments):
+                        mock_container = create_autospec(LightningContainer)
+                        mock_container.get_additional_environment_variables = MagicMock(return_value={"foo": "bar"})
+                        mock_runner.lightning_container = mock_container
+                        mock_runner.run()
+        mocks["submit_to_azure_if_needed"].assert_called_once()
+        mock_env_vars = mocks["submit_to_azure_if_needed"].call_args[1]["environment_variables"]
+        assert DEBUG_DDP_ENV_VAR in mock_env_vars
+        assert "foo" in mock_env_vars
+        assert mock_env_vars["foo"] == "bar"
 
 
 def test_run(mock_runner: Runner) -> None:

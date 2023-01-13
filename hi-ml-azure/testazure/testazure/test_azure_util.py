@@ -13,7 +13,7 @@ import time
 from argparse import ArgumentParser, Namespace, ArgumentError
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, Generator, List, Optional, Set, Tuple, Union
 from unittest import mock
 from unittest.mock import DEFAULT, MagicMock, patch
 from uuid import uuid4
@@ -29,18 +29,27 @@ from _pytest.logging import LogCaptureFixture
 from azure.identity import (ClientSecretCredential, DeviceCodeCredential, DefaultAzureCredential)
 from azure.storage.blob import ContainerClient
 from azureml.core import Experiment, Run, ScriptRunConfig, Workspace
-from azureml.core.authentication import ServicePrincipalAuthentication
 from azureml.core.environment import CondaDependencies
 from azure.core.exceptions import ClientAuthenticationError, ResourceNotFoundError
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
 import health_azure.utils as util
 from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore, effective_experiment_name
-from health_azure.utils import (ENV_MASTER_ADDR, ENV_MASTER_PORT, MASTER_PORT_DEFAULT,
-                                PackageDependency, create_argparser, get_credential)
+from health_azure.utils import (ENV_MASTER_ADDR,
+                                ENV_MASTER_PORT,
+                                MASTER_PORT_DEFAULT,
+                                PackageDependency,
+                                create_argparser,
+                                download_files_by_suffix,
+                                get_credential,
+                                download_file_if_necessary)
 from testazure.test_himl import RunTarget, render_and_run_test_script
-from testazure.utils_testazure import (DEFAULT_IGNORE_FOLDERS, DEFAULT_WORKSPACE, MockRun, change_working_directory,
-                                       experiment_for_unittests, himl_azure_root, repository_root)
+from testazure.utils_testazure import (DEFAULT_IGNORE_FOLDERS,
+                                       DEFAULT_WORKSPACE,
+                                       MockRun,
+                                       create_unittest_run_object,
+                                       experiment_for_unittests,
+                                       repository_root)
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
@@ -52,68 +61,6 @@ def oh_no() -> None:
     Raise a simple exception. To be used as a side_effect for mocks.
     """
     raise ValueError("Throwing an exception")
-
-
-@pytest.mark.fast()
-def test_find_file_in_parent_folders(caplog: LogCaptureFixture) -> None:
-    current_file_path = Path(__file__)
-    # If no start_at arg is provided, will start looking for file at current working directory.
-    # First mock this to be the hi-ml-azure root
-    himl_az_root = himl_azure_root()
-    himl_azure_test_root = himl_az_root / "testazure" / "testazure"
-    with patch("health_azure.utils.Path.cwd", return_value=himl_azure_test_root):
-        # current_working_directory = Path.cwd()
-        found_file_path = util.find_file_in_parent_folders(
-            file_name=current_file_path.name,
-            stop_at_path=[himl_az_root]
-        )
-        last_caplog_msg = caplog.messages[-1]
-        assert found_file_path == current_file_path
-        assert f"Searching for file {current_file_path.name} in {himl_azure_test_root}" in last_caplog_msg
-
-        # Now try to search for a nonexistent path in the same folder. This should return None
-        nonexistent_path = himl_az_root / "idontexist.py"
-        assert not nonexistent_path.is_file()
-        assert util.find_file_in_parent_folders(
-            file_name=nonexistent_path.name,
-            stop_at_path=[himl_az_root]
-        ) is None
-
-        # Try to find the first path (i.e. current file name) when starting in a different folder.
-        # This should not work
-        assert util.find_file_in_parent_folders(
-            file_name=current_file_path.name,
-            stop_at_path=[himl_az_root],
-            start_at_path=himl_az_root
-        ) is None
-
-    # Try to find the first path (i.e. current file name) when current working directory is not the testazure
-    # folder. This should not work
-    with patch("health_azure.utils.Path.cwd", return_value=himl_az_root):
-        assert not (himl_az_root / current_file_path.name).is_file()
-        assert util.find_file_in_parent_folders(
-            file_name=current_file_path.name,
-            stop_at_path=[himl_az_root.parent]
-        ) is None
-
-
-@pytest.mark.fast
-def test_find_file_in_parent_to_pythonpath(tmp_path: Path) -> None:
-    file_name = "some_file.json"
-    file = tmp_path / file_name
-    file.touch()
-    python_root = tmp_path / "python_root"
-    python_root.mkdir(exist_ok=False)
-    start_path = python_root / "starting_directory"
-    start_path.mkdir(exist_ok=False)
-    where_are_we_now = Path.cwd()
-    os.chdir(start_path)
-    found_file = util.find_file_in_parent_to_pythonpath(file_name)
-    assert found_file
-    with mock.patch.dict(os.environ, {"PYTHONPATH": str(python_root)}):
-        found_file = util.find_file_in_parent_to_pythonpath(file_name)
-        assert not found_file
-    os.chdir(where_are_we_now)
 
 
 def test_is_running_in_azureml() -> None:
@@ -131,49 +78,6 @@ def test_is_running_in_azureml() -> None:
         # We can't try that with the default argument because of Python's handling of mutable default arguments
         # (default argument value has been assigned already before mocking)
         assert util.is_running_in_azure_ml(util.RUN_CONTEXT)
-
-
-@pytest.mark.fast
-@patch("health_azure.utils.Workspace.from_config")
-@patch("health_azure.utils.get_authentication")
-@patch("health_azure.utils.Workspace")
-def test_get_workspace(
-        mock_workspace: mock.MagicMock,
-        mock_get_authentication: mock.MagicMock,
-        mock_from_config: mock.MagicMock,
-        tmp_path: Path) -> None:
-    # Test the case when running on AML
-    with patch("health_azure.utils.RUN_CONTEXT") as mock_run_context:
-        mock_run_context.experiment = MagicMock(workspace=mock_workspace)
-        workspace = util.get_workspace(None, None)
-        assert workspace == mock_workspace
-
-    # Test the case when a workspace object is provided. The test always runs outside AzureML, and should return the
-    # workspace object unchanged
-    mock_workspace2 = "foo"
-    workspace = util.get_workspace(mock_workspace2, None)  # type: ignore
-    assert workspace == mock_workspace2
-
-    # Test the case when a workspace config path is provided
-    mock_get_authentication.return_value = "auth"
-    _ = util.get_workspace(None, Path(__file__))
-    mock_from_config.assert_called_once_with(path=__file__, auth="auth")
-
-    # Work off a temporary directory: No config file is present
-    with change_working_directory(tmp_path):
-        with pytest.raises(ValueError) as ex:
-            util.get_workspace(None, None)
-        assert "No workspace config file given" in str(ex)
-
-    # Workspace config file is set to a file that does not exist
-    with pytest.raises(ValueError) as ex:
-        util.get_workspace(None, workspace_config_path=tmp_path / "does_not_exist")
-    assert "Workspace config file does not exist" in str(ex)
-
-    # Workspace config file is set to a wrong type
-    with pytest.raises(ValueError) as ex:
-        util.get_workspace(None, workspace_config_path=1)  # type: ignore
-    assert "Workspace config path is not a path" in str(ex)
 
 
 @patch("health_azure.utils.Run")
@@ -217,40 +121,6 @@ def test_fetch_run_for_experiment(get_run: MagicMock, mock_experiment: MagicMock
         util.fetch_run_for_experiment(mock_experiment, RUN_ID)
     exp = f"Run {RUN_ID} not found for experiment: {EXPERIMENT_NAME}. Available runs are: {RUN_ID}, {RUN_ID}, {RUN_ID}"
     assert str(e.value) == exp
-
-
-@patch("health_azure.utils.InteractiveLoginAuthentication")
-def test_get_authentication(mock_interactive_authentication: MagicMock) -> None:
-    with mock.patch.dict(os.environ, {}, clear=True):
-        util.get_authentication()
-        assert mock_interactive_authentication.called
-    service_principal_id = "1"
-    tenant_id = "2"
-    service_principal_password = "3"
-    with mock.patch.dict(
-            os.environ,
-            {
-                util.ENV_SERVICE_PRINCIPAL_ID: service_principal_id,
-                util.ENV_TENANT_ID: tenant_id,
-                util.ENV_SERVICE_PRINCIPAL_PASSWORD: service_principal_password
-            },
-            clear=True):
-        spa = util.get_authentication()
-        assert isinstance(spa, ServicePrincipalAuthentication)
-        assert spa._service_principal_id == service_principal_id
-        assert spa._tenant_id == tenant_id
-        assert spa._service_principal_password == service_principal_password
-
-
-def test_get_secret_from_environment() -> None:
-    env_variable_name = uuid4().hex.upper()
-    env_variable_value = "42"
-    with pytest.raises(ValueError) as e:
-        util.get_secret_from_environment(env_variable_name)
-    assert str(e.value) == f"There is no value stored for the secret named '{env_variable_name}'"
-    assert util.get_secret_from_environment(env_variable_name, allow_missing=True) is None
-    with mock.patch.dict(os.environ, {env_variable_name: env_variable_value}):
-        assert util.get_secret_from_environment(env_variable_name) == env_variable_value
 
 
 def test_to_azure_friendly_string() -> None:
@@ -2509,3 +2379,99 @@ def test_filter_v2_input_output_args() -> None:
     expected_filtered = ["--input_0=input0", "--a=foo"]
     actual_filtered = util.filter_v2_input_output_args(args_to_filter)
     _compare_args(expected_filtered, actual_filtered)
+
+
+def test_download_from_run(tmp_path: Path) -> None:
+    """Test if a file can be downloaded from a run, and if download is skipped on ranks other than zero."""
+    path_on_aml = "outputs/test.txt"
+    local_file = tmp_path / "test.txt"
+    local_content = "mock content"
+    local_file.write_text(local_content)
+    run = create_unittest_run_object()
+    try:
+        run.upload_file(path_on_aml, str(local_file))
+        run.flush()
+        download_path = tmp_path / "downloaded.txt"
+        with mock.patch("health_azure.utils.is_local_rank_zero", return_value=True):
+            download_file_if_necessary(run, path_on_aml, download_path)
+        assert download_path.is_file(), "File was not downloaded"
+        assert download_path.read_text() == local_content, "Downloaded file content is incorrect"
+
+        download_path2 = tmp_path / "downloaded2.txt"
+        with mock.patch("health_azure.utils.is_local_rank_zero", return_value=False):
+            download_file_if_necessary(run, path_on_aml, download_path2)
+        assert not download_path2.is_file(), "No file should have been downloaded"
+    finally:
+        run.complete()
+
+
+@pytest.mark.parametrize('overwrite', [False, True])
+def test_download_from_run_if_necessary(tmp_path: Path, overwrite: bool) -> None:
+    """Test if downloading a file from a run works. """
+    filename = "test_output.csv"
+    download_dir = tmp_path
+    remote_filename = "outputs/" + filename
+    expected_local_path = download_dir / filename
+
+    def create_mock_file(name: str, output_file_path: str, _validate_checksum: bool) -> None:
+        output_path = Path(output_file_path)
+        print(f"Writing mock content to file {output_path}")
+        output_path.write_text("mock content")
+
+    run = MagicMock()
+    run.download_file.side_effect = create_mock_file
+
+    with mock.patch("health_azure.utils.is_local_rank_zero", return_value=True):
+        local_path = download_file_if_necessary(run, remote_filename, expected_local_path)
+        run.download_file.assert_called_once()
+        assert local_path == expected_local_path
+        assert local_path.exists()
+
+        run.reset_mock()
+        new_local_path = download_file_if_necessary(run, remote_filename, expected_local_path, overwrite=overwrite)
+        if overwrite:
+            run.download_file.assert_called_once()
+        else:
+            run.download_file.assert_not_called()
+        assert new_local_path == local_path
+        assert new_local_path.exists()
+
+
+def test_download_from_run_if_necessary_rank_nonzero(tmp_path: Path) -> None:
+    filename = "test_output.csv"
+    download_dir = tmp_path
+    remote_filename = "outputs/" + filename
+    expected_local_path = download_dir / filename
+
+    run = MagicMock()
+    run.download_file.side_effect = ValueError
+
+    with mock.patch("health_azure.utils.is_local_rank_zero", return_value=False):
+        local_path = download_file_if_necessary(run, remote_filename, expected_local_path)
+        assert local_path is not None
+        run.download_file.assert_not_called()
+
+
+@pytest.mark.parametrize(['files', 'expected_downloaded'], [
+    ([], []),
+    (["a.txt", "b.txt"], ["a.txt", "b.txt"]),
+    (["e.txt", "f.csv"], ["e.txt"])])
+def test_download_files_by_suffix(tmp_path: Path, files: List[str], expected_downloaded: List[str]) -> None:
+    """Test downloading files from a run returning a Generator
+
+    :param files: The files that should be available in the mocked run.
+    :param expected_downloaded: The names of the files that should be downloaded (filtered)
+    """
+    def mock_download(run: Run, file: str, output_file: Path, validate_checksum: bool) -> None:
+        output_file.write_text("mock content")
+
+    with mock.patch("health_azure.utils.get_run_file_names", return_value=files):
+        with mock.patch("health_azure.utils._download_file_from_run", side_effect=mock_download):
+            downloaded = download_files_by_suffix("outputs", tmp_path, ".txt")
+            assert isinstance(downloaded, Generator)
+            downloaded_list = list(downloaded)
+            assert len(downloaded_list) == len(expected_downloaded)
+            for f in downloaded_list:
+                assert f.is_file()
+            downloaded_filenames = [f.name for f in downloaded_list]
+            assert downloaded_filenames == expected_downloaded

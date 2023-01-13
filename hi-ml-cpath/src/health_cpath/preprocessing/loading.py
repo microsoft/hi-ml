@@ -12,6 +12,7 @@ from health_cpath.utils.naming import SlideKey
 from monai.data.wsi_reader import WSIReader
 from monai.transforms import MapTransform, LoadImaged
 from typing import Any, Callable, Dict, Optional, Tuple
+from health_azure.logging import print_message_with_rank_pid
 
 
 def get_luminance(slide: np.ndarray) -> np.ndarray:
@@ -71,8 +72,26 @@ class BaseLoadROId:
         self.level = level
         self.margin = margin
 
-    def _get_bounding_box(self, slide_obj: Any) -> box_utils.Box:
+    def _get_foreground_mask(self, slide_obj: Any, level: int) -> np.ndarray:
+        """Estimate foreground mask at the given level of the slide."""
         raise NotImplementedError
+
+    def _get_whole_slide_bbox(self, slide_obj: Any, level: int) -> box_utils.Box:
+        """Return a bounding box that covers the whole slide at the given level."""
+        h, w = self.reader.get_size(slide_obj, level=level)
+        return box_utils.Box(0, 0, w, h)
+
+    def _get_bounding_box(self, slide_obj: Any, slide_id: int) -> box_utils.Box:
+        """Estimate bounding box at the lowest resolution (i.e. highest level) of the slide."""
+        highest_level = self.reader.get_level_count(slide_obj) - 1
+        scale = self.reader.get_downsample_ratio(slide_obj, highest_level)
+        foreground_mask = self._get_foreground_mask(slide_obj, level=highest_level)
+        try:
+            bbox = box_utils.get_bounding_box(foreground_mask)
+        except RuntimeError as e:
+            print_message_with_rank_pid(f"Failed to estimate bounding box for slide {slide_id}: {e}")
+            bbox = self._get_whole_slide_bbox(slide_obj, level=highest_level)
+        return scale * bbox.add_margin(self.margin)
 
     def __call__(self, data: Dict) -> Dict:
         raise NotImplementedError
@@ -101,21 +120,17 @@ class LoadROId(MapTransform, BaseLoadROId):
         BaseLoadROId.__init__(self, image_key=image_key, **kwargs)
         self.foreground_threshold = foreground_threshold
 
-    def _get_bounding_box(self, slide_obj: Any) -> box_utils.Box:
-        """Estimate bounding box at the lowest resolution (i.e. highest level) of the slide."""
-        highest_level = self.reader.get_level_count(slide_obj) - 1
-        scale = self.reader.get_downsample_ratio(slide_obj, highest_level)
-        slide, _ = self.reader.get_data(slide_obj, level=highest_level)
-
+    def _get_foreground_mask(self, slide_obj: Any, level: int) -> np.ndarray:
+        """Estimate foreground mask at the highest resolution (i.e. lowest level) of the slide based on luminance."""
+        slide, _ = self.reader.get_data(slide_obj, level=level)
         foreground_mask, threshold = segment_foreground(slide, self.foreground_threshold)
         self.foreground_threshold = threshold
-        bbox = scale * box_utils.get_bounding_box(foreground_mask).add_margin(self.margin)
-        return bbox
+        return foreground_mask
 
     def __call__(self, data: Dict) -> Dict:
         try:
             image_obj = self.reader.read(data[self.image_key])
-            level0_bbox = self._get_bounding_box(image_obj)
+            level0_bbox = self._get_bounding_box(image_obj, data[SlideKey.SLIDE_ID])
 
             # cuCIM/OpenSlide takes absolute location coordinates in the level 0 reference frame,
             # but relative region size in pixels at the chosen level
@@ -154,25 +169,18 @@ class LoadMaskROId(MapTransform, BaseLoadROId):
         BaseLoadROId.__init__(self, image_key=image_key, **kwargs)
         self.mask_key = mask_key
 
-    def _get_bounding_box(self, mask_obj: Any) -> box_utils.Box:
-        """Estimate bounding box at the lowest resolution (i.e. highest level) of the mask."""
-        highest_level = self.reader.get_level_count(mask_obj) - 1
-        scale = self.reader.get_downsample_ratio(mask_obj, highest_level)
-        mask, _ = self.reader.get_data(mask_obj, level=highest_level)  # loaded as RGB PIL image
-
+    def _get_foreground_mask(self, mask_obj: Any, level: int) -> np.ndarray:
+        """Load foreground mask at the given level of the slide."""
+        mask, _ = self.reader.get_data(mask_obj, level=level)  # loaded as RGB PIL image
         foreground_mask = mask[0] > 0  # PANDA segmentation mask is in 'R' channel
-
-        bbox = box_utils.get_bounding_box(foreground_mask)
-        padded_bbox = bbox.add_margin(self.margin)
-        scaled_bbox = scale * padded_bbox
-        return scaled_bbox
+        return foreground_mask
 
     def __call__(self, data: Dict) -> Dict:
         try:
             mask_obj = self.reader.read(data[self.mask_key])
             image_obj = self.reader.read(data[self.image_key])
 
-            level0_bbox = self._get_bounding_box(mask_obj)
+            level0_bbox = self._get_bounding_box(mask_obj, data[SlideKey.SLIDE_ID])
 
             # cuCIM/OpenSlide take absolute location coordinates in the level 0 reference frame,
             # but relative region size in pixels at the chosen level

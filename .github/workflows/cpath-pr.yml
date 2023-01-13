@@ -13,10 +13,14 @@ on:
       - "hi-ml-azure/**"
       - "hi-ml/**"
 
+# Cancel previous runs of this workflow that are still in progress.
+concurrency:
+  group: ${{ github.ref }}/cpath-pr
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
 env:
   pythonVersion: 3.9
   folder: hi-ml-cpath
-  module_for_coverage_reporting: health_cpath
   HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
   HIML_RESOURCE_GROUP: ${{ secrets.HIML_RESOURCE_GROUP }}
   HIML_SUBSCRIPTION_ID: ${{ secrets.HIML_SUBSCRIPTION_ID }}
@@ -37,7 +41,7 @@ jobs:
       - name: Cancel previous AzureML runs
         uses: ./.github/actions/cancel_azureml_jobs
 
-  flake8:
+  cpath-flake8:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -55,7 +59,7 @@ jobs:
           make pip_test
           make flake8
 
-  mypy:
+  cpath-mypy:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -73,9 +77,8 @@ jobs:
           make pip_test
           make mypy
 
-  pytest:
+  cpath-pytest:
     runs-on: ubuntu-20.04
-    needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -92,16 +95,33 @@ jobs:
           make pip_test
           make pytest_coverage
 
-      - name: Run GPU tests
-        # GPU tests should be run even if other tests fail
+      - name: Upload coverage reports to Codecov
+        # Coverage should also be uploaded if tests still fail.
+        # This will pick up the file coverage.xml from the test run
         if: always()
-        shell: bash -l {0}
+        uses: codecov/codecov-action@v3
+        with:
+            flags: ${{ env.folder }}
+
+  cpath-pytest-gpu:
+    runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Prepare Conda environment
+        uses: ./.github/actions/prepare_cpath_environment
+
+      - name: Run GPU tests
         run: |
-          python hi-ml-azure/run_pytest.py --mark=gpu --cluster=pr-gpu --conda_env=${{ env.folder }}/environment.yml --folder=${{ env.folder }} --coverage_module=${{ env.module_for_coverage_reporting }}
+          cd ${{ env.folder }}
+          make pytest_gpu
 
       - name: Upload coverage reports to Codecov
         # Coverage should also be uploaded if tests still fail.
-        # This will pick up both the files coverage.xml (from the normal tests) and pytest_gpu_coverage.xml (from the GPU tests).
+        # This will pick up the file pytest_gpu_coverage.xml from the GPU tests.
         if: always()
         uses: codecov/codecov-action@v3
         with:
@@ -283,12 +303,13 @@ jobs:
           cd ${{ env.folder }}
           make smoke_test_tiles_panda_no_ddp_sampler_aml
 
-  publish:
+  cpath-publish-pypi-package:
     runs-on: ubuntu-20.04
     needs: [
-      flake8,
-      mypy,
-      pytest,
+      cpath-flake8,
+      cpath-mypy,
+      cpath-pytest,
+      cpath-pytest-gpu,
       smoke_test_cucim_slidespandaimagenetmil,
       smoke_test_openslide_slidespandaimagenetmil,
       smoke_test_tilespandaimagenetmil,
@@ -342,3 +363,12 @@ jobs:
           password: ${{ secrets.PYPI_API_TOKEN }}
           packages_dir: ${{ env.folder }}/dist/
           verbose: true
+
+  cpath-pr-completed:
+    runs-on: ubuntu-20.04
+    if: "!startsWith(github.ref, 'refs/tags/v')"
+    needs: [ cpath-publish-pypi-package ]
+    steps:
+      - name: Final PR Job
+        run: |
+          echo "All cpath PR jobs have passed."

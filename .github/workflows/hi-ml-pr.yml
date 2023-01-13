@@ -11,6 +11,11 @@ on:
       - "hi-ml/**"
       - ".github/workflows/hi-ml-pr.yml"
 
+# Cancel previous runs of this workflow that are still in progress.
+concurrency:
+  group: ${{ github.ref }}/hi-ml-pr
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
 env:
   pythonVersion: 3.7
   HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
@@ -38,7 +43,7 @@ jobs:
       - name: Cancel previous AzureML runs
         uses: ./.github/actions/cancel_azureml_jobs
 
-  flake8:
+  himl-flake8:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -51,9 +56,11 @@ jobs:
           python-version: ${{ env.pythonVersion }}
 
       - name: flake8
-        run: make flake8
+        run: |
+          make pip_test
+          make flake8
 
-  mypy:
+  himl-mypy:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -66,9 +73,11 @@ jobs:
           python-version: ${{ env.pythonVersion }}
 
       - name: mypy
-        run: make mypy
+        run: |
+          make pip_test
+          make mypy
 
-  pyright:
+  himl-pyright:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -84,7 +93,7 @@ jobs:
           conda info
           make pyright
 
-  pytest_fast:
+  himl-pytest-fast:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
@@ -121,15 +130,16 @@ jobs:
         run: |
           cd ${{ matrix.folder }}
 
+          make pip_test
           # Install local package in editable mode
           make pip_local
 
           # Run fast tests
           make pytest_fast
 
-  build-python:
+  himl-build-python:
     runs-on: ubuntu-20.04
-    needs: [ pytest_fast ]
+    needs: [ himl-pytest-fast ]
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
@@ -153,9 +163,9 @@ jobs:
         with:
           folder: ${{ matrix.folder }}
 
-  test-artifact-pkg:
+  himl-test-artifact-pkg:
     runs-on: ubuntu-20.04
-    needs: [ build-python, cancel-azureml ]
+    needs: [ himl-build-python, cancel-azureml ]
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
@@ -214,9 +224,9 @@ jobs:
         with:
             flags: ${{ matrix.folder }}
 
-  publish-testpypi-pkg:
+  himl-publish-testpypi-pkg:
     runs-on: ubuntu-20.04
-    needs: [ test-artifact-pkg ]
+    needs: [ himl-test-artifact-pkg, himl-pyright, himl-mypy, himl-flake8 ]
     if: "!startsWith(github.ref, 'refs/tags/v')"
     strategy:
       matrix:
@@ -246,9 +256,9 @@ jobs:
           echo "Install this package version via:"
           echo "pip install --extra-""index-url https://test.pypi.org/simple ${{ steps.download.outputs.package_version }}"
 
-  publish-pypi-pkg:
+  himl-publish-pypi-pkg:
     runs-on: ubuntu-20.04
-    needs: [ test-artifact-pkg ]
+    needs: [ himl-test-artifact-pkg, himl-pyright, himl-mypy, himl-flake8 ]
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
@@ -271,9 +281,9 @@ jobs:
           password: ${{ env.PYPI_API_TOKEN }}
           packages_dir: ${{ matrix.folder }}/dist/
 
-  test-pypi-pkg:
+  himl-test-pypi-pkg:
     runs-on: ubuntu-20.04
-    needs: [ publish-pypi-pkg ]
+    needs: [ himl-publish-pypi-pkg ]
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
@@ -306,6 +316,7 @@ jobs:
           cd ${{ matrix.folder }}
 
           make pip_upgrade
+          make pip_test
 
           while ! pip install ${{ steps.download.outputs.package_version }}
           do
@@ -315,3 +326,12 @@ jobs:
 
           # Test with pytest, fast only
           make pytest_fast
+
+  hi-ml-pr-completed:
+    runs-on: ubuntu-20.04
+    if: "!startsWith(github.ref, 'refs/tags/v')"
+    needs: [ himl-publish-testpypi-pkg ]
+    steps:
+      - name: Final PR Job
+        run: |
+          echo "All hi-ml PR jobs have passed"

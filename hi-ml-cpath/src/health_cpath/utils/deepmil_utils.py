@@ -98,7 +98,7 @@ class EncoderParams(param.Parameterized):
         elif self.encoder_type == SSLEncoder.__name__:
             assert outputs_folder is not None, "outputs_folder cannot be None for SSLEncoder"
             encoder = SSLEncoder(
-                pl_checkpoint_path=self.ssl_checkpoint.get_path(outputs_folder),
+                pl_checkpoint_path=self.ssl_checkpoint.get_or_download_checkpoint(outputs_folder),
                 tile_size=self.tile_size,
                 n_channels=self.n_channels,
             )

@@ -1,5 +1,5 @@
-import logging
 import sys
+
 from pathlib import Path
 
 
@@ -15,5 +15,7 @@ for folder in paths_to_add:
         print(f"Adding to sys.path for running hi-ml: {full_folder}")
         sys.path.insert(0, full_folder)
 
-# Matplotlib is very talkative in DEBUG mode
-logging.getLogger('matplotlib').setLevel(logging.INFO)
+from health_ml.utils import health_ml_package_setup  # noqa: E402
+
+# Reduce logging noise in DEBUG mode
+health_ml_package_setup()

@@ -46,6 +46,7 @@ from health_azure.datasets import (
 from health_azure.utils import (
     DEFAULT_ENVIRONMENT_VARIABLES,
     ENV_EXPERIMENT_NAME,
+    ENV_WORKSPACE_NAME,
     ENVIRONMENT_VERSION,
     EXPERIMENT_RUN_SEPARATOR,
     WORKSPACE_CONFIG_JSON,
@@ -59,7 +60,6 @@ from health_azure.utils import (
 from testazure.test_data.make_tests import render_environment_yaml, render_test_script
 from testazure.utils_testazure import (
     DEFAULT_DATASTORE,
-    change_working_directory,
     get_shared_config_json,
     repository_root
 )
@@ -67,6 +67,7 @@ from testazure.utils_testazure import (
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXPECTED_QUEUED = "This command will be run in AzureML:"
 GITHUB_SHIBBOLETH = "GITHUB_RUN_ID"  # https://docs.github.com/en/actions/reference/environment-variables
+AZUREML_FLAG = himl.AZUREML_FLAG
 
 logger = logging.getLogger('test.health_azure')
 logger.setLevel(logging.DEBUG)
@@ -75,34 +76,17 @@ logger.setLevel(logging.DEBUG)
 # region Small fast local unit tests
 
 @pytest.mark.fast
-def test_submit_to_azure_if_needed_returns_immediately(tmp_path: Path) -> None:
+def test_submit_to_azure_if_needed_returns_immediately() -> None:
     """
-    Test that himl.submit_to_azure_if_needed can be called, and returns immediately.
+    Test that himl.submit_to_azure_if_needed can be called, and returns immediately if not submitting anything
+    to AzureML.
     """
-    shared_config_json = get_shared_config_json()
-    with check_config_json(tmp_path, shared_config_json=shared_config_json):
-
-        with pytest.raises(Exception) as ex:
-            himl.submit_to_azure_if_needed(
-                aml_workspace=None,
-                workspace_config_file=None,
-                entry_script=Path(__file__),
-                compute_cluster_name="foo",
-                snapshot_root_directory=Path(__file__).parent,
-                submit_to_azureml=True)
-        # N.B. This assert may fail when run locally since we may find a workspace_config_file through the call to
-        # _find_file(CONDA_ENVIRONMENT_FILE) in submit_to_azure_if_needed
-        if _is_running_in_github_pipeline():
-            assert "No workspace config file given, nor can we find one" in str(ex)
-
-        with mock.patch("sys.argv", [""]):
-            result = himl.submit_to_azure_if_needed(
-                entry_script=Path(__file__),
-                compute_cluster_name="foo",
-                conda_environment_file=shared_config_json)
-            assert isinstance(result, himl.AzureRunInfo)
-            assert not result.is_running_in_azure_ml
-            assert result.run is None
+    result = himl.submit_to_azure_if_needed(
+        entry_script=Path(__file__),
+        compute_cluster_name="foo")
+    assert isinstance(result, himl.AzureRunInfo)
+    assert not result.is_running_in_azure_ml
+    assert result.run is None
 
 
 def _is_running_in_github_pipeline() -> bool:
@@ -514,13 +498,15 @@ def test_invalid_entry_script(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError) as e:
         himl.create_script_run(
+            script_params=[],
             entry_script=problem_entry_script,
             snapshot_root_directory=snapshot_dir,
-            script_params=[])
+        )
     assert "entry script must be inside of the snapshot root directory" in str(e)
 
     with mock.patch("sys.argv", ["foo"]):
-        script_run = himl.create_script_run()
+        script_params = himl._get_script_params()
+        script_run = himl.create_script_run(script_params)
         assert script_run.source_directory == str(Path.cwd())
         assert script_run.script == "foo"
         assert script_run.arguments == []
@@ -535,26 +521,10 @@ def test_invalid_entry_script(tmp_path: Path) -> None:
 def test_get_script_params() -> None:
     expected_params = ["a string"]
     assert expected_params == himl._get_script_params(expected_params)
-    with mock.patch("sys.argv", ["", "a string", "--azureml"]):
+    with mock.patch("sys.argv", ["", "a string", AZUREML_FLAG]):
         assert expected_params == himl._get_script_params()
     with mock.patch("sys.argv", ["", "a string"]):
         assert expected_params == himl._get_script_params()
-
-
-@pytest.mark.fast
-@patch("health_azure.utils.is_running_in_azure_ml")
-def test_get_workspace_no_config(
-        mock_is_running_in_azure: mock.MagicMock,
-        tmp_path: Path) -> None:
-    """
-    Test if the workspace config path setting is ignored if a workspace is already given, and there is no config.json
-    file in the current directory.
-    """
-    mock_is_running_in_azure.return_value = False
-    with change_working_directory(tmp_path):
-        with pytest.raises(ValueError) as ex:
-            himl.submit_to_azure_if_needed(compute_cluster_name="foo", submit_to_azureml=True)
-        assert "No workspace config file given" in str(ex)
 
 
 @pytest.mark.fast
@@ -582,7 +552,7 @@ def test_submit_to_azure_if_needed_azure_return(
         output_folder=Path.cwd() / himl.OUTPUT_FOLDER,
         logs_folder=Path.cwd() / himl.LOGS_FOLDER)
     mock_generate_azure_datasets.return_value = expected_run_info
-    with mock.patch("sys.argv", ["", "--azureml"]):
+    with mock.patch("sys.argv", ["", AZUREML_FLAG]):
         run_info = himl.submit_to_azure_if_needed(
             aml_workspace=mock_workspace,
             entry_script=Path(__file__),
@@ -1030,7 +1000,10 @@ def render_and_run_test_script(path: Path,
                                               f"got a return code {code}"
 
     if run_target == RunTarget.LOCAL or not expected_pass:
-        assert EXPECTED_QUEUED not in captured
+        if AZUREML_FLAG in extra_args:
+            assert EXPECTED_QUEUED in captured
+        else:
+            assert EXPECTED_QUEUED not in captured
         return captured
     else:
         assert EXPECTED_QUEUED in captured
@@ -1064,7 +1037,9 @@ def render_and_run_test_script(path: Path,
 def test_invoking_hello_world_no_config(run_target: RunTarget, tmp_path: Path) -> None:
     """
     Test invoking rendered 'simple' / 'hello_world_template.txt' when there is no config file in the current working
-    directory. This should pass fine for local runs, but fail when trying to submit to AzureML.
+    directory, and no workspace is specified via environment variables. This should pass fine for local runs,
+    but fail when trying to submit to AzureML.
+
     :param run_target: Where to run the script.
     :param tmp_path: PyTest test fixture for temporary path.
     """
@@ -1077,16 +1052,19 @@ def test_invoking_hello_world_no_config(run_target: RunTarget, tmp_path: Path) -
     }
     extra_args = [f"--message={message_guid}"]
     expected_output = f"The message was: {message_guid}"
-    if run_target == RunTarget.LOCAL:
-        output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args,
-                                            expected_pass=True,
-                                            suppress_config_creation=True)
-        assert expected_output in output
-    else:
-        response = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args,
-                                              expected_pass=False,
-                                              suppress_config_creation=True)
-        assert "No workspace config file given" in response
+    # Setting only one of the environment variables to an empty string should trigger the failure when submitting
+    with patch.dict(os.environ, {ENV_WORKSPACE_NAME: ""}):
+        if run_target == RunTarget.LOCAL:
+            output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args,
+                                                expected_pass=True,
+                                                suppress_config_creation=True)
+            assert expected_output in output
+        else:
+            output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args,
+                                                expected_pass=False,
+                                                suppress_config_creation=True)
+            assert "Tried all ways of identifying the workspace" in output
+            assert expected_output not in output
 
 
 @pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])
@@ -1121,6 +1099,25 @@ def test_invoking_hello_world_config(run_target: RunTarget, use_package: bool, t
                                           "HIML_AZURE_TEST_PYPI_VERSION": '',
                                           "HIML_AZURE_PYPI_VERSION": ''}):
             output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
+    expected_output = f"The message was: {message_guid}"
+    assert expected_output in output
+
+
+def test_invoking_hello_world_using_azureml_flag(tmp_path: Path) -> None:
+    """
+    Test that invoking hello_world.py with the --azureml flag will submit to AzureML and not run locally.
+    :param tmp_path: PyTest test fixture for temporary path.
+    """
+
+    message_guid = uuid4().hex
+    parser_args = "parser.add_argument('-m', '--message', type=str, required=True, help='The message to print out')"
+    extra_options = {
+        'args': parser_args,
+        'body': 'print(f"The message was: {args.message}")',
+        'submit_to_azureml': None,
+    }
+    extra_args = [f"--message={message_guid}", AZUREML_FLAG]
+    output = render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options, extra_args, True)
     expected_output = f"The message was: {message_guid}"
     assert expected_output in output
 
@@ -1509,7 +1506,7 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock,
     Test that himl.submit_to_azure_if_needed can be called, and returns immediately.
     """
     cross_validation_metric_name = cross_validation_metric_name or ""
-    mock_sys_args.return_value = ["", "--azureml"]
+    mock_sys_args.return_value = ["", AZUREML_FLAG]
     with patch("health_azure.himl.get_ml_client") as mock_get_ml_client:
         mock_ml_client = MagicMock()
         mock_get_ml_client.return_value = mock_ml_client
@@ -1587,7 +1584,7 @@ def test_submit_to_azure_if_needed_v2() -> None:
 
     with patch.multiple(
         "health_azure.himl",
-        _package_setup=DEFAULT,
+        health_azure_package_setup=DEFAULT,
         get_workspace=DEFAULT,
         get_ml_client=DEFAULT,
         create_run_configuration=DEFAULT,

@@ -13,7 +13,7 @@ from health_ml.utils.checpoint_utils import CheckpointParser
 download_dir = 'outputs/checkpoints'
 checkpoint_parser = CheckpointParser(checkpoint='local/path/to/my_checkpoint/model.ckpt')
 print('Checkpoint', checkpoint_parser.checkpoint, 'is a local file', checkpoint_parser.is_local_file)
-local_file = parser.get_path(download_dir)
+local_file = parser.get_or_download_checkpoint(download_dir)
 ```
 
 - To download a checkpoint from a URL:
@@ -25,7 +25,7 @@ download_dir = 'outputs/checkpoints'
 checkpoint_parser = CheckpointParser('https://my_checkpoint_url.com/model.ckpt')
 print('Checkpoint', checkpoint_parser.checkpoint, 'is a URL', checkpoint_parser.is_url)
 # will dowload the checkpoint to download_dir/MODEL_WEIGHTS_DIR_NAME
-path_to_ckpt = checkpoint_parser.get_path(download_dir)
+path_to_ckpt = checkpoint_parser.get_or_download_checkpoint(download_dir)
 ```
 
 - Finally checkpoints from an Azure ML runs can be reused by providing an id in this format
@@ -39,7 +39,7 @@ from health_ml.utils.checpoint_utils import CheckpointParser
 
 checkpoint_parser = CheckpointParser('AzureML_run_id:best.ckpt')
 print('Checkpoint', checkpoint_parser.checkpoint, 'is a AML run', checkpoint_parser.is_aml_run_id)
-path_azure_ml_ckpt = checkpoint_parser.get_path(download_dir)
+path_azure_ml_ckpt = checkpoint_parser.get_or_download_checkpoint(download_dir)
 ```
 
 If the Azure ML run is in a different workspace, a temporary SAS URL to download the checkpoint can be generated as follow:
