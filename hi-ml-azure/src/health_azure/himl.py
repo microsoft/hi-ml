@@ -536,16 +536,16 @@ def submit_run_v2(workspace: Optional[Workspace],
     job_to_submit: Union[Command, Sweep]
     display_name = get_display_name_v2(tags)
 
+    # number of nodes and processes per node cannot be less than one
+    num_nodes = num_nodes if num_nodes >= 1 else 1
+    processes_per_node = processes_per_node if processes_per_node >= 1 else 1
+
     if hyperparam_args:
         param_sampling = hyperparam_args[PARAM_SAMPLING_ARG]
 
         for sample_param, choices in param_sampling.items():
             input_datasets_v2[sample_param] = choices.values[0]
             cmd += f" --{sample_param}=" + "${{inputs." + sample_param + "}}"
-
-        # number of nodes and processes per node cannot be less than one
-        num_nodes = num_nodes if num_nodes >= 1 else 1
-        processes_per_node_v2 = processes_per_node_v2 if processes_per_node_v2 >= 1 else 1
 
         command_job = command(
             code=str(snapshot_root_directory),

@@ -1706,15 +1706,14 @@ def test_submit_to_azure_v2_distributed() -> None:
 
     with patch.multiple(
         "health_azure.himl",
-        _package_setup=DEFAULT,
+        health_azure_package_setup=DEFAULT,
         get_workspace=DEFAULT,
         get_ml_client=DEFAULT,
         create_run_configuration=DEFAULT,
         create_script_run=DEFAULT,
         append_to_amlignore=DEFAULT,
         exit=DEFAULT
-    ) as mocks:
-
+    ):
         with patch("health_azure.himl.setup_local_datasets") as mock_setup_datasets:
             mock_setup_datasets.return_value = dummy_input_datasets, dummy_mount_contexts
             with patch("health_azure.himl.submit_run_v2") as mock_submit_run_v2:
@@ -1746,4 +1745,3 @@ def test_submit_to_azure_v2_distributed() -> None:
                 print(call_kwargs)
                 assert call_kwargs.get("num_nodes") == num_nodes
                 assert call_kwargs.get("processes_per_node") == processes_per_node
-
