@@ -340,6 +340,7 @@ def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with
             ml_runner_with_container,
             checkpoint_handler=mock.DEFAULT,
             load_model_checkpoint=mock.DEFAULT,
+            validate_model_weights=mock.DEFAULT,
             run_training=mock.DEFAULT,
             run_validation=mock.DEFAULT,
             run_inference=mock.DEFAULT,
@@ -353,12 +354,13 @@ def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with
             # here.
             assert ml_runner_with_container.container.has_custom_test_step()
             assert mocks["load_model_checkpoint"].called != run_inference_only
+            assert mocks["validate_model_weights"].called != run_inference_only
             assert ml_runner_with_container._has_setup_run
             assert ml_runner_with_container.checkpoint_handler.has_continued_training != run_inference_only
 
             assert mocks["run_training"].called != run_inference_only
             assert mocks["after_ddp_cleanup"].called != run_inference_only
-            assert mocks["run_validation"].called == run_extra_val_epoch or run_inference_only
+            mocks["run_validation"].assert_called_once()
             mocks["run_inference"].assert_called_once()
 
 
@@ -368,22 +370,28 @@ def test_run_inference_only(run_extra_val_epoch: bool, ml_runner_with_run_id: ML
     ml_runner_with_run_id.container.run_inference_only = True
     ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
     assert ml_runner_with_run_id.checkpoint_handler.trained_weights_path
+    mock_datamodule = MagicMock()
     with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
-        with patch.multiple(
-            ml_runner_with_run_id,
-            run_training=mock.DEFAULT,
-            validate_model_weights=mock.DEFAULT
-        ) as mocks:
-            mock_trainer = MagicMock()
-            mock_create_trainer.return_value = mock_trainer, MagicMock()
-            ml_runner_with_run_id.run()
-            mock_create_trainer.assert_called_once()
-            recovery_checkpoint = mock_create_trainer.call_args[1]["resume_from_checkpoint"]
-            assert recovery_checkpoint == ml_runner_with_run_id.checkpoint_handler.trained_weights_path
-            mocks["run_training"].assert_not_called()
-            mocks["validate_model_weights"].assert_not_called()
-            mock_trainer.validate.assert_called_once()
-            mock_trainer.test.assert_called_once()
+        with patch.object(ml_runner_with_run_id.container, "get_data_module", return_value=mock_datamodule):
+            with patch.multiple(
+                ml_runner_with_run_id,
+                run_training=mock.DEFAULT,
+                validate_model_weights=mock.DEFAULT,
+                load_model_checkpoint=mock.DEFAULT,
+            ) as mocks:
+                mock_trainer = MagicMock()
+                mock_create_trainer.return_value = mock_trainer, MagicMock()
+                ml_runner_with_run_id.run()
+                mock_create_trainer.assert_called_once()
+                mocks["run_training"].assert_not_called()
+                mocks["validate_model_weights"].assert_not_called()
+                mocks["load_model_checkpoint"].assert_not_called()
+                mock_trainer.validate.assert_called_once()
+                assert mock_trainer.validate.call_args[1]["ckpt_path"] == ml_runner_with_run_id.inference_ckpt
+                assert mock_trainer.validate.call_args[1]["datamodule"] == mock_datamodule
+                mock_trainer.test.assert_called_once()
+                assert mock_trainer.test.call_args[1]["ckpt_path"] == ml_runner_with_run_id.inference_ckpt
+                assert mock_trainer.test.call_args[1]["datamodule"] == mock_datamodule
 
 
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
