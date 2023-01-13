@@ -274,16 +274,6 @@ class MLRunner:
             return self.container.crossval_index == 0
         return True
 
-    def validate_model_weights(self) -> None:
-        logging.info("Validating model weights.")
-        weights = torch.load(self.checkpoint_handler.get_checkpoint_to_test())["state_dict"]
-        number_mismatch = 0
-        for name, param in self.container.model.named_parameters():
-            if not torch.allclose(weights[name].cpu(), param):
-                logging.warning(f"Parameter {name} does not match between model and checkpoint.")
-                number_mismatch += 1
-        logging.info(f"Number of mismatched parameters: {number_mismatch}")
-
     def get_trainer_for_inference(self, checkpoint_path: Optional[Path] = None) -> Trainer:
         # We run inference on a single device because distributed strategies such as DDP use DistributedSampler
         # internally, which replicates some samples to make sure all devices have the same batch size in case of
@@ -334,10 +324,21 @@ class MLRunner:
                 self.container.model, datamodule=self.container.get_data_module(), ckpt_path=str(checkpoint_path)
             )
 
+    def validate_model_weights(self) -> None:
+        logging.info("Validating model weights.")
+        weights = torch.load(self.checkpoint_handler.get_checkpoint_to_test())["state_dict"]
+        number_mismatch = 0
+        for name, param in self.container.model.named_parameters():
+            if not torch.allclose(weights[name].cpu(), param):
+                logging.warning(f"Parameter {name} does not match between model and checkpoint.")
+                number_mismatch += 1
+        logging.info(f"Number of mismatched parameters: {number_mismatch}")
+
     def run_inference(self) -> None:
         """
         Run inference on the test set for all models.
         """
+
         if self.container.has_custom_test_step():
             # Run Lightning's built-in test procedure if the `test_step` method has been overridden
             logging.info("Running inference via the LightningModule.test_step method")
