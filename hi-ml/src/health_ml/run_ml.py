@@ -331,7 +331,7 @@ class MLRunner:
         trainer = self.get_trainer_for_inference(checkpoint_path)
         with change_working_directory(self.container.outputs_folder):
             trainer.validate(
-                self.container.model, datamodule=self.container.get_data_module(), ckpt_path=checkpoint_path
+                self.container.model, datamodule=self.container.get_data_module(), ckpt_path=str(checkpoint_path)
             )
 
     def run_inference(self) -> None:
@@ -351,7 +351,7 @@ class MLRunner:
             # retained)
             with change_working_directory(self.container.outputs_folder):
                 _ = trainer.test(
-                    self.container.model, datamodule=self.container.get_data_module(), ckpt_path=checkpoint_path
+                    self.container.model, datamodule=self.container.get_data_module(), ckpt_path=str(checkpoint_path)
                 )
 
         else:
