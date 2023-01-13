@@ -330,7 +330,9 @@ class MLRunner:
         )
         trainer = self.get_trainer_for_inference(checkpoint_path)
         with change_working_directory(self.container.outputs_folder):
-            trainer.validate(self.container.model, datamodule=self.container.get_data_module())
+            trainer.validate(
+                self.container.model, datamodule=self.container.get_data_module(), ckpt_path=checkpoint_path
+            )
 
     def run_inference(self) -> None:
         """
@@ -348,7 +350,9 @@ class MLRunner:
             # everything is put into the right place in AzureML (there, only the contents of the "outputs" folder
             # retained)
             with change_working_directory(self.container.outputs_folder):
-                _ = trainer.test(self.container.model, datamodule=self.data_module)
+                _ = trainer.test(
+                    self.container.model, datamodule=self.container.get_data_module(), ckpt_path=checkpoint_path
+                )
 
         else:
             logging.warning("None of the suitable test methods is overridden. Skipping inference completely.")
