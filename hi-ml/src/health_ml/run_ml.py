@@ -310,7 +310,8 @@ class MLRunner:
         4. Create a new data module instance for inference to account for any requested changes in the dataloading
            parameters like batch size, max number of workers, etc.
         """
-        self.container.on_run_extra_validation_epoch()
+        if self.container.run_extra_val_epoch:
+            self.container.on_run_extra_validation_epoch()
         if self.container.run_inference_only:
             self.inference_ckpt = str(self.checkpoint_handler.get_checkpoint_to_test())
         elif self.container.has_custom_test_step() or self.container.run_extra_val_epoch:
