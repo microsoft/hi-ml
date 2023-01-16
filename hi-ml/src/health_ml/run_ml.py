@@ -401,7 +401,7 @@ class MLRunner:
 
             self.init_inference()
 
-            with logging_section("Model Validation to save plots on validation set"):
+            with logging_section("Model Validation"):
                 self.run_validation()
 
             with logging_section("Model inference"):
