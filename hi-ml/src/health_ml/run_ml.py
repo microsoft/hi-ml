@@ -292,7 +292,7 @@ class MLRunner:
         4. Create a new data module instance for inference to account for any requested changes in the dataloading
         parameters (e.g. batch_size, max_num_workers, etc) as part of on_run_extra_validation_epoch.
         """
-        self.inference_ckpt = self.checkpoint_handler.get_checkpoint_to_test()
+        self.inference_ckpt = str(self.checkpoint_handler.get_checkpoint_to_test())
         if self.container.run_extra_val_epoch:
             self.container.on_run_extra_validation_epoch()
         self.set_trainer_for_inference()
@@ -394,7 +394,7 @@ class MLRunner:
                 # Do training
                 with logging_section("Model training"):
                     self.run_training()
-                # Save the checkpoint handler state
+                # Update the checkpoint handler state
                 self.checkpoint_handler.additional_training_done()
                 # Kill all processes besides rank 0 after training is done to start inference on a single device
                 self.after_ddp_cleanup(old_environ)
