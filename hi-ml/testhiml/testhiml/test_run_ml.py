@@ -376,16 +376,13 @@ def test_run_inference_only(run_extra_val_epoch: bool, ml_runner_with_run_id: ML
             with patch.multiple(
                 ml_runner_with_run_id,
                 run_training=mock.DEFAULT,
-                validate_model_weights=mock.DEFAULT,
-                load_model_checkpoint=mock.DEFAULT,
             ) as mocks:
                 mock_trainer = MagicMock()
                 mock_create_trainer.return_value = mock_trainer, MagicMock()
                 ml_runner_with_run_id.run()
                 mock_create_trainer.assert_called_once()
                 mocks["run_training"].assert_not_called()
-                mocks["validate_model_weights"].assert_not_called()
-                mocks["load_model_checkpoint"].assert_not_called()
+
                 mock_trainer.validate.assert_called_once()
                 assert mock_trainer.validate.call_args[1]["ckpt_path"] == ml_runner_with_run_id.inference_checkpoint
                 assert mock_trainer.validate.call_args[1]["datamodule"] == mock_datamodule
@@ -400,10 +397,18 @@ def test_resume_training_from_run_id(run_extra_val_epoch: bool, ml_runner_with_r
     ml_runner_with_run_id.container.max_num_gpus = 0
     ml_runner_with_run_id.container.max_epochs += 10
     assert ml_runner_with_run_id.checkpoint_handler.trained_weights_path
-    with patch.multiple(ml_runner_with_run_id, run_validation=mock.DEFAULT, run_inference=mock.DEFAULT) as mocks:
-        ml_runner_with_run_id.run()
-        assert mocks["run_validation"].called == run_extra_val_epoch
-        mocks["run_inference"].assert_called_once()
+    mock_trainer = MagicMock()
+    with patch("health_ml.run_ml.create_lightning_trainer", return_value=(mock_trainer, MagicMock())):
+        with patch.multiple(ml_runner_with_run_id, run_validation=mock.DEFAULT, run_inference=mock.DEFAULT) as mocks:
+            with patch.object(ml_runner_with_run_id.container, "get_checkpoint_to_test") as mock_get_checkpoint_to_test:
+                with patch.object(ml_runner_with_run_id, "after_ddp_cleanup") as mock_after_ddp_cleanup:
+                    mock_get_checkpoint_to_test.return_value = MagicMock(is_file=MagicMock(return_value=True))
+                    ml_runner_with_run_id.run()
+                    mock_after_ddp_cleanup.assert_called_once()
+                    mock_get_checkpoint_to_test.assert_called_once()
+                    mocks["run_validation"].assert_called_once()
+                    assert mock_trainer.validate.called == run_extra_val_epoch
+                    mocks["run_inference"].assert_called_once()
 
 
 def test_model_weights_when_resume_training() -> None:
