@@ -20,11 +20,11 @@ from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.run_ml import MLRunner, get_mlflow_run_id_from_previous_loggers
+from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_ml.utils.common_utils import is_gpu_available
 from health_ml.utils.lightning_loggers import HimlMLFlowLogger, StoringLogger
 from health_azure.utils import ENV_EXPERIMENT_NAME, is_global_rank_zero
-from health_ml.utils.type_annotations import PathOrString
 from testazure.utils_testazure import DEFAULT_WORKSPACE, experiment_for_unittests
 from testhiml.utils.fixed_paths_for_tests import mock_run_id
 
@@ -81,13 +81,18 @@ def test_ml_runner_setup(ml_runner_no_setup: MLRunner) -> None:
     """Check that all the necessary methods get called during setup"""
     assert not ml_runner_no_setup._has_setup_run
     with patch.object(ml_runner_no_setup, "container", spec=LightningContainer) as mock_container:
-        with patch("health_ml.run_ml.seed_everything") as mock_seed:
-            ml_runner_no_setup.setup()
-            mock_container.get_effective_random_seed.assert_called()
-            mock_container.setup.assert_called_once()
-            mock_container.create_lightning_module_and_store.assert_called_once()
-            assert ml_runner_no_setup._has_setup_run
-            mock_seed.assert_called_once()
+        with patch.object(ml_runner_no_setup, "checkpoint_handler", spec=CheckpointHandler) as mock_checkpoint_handler:
+            with patch("health_ml.run_ml.seed_everything") as mock_seed:
+                with patch("health_ml.run_ml.seed_monai_if_available") as mock_seed_monai:
+                    ml_runner_no_setup.setup()
+                    mock_container.get_effective_random_seed.assert_called()
+                    mock_seed.assert_called_once()
+                    mock_seed_monai.assert_called_once()
+                    mock_container.create_filesystem.assert_called_once()
+                    mock_checkpoint_handler.download_recovery_checkpoints_or_weights.assert_called_once()
+                    mock_container.setup.assert_called_once()
+                    mock_container.create_lightning_module_and_store.assert_called_once()
+                    assert ml_runner_no_setup._has_setup_run
 
 
 def test_set_run_tags_from_parent(ml_runner: MLRunner) -> None:
@@ -202,7 +207,7 @@ def test_run_training() -> None:
 
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
 @pytest.mark.parametrize("run_inference_only", [True, False])
-def test_init_inference(ml_runner_with_run_id: MLRunner, run_inference_only: bool, run_extra_val_epoch: bool) -> None:
+def test_init_inference(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with_run_id: MLRunner) -> None:
     ml_runner_with_run_id.container.run_inference_only = run_inference_only
     ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
     if not run_inference_only:
@@ -237,60 +242,27 @@ def test_init_inference(ml_runner_with_run_id: MLRunner, run_inference_only: boo
 @pytest.mark.parametrize("run_inference_only", [True, False])
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
 def test_run_validation(
-    ml_runner_with_run_id: MLRunner, run_extra_val_epoch: bool, run_inference_only: bool, caplog: LogCaptureFixture
+    run_extra_val_epoch: bool, run_inference_only: bool, ml_runner_with_run_id: MLRunner, caplog: LogCaptureFixture
 ) -> None:
-    """ Test that validation is run correctly """
     ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
     ml_runner_with_run_id.container.run_inference_only = run_inference_only
     ml_runner_with_run_id.init_training()
     mock_datamodule = MagicMock()
     with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
         with patch.object(ml_runner_with_run_id.container, "get_data_module", return_value=mock_datamodule):
-            with patch.multiple(ml_runner_with_run_id, validate_model_weights=mock.DEFAULT,
-                                load_model_checkpoint=mock.DEFAULT):
-                mock_trainer = MagicMock()
-                mock_create_trainer.return_value = mock_trainer, MagicMock()
-                ml_runner_with_run_id.init_inference()
-                assert ml_runner_with_run_id.trainer == mock_trainer
-                mock_trainer.validate = Mock()
-                ml_runner_with_run_id.run_validation()
-                if run_extra_val_epoch or run_inference_only:
-                    mock_trainer.validate.assert_called_once()
-                    assert mock_trainer.validate.call_args[1]["ckpt_path"] == ml_runner_with_run_id.inference_checkpoint
-                    assert mock_trainer.validate.call_args[1]["datamodule"] == mock_datamodule
-                else:
-                    assert "Skipping extra validation" in caplog.messages[-1]
-                    mock_trainer.validate.assert_not_called()
-
-
-@pytest.mark.parametrize("run_extra_val_epoch", [True, False])
-def test_model_extra_val_epoch(run_extra_val_epoch: bool) -> None:
-    """Test that the model extra val hook is called correctly"""
-    experiment_config = ExperimentConfig(model="HelloWorld")
-    container = HelloWorld()
-    container.run_extra_val_epoch = run_extra_val_epoch
-    container.run_inference_only = False
-    container.create_lightning_module_and_store()
-    runner = MLRunner(experiment_config=experiment_config, container=container)
-    runner.setup()
-    runner.init_training()
-    with patch(
-        "health_ml.configs.hello_world.HelloRegression.on_run_extra_validation_epoch"
-    ) as mock_on_run_extra_validation_epoch:
-        with patch.object(container, "get_data_module"):
-            with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
-                with patch.object(runner, "validate_model_weights") as mock_validate_model_weights:
-                    with patch.object(runner, "load_model_checkpoint") as mock_load_model_checkpoint:
-                        mock_trainer = MagicMock()
-                        mock_create_trainer.return_value = mock_trainer, MagicMock()
-                        runner.init_inference()
-                        assert mock_on_run_extra_validation_epoch.called
-                        if run_extra_val_epoch:
-                            mock_validate_model_weights.assert_called_once()
-                            mock_load_model_checkpoint.assert_called_once()
-                        mock_trainer.validate = Mock()
-                        runner.run_validation()
-                        assert mock_trainer.validate.called == run_extra_val_epoch
+            mock_trainer = MagicMock()
+            mock_create_trainer.return_value = mock_trainer, MagicMock()
+            ml_runner_with_run_id.init_inference()
+            assert ml_runner_with_run_id.trainer == mock_trainer
+            mock_trainer.validate = Mock()
+            ml_runner_with_run_id.run_validation()
+            if run_extra_val_epoch or run_inference_only:
+                mock_trainer.validate.assert_called_once()
+                assert mock_trainer.validate.call_args[1]["ckpt_path"] == ml_runner_with_run_id.inference_checkpoint
+                assert mock_trainer.validate.call_args[1]["datamodule"] == mock_datamodule
+            else:
+                assert "Skipping extra validation" in caplog.messages[-1]
+                mock_trainer.validate.assert_not_called()
 
 
 def test_model_extra_val_epoch_missing_hook(caplog: LogCaptureFixture) -> None:
@@ -304,16 +276,17 @@ def test_model_extra_val_epoch_missing_hook(caplog: LogCaptureFixture) -> None:
         container.create_lightning_module_and_store()
         container.run_extra_val_epoch = True
         runner = MLRunner(experiment_config=experiment_config, container=container)
+        runner.setup()
+        runner.checkpoint_handler.additional_training_done()
+        runner.container.outputs_folder.mkdir(parents=True, exist_ok=True)
         with patch.object(container, "get_data_module"):
-            with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
-                runner.setup()
-                mock_create_trainer.return_value = MagicMock(), MagicMock()
-                runner.init_training()
-                with patch.object(runner, "validate_model_weights") as mock_validate_model_weights:
+            with patch("health_ml.run_ml.create_lightning_trainer", return_value=(MagicMock(), MagicMock())):
+                with patch.object(runner.container, "get_checkpoint_to_test") as mock_get_checkpoint_to_test:
+                    mock_get_checkpoint_to_test.return_value = MagicMock(is_file=MagicMock(return_value=True))
+                    runner.init_inference()
                     runner.run_validation()
-                    mock_validate_model_weights.assert_called_once()
-                latest_message = caplog.records[-1].getMessage()
-                assert "Hook `on_run_extra_validation_epoch` is not implemented by lightning module." in latest_message
+                    latest_message = caplog.records[-1].getMessage()
+                    assert "Hook `on_run_extra_validation_epoch` is not implemented" in latest_message
 
 
 def test_run_inference(ml_runner_with_container: MLRunner, tmp_path: Path) -> None:
@@ -348,9 +321,9 @@ def test_run_inference(ml_runner_with_container: MLRunner, tmp_path: Path) -> No
 
     actual_train_ckpt_path = ml_runner_with_container.checkpoint_handler.get_recovery_or_checkpoint_path_train()
     assert actual_train_ckpt_path is None
-    with patch.object(ml_runner_with_container, "validate_model_weights") as mock_validate_model_weights:
-        ml_runner_with_container.run()
-        mock_validate_model_weights.assert_called_once()
+
+    ml_runner_with_container.run()
+
     actual_train_ckpt_path = ml_runner_with_container.checkpoint_handler.get_recovery_or_checkpoint_path_train()
     assert actual_train_ckpt_path == expected_ckpt_path
 
@@ -370,7 +343,7 @@ def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with
     ml_runner_with_container.setup()
     assert not ml_runner_with_container.checkpoint_handler.has_continued_training
 
-    with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+    with patch("health_ml.run_ml.create_lightning_trainer", return_value=(MagicMock(), MagicMock())):
         with patch.multiple(
             ml_runner_with_container,
             checkpoint_handler=mock.DEFAULT,
@@ -379,18 +352,14 @@ def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with
             run_inference=mock.DEFAULT,
             after_ddp_cleanup=mock.DEFAULT,
         ) as mocks:
-            mock_create_trainer.return_value = MagicMock(), MagicMock()
             ml_runner_with_container.run()
-
-            # Checkpoints will only be loaded explicitly when doing training. Checkpoint loading is guarded
-            # also by checking if the model has a custom test step, this is always True for the HelloWorld model used
-            # here.
             assert ml_runner_with_container.container.has_custom_test_step()
             assert ml_runner_with_container._has_setup_run
             assert ml_runner_with_container.checkpoint_handler.has_continued_training != run_inference_only
 
             assert mocks["run_training"].called != run_inference_only
             assert mocks["after_ddp_cleanup"].called != run_inference_only
+            assert mocks["checkpoint_handler"].additional_training_done.called != run_inference_only
             mocks["run_validation"].assert_called_once()
             mocks["run_inference"].assert_called_once()
 
