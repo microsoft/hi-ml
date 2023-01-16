@@ -938,7 +938,8 @@ def submit_to_azure_if_needed(  # type: ignore
                 after_submission(run)  # type: ignore
         else:
 
-            assert conda_environment_file is not None
+            if conda_environment_file is None:
+                raise ValueError("Argument 'conda_environment_file' must be specified when using AzureML v2")
             environment = create_python_environment_v2(
                 conda_environment_file=conda_environment_file,
                 docker_base_image=docker_base_image

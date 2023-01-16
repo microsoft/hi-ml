@@ -60,6 +60,8 @@ ENVIRONMENT_VERSION = "1"
 ENV_SERVICE_PRINCIPAL_ID = "HIML_SERVICE_PRINCIPAL_ID"
 ENV_SERVICE_PRINCIPAL_PASSWORD = "HIML_SERVICE_PRINCIPAL_PASSWORD"
 ENV_TENANT_ID = "HIML_TENANT_ID"
+
+# Environment variables used for workspace selection
 ENV_RESOURCE_GROUP = "HIML_RESOURCE_GROUP"
 ENV_SUBSCRIPTION_ID = "HIML_SUBSCRIPTION_ID"
 ENV_WORKSPACE_NAME = "HIML_WORKSPACE_NAME"
@@ -715,19 +717,28 @@ def find_file_in_parent_to_pythonpath(file_name: str) -> Optional[Path]:
 
 def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_path: Optional[Path] = None) -> Workspace:
     """
-    Retrieve an Azure ML Workspace from one of several places:
-      1. If the function has been called during an AML run (i.e. on an Azure agent), returns the associated workspace
-      2. If a Workspace object has been provided by the user, return that
-      3. If a path to a Workspace config file has been provided, load the workspace according to that.
+    Retrieve an Azure ML Workspace by going through the following steps:
 
-    If not running inside AML and neither a workspace nor the config file are provided, the code will try to locate a
-    config.json file in any of the parent folders of the current working directory. If that succeeds, that config.json
-    file will be used to instantiate the workspace.
+      1. If the function has been called from inside a run in AzureML, it returns the current AzureML workspace.
+
+      2. If a Workspace object has been provided in the `aml_workspace` argument, return that.
+
+      3. If a path to a Workspace config file has been provided, load the workspace according to that config file.
+
+      4. If a Workspace config file is present in the current working directory or one of its parents, load the
+        workspace according to that config file.
+
+      5. If 3 environment variables are found, use them to identify the workspace (`HIML_RESOURCE_GROUP`,
+        `HIML_SUBSCRIPTION_ID`, `HIML_WORKSPACE_NAME`)
+
+    If none of the above succeeds, an exception is raised.
 
     :param aml_workspace: If provided this is returned as the AzureML Workspace.
     :param workspace_config_path: If not provided with an AzureML Workspace, then load one given the information in this
         config
     :return: An AzureML workspace.
+    :raises ValueError: If none of the available options for accessing the workspace succeeds.
+    :raises FileNotFoundError: If the workspace config file is given in `workspace_config_path`, but is not present.
     """
     if is_running_in_azure_ml(RUN_CONTEXT):
         return RUN_CONTEXT.experiment.workspace
@@ -737,21 +748,35 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
         return aml_workspace
 
     if workspace_config_path is None:
+        logging.info(f"Trying to locate the workspace config file '{WORKSPACE_CONFIG_JSON}' in the current folder "
+                     "and its parent folders")
         workspace_config_path = find_file_in_parent_to_pythonpath(WORKSPACE_CONFIG_JSON)
         if workspace_config_path:
             logging.info(f"Using the workspace config file {str(workspace_config_path.absolute())}")
-        else:
-            raise ValueError("No workspace config file given, nor can we find one.")
 
-    if not isinstance(workspace_config_path, Path):
-        raise ValueError("Workspace config path is not a path, check your input.")
-    elif workspace_config_path.is_file():
-        auth = get_authentication()
+    auth = get_authentication()
+    if workspace_config_path is not None:
+        if not workspace_config_path.is_file():
+            raise FileNotFoundError(f"Workspace config file does not exist: {workspace_config_path}")
         workspace = Workspace.from_config(path=str(workspace_config_path), auth=auth)
-        logging.info(f"Logged into AzureML workspace {workspace.name}")
+        logging.info(f"Logged into AzureML workspace {workspace.name} as specified in config file "
+                     f"{workspace_config_path}")
         return workspace
 
-    raise ValueError("Workspace config file does not exist or cannot be read.")
+    logging.info("Trying to load the environment variables that define the workspace.")
+    workspace_name = get_secret_from_environment(ENV_WORKSPACE_NAME, allow_missing=True)
+    subscription_id = get_secret_from_environment(ENV_SUBSCRIPTION_ID, allow_missing=True)
+    resource_group = get_secret_from_environment(ENV_RESOURCE_GROUP, allow_missing=True)
+    if bool(workspace_name) and bool(subscription_id) and bool(resource_group):
+        workspace = Workspace.get(
+            name=workspace_name, auth=auth, subscription_id=subscription_id, resource_group=resource_group
+        )
+        logging.info(f"Logged into AzureML workspace {workspace.name} as specified by environment variables")
+        return workspace
+
+    raise ValueError("Tried all ways of identifying the workspace, but failed. Please provide a workspace config "
+                     f"file {WORKSPACE_CONFIG_JSON} or set the environment variables {ENV_RESOURCE_GROUP}, "
+                     f"{ENV_SUBSCRIPTION_ID}, and {ENV_WORKSPACE_NAME}.")
 
 
 def create_run_recovery_id(run: Run) -> str:
@@ -836,7 +861,9 @@ def get_authentication() -> Union[InteractiveLoginAuthentication, ServicePrincip
     service_principal_id = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_ID, allow_missing=True)
     tenant_id = get_secret_from_environment(ENV_TENANT_ID, allow_missing=True)
     service_principal_password = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
-    if service_principal_id and tenant_id and service_principal_password:
+    # Check if all 3 environment variables are set
+    if bool(service_principal_id) and bool(tenant_id) and bool(service_principal_password):
+        logging.info("Found all necessary environment variables for Service Principal authentication.")
         return ServicePrincipalAuthentication(
             tenant_id=tenant_id,
             service_principal_id=service_principal_id,
@@ -2086,26 +2113,6 @@ def create_aml_run_object(
     return exp.start_logging(display_name=run_name, snapshot_directory=str(snapshot_directory))  # type: ignore
 
 
-def aml_workspace_for_unittests() -> Workspace:
-    """
-    Gets the default AzureML workspace that is used for unit testing. It first tries to locate a workspace config.json
-    file in the present folder or its parents, and create a workspace from that if found. If no config.json file
-    is found, the workspace details are read from environment variables. Authentication information is also read
-    from environment variables.
-    """
-    config_json = find_file_in_parent_to_pythonpath(WORKSPACE_CONFIG_JSON)
-    if config_json is not None:
-        return Workspace.from_config(path=str(config_json))
-    else:
-        workspace_name = get_secret_from_environment(ENV_WORKSPACE_NAME, allow_missing=False)
-        subscription_id = get_secret_from_environment(ENV_SUBSCRIPTION_ID, allow_missing=False)
-        resource_group = get_secret_from_environment(ENV_RESOURCE_GROUP, allow_missing=False)
-        auth = get_authentication()
-        return Workspace.get(
-            name=workspace_name, auth=auth, subscription_id=subscription_id, resource_group=resource_group
-        )
-
-
 class UnitTestWorkspaceWrapper:
     """
     Wrapper around aml_workspace so that it is lazily loaded only once. Used for unit testing only.
@@ -2123,7 +2130,7 @@ class UnitTestWorkspaceWrapper:
         Lazily load the aml_workspace.
         """
         if self._workspace is None:
-            self._workspace = aml_workspace_for_unittests()
+            self._workspace = get_workspace()
         return self._workspace
 
 
