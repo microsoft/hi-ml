@@ -88,7 +88,6 @@ pytest_gpu:
 		--conda_env=environment.yml \
 		--folder=hi-ml-cpath \
 		--coverage_module=health_cpath \
-		--strictly_aml_v1=True
 
 SSL_CKPT_RUN_ID_CRCK := CRCK_SimCLR_1655731022_85790606
 SRC_CKPT_RUN_ID_CRCK := TcgaCrckSSLMIL_1667832811_4e855804
@@ -120,7 +119,7 @@ define CRCKSIMCLR_ARGS
 endef
 
 define REGRESSION_TEST_ARGS
---cluster dedicated-nc24s-v2 --regression_test_csv_tolerance=0.5 --strictly_aml_v1=True
+--cluster dedicated-nc24s-v2 --regression_test_csv_tolerance=0.5
 endef
 
 define PANDA_REGRESSION_METRICS
@@ -169,11 +168,11 @@ define DEFAULT_SMOKE_TEST_ARGS
 endef
 
 define AML_ONE_DEVICE_ARGS
---cluster=testing-nc6 --wait_for_completion --num_nodes=1 --max_num_gpus=1 --strictly_aml_v1=True --max_run_duration=1h
+--cluster=testing-nc6 --wait_for_completion --num_nodes=1 --max_num_gpus=1 --max_run_duration=1h
 endef
 
 define AML_MULTIPLE_DEVICE_ARGS
---cluster=dedicated-nc24s-v2 --wait_for_completion --strictly_aml_v1=True --max_run_duration=1h
+--cluster=dedicated-nc24s-v2 --wait_for_completion --max_run_duration=1h
 endef
 
 define DEEPSMILEDEFAULT_SMOKE_TEST_ARGS
