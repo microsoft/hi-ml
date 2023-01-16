@@ -167,9 +167,9 @@ class MLRunner:
             self.set_run_tags_from_parent()
 
     def get_multiple_trainloader_mode(self) -> str:
-        """Workaround for a bug in PL 1.5.5: We need to pass the cycle mode for the training data as a trainer argument
-        because training data that uses a CombinedLoader is not split correctly in DDP. This flag cannot be passed
-        through the get_trainer_arguments method of the container because cycle mode is not yet available."""
+        # Workaround for a bug in PL 1.5.5: We need to pass the cycle mode for the training data as a trainer argument
+        # because training data that uses a CombinedLoader is not split correctly in DDP. This flag cannot be passed
+        # through the get_trainer_arguments method of the container because cycle mode is not yet available.
         multiple_trainloader_mode = "max_size_cycle"
         try:
             from SSL.data.datamodules import CombinedDataModule  # type: ignore
