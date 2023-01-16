@@ -268,26 +268,6 @@ class MLRunner:
             return self.container.crossval_index == 0
         return True
 
-    def load_model_checkpoint(self) -> None:
-        """ Load the model checkpoint. """
-        if not self.container.run_inference_only:
-            self.checkpoint_handler.additional_training_done()
-        checkpoint_path_for_inference = self.checkpoint_handler.get_checkpoint_to_test()
-        self.container.load_model_checkpoint(checkpoint_path_for_inference)
-        best_epoch = torch.load(checkpoint_path_for_inference).get("epoch", -1)
-        logging.info(f"Checkpoint saved at epoch: {best_epoch}")
-
-    def validate_model_weights(self) -> None:
-        """ Validate that the model weights match the checkpoint weights."""
-        logging.info("Validating model weights.")
-        weights = torch.load(self.checkpoint_handler.get_checkpoint_to_test())["state_dict"]
-        number_mismatch = 0
-        for name, param in self.container.model.named_parameters():
-            if not torch.allclose(weights[name].cpu(), param):
-                logging.warning(f"Parameter {name} does not match between model and checkpoint.")
-                number_mismatch += 1
-        logging.info(f"Number of mismatched parameters: {number_mismatch}")
-
     def set_trainer_for_inference(self) -> None:
         """ Set the runner's trainer for inference: validation or test.
         We run inference on a single device because distributed strategies such as DDP use DistributedSampler
@@ -304,19 +284,17 @@ class MLRunner:
 
     def init_inference(self) -> None:
         """ Prepare the runner for inference: validation or test. The following steps are performed:
-        1. Turn on extra validation mode if needed.
-        2. If running inference only, get the checkpoint to test. Otherwise, load the checkpoint and validate the model
-        3. Create a new trainer instance for inference.
+        1. Get the checkpoint to use for inference. This is either the checkpoint from the last training epoch or the
+        one specified in src_checkpoint argument.
+        2. If the container has a run_extra_val_epoch method, call it to run an extra validation epoch.
+        3. Create a new trainer instance for inference. This is necessary because the trainer is created with a single
+        device in contrast to training that uses DDP if multiple GPUs are available.
         4. Create a new data module instance for inference to account for any requested changes in the dataloading
-           parameters like batch size, max number of workers, etc.
+        parameters (e.g. batch_size, max_num_workers, etc) as part of on_run_extra_validation_epoch.
         """
+        self.inference_ckpt = self.checkpoint_handler.get_checkpoint_to_test()
         if self.container.run_extra_val_epoch:
             self.container.on_run_extra_validation_epoch()
-        if self.container.run_inference_only:
-            self.inference_ckpt = str(self.checkpoint_handler.get_checkpoint_to_test())
-        elif self.container.has_custom_test_step() or self.container.run_extra_val_epoch:
-            self.load_model_checkpoint()
-            self.validate_model_weights()
         self.set_trainer_for_inference()
         self.data_module = self.container.get_data_module()
 
@@ -416,6 +394,8 @@ class MLRunner:
                 # Do training
                 with logging_section("Model training"):
                     self.run_training()
+                # Save the checkpoint handler state
+                self.checkpoint_handler.additional_training_done()
                 # Kill all processes besides rank 0 after training is done to start inference on a single device
                 self.after_ddp_cleanup(old_environ)
 
