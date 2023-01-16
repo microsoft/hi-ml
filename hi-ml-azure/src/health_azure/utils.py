@@ -13,6 +13,7 @@ import re
 import shutil
 import sys
 import tempfile
+import time
 from argparse import (_UNRECOGNIZED_ARGS_ATTR, OPTIONAL, SUPPRESS, ArgumentDefaultsHelpFormatter, ArgumentError,
                       ArgumentParser, Namespace)
 from collections import defaultdict
@@ -113,6 +114,21 @@ V2_INPUT_DATASET_PATTERN = r"--INPUT_\d[=| ]"
 V2_OUTPUT_DATASET_PATTERN = r"--OUTPUT_\d[=| ]"
 
 PathOrString = Union[Path, str]
+# An AML v1 Run or an AML v2 Job
+RunOrJob = Union[Run, Job]
+
+
+class JobStatus(Enum):
+    """String constants for the status of an AML v2 Job"""
+    COMPLETED = "Completed"
+    STARTING = "Starting"
+    FAILED = "Failed"
+    CANCELED = "Canceled"
+
+    @classmethod
+    def is_finished_state(cls, state_to_check: Optional[str]) -> bool:
+        """Checks if the given state is a finished state"""
+        return state_to_check in [cls.COMPLETED.value, cls.FAILED.value, cls.CANCELED.value]
 
 
 class IntTuple(param.NumericTuple):
@@ -1341,6 +1357,33 @@ def is_run_and_child_runs_completed(run: Run) -> bool:
     runs = list(run.get_children())
     runs.append(run)
     return all(is_completed(run) for run in runs)
+
+
+def is_job_completed(job: Job) -> bool:
+    """Checks if the given AzureML v2 Job completed successfully.
+
+    :return: True if the job completed successfully, False for failures, job still running, etc."""
+    return job.status == JobStatus.COMPLETED.value
+
+
+def wait_for_job_completion(ml_client: MLClient, job_name: str) -> None:
+    """Wait until the job of the given ID is completed or failed with an error. If the job did not complete
+    successfully, a ValueError is raised.
+
+    :param ml_client: An MLClient object for the workspace where the job lives.
+    :param job_name: The name (id) of the job to wait for.
+    :raises ValueError: If the job did not complete successfully (any status other than Completed)
+    """
+
+    while True:
+        # Get the latest job status by reading the whole job info again via the MLClient
+        updated_job = ml_client.jobs.get(name=job_name)
+        current_job_status = updated_job.status
+        if JobStatus.is_finished_state(current_job_status):
+            break
+        time.sleep(10)
+    if not is_job_completed(updated_job):
+        raise ValueError(f"Job {updated_job.name} jobs failed with status {current_job_status}.")
 
 
 def get_most_recent_run_id(run_recovery_file: Path) -> str:

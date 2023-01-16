@@ -15,8 +15,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path, PosixPath
 from random import randint
-from ruamel import yaml
-from ruamel.yaml.comments import CommentedMap as OrderedDict, CommentedSeq as OrderedList
+from ruamel.yaml import YAML
 from typing import Any, Dict, List, Optional, Tuple
 from unittest import mock
 from unittest.mock import MagicMock, create_autospec, patch, DEFAULT
@@ -26,7 +25,7 @@ import pytest
 from _pytest.capture import CaptureFixture
 from azure.ai.ml import Input, Output, MLClient
 from azure.ai.ml.constants import AssetTypes, InputOutputModes
-from azure.ai.ml.entities import Data
+from azure.ai.ml.entities import Data, Job
 from azure.ai.ml.sweep import Choice
 from azureml._restclient.constants import RunStatus
 from azureml.core import ComputeTarget, Environment, RunConfiguration, ScriptRunConfig, Workspace
@@ -51,6 +50,7 @@ from health_azure.utils import (
     EXPERIMENT_RUN_SEPARATOR,
     WORKSPACE_CONFIG_JSON,
     VALID_LOG_FILE_PATHS,
+    JobStatus,
     check_config_json,
     get_most_recent_run,
     get_workspace,
@@ -60,6 +60,7 @@ from health_azure.utils import (
 from testazure.test_data.make_tests import render_environment_yaml, render_test_script
 from testazure.utils_testazure import (
     DEFAULT_DATASTORE,
+    change_working_directory,
     get_shared_config_json,
     repository_root
 )
@@ -384,6 +385,20 @@ def test_create_run_configuration(
     assert not run_config.output_data
 
 
+def create_empty_conda_env(tmp_path: Path) -> Path:
+    """Create an empty conda environment in a given folder, and returns its path."""
+    conda_env_spec = dict(
+        name="dummy_env",
+        channels=["default"],
+        dependencies=["pip=20.1.1", "python=3.7.3"]
+    )
+    conda_env_path = tmp_path / "dummy_conda_env.yml"
+    yaml = YAML()
+    yaml.dump(conda_env_spec, conda_env_path)
+    assert conda_env_path.is_file()
+    return conda_env_path
+
+
 @pytest.mark.fast
 @patch("azureml.core.Workspace")
 @patch("health_azure.himl.create_python_environment")
@@ -400,15 +415,7 @@ def test_create_run_configuration_correct_env(mock_create_environment: MagicMock
 
     mock_create_environment.return_value = mock_environment
 
-    conda_env_spec = OrderedDict({"name": "dummy_env",
-                                  "channels": OrderedList("default"),
-                                  "dependencies": OrderedList(["- pip=20.1.1", "- python=3.7.3"])})
-
-    conda_env_path = tmp_path / "dummy_conda_env.yml"
-    with open(conda_env_path, "w+") as f_path:
-        yaml.dump(conda_env_spec, f_path)
-    assert conda_env_path.is_file()
-
+    conda_env_path = create_empty_conda_env(tmp_path)
     with patch.object(mock_environment, "register") as mock_register:
         mock_register.return_value = mock_environment
 
@@ -440,13 +447,15 @@ def test_create_run_configuration_correct_env(mock_create_environment: MagicMock
             assert mock_environment_get.call_count == 2
 
     # Assert that a Conda env spec with no python version raises an exception
-    conda_env_spec = OrderedDict({"name": "dummy_env",
-                                  "channels": OrderedList("default"),
-                                  "dependencies": OrderedList(["- pip=20.1.1"])})
+    conda_env_spec = dict(
+        name="dummy_env",
+        channels=["default"],
+        dependencies=["pip=20.1.1"],
+    )
 
     conda_env_path = tmp_path / "dummy_conda_env_no_python.yml"
-    with open(conda_env_path, "w+") as f_path:
-        yaml.dump(conda_env_spec, f_path)
+    yaml = YAML()
+    yaml.dump(conda_env_spec, conda_env_path)
     assert conda_env_path.is_file()
 
     with patch.object(mock_environment, "register") as mock_register:
@@ -1676,6 +1685,71 @@ def test_get_display_name_v2() -> None:
     # if no tags provided, display name should be empty
     display_name = himl.get_display_name_v2()
     assert display_name == ""
+
+
+@pytest.mark.parametrize("wait_for_completion", [True, False])
+def test_submitting_script_with_sdk_v2(tmp_path: Path, wait_for_completion: bool) -> None:
+    """
+    Test that submitting a simple script can be run on AzureML when using the v2 SDK.
+    It also tests the "wait_for_completion" parameter.
+    """
+    # Create a minimal script in a temp folder. Script
+    test_script = tmp_path / "test_script.py"
+    test_script.write_text("print('hello world')")
+    shared_config_json = get_shared_config_json()
+    conda_env_path = create_empty_conda_env(tmp_path)
+    after_submission_called = False
+
+    def after_submission(job: Job, ml_client: MLClient) -> None:
+        nonlocal after_submission_called
+        after_submission_called = True
+        assert isinstance(job, Job)
+        assert isinstance(ml_client, MLClient)
+        # If waiting for completion then the job should be completed, otherwise it should be starting
+        if wait_for_completion:
+            assert job.status == JobStatus.COMPLETED.value
+        else:
+            assert job.status == JobStatus.STARTING.value
+
+    with check_config_json(tmp_path, shared_config_json=shared_config_json),\
+            change_working_directory(tmp_path), \
+            pytest.raises(SystemExit):
+        himl.submit_to_azure_if_needed(
+            aml_workspace=None,
+            experiment_name="test_submitting_script_with_sdk_v2",
+            entry_script=test_script,
+            compute_cluster_name=INEXPENSIVE_TESTING_CLUSTER_NAME,
+            conda_environment_file=conda_env_path,
+            snapshot_root_directory=tmp_path,
+            submit_to_azureml=True,
+            after_submission=after_submission,
+            strictly_aml_v1=False,
+            wait_for_completion=wait_for_completion,
+        )
+
+    assert after_submission_called, "after_submission callback was not called"
+
+
+def test_conda_env_missing(tmp_path: Path) -> None:
+    """
+    Test that submission fails if no Conda environment file is found.
+    """
+    # Create a minimal script in a temp folder.
+    test_script = tmp_path / "test_script.py"
+    test_script.write_text("print('hello world')")
+    shared_config_json = get_shared_config_json()
+
+    with check_config_json(tmp_path, shared_config_json=shared_config_json), \
+            change_working_directory(tmp_path), \
+            pytest.raises(ValueError, match="No conda environment file"):
+        himl.submit_to_azure_if_needed(
+            aml_workspace=None,
+            experiment_name="test_conda_env_missing",
+            entry_script=test_script,
+            compute_cluster_name=INEXPENSIVE_TESTING_CLUSTER_NAME,
+            snapshot_root_directory=tmp_path,
+            submit_to_azureml=True,
+        )
 
 
 @pytest.mark.fast
