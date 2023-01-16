@@ -238,6 +238,12 @@ def test_subsample(include_non_indexable: bool, allow_missing_keys: bool) -> Non
         for idx, elem in zip(sub_data['indices'], sub_data[key]):
             assert np.array_equal(elem, data[key][idx])  # type: ignore
 
+    # Check that the subsampled elements are not repeated
+    for key in ['array_1d', 'array_2d', 'tensor_1d', 'tensor_2d']:
+        assert sub_data[key].shape == np.unique(sub_data[key], axis=0).shape
+    for key in ['list']:
+        assert(len(sub_data[key])) == len(set(sub_data[key]))
+
     # Check that subsampling is random, i.e. subsequent calls shouldn't give identical results
     sub_data2 = subsampling(data)
     for key in ['tensor_1d', 'tensor_2d', 'array_1d', 'array_2d', 'list']:
