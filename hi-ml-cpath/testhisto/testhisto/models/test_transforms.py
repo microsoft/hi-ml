@@ -250,6 +250,26 @@ def test_subsample(include_non_indexable: bool, allow_missing_keys: bool) -> Non
         assert not np.array_equal(sub_data[key], sub_data2[key])  # type: ignore
 
 
+@pytest.mark.parametrize('max_size', [2, 5])
+def test_shuffle(max_size: int) -> None:
+    batch_size = 5
+    data = {
+        'array_1d': np.random.randn(batch_size),
+        'array_2d': np.random.randn(batch_size, 4),
+        'tensor_1d': torch.randn(batch_size),
+        'tensor_2d': torch.randn(batch_size, 4),
+        'list': torch.randn(batch_size).tolist(),
+        'indices': list(range(batch_size)),
+        'non-indexable': 42,
+    }
+    keys_to_subsample = list(data.keys())
+    shuffling = Subsampled(keys_to_subsample, max_size=max_size, allow_missing_keys=True)
+    shuffling.randomize(total_size=max_size)
+    indices = shuffling._indices
+    assert len(indices) <= len(data['indices'])
+    assert len(indices) == len(set(indices))
+
+
 def test_transform_dict_adaptor() -> None:
     key = "key"
     transf1 = transform_dict_adaptor(RandomHorizontalFlip(p=0), key, key)
