@@ -97,7 +97,7 @@ class MLRunner:
         self.trainer: Optional[Trainer] = None
         self.azureml_run_for_logging: Optional[Run] = None
         self.mlflow_run_for_logging: Optional[str] = None
-        self.inference_ckpt: Optional[str] = None  # Passed to trainer.validate and trainer.test in inference mode
+        self.inference_checkpoint: Optional[str] = None  # Passed to trainer.validate and trainer.test in inference mode
 
     def set_run_tags_from_parent(self) -> None:
         """
@@ -292,7 +292,7 @@ class MLRunner:
         4. Create a new data module instance for inference to account for any requested changes in the dataloading
         parameters (e.g. batch_size, max_num_workers, etc) as part of on_run_extra_validation_epoch.
         """
-        self.inference_ckpt = str(self.checkpoint_handler.get_checkpoint_to_test())
+        self.inference_checkpoint = str(self.checkpoint_handler.get_checkpoint_to_test())
         if self.container.run_extra_val_epoch:
             self.container.on_run_extra_validation_epoch()
         self.set_trainer_for_inference()
@@ -322,7 +322,7 @@ class MLRunner:
             with change_working_directory(self.container.outputs_folder):
                 assert self.trainer, "Trainer should be initialized before validation. Call self.init_inference()."
                 self.trainer.validate(
-                    self.container.model, datamodule=self.data_module, ckpt_path=self.inference_ckpt
+                    self.container.model, datamodule=self.data_module, ckpt_path=self.inference_checkpoint
                 )
         else:
             logging.info("Skipping extra validation because the user has not requested it.")
@@ -338,7 +338,7 @@ class MLRunner:
             with change_working_directory(self.container.outputs_folder):
                 assert self.trainer, "Trainer should be initialized before inference. Call self.init_inference()."
                 _ = self.trainer.test(
-                    self.container.model, datamodule=self.data_module, ckpt_path=self.inference_ckpt
+                    self.container.model, datamodule=self.data_module, ckpt_path=self.inference_checkpoint
                 )
         else:
             logging.warning("None of the suitable test methods is overridden. Skipping inference completely.")

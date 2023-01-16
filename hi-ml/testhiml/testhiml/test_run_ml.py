@@ -24,6 +24,7 @@ from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_ml.utils.common_utils import is_gpu_available
 from health_ml.utils.lightning_loggers import HimlMLFlowLogger, StoringLogger
 from health_azure.utils import ENV_EXPERIMENT_NAME, is_global_rank_zero
+from health_ml.utils.type_annotations import PathOrString
 from testazure.utils_testazure import DEFAULT_WORKSPACE, experiment_for_unittests
 from testhiml.utils.fixed_paths_for_tests import mock_run_id
 
@@ -199,42 +200,38 @@ def test_run_training() -> None:
             mock_trainer.loggers[0].finalize.assert_called_once()
 
 
-@pytest.mark.parametrize("run_inference_only", [True, False])
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
-def test_init_inference(
-    ml_runner_with_run_id: MLRunner, run_extra_val_epoch: bool, run_inference_only: bool
-) -> None:
-    """Test that inference is initialized correctly"""
-    ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
+@pytest.mark.parametrize("run_inference_only", [True, False])
+def test_init_inference(ml_runner_with_run_id: MLRunner, run_inference_only: bool, run_extra_val_epoch: bool) -> None:
     ml_runner_with_run_id.container.run_inference_only = run_inference_only
-    ml_runner_with_run_id.init_training()
+    ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
+    if not run_inference_only:
+        ml_runner_with_run_id.checkpoint_handler.additional_training_done()
     with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
-        with patch.multiple(ml_runner_with_run_id,
-                            validate_model_weights=mock.DEFAULT,
-                            load_model_checkpoint=mock.DEFAULT,
-                            ) as runner_mocks:
-            with patch.multiple(ml_runner_with_run_id.container,
-                                on_run_extra_validation_epoch=mock.DEFAULT,
-                                get_data_module=mock.DEFAULT,
-                                ) as container_mocks:
+        with patch.object(ml_runner_with_run_id.container, "get_checkpoint_to_test") as mock_get_checkpoint_to_test:
+            with patch.object(ml_runner_with_run_id.container, "get_data_module") as mock_get_data_module:
+                mock_checkpoint = MagicMock(is_file=MagicMock(return_value=True))
+                mock_get_checkpoint_to_test.return_value = mock_checkpoint
                 mock_trainer = MagicMock()
                 mock_create_trainer.return_value = mock_trainer, MagicMock()
+                mock_get_data_module.return_value = "dummy_data_module"
+
+                assert ml_runner_with_run_id.inference_checkpoint is None
+                assert not ml_runner_with_run_id.container.model._on_extra_val_epoch
+
                 ml_runner_with_run_id.init_inference()
-                container_mocks["on_run_extra_validation_epoch"].assert_called_once()
+
+                expected_ckpt = str(ml_runner_with_run_id.checkpoint_handler.trained_weights_path)
+                expected_ckpt = expected_ckpt if run_inference_only else str(mock_checkpoint)
+                assert ml_runner_with_run_id.inference_checkpoint == expected_ckpt
+
                 assert hasattr(ml_runner_with_run_id.container.model, "on_run_extra_validation_epoch")
-                if run_inference_only:
-                    expected_ckpt_path = str(ml_runner_with_run_id.checkpoint_handler.trained_weights_path)
-                    assert ml_runner_with_run_id.inference_ckpt == expected_ckpt_path
-                    runner_mocks["load_model_checkpoint"].assert_not_called()
-                    runner_mocks["validate_model_weights"].assert_not_called()
-                elif run_extra_val_epoch:
-                    runner_mocks["load_model_checkpoint"].assert_called_once()
-                    runner_mocks["validate_model_weights"].assert_called_once()
-                    assert ml_runner_with_run_id.inference_ckpt is None
+                assert ml_runner_with_run_id.container.model._on_extra_val_epoch == run_extra_val_epoch
 
                 mock_create_trainer.assert_called_once()
                 assert ml_runner_with_run_id.trainer == mock_trainer
-                container_mocks["get_data_module"].assert_called_once()
+                mock_get_data_module.assert_called_once()
+                assert ml_runner_with_run_id.data_module == "dummy_data_module"
 
 
 @pytest.mark.parametrize("run_inference_only", [True, False])
@@ -259,7 +256,7 @@ def test_run_validation(
                 ml_runner_with_run_id.run_validation()
                 if run_extra_val_epoch or run_inference_only:
                     mock_trainer.validate.assert_called_once()
-                    assert mock_trainer.validate.call_args[1]["ckpt_path"] == ml_runner_with_run_id.inference_ckpt
+                    assert mock_trainer.validate.call_args[1]["ckpt_path"] == ml_runner_with_run_id.inference_checkpoint
                     assert mock_trainer.validate.call_args[1]["datamodule"] == mock_datamodule
                 else:
                     assert "Skipping extra validation" in caplog.messages[-1]
@@ -421,10 +418,10 @@ def test_run_inference_only(run_extra_val_epoch: bool, ml_runner_with_run_id: ML
                 mocks["validate_model_weights"].assert_not_called()
                 mocks["load_model_checkpoint"].assert_not_called()
                 mock_trainer.validate.assert_called_once()
-                assert mock_trainer.validate.call_args[1]["ckpt_path"] == ml_runner_with_run_id.inference_ckpt
+                assert mock_trainer.validate.call_args[1]["ckpt_path"] == ml_runner_with_run_id.inference_checkpoint
                 assert mock_trainer.validate.call_args[1]["datamodule"] == mock_datamodule
                 mock_trainer.test.assert_called_once()
-                assert mock_trainer.test.call_args[1]["ckpt_path"] == ml_runner_with_run_id.inference_ckpt
+                assert mock_trainer.test.call_args[1]["ckpt_path"] == ml_runner_with_run_id.inference_checkpoint
                 assert mock_trainer.test.call_args[1]["datamodule"] == mock_datamodule
 
 
