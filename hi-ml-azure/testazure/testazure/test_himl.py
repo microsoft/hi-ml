@@ -1762,6 +1762,5 @@ def test_submit_to_azure_v2_distributed() -> None:
                 )
                 mock_command.assert_called_once()
                 _, call_kwargs = mock_command.call_args
-                print(call_kwargs)
                 assert call_kwargs.get("instance_count") == 1
                 assert call_kwargs.get("distribution").get("process_count_per_instance") == 1
