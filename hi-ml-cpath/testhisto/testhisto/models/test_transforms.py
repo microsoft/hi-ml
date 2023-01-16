@@ -242,7 +242,7 @@ def test_subsample(include_non_indexable: bool, allow_missing_keys: bool) -> Non
     for key in ['array_1d', 'array_2d', 'tensor_1d', 'tensor_2d']:
         assert sub_data[key].shape == np.unique(sub_data[key], axis=0).shape
     for key in ['list']:
-        assert(len(sub_data[key])) == len(set(sub_data[key]))
+        assert len(sub_data[key]) == len(set(sub_data[key]))
 
     # Check that subsampling is random, i.e. subsequent calls shouldn't give identical results
     sub_data2 = subsampling(data)
