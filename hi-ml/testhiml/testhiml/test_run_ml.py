@@ -108,31 +108,55 @@ def test_get_multiple_trainloader_mode(ml_runner: MLRunner) -> None:
     "`get_multiple_trainloader_mode` workaround can be safely removed."
 
 
-def _test_init_training(ml_runner: MLRunner) -> None:
+def _test_init_training(run_inference_only: bool, ml_runner: MLRunner) -> None:
     """Test that training is initialized correctly"""
+    ml_runner.container.run_inference_only = run_inference_only
     ml_runner.setup()
     assert not ml_runner.checkpoint_handler.has_continued_training
     assert ml_runner.trainer is None
     assert ml_runner.storing_logger is None
-    with patch("health_ml.run_ml.write_experiment_summary_file") as mock_write_experiment_summary_file:
-        ml_runner.init_training()
-        if is_global_rank_zero():
-            mock_write_experiment_summary_file.assert_called()
-        assert ml_runner.storing_logger
-        assert ml_runner.trainer
+
+    with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+        with patch("health_ml.run_ml.write_experiment_summary_file") as mock_write_experiment_summary_file:
+            with patch.object(
+                ml_runner.checkpoint_handler, "get_recovery_or_checkpoint_path_train"
+            ) as mock_get_recovery_or_checkpoint_path_train:
+                with patch("health_ml.run_ml.seed_everything") as mock_seed:
+                    mock_create_trainer.return_value = "dummy_trainer", "dummy_logger"
+                    mock_get_recovery_or_checkpoint_path_train.return_value = "dummy_path"
+
+                    ml_runner.init_training()
+
+                    # Make sure write_experiment_summary_file is only called on rank 0
+                    if is_global_rank_zero():
+                        mock_write_experiment_summary_file.assert_called()
+                    else:
+                        mock_write_experiment_summary_file.assert_not_called()
+
+                    # Make sure seed is set correctly with workers=True
+                    mock_seed.assert_called_once()
+                    assert mock_seed.call_args[0][0] == ml_runner.container.get_effective_random_seed()
+                    assert mock_seed.call_args[1]["workers"]
+
+                    # Make sure checkpoint is loaded correctly
+                    assert mock_create_trainer.call_args[1]["resume_from_checkpoint"] == "dummy_path"
+                    assert ml_runner.storing_logger == "dummy_logger"
+                    assert ml_runner.trainer == "dummy_trainer"
 
 
-def test_init_training_cpu(ml_runner: MLRunner) -> None:
+@pytest.mark.parametrize("run_inference_only", [True, False])
+def test_init_training_cpu(run_inference_only: bool, ml_runner: MLRunner) -> None:
     """Test that training is initialized correctly"""
     ml_runner.container.max_num_gpus = 0
-    _test_init_training(ml_runner)
+    _test_init_training(run_inference_only, ml_runner)
 
 
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
-def test_init_training_gpu(ml_runner: MLRunner) -> None:
+@pytest.mark.parametrize("run_inference_only", [True, False])
+def test_init_training_gpu(run_inference_only: bool, ml_runner: MLRunner) -> None:
     """Test that training is initialized correctly in DDP mode"""
-    _test_init_training(ml_runner)
+    _test_init_training(run_inference_only, ml_runner)
 
 
 def test_run_training() -> None:
@@ -339,8 +363,6 @@ def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with
         with patch.multiple(
             ml_runner_with_container,
             checkpoint_handler=mock.DEFAULT,
-            load_model_checkpoint=mock.DEFAULT,
-            validate_model_weights=mock.DEFAULT,
             run_training=mock.DEFAULT,
             run_validation=mock.DEFAULT,
             run_inference=mock.DEFAULT,
@@ -353,8 +375,6 @@ def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with
             # also by checking if the model has a custom test step, this is always True for the HelloWorld model used
             # here.
             assert ml_runner_with_container.container.has_custom_test_step()
-            assert mocks["load_model_checkpoint"].called != run_inference_only
-            assert mocks["validate_model_weights"].called != run_inference_only
             assert ml_runner_with_container._has_setup_run
             assert ml_runner_with_container.checkpoint_handler.has_continued_training != run_inference_only
 
