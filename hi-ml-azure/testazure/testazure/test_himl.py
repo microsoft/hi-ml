@@ -1714,7 +1714,8 @@ def test_get_display_name_v2() -> None:
     assert display_name == ""
 
 
-def test_submitting_script_with_sdk_v2(tmp_path: Path) -> None:
+@pytest.mark.parametrize("wait_for_completion", [True, False])
+def test_submitting_script_with_sdk_v2(tmp_path: Path, wait_for_completion: bool) -> None:
     """
     Test that submitting a simple script can be run on AzureML when using the v2 SDK.
     It also tests the "wait_for_completion" parameter.
@@ -1731,8 +1732,11 @@ def test_submitting_script_with_sdk_v2(tmp_path: Path) -> None:
         after_submission_called = True
         assert isinstance(job, Job)
         assert isinstance(ml_client, MLClient)
-        # We waited for completion of the job, so it's status should now be "Completed"
-        assert job.status == JobStatus.Completed.value
+        # If waiting for completion then the job should be completed, otherwise it should be starting
+        if wait_for_completion:
+            assert job.status == JobStatus.COMPLETED.value
+        else:
+            assert job.status == JobStatus.STARTING.value
 
     with check_config_json(tmp_path, shared_config_json=shared_config_json),\
             change_working_directory(tmp_path), \
@@ -1747,7 +1751,7 @@ def test_submitting_script_with_sdk_v2(tmp_path: Path) -> None:
             submit_to_azureml=True,
             after_submission=after_submission,
             strictly_aml_v1=False,
-            wait_for_completion=True,
+            wait_for_completion=wait_for_completion,
         )
 
     assert after_submission_called, "after_submission callback was not called"
@@ -1757,7 +1761,7 @@ def test_conda_env_missing(tmp_path: Path) -> None:
     """
     Test that submission fails if no Conda environment file is found.
     """
-    # Create a minimal script in a temp folder. Script
+    # Create a minimal script in a temp folder.
     test_script = tmp_path / "test_script.py"
     test_script.write_text("print('hello world')")
     shared_config_json = get_shared_config_json()

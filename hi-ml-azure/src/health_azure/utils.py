@@ -118,14 +118,15 @@ RunOrJob = Union[Run, Job]
 
 class JobStatus(Enum):
     """String constants for the status of an AML v2 Job"""
-    Completed = "Completed"
-    Failed = "Failed"
-    Canceled = "Canceled"
+    COMPLETED = "Completed"
+    STARTING = "Starting"
+    FAILED = "Failed"
+    CANCELED = "Canceled"
 
     @classmethod
     def is_finished_state(cls, state_to_check: Optional[str]) -> bool:
         """Checks if the given state is a finished state"""
-        return state_to_check in [cls.Completed.value, cls.Failed.value, cls.Canceled.value]
+        return state_to_check in [cls.COMPLETED.value, cls.FAILED.value, cls.CANCELED.value]
 
 
 class IntTuple(param.NumericTuple):
@@ -1335,7 +1336,7 @@ def is_job_completed(job: Job) -> bool:
     """Checks if the given AzureML v2 Job completed successfully.
 
     :return: True if the job completed successfully, False for failures, job still running, etc."""
-    return job.status == JobStatus.Completed.value
+    return job.status == JobStatus.COMPLETED.value
 
 
 def wait_for_job_completion(ml_client: MLClient, job_name: str) -> None:
