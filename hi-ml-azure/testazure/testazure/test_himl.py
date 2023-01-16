@@ -1711,25 +1711,31 @@ def test_submit_to_azure_v2_distributed() -> None:
         create_script_run=DEFAULT,
         append_to_amlignore=DEFAULT,
         exit=DEFAULT
-    ):
+    ) as _:
+
         with patch("health_azure.himl.setup_local_datasets") as mock_setup_datasets:
             mock_setup_datasets.return_value = dummy_input_datasets, dummy_mount_contexts
             with patch("health_azure.himl.submit_run_v2") as mock_submit_run_v2:
-                # If num_nodes and processes_per_node are set, they wont appear in the kwargs sent to submit_run_v2
+                # If num_nodes and processes_per_node are not passed to submit_to_azure_if_needed, then
+                # submit_run_v2 should receive the default values of 1 and 1 respectively
+                expected_num_nodes = 1
+                expected_processes_per_node = 1
                 _ = himl.submit_to_azure_if_needed(
                     workspace_config_file="mockconfig.json",
                     snapshot_root_directory="dummy",
                     submit_to_azureml=True,
                     strictly_aml_v1=False
                 )
-                call_args = mock_submit_run_v2.call_args
-                call_args_kwargs = call_args.kwargs
-                assert "num_nodes" not in call_args_kwargs
-                assert "processes_per_node" not in call_args_kwargs
 
-                # If num_nodes and processes_per_node are both set, they should be passed to submit_run_v2
-                num_nodes = 1
-                processes_per_node = 1
+                _, call_kwargs = mock_submit_run_v2.call_args
+                print(call_kwargs)
+                assert call_kwargs.get("num_nodes") == expected_num_nodes
+                assert call_kwargs.get("processes_per_node") == expected_processes_per_node
+
+                # If num_nodes and processes_per_node are both passed in to submit_to_azure_if_needed,
+                # they should be passed through to submit_run_v2
+                num_nodes = 3
+                processes_per_node = 4
                 _ = himl.submit_to_azure_if_needed(
                     workspace_config_file="mockconfig.json",
                     snapshot_root_directory="dummy",
@@ -1738,8 +1744,24 @@ def test_submit_to_azure_v2_distributed() -> None:
                     num_nodes=num_nodes,
                     processes_per_node_v2=processes_per_node
                 )
-                call_args, call_kwargs = mock_submit_run_v2.call_args
-                print(call_args)
-                print(call_kwargs)
+                _, call_kwargs = mock_submit_run_v2.call_args
                 assert call_kwargs.get("num_nodes") == num_nodes
                 assert call_kwargs.get("processes_per_node") == processes_per_node
+
+            # If num_nodes and/or processes_per_node are passed in to submit_to_azure_if_needed with
+            # values less than one, they should be updated to values of 1 before the command is created
+            with patch("health_azure.himl.command") as mock_command:
+                _ = himl.submit_to_azure_if_needed(
+                    workspace_config_file="mockconfig.json",
+                    entry_script=Path(__file__),
+                    snapshot_root_directory=Path.cwd(),
+                    submit_to_azureml=True,
+                    strictly_aml_v1=False,
+                    num_nodes=-1,
+                    processes_per_node_v2=0
+                )
+                mock_command.assert_called_once()
+                _, call_kwargs = mock_command.call_args
+                print(call_kwargs)
+                assert call_kwargs.get("instance_count") == 1
+                assert call_kwargs.get("distribution").get("process_count_per_instance") == 1
