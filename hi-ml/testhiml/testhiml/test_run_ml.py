@@ -5,7 +5,9 @@
 import os
 import shutil
 import pytest
-
+import numpy as np
+import torch
+from math import isclose
 from pathlib import Path
 from typing import Generator
 from unittest import mock
@@ -75,6 +77,19 @@ def ml_runner_with_run_id() -> Generator:
     output_dir = runner.container.file_system_config.outputs_folder
     if output_dir.exists():
         shutil.rmtree(output_dir)
+
+
+@pytest.fixture()
+def regression_datadir(tmp_path: Path) -> Generator:
+    """Create a temporary directory with a dummy dataset for regression testing."""
+    N = 100
+    x = torch.rand((N, 1)) * 10
+    y = 0.2 * x + 0.1 * torch.randn(x.size())
+    xy = torch.cat((x, y), dim=1)
+    data_path = tmp_path / "hellocontainer.csv"
+    np.savetxt(data_path, xy.numpy(), delimiter=",")
+    yield tmp_path
+    shutil.rmtree(tmp_path)
 
 
 def test_ml_runner_setup(ml_runner_no_setup: MLRunner) -> None:
@@ -210,6 +225,8 @@ def test_run_training() -> None:
 def test_init_inference(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with_run_id: MLRunner) -> None:
     ml_runner_with_run_id.container.run_inference_only = run_inference_only
     ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
+    ml_runner_with_run_id.init_training()
+    expected_mlflow_run_id = ml_runner_with_run_id.trainer.loggers[1].run_id
     if not run_inference_only:
         ml_runner_with_run_id.checkpoint_handler.additional_training_done()
     with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
@@ -235,6 +252,10 @@ def test_init_inference(run_inference_only: bool, run_extra_val_epoch: bool, ml_
 
                 mock_create_trainer.assert_called_once()
                 assert ml_runner_with_run_id.trainer == mock_trainer
+                assert ml_runner_with_run_id.container.max_num_gpus == 1
+                assert mock_create_trainer.call_args[1]["container"] == ml_runner_with_run_id.container
+                assert mock_create_trainer.call_args[1]["num_nodes"] == 1
+                assert mock_create_trainer.call_args[1]["mlflow_run_for_logging"] == expected_mlflow_run_id
                 mock_get_data_module.assert_called_once()
                 assert ml_runner_with_run_id.data_module == "dummy_data_module"
 
@@ -289,7 +310,7 @@ def test_model_extra_val_epoch_missing_hook(caplog: LogCaptureFixture) -> None:
                     assert "Hook `on_run_extra_validation_epoch` is not implemented" in latest_message
 
 
-def test_run_inference(ml_runner_with_container: MLRunner, tmp_path: Path) -> None:
+def test_run_inference(ml_runner_with_container: MLRunner, regression_datadir: Path) -> None:
     """
     Test that run_inference gets called as expected.
     """
@@ -302,21 +323,10 @@ def test_run_inference(ml_runner_with_container: MLRunner, tmp_path: Path) -> No
         expected_files = ["test_mse.txt", "test_mae.txt"]
         return all([(output_dir / p).exists() for p in expected_files])
 
-    # create the test data
-    import numpy as np
-    import torch
-
-    N = 100
-    x = torch.rand((N, 1)) * 10
-    y = 0.2 * x + 0.1 * torch.randn(x.size())
-    xy = torch.cat((x, y), dim=1)
-    data_path = tmp_path / "hellocontainer.csv"
-    np.savetxt(data_path, xy.numpy(), delimiter=",")
-
     expected_ckpt_path = ml_runner_with_container.container.outputs_folder / "checkpoints" / "last.ckpt"
     assert not expected_ckpt_path.exists()
     # update the container to look for test data at this location
-    ml_runner_with_container.container.local_dataset_dir = tmp_path
+    ml_runner_with_container.container.local_dataset_dir = regression_datadir
     assert not _expected_files_exist()
 
     actual_train_ckpt_path = ml_runner_with_container.checkpoint_handler.get_recovery_or_checkpoint_path_train()
@@ -491,3 +501,15 @@ def test_get_mlflow_run_id_from_previous_loggers() -> None:
     with patch.object(mlflow.tracking.client.TrackingServiceClient, "get_run"):
         run_id = get_mlflow_run_id_from_previous_loggers(trainer_with_loggers)
         assert run_id == mock_run_id
+
+
+def test_inference_only_metrics_correctness(ml_runner_with_run_id: MLRunner, regression_datadir: Path) -> None:
+    ml_runner_with_run_id.container.run_inference_only = True
+    ml_runner_with_run_id.container.local_dataset_dir = regression_datadir
+    ml_runner_with_run_id.run()
+    with open(ml_runner_with_run_id.container.outputs_folder / "test_mse.txt") as f:
+        mse = float(f.readlines()[0])
+    assert isclose(mse, 0.010806690901517868, abs_tol=1e-3)
+    with open(ml_runner_with_run_id.container.outputs_folder / "test_mae.txt") as f:
+        mae = float(f.readlines()[0])
+    assert isclose(mae, 0.08260975033044815, abs_tol=1e-3)
