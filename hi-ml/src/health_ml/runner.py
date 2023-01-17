@@ -267,6 +267,7 @@ class Runner:
                 after_submission=after_submission_hook,
                 tags=self.additional_run_tags(script_params),
                 strictly_aml_v1=self.experiment_config.strictly_aml_v1,
+                processes_per_node_v2=self.lightning_container.num_gpus_per_node(),
             )
         else:
             azure_run_info = submit_to_azure_if_needed(
