@@ -186,9 +186,10 @@ class Runner:
             about datasets etc
         """
 
-        def after_submission_hook(azure_run: Run) -> None:
+        def after_submission_hook(azure_run: Run, *args) -> None:
             """
-            A function that will be called right after job submission.
+            A function that will be called right after job submission. The function has a second unused argument
+            to support both the required signatures for AzureML SDK v1 and v2.
             """
             # Set the default display name to what was provided as the "tag". This will affect single runs
             # and Hyperdrive parent runs
