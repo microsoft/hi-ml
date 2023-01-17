@@ -9,7 +9,7 @@ import logging
 import param
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from azureml.core import Workspace, Run
 
@@ -186,7 +186,7 @@ class Runner:
             about datasets etc
         """
 
-        def after_submission_hook(azure_run: Run, *args) -> None:
+        def after_submission_hook(azure_run: Run, *args: Any) -> None:
             """
             A function that will be called right after job submission. The function has a second unused argument
             to support both the required signatures for AzureML SDK v1 and v2.
