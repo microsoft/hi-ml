@@ -226,7 +226,7 @@ def test_init_inference(run_inference_only: bool, run_extra_val_epoch: bool, ml_
     ml_runner_with_run_id.container.run_inference_only = run_inference_only
     ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
     ml_runner_with_run_id.init_training()
-    expected_mlflow_run_id = ml_runner_with_run_id.trainer.loggers[1].run_id
+    expected_mlflow_run_id = ml_runner_with_run_id.trainer.loggers[1].run_id  # type: ignore
     if not run_inference_only:
         ml_runner_with_run_id.checkpoint_handler.additional_training_done()
     with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
