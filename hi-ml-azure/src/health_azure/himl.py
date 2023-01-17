@@ -517,8 +517,8 @@ def submit_run_v2(workspace: Optional[Workspace],
     entry_script = Path(entry_script).relative_to(root_dir).as_posix()
 
     script_params = script_params or []
-    args = [p for p in script_params if "conda_env" not in p]
-    arg_str = " ".join(args)
+    # args = [p for p in script_params if "conda_env" not in p]
+    arg_str = " ".join(script_params)
     cmd = "python " + str(entry_script) + " " + arg_str
 
     if input_datasets_v2:
