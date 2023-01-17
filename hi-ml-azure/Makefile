@@ -31,12 +31,12 @@ pip: pip_build pip_test call_pip_local
 
 # clean build artifacts
 clean:
-	rm -vrf `find . -type d -name __pycache__`
-	rm -vrf `find . -type d -name logs`
-	rm -vrf `find . -type d -name outputs`
-	rm -vrf ./.mypy_cache ./.pytest_cache ./build ./dist ./htmlcov ./src/*.egg-info
-	rm -vrf ./testazure/testazure/test_data/test_make_tests
-	rm -vf ./coverage ./coverage.txt ./coverage.xml ./latest_version.txt ./most_recent_run.txt ./package_name.txt
+	for folder in .mypy_cache __pycache__ logs outputs; do \
+		rm -rf `find . -type d -name $$folder`; \
+	done
+	rm -rf ./.pytest_cache ./build ./dist ./htmlcov ./src/*.egg-info
+	rm -rf ./testazure/testazure/test_data/test_make_tests
+	rm -f ./coverage ./coverage.txt ./coverage.xml ./latest_version.txt ./most_recent_run.txt ./package_name.txt
 
 # build package, assuming build requirements already installed
 call_build:
