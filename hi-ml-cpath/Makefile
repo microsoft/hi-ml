@@ -35,13 +35,13 @@ lock_env:
 
 # clean build artifacts
 clean:
-	rm -rf `find . -type d -name __pycache__`
-	rm -rf `find . -type d -name .mypy_cache`
-	rm -rf `find . -type d -name logs`
-	rm -rf `find . -type d -name outputs`
+	for folder in .mypy_cache __pycache__ logs outputs; do \
+		rm -rf `find . -type d -name $$folder`; \
+	done
 	rm -rf ./.pytest_cache
 	rm -rf ./testhisto/test_outputs ./testSSL/test_outputs
 	rm -f ./coverage ./coverage.txt ./coverage.xml
+	rm -rf Lightning checkpoints lightning_logs
 	rm -f ./latest_version.txt ./package_name.txt
 	rm -rf build dist hi_ml_cpath.egg-info
 	rm cifar-10-python.tar.gz
