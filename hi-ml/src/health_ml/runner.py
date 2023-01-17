@@ -9,7 +9,7 @@ import logging
 import param
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from azureml.core import Workspace, Run
 
@@ -186,7 +186,7 @@ class Runner:
             about datasets etc
         """
 
-        def after_submission_hook(azure_run: Run) -> None:
+        def after_submission_hook(azure_run: Run, kwargs: Any) -> None:
             """
             A function that will be called right after job submission.
             """
@@ -260,13 +260,14 @@ class Runner:
                 max_run_duration=self.experiment_config.max_run_duration,
                 ignored_folders=[],
                 submit_to_azureml=bool(self.experiment_config.cluster),
-                docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
+                docker_base_image="mcr.microsoft.com/azureml/openmpi4.1.0-cuda11.6-cudnn8-ubuntu20.04",
+                #docker_base_image="mcr.microsoft.com/azureml/openmpi4.1.0-cuda11.6-cudnn8-ubuntu20.04",
                 docker_shm_size=self.experiment_config.docker_shm_size,
                 hyperdrive_config=hyperdrive_config,
                 hyperparam_args=hyperparam_args,
                 after_submission=after_submission_hook,
                 tags=self.additional_run_tags(script_params),
-                strictly_aml_v1=self.experiment_config.strictly_aml_v1,
+                strictly_aml_v1=False,
             )
         else:
             azure_run_info = submit_to_azure_if_needed(
