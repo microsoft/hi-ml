@@ -269,7 +269,7 @@ class MLRunner:
         return True
 
     def set_trainer_for_inference(self) -> None:
-        """ Set the runner's trainer for inference: validation or test.
+        """ Set the runner's PL Trainer object that should be used when running inference on the validation or test set.
         We run inference on a single device because distributed strategies such as DDP use DistributedSampler
         internally, which replicates some samples to make sure all devices have the same batch size in case of
         uneven inputs which biases the results."""
