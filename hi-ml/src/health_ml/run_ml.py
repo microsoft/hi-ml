@@ -401,7 +401,7 @@ class MLRunner:
 
             self.init_inference()
 
-            with logging_section("Model Validation"):
+            with logging_section("Model validation"):
                 self.run_validation()
 
             with logging_section("Model inference"):
