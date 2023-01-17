@@ -11,7 +11,7 @@ code:
 
 # list of jobs to run
 jobs:
-- name: HelloWorld
-  sku: G1
+- name: HelloWorld_itphyperdgx2cl1
+  sku: G16
   command:
   - python hi-ml/src/health_ml/runner.py --model=health_ml.HelloWorld
