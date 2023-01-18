@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Generic, List, Optional, Sequence, Tuple, TypeVar, Union
 
 from pytorch_lightning import LightningDataModule
+from pytorch_lightning.overrides.distributed import UnrepeatedDistributedSampler
 from torch.utils.data import DataLoader, DistributedSampler
 from health_cpath.preprocessing.loading import LoadingParams
 
@@ -110,9 +111,12 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
 
     def _get_ddp_sampler(self, dataset: Dataset, stage: ModelKey) -> Optional[DistributedSampler]:
         is_distributed = torch.distributed.is_initialized() and torch.distributed.get_world_size() > 1
-        if is_distributed and not self.pl_replace_sampler_ddp and stage == ModelKey.TRAIN:
-            assert self.seed is not None, "seed must be set when using distributed training for reproducibility"
-            return DistributedSampler(dataset, shuffle=True, seed=self.seed)
+        if is_distributed and not self.pl_replace_sampler_ddp:
+            if stage == ModelKey.TRAIN:
+                assert self.seed is not None, "seed must be set when using distributed training for reproducibility"
+                return DistributedSampler(dataset, shuffle=True, seed=self.seed)
+            else:
+                return UnrepeatedDistributedSampler(dataset, shuffle=False, seed=self.seed)
         return None
 
     def train_dataloader(self) -> DataLoader:
