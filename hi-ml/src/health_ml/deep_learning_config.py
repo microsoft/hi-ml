@@ -175,7 +175,8 @@ class WorkflowParams(param.Parameterized):
     regression_metrics: str = param.String(default=None, doc="A list of names of metrics to compare")
     run_inference_only: bool = param.Boolean(False, doc="If True, run only inference and skip training after loading"
                                                         "model weights from the specified checkpoint in "
-                                                        "`src_checkpoint` flag. If False, run training and inference.")
+                                                        "`src_checkpoint` flag. Inference is run on both validation "
+                                                        "and test sets. If False, run training and inference.")
     resume_training: bool = param.Boolean(False, doc="If True, resume training from the src_checkpoint.")
     tag: str = param.String(doc="A string that will be used as the display name of the run in AzureML.")
     experiment: str = param.String(default="", doc="The name of the AzureML experiment to use for this run. If not "
