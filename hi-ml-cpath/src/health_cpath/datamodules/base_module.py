@@ -114,8 +114,10 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         if is_distributed and not self.pl_replace_sampler_ddp:
             if stage == ModelKey.TRAIN:
                 assert self.seed is not None, "seed must be set when using distributed training for reproducibility"
+                print("Using DistributedSampler for train dataloaders.")
                 return DistributedSampler(dataset, shuffle=True, seed=self.seed)
             else:
+                print("Using UnrepeatedDistributedSampler for validation and test dataloaders.")
                 return UnrepeatedDistributedSampler(dataset, shuffle=False, seed=self.seed)
         return None
 
