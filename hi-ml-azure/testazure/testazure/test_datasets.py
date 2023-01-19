@@ -403,6 +403,25 @@ def test_retrieve_v2_data_asset_invalid_version() -> None:
         assert f"{TEST_DATA_ASSET_NAME}:{invalid_asset_version} (dataContainerName:version) not found." in str(ex)
 
 
+def test_retrieving_v2_data_asset_does_not_increment() -> None:
+    """Test if calling the get_or_create_data_asset on an existing asset does not increment the version number.
+    """
+
+    with patch("health_azure.datasets._create_v2_data_asset") as mock_create_v2_data_asset:
+        asset_version_before_get_or_create = _get_latest_v2_asset_version(TEST_ML_CLIENT, TEST_DATA_ASSET_NAME)
+        get_or_create_dataset(
+            TEST_DATASTORE_NAME,
+            TEST_DATA_ASSET_NAME,
+            DEFAULT_WORKSPACE,
+            strictly_aml_v1=False,
+            ml_client=TEST_ML_CLIENT,
+        )
+        asset_version_after_get_or_create = _get_latest_v2_asset_version(TEST_ML_CLIENT, TEST_DATA_ASSET_NAME)
+
+        mock_create_v2_data_asset.assert_not_called()
+        assert asset_version_before_get_or_create == asset_version_after_get_or_create
+
+
 @pytest.mark.parametrize("version", [None, "1"])
 def test_create_v2_data_asset(version: Optional[str]) -> None:
     try:
