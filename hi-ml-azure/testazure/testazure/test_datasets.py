@@ -376,7 +376,7 @@ def test_retrieve_v2_data_asset(asset_name: str, asset_version: Optional[str]) -
             data_asset_name=asset_name,
             version=asset_version,
         )
-    except ResourceNotFoundError as e:
+    except ResourceNotFoundError as ex:
         if asset_name == TEST_INVALID_DATA_ASSET_NAME:
             if asset_version is None:
                 expected_error_message = f"{TEST_INVALID_DATA_ASSET_NAME} container was not found."
@@ -384,9 +384,9 @@ def test_retrieve_v2_data_asset(asset_name: str, asset_version: Optional[str]) -
                 expected_error_message = \
                     f"{TEST_INVALID_DATA_ASSET_NAME}:{asset_version} (dataContainerName:version) not found."
 
-            assert expected_error_message in str(e)
+            assert expected_error_message in str(ex)
         else:
-            pytest.fail(f"Unexpected error: {e}")
+            pytest.fail(f"Unexpected error: {ex}")
     else:
         assert isinstance(data_asset, Data)
         if asset_version is not None:
@@ -426,20 +426,29 @@ def test_retrieving_v2_data_asset_does_not_increment() -> None:
         assert asset_version_before_get_or_create == asset_version_after_get_or_create
 
 
-@pytest.mark.parametrize("version", [None, "1"])
-def test_create_v2_data_asset(version: Optional[str]) -> None:
+@pytest.mark.parametrize(["asset_name", "version"],
+                         [(TEST_DATA_ASSET_NAME, None),
+                          (TEST_DATA_ASSET_NAME, "1"),
+                          ("", 1)])
+def test_create_v2_data_asset(asset_name: str, version: Optional[str]) -> None:
     try:
         data_asset = _create_v2_data_asset(
             ml_client=TEST_ML_CLIENT,
             datastore_name=TEST_DATASTORE_NAME,
-            data_asset_name=TEST_DATA_ASSET_NAME,
+            data_asset_name=asset_name,
             version=version,
         )
-    except HttpResponseError as e:
+    except HttpResponseError as ex:
         if version is not None:
-            assert "A data version with this name and version already exists" in str(e)
+            assert "A data version with this name and version already exists" in str(ex)
         else:
-            pytest.fail(f"Unexpected error: {e}")
+            pytest.fail(f"Unexpected error: {ex}")
+
+    except ValueError as ex:
+        if asset_name == "":
+            assert "Cannot create data asset with empty name." in str(ex)
+        else:
+            pytest.fail(f"Unexpected error: {ex}")
 
     else:
         assert isinstance(data_asset, Data)
