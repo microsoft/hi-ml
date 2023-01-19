@@ -23,6 +23,7 @@ from azure.ai.ml import MLClient, Input, Output, command
 from azure.ai.ml.constants import AssetTypes, InputOutputModes
 from azure.ai.ml.entities import Data, Job, Command, Sweep
 from azure.ai.ml.entities import Environment as EnvironmentV2
+from azure.ai.ml.entities._job.distribution import PyTorchDistribution
 
 from azure.ai.ml.sweep import Choice
 from azureml._base_sdk_common import user_agent
@@ -466,12 +467,11 @@ def submit_run_v2(workspace: Optional[Workspace],
                   tags: Optional[Dict[str, str]] = None,
                   docker_shm_size: str = "",
                   wait_for_completion: bool = False,
-                  wait_for_completion_show_output: bool = False,
                   workspace_config_path: Optional[PathOrString] = None,
                   ml_client: Optional[MLClient] = None,
                   hyperparam_args: Optional[Dict[str, Any]] = None,
                   num_nodes: int = 1,
-                  processes_per_node: int = 1
+                  pytorch_processes_per_node: Optional[int] = None,
                   ) -> Job:
     """
     Starts a v2 AML Job on a given workspace by submitting a command
@@ -493,14 +493,14 @@ def submit_run_v2(workspace: Optional[Workspace],
     :param docker_shm_size: The Docker shared memory size that should be used when creating a new Docker image.
     :param wait_for_completion: If False (the default) return after the run is submitted to AzureML, otherwise wait for
         the completion of this run (if True).
-    :param wait_for_completion_show_output: If wait_for_completion is True this parameter indicates whether to show the
-        run output on sys.stdout.
     :param workspace_config_path: If not provided with an AzureML Workspace, then load one given the information in this
         config
     :param ml_client: An Azure MLClient object for interacting with Azure resources.
     :param hyperparam_args: A dictionary of hyperparameter search args to pass into a sweep job.
     :param num_nodes: The number of nodes to use for the job in AzureML.
-    :param processes_per_node: The number of processes per node to use for the job in AzureML.
+    :param pytorch_processes_per_node: For plain PyTorch multi-GPU processing: The number of processes per node. This
+        is only supported with AML SDK v2, and ignored in v1. If supplied, it will run a command job with the
+        "pytorch" framework, rather than "Python".
     :return: An AzureML Run object.
     """
     if ml_client is None:
@@ -539,16 +539,15 @@ def submit_run_v2(workspace: Optional[Workspace],
 
     # number of nodes and processes per node cannot be less than one
     num_nodes = num_nodes if num_nodes >= 1 else 1
-    processes_per_node = processes_per_node if processes_per_node >= 1 else 1
+    if pytorch_processes_per_node is not None:
+        pytorch_processes_per_node = pytorch_processes_per_node if pytorch_processes_per_node >= 1 else 1
 
-    if hyperparam_args:
-        param_sampling = hyperparam_args[PARAM_SAMPLING_ARG]
-
-        for sample_param, choices in param_sampling.items():
-            input_datasets_v2[sample_param] = choices.values[0]
-            cmd += f" --{sample_param}=" + "${{inputs." + sample_param + "}}"
-
-        command_job = command(
+    def create_command_job(cmd: str) -> Command:
+        if pytorch_processes_per_node is None:
+            distribution = None
+        else:
+            distribution = PyTorchDistribution(process_count_per_instance=pytorch_processes_per_node)
+        return command(
             code=str(snapshot_root_directory),
             command=cmd,
             inputs=input_datasets_v2,
@@ -560,11 +559,18 @@ def submit_run_v2(workspace: Optional[Workspace],
             shm_size=docker_shm_size,
             display_name=display_name,
             instance_count=num_nodes,
-            distribution={
-                "type": "PyTorch",
-                "process_count_per_instance": processes_per_node,
-            },
+            distribution=distribution,
         )
+
+
+    if hyperparam_args:
+        param_sampling = hyperparam_args[PARAM_SAMPLING_ARG]
+
+        for sample_param, choices in param_sampling.items():
+            input_datasets_v2[sample_param] = choices.values[0]
+            cmd += f" --{sample_param}=" + "${{inputs." + sample_param + "}}"
+
+        command_job = create_command_job(cmd)
 
         del hyperparam_args[PARAM_SAMPLING_ARG]
         # override command with parameter expressions
@@ -583,23 +589,7 @@ def submit_run_v2(workspace: Optional[Workspace],
         job_to_submit.set_limits(max_total_trials=hyperparam_args.get(MAX_TOTAL_TRIALS_ARG, None))
 
     else:
-        job_to_submit = command(
-            code=str(snapshot_root_directory),
-            command=cmd,
-            inputs=input_datasets_v2,
-            outputs=output_datasets_v2,
-            environment=environment.name + "@latest",
-            compute=compute_target,
-            experiment_name=experiment_name,
-            tags=tags or {},
-            shm_size=docker_shm_size,
-            display_name=display_name,
-            instance_count=num_nodes,
-            distribution={
-                "type": "PyTorch",
-                "process_count_per_instance": processes_per_node,
-            },
-        )
+        job_to_submit = create_command_job(cmd)
 
     returned_job = ml_client.jobs.create_or_update(job_to_submit)
     logging.info(f"URL to job: {returned_job.services['Studio'].endpoint}")  # type: ignore
@@ -775,7 +765,7 @@ def submit_to_azure_if_needed(  # type: ignore
         hyperdrive_config: Optional[HyperDriveConfig] = None,
         hyperparam_args: Optional[Dict[str, Any]] = None,
         strictly_aml_v1: bool = False,
-        processes_per_node_v2: int = 1,
+        pytorch_processes_per_node_v2: Optional[int] = None,
 ) -> AzureRunInfo:  # pragma: no cover
     """
     Submit a folder to Azure, if needed and run it.
@@ -834,7 +824,9 @@ def submit_to_azure_if_needed(  # type: ignore
         will be triggered if the commandline flag '--azureml' is present in sys.argv
     :param hyperdrive_config: A configuration object for Hyperdrive (hyperparameter search).
     :param strictly_aml_v1: If True, use Azure ML SDK v1. Otherwise, attempt to use Azure ML SDK v2.
-    :param processes_per_node_v2: The number of processes per node to use in distributed training on AzureML SDK v2.
+    :param pytorch_processes_per_node_v2: For plain PyTorch multi-GPU processing: The number of processes per node. This
+        is only supported with AML SDK v2, and ignored in v1. If supplied, it will run a command job with the
+        "pytorch" framework, rather than "Python".
     :return: If the script is submitted to AzureML then we terminate python as the script should be executed in AzureML,
         otherwise we return a AzureRunInfo object.
     """
@@ -977,10 +969,9 @@ def submit_to_azure_if_needed(  # type: ignore
                                 tags=tags,
                                 docker_shm_size=docker_shm_size,
                                 wait_for_completion=wait_for_completion,
-                                wait_for_completion_show_output=wait_for_completion_show_output,
                                 hyperparam_args=hyperparam_args,
                                 num_nodes=num_nodes,
-                                processes_per_node=processes_per_node_v2,
+                                pytorch_processes_per_node=pytorch_processes_per_node_v2,
                                 )
             if after_submission is not None:
                 after_submission(job, ml_client)  # type: ignore
