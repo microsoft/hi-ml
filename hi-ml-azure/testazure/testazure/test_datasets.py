@@ -368,16 +368,26 @@ def test_retrieve_v2_data_asset() -> None:
     assert data_asset == mock_retrieved_dataset
 
 
-def test_create_v2_data_asset_valid_version() -> None:
-    data_asset = _create_v2_data_asset(
-        ml_client=TEST_ML_CLIENT,
-        datastore_name=TEST_DATASTORE_NAME,
-        data_asset_name=TEST_DATA_ASSET_NAME,
-    )
-    assert isinstance(data_asset, Data)
-    assert data_asset.path == f"azureml://datastores/{TEST_DATASTORE_NAME}/paths/{TEST_DATA_ASSET_NAME}/"
-    assert data_asset.type == "uri_folder"
-    assert data_asset.name == TEST_DATASET_NAME
+@pytest.mark.parametrize("version", [None, "1"])
+def test_create_v2_data_asset(version: Optional[str]) -> None:
+    try:
+        data_asset = _create_v2_data_asset(
+            ml_client=TEST_ML_CLIENT,
+            datastore_name=TEST_DATASTORE_NAME,
+            data_asset_name=TEST_DATA_ASSET_NAME,
+            version=version,
+        )
+    except HttpResponseError as e:
+        if version is not None:
+            assert "A data version with this name and version already exists" in str(e)
+        else:
+            pytest.fail(f"Unexpected error: {e}")
+
+    else:
+        assert isinstance(data_asset, Data)
+        assert data_asset.path == f"azureml://datastores/{TEST_DATASTORE_NAME}/paths/{TEST_DATA_ASSET_NAME}/"
+        assert data_asset.type == "uri_folder"
+        assert data_asset.name == TEST_DATASET_NAME
 
 
 def test_dataset_keys() -> None:

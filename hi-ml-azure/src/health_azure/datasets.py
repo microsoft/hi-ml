@@ -180,8 +180,9 @@ def _create_v2_data_asset(
         type=AssetTypes.URI_FOLDER,
         description="<description>",
         name=data_asset_name,
-        version=None
+        version=version,
     )
+
     ml_client.data.create_or_update(azureml_data_asset)
     return azureml_data_asset
 
