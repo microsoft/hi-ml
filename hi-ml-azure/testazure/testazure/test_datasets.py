@@ -282,7 +282,11 @@ def test_get_or_create_v1_dataset() -> None:
 
 
 def test_get_or_create_v2_data_asset() -> None:
-    def _mock_error_from_retrieve_v2_data_asset(*_) -> None:
+    def _mock_error_from_retrieve_v2_data_asset(
+        ml_client: MLClient,
+        data_asset_name: str,
+        version: Optional[str] = None,
+    ) -> None:
         raise ResourceNotFoundError("Error Message")
 
     ml_client = MagicMock()
