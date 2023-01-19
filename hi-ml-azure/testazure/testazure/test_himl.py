@@ -798,7 +798,7 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 tags=dummy_tags,
                 shm_size=dummy_docker_shm_size,
                 display_name=dummy_display_name,
-                distribution={"type": "PyTorch", "process_count_per_instance": 1},
+                distribution=None,
                 instance_count=1
             )
 
@@ -858,7 +858,7 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 tags=dummy_tags,
                 shm_size=dummy_docker_shm_size,
                 display_name=dummy_display_name,
-                distribution={"type": "PyTorch", "process_count_per_instance": 1},
+                distribution=None,
                 instance_count=1
             )
 
@@ -1830,8 +1830,6 @@ def test_submit_to_azure_v2_distributed() -> None:
                     snapshot_root_directory=Path.cwd(),
                     submit_to_azureml=True,
                     strictly_aml_v1=False,
-                    num_nodes=-1,
-                    pytorch_processes_per_node_v2=0
                 )
                 mock_command.assert_called_once()
                 _, call_kwargs = mock_command.call_args
