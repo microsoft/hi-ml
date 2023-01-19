@@ -167,7 +167,9 @@ def _create_v2_data_asset(ml_client: MLClient, datastore_name: str, data_asset_n
         default_datastore = ml_client.datastores.get_default()
         datastore_name = default_datastore.name
 
-    logging.info(f"Creating a new Data asset from data in folder '{data_asset_name}' in the datastore '{datastore_name}'")
+    logging.info(
+        f"Creating a new Data asset from data in folder '{data_asset_name}' in the datastore '{datastore_name}'"
+    )
     azureml_data_asset = Data(
         path=f"azureml://datastores/{datastore_name}/paths/{data_asset_name}/",
         type=AssetTypes.URI_FOLDER,

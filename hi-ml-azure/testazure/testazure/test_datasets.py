@@ -197,7 +197,9 @@ def test_datasets_from_string() -> None:
 
 
 def test_get_or_create_dataset() -> None:
-    def _mock_retrieve_or_create_v2_dataset_fa_asset(datastore_name: str, dataset_name: str, ml_client: MLClient) -> None:
+    def _mock_retrieve_or_create_v2_dataset_fa_asset(
+        datastore_name: str, dataset_name: str, ml_client: MLClient
+    ) -> None:
         raise HttpResponseError("Cannot create v2 Data Version in v1 Data Container")
 
     data_asset_name = "himl_tiny_data_asset"
