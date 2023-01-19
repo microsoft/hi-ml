@@ -130,11 +130,24 @@ def _get_or_create_v1_dataset(datastore_name: str, dataset_name: str, workspace:
     return azureml_dataset
 
 
+def _get_latest_v2_asset_version(ml_client: MLClient, data_asset_name: str) -> str:
+    """
+    Retrieve the latest version of a v2 data asset
+
+    :param ml_client: An Azure MLClient object for interacting with Azure resources.
+    :param data_asset_name: The name of the data asset to look for.
+    :raises ResourceNotFoundError: If no data asset can be found with a matching name.
+    :return: The latest version of the data asset if found, else None.
+    """
+    data_assets = ml_client.data.list(name=data_asset_name)
+    n_versions = len([_ for _ in data_assets])
+    return str(n_versions)
+
+
 def _retrieve_v2_data_asset(
     ml_client: MLClient,
     data_asset_name: str,
     version: Optional[str] = None,
-    label: Optional[str] = None,
 ) -> Data:
     """
     Attempt to retrieve a v2 Data Asset using a provided Azure ML Workspace connection. If
@@ -142,11 +155,15 @@ def _retrieve_v2_data_asset(
 
     :param ml_client: An Azure MLClient object for interacting with Azure resources.
     :param data_asset_name: The name of the dataset to look for.
-    :param version: version of the data asset to retrieve, defaults to None
-    :param label: label of the data asset to retrieve, defaults to None
+    :param version: version of the data asset to retrieve, latest version retrieved if None.
     :return: An Azure Data asset representing the dataset if found.
     """
-    aml_data = ml_client.data.get(name=data_asset_name, version=version, label=label)
+
+    if version is None:
+        version = _get_latest_v2_asset_version(ml_client, data_asset_name)
+
+    aml_data = ml_client.data.get(name=data_asset_name, version=version)
+
     return aml_data
 
 

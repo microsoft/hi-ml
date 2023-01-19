@@ -13,7 +13,7 @@ import pytest
 from azure.ai.ml import MLClient
 from azure.ai.ml.entities import Data
 from azure.ai.ml.operations import DatastoreOperations
-from azure.core.exceptions import HttpResponseError
+from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
 from azureml._restclient.exceptions import ServiceException
 from azureml.core import Dataset, Workspace
 from azureml.data import FileDataset, OutputFileDatasetConfig
@@ -23,9 +23,9 @@ from azureml.exceptions._azureml_exception import UserErrorException
 from testazure.utils_testazure import DEFAULT_DATASTORE, DEFAULT_WORKSPACE, get_test_ml_client
 
 from health_azure.datasets import (
-    DatasetConfig, _create_v1_dataset, _create_v2_data_asset, _get_or_create_v1_dataset,
-    _get_or_create_v2_data_asset, _input_dataset_key, _output_dataset_key, _replace_string_datasets,
-    _retrieve_v1_dataset, _retrieve_v2_data_asset, create_dataset_configs, get_datastore, get_or_create_dataset
+    DatasetConfig, _create_v1_dataset, _create_v2_data_asset, _get_or_create_v1_dataset, _get_or_create_v2_data_asset,
+    _input_dataset_key, _output_dataset_key, _replace_string_datasets,_retrieve_v1_dataset, _retrieve_v2_data_asset,
+    create_dataset_configs, get_datastore, get_or_create_dataset, _get_latest_v2_asset_version,
 )
 from health_azure.utils import PathOrString, get_ml_client
 
@@ -33,6 +33,7 @@ from health_azure.utils import PathOrString, get_ml_client
 TEST_ML_CLIENT = get_test_ml_client()
 TEST_DATASET_NAME = "test_dataset"
 TEST_DATA_ASSET_NAME = "test_dataset"
+TEST_INVALID_DATA_ASSET_NAME = "non_existent_dataset"
 TEST_DATASTORE_NAME = "test_datastore"
 
 
@@ -359,13 +360,47 @@ def test_create_v1_dataset() -> None:
         pass
 
 
-def test_retrieve_v2_data_asset() -> None:
-    dataset_name = "dummydataset"
-    mock_ml_client = MagicMock()
-    mock_retrieved_dataset = "dummy_data"
-    mock_ml_client.data.get.return_value = mock_retrieved_dataset
-    data_asset = _retrieve_v2_data_asset(dataset_name, mock_ml_client)
-    assert data_asset == mock_retrieved_dataset
+@pytest.mark.parametrize(["asset_name", "asset_version"],
+                         [(TEST_DATA_ASSET_NAME, None),
+                          (TEST_DATA_ASSET_NAME, "1"),
+                          (TEST_INVALID_DATA_ASSET_NAME, None),
+                          (TEST_INVALID_DATA_ASSET_NAME, "1")])
+def test_retrieve_v2_data_asset(asset_name: str, asset_version: Optional[str]) -> None:
+    try:
+        data_asset = _retrieve_v2_data_asset(
+            ml_client=TEST_ML_CLIENT,
+            data_asset_name=asset_name,
+            version=asset_version,
+        )
+    except ResourceNotFoundError as e:
+        if asset_name == TEST_INVALID_DATA_ASSET_NAME:
+            if asset_version is None:
+                expected_error_message = f"{TEST_INVALID_DATA_ASSET_NAME} container was not found."
+            else:
+                expected_error_message = \
+                    f"{TEST_INVALID_DATA_ASSET_NAME}:{asset_version} (dataContainerName:version) not found."
+
+            assert expected_error_message in str(e)
+        else:
+            pytest.fail(f"Unexpected error: {e}")
+    else:
+        assert isinstance(data_asset, Data)
+        if asset_version is not None:
+            assert data_asset.version == asset_version
+        assert f"{TEST_DATASTORE_NAME}/paths/{TEST_DATA_ASSET_NAME}" in data_asset.path
+
+
+def test_retrieve_v2_data_asset_invalid_version() -> None:
+
+    invalid_asset_version = str(int(_get_latest_v2_asset_version(TEST_ML_CLIENT, TEST_DATA_ASSET_NAME)) + 1)
+
+    with pytest.raises(ResourceNotFoundError) as ex:
+        _retrieve_v2_data_asset(
+            ml_client=TEST_ML_CLIENT,
+            data_asset_name=TEST_DATA_ASSET_NAME,
+            version=invalid_asset_version,
+        )
+        assert f"{TEST_DATA_ASSET_NAME}:{invalid_asset_version} (dataContainerName:version) not found." in str(ex)
 
 
 @pytest.mark.parametrize("version", [None, "1"])
