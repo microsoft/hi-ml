@@ -79,7 +79,7 @@ test_all: pip_test flake8 mypy call_pytest_and_coverage
 # Smoke tests
 
 define SHARED_ARGS
---conda_env environment.yml --cluster=pr-gpu --wait_for_completion
+--conda_env environment.yml --cluster=pr-gpu --max_run_duration=15m --wait_for_completion
 endef
 
 smoke_helloworld_v1:
