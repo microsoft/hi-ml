@@ -20,7 +20,7 @@ from azureml.data import FileDataset, OutputFileDatasetConfig
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.exceptions._azureml_exception import UserErrorException
-from testazure.utils_testazure import DEFAULT_DATASTORE, DEFAULT_WORKSPACE
+from testazure.utils_testazure import DEFAULT_DATASTORE, DEFAULT_WORKSPACE, get_test_ml_client
 
 from health_azure.datasets import (
     DatasetConfig, _create_v1_dataset, _create_v2_data_asset, _get_or_create_v1_dataset,
@@ -28,6 +28,9 @@ from health_azure.datasets import (
     _retrieve_v1_dataset, _retrieve_v2_data_asset, create_dataset_configs, get_datastore, get_or_create_dataset
 )
 from health_azure.utils import PathOrString, get_ml_client
+
+
+TEST_ML_CLIENT = get_test_ml_client()
 
 
 def test_datasetconfig_init() -> None:

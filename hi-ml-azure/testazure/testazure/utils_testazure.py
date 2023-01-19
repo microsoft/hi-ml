@@ -10,12 +10,13 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, Generator, Optional
 
+from azure.ai.ml import MLClient
 from azureml.core import Run
-
 from health_azure.utils import (ENV_EXPERIMENT_NAME, WORKSPACE_CONFIG_JSON, UnitTestWorkspaceWrapper,
                                 to_azure_friendly_string)
 from health_azure import create_aml_run_object
 from health_azure.himl import effective_experiment_name
+from health_azure.utils import get_ml_client
 
 DEFAULT_DATASTORE = "himldatasets"
 FALLBACK_SINGLE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538212_d2b07afd"
@@ -83,3 +84,7 @@ def create_unittest_run_object(snapshot_directory: Optional[Path] = None) -> Run
     return create_aml_run_object(experiment_name=effective_experiment_name("himl-tests"),
                                  workspace=DEFAULT_WORKSPACE.workspace,
                                  snapshot_directory=snapshot_directory)
+
+
+def get_test_ml_client() -> MLClient:
+    return get_ml_client(workspace_config_path=get_shared_config_json())
