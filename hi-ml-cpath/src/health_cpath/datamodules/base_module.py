@@ -113,8 +113,8 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
     def _get_ddp_sampler(self, dataset: Dataset, stage: ModelKey) -> Optional[DistributedSampler]:
         is_distributed = torch.distributed.is_initialized() and torch.distributed.get_world_size() > 1
         if is_distributed and not self.pl_replace_sampler_ddp:
+            assert self.seed is not None, "seed must be set when using distributed training for reproducibility"
             if stage == ModelKey.TRAIN:
-                assert self.seed is not None, "seed must be set when using distributed training for reproducibility"
                 logging.info("pl_replace_sampler_ddp is False, setting DistributedSampler for training dataloader.")
                 return DistributedSampler(dataset, shuffle=True, seed=self.seed)
             else:
