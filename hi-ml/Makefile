@@ -76,20 +76,23 @@ pytest_and_coverage: pip_test call_pytest_and_coverage
 # install test requirements and run all tests
 test_all: pip_test flake8 mypy call_pytest_and_coverage
 
-# Smoke tests
-
+# Smoke tests should all wait for completion and run for 15 minutes maximum
 define SHARED_ARGS
 --conda_env environment.yml --cluster=pr-gpu --max_run_duration=15m --wait_for_completion
 endef
 
+# HelloWorld model training on a single node, submitted using the v1 SDK
 smoke_helloworld_v1:
 	python src/health_ml/runner.py --model=health_ml.HelloWorld --strictly_aml_v1=True --tag smoke_helloworld_v1 ${SHARED_ARGS}
 
+# HelloWorld model training on a single node, submitted using the v2 SDK
 smoke_helloworld_v2:
 	python src/health_ml/runner.py --model=health_ml.HelloWorld --strictly_aml_v1=False --tag smoke_helloworld_v1 ${SHARED_ARGS}
 
+# HelloWorld model training on 2 nodes, submitted using the v1 SDK
 smoke_helloworld_v1_2nodes:
 	python src/health_ml/runner.py --model=health_ml.HelloWorld --strictly_aml_v1=True --num_nodes=2 --tag smoke_helloworld_v1_2nodes ${SHARED_ARGS}
 
+# HelloWorld model training on 2 nodes, submitted using the v2 SDK
 smoke_helloworld_v2_2nodes:
 	python src/health_ml/runner.py --model=health_ml.HelloWorld --strictly_aml_v1=False --num_nodes=2 --tag smoke_helloworld_v2_2nodes ${SHARED_ARGS}
