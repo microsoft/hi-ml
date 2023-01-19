@@ -130,16 +130,23 @@ def _get_or_create_v1_dataset(datastore_name: str, dataset_name: str, workspace:
     return azureml_dataset
 
 
-def _retrieve_v2_data_asset(data_asset_name: str, ml_client: MLClient) -> Data:
+def _retrieve_v2_data_asset(
+    ml_client: MLClient,
+    data_asset_name: str,
+    version: Optional[str] = None,
+    label: Optional[str] = None,
+) -> Data:
     """
     Attempt to retrieve a v2 Data Asset using a provided Azure ML Workspace connection. If
     no Data asset can be found with a matching name, the underlying code will raise an Exception
 
-    :param data_asset_name: The name of the dataset to look for.
     :param ml_client: An Azure MLClient object for interacting with Azure resources.
-    :return: An Azure Data asset representing the dataset if found, otherwise an Exception will be raised.
+    :param data_asset_name: The name of the dataset to look for.
+    :param version: version of the data asset to retrieve, defaults to None
+    :param label: label of the data asset to retrieve, defaults to None
+    :return: An Azure Data asset representing the dataset if found.
     """
-    aml_data = ml_client.data.get(name=data_asset_name)
+    aml_data = ml_client.data.get(name=data_asset_name, version=version, label=label)
     return aml_data
 
 
