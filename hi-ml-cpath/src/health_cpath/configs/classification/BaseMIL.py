@@ -147,7 +147,6 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
             val_plot_options=self.get_val_plot_options(),
             test_plot_options=self.get_test_plot_options(),
             loading_params=create_from_matching_params(self, LoadingParams),
-            val_set_is_dist=self.pl_replace_sampler_ddp and self.max_num_gpus > 1,
             save_intermediate_outputs=self.save_intermediate_outputs,
         )
         if self.num_top_slides > 0:
@@ -172,9 +171,6 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
                                                   num_slides_heatmap=self.num_slides_heatmap,
                                                   save_tile_ids=self.save_tile_ids,
                                                   log_exceptions=self.log_exceptions,
-                                                  val_set_is_dist=(
-                                                      self.pl_replace_sampler_ddp and self.max_num_gpus > 1),
-                                                  )
                              )
         return callbacks
 
