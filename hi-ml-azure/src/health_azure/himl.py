@@ -559,7 +559,7 @@ def submit_run_v2(workspace: Optional[Workspace],
             shm_size=docker_shm_size,
             display_name=display_name,
             instance_count=num_nodes,
-            distribution=distribution,
+            distribution=distribution,  # type: ignore
         )
 
     if hyperparam_args:
