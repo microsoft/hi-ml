@@ -387,13 +387,13 @@ def test_retrieve_v2_data_asset(asset_name: str, asset_version: Optional[str]) -
         assert isinstance(data_asset, Data)
         if asset_version is not None:
             assert data_asset.version == asset_version
-        assert f"{TEST_DATASTORE_NAME}/paths/{TEST_DATA_ASSET_NAME}" in data_asset.path
+        data_asset_path = data_asset.path
+        assert isinstance(data_asset_path, str)  # makes pyright happy
+        assert f"{TEST_DATASTORE_NAME}/paths/{TEST_DATA_ASSET_NAME}" in data_asset_path
 
 
 def test_retrieve_v2_data_asset_invalid_version() -> None:
-
     invalid_asset_version = str(int(_get_latest_v2_asset_version(TEST_ML_CLIENT, TEST_DATA_ASSET_NAME)) + 1)
-
     with pytest.raises(ResourceNotFoundError) as ex:
         _retrieve_v2_data_asset(
             ml_client=TEST_ML_CLIENT,
