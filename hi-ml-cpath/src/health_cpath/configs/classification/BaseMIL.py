@@ -171,6 +171,7 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
                                                   num_slides_heatmap=self.num_slides_heatmap,
                                                   save_tile_ids=self.save_tile_ids,
                                                   log_exceptions=self.log_exceptions,
+                                                  )
                              )
         return callbacks
 

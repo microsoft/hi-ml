@@ -1,6 +1,6 @@
 from pathlib import Path
 from typing import Dict, List
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 import torch
@@ -8,7 +8,6 @@ import torch.distributed
 import torch.multiprocessing
 from ruamel.yaml import YAML
 from health_cpath.preprocessing.loading import LoadingParams
-from health_cpath.utils.tiles_selection_utils import TilesSelector
 from testhisto.utils.utils_testhisto import run_distributed
 from torch.testing import assert_close
 from torchmetrics.metric import Metric
