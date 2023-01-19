@@ -31,6 +31,9 @@ from health_azure.utils import PathOrString, get_ml_client
 
 
 TEST_ML_CLIENT = get_test_ml_client()
+TEST_DATASET_NAME = "test_dataset"
+TEST_DATA_ASSET_NAME = "test_dataset"
+TEST_DATASTORE_NAME = "test_datastore"
 
 
 def test_datasetconfig_init() -> None:
@@ -365,16 +368,16 @@ def test_retrieve_v2_data_asset() -> None:
     assert data_asset == mock_retrieved_dataset
 
 
-def test_create_v2_data_asset() -> None:
-    dataset_name = "dummydataset"
-    datastore = "dummydataset"
-    mock_ml_client = MagicMock()
-    # mock_ml_client.data.create_or_update.return_value = None
-    data_asset = _create_v2_data_asset(datastore, dataset_name, mock_ml_client)
+def test_create_v2_data_asset_valid_version() -> None:
+    data_asset = _create_v2_data_asset(
+        ml_client=TEST_ML_CLIENT,
+        datastore_name=TEST_DATASTORE_NAME,
+        data_asset_name=TEST_DATA_ASSET_NAME,
+    )
     assert isinstance(data_asset, Data)
-    assert data_asset.path == "azureml://datastores/dummydataset/paths/dummydataset/"
+    assert data_asset.path == f"azureml://datastores/{TEST_DATASTORE_NAME}/paths/{TEST_DATA_ASSET_NAME}/"
     assert data_asset.type == "uri_folder"
-    assert data_asset.name == dataset_name
+    assert data_asset.name == TEST_DATASET_NAME
 
 
 def test_dataset_keys() -> None:

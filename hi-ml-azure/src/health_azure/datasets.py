@@ -150,7 +150,12 @@ def _retrieve_v2_data_asset(
     return aml_data
 
 
-def _create_v2_data_asset(ml_client: MLClient, datastore_name: str, data_asset_name: str) -> Data:
+def _create_v2_data_asset(
+    ml_client: MLClient,
+    datastore_name: str,
+    data_asset_name: str,
+    version: Optional[str] = None
+) -> Data:
     """
     Create or update a v2 Data asset in the specified Datastore
 
