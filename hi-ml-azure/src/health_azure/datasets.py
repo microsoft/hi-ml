@@ -187,14 +187,14 @@ def _get_or_create_v2_data_asset(datastore_name: str, data_asset_name: str, ml_c
     :param datastore_name: The name of the Datastore to either retrieve or create and register the Data asset in.
     :param data_asset_name: The name of the Data asset to be retrieved or registered.
     :param ml_client: An Azure MLClient object for interacting with Azure resources.
-    :return: An Azure Data asset object with the provided dataset name, in the provided datastore
+    :return: An Azure Data asset object with the provided asset name, in the provided datastore
     """
     try:
-        azureml_dataset = _retrieve_v2_data_asset(data_asset_name, ml_client)
+        azureml_data_asset = _retrieve_v2_data_asset(data_asset_name, ml_client)
     except ResourceNotFoundError:  # catch the exception and create the dataset, raise all other types of exceptions
-        azureml_dataset = _create_v2_data_asset(datastore_name, data_asset_name, ml_client)
+        azureml_data_asset = _create_v2_data_asset(datastore_name, data_asset_name, ml_client)
 
-    return azureml_dataset
+    return azureml_data_asset
 
 
 def get_or_create_dataset(datastore_name: str,
