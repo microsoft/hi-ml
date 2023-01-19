@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import logging
 import torch
 from enum import Enum
 from pathlib import Path
@@ -114,10 +115,12 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
         if is_distributed and not self.pl_replace_sampler_ddp:
             if stage == ModelKey.TRAIN:
                 assert self.seed is not None, "seed must be set when using distributed training for reproducibility"
-                print("Using DistributedSampler for train dataloaders.")
+                logging.info("pl_replace_sampler_ddp is False, setting DistributedSampler for training dataloader.")
                 return DistributedSampler(dataset, shuffle=True, seed=self.seed)
             else:
-                print("Using UnrepeatedDistributedSampler for validation and test dataloaders.")
+                logging.info("pl_replace_sampler_ddp is False, setting UnrepeatedDistributedSampler for validation and "
+                             "test dataloaders. This will ensure that each process gets a unique set of samples. "
+                             "If you want to use DistributedSampler, set pl_replace_sampler_ddp to True.")
                 return UnrepeatedDistributedSampler(dataset, shuffle=False, seed=self.seed)
         return None
 
