@@ -779,7 +779,7 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 hyperparam_args=None
             )
 
-            expected_arg_str = " ".join([p for p in dummy_script_params if "conda_env" not in p])
+            expected_arg_str = " ".join(dummy_script_params)
             expected_inputs_str = "--INPUT_0=${{inputs.INPUT_0}}"
             expected_outputs_str = "--OUTPUT_0=${{outputs.OUTPUT_0}}"
             relative_entry_script = dummy_entry_script.relative_to(dummy_root_directory)
