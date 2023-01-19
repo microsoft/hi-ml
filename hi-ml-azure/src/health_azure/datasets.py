@@ -150,14 +150,14 @@ def _retrieve_v2_data_asset(
     return aml_data
 
 
-def _create_v2_data_asset(datastore_name: str, data_asset_name: str, ml_client: MLClient) -> Data:
+def _create_v2_data_asset(ml_client: MLClient, datastore_name: str, data_asset_name: str) -> Data:
     """
     Create or update a v2 Data asset in the specified Datastore
 
+    :param ml_client: An Azure MLClient object for interacting with Azure resources.
     :param datastore_name: The name of the datastore in which to create or update the Data asset.
     :param data_asset_name: The name of the dataset to be created.
-    :param ml_client: An Azure MLClient object for interacting with Azure resources.
-    :raises ValueError: If no datastore name is provided to define where to create the data
+    :raises ValueError: If no datastore name is provided to define where to create the data.
     :return: The created or updated Data asset.
     """
     if not data_asset_name:
@@ -190,9 +190,9 @@ def _get_or_create_v2_data_asset(datastore_name: str, data_asset_name: str, ml_c
     :return: An Azure Data asset object with the provided asset name, in the provided datastore
     """
     try:
-        azureml_data_asset = _retrieve_v2_data_asset(data_asset_name, ml_client)
+        azureml_data_asset = _retrieve_v2_data_asset(ml_client, data_asset_name)
     except ResourceNotFoundError:  # catch the exception and create the dataset, raise all other types of exceptions
-        azureml_data_asset = _create_v2_data_asset(datastore_name, data_asset_name, ml_client)
+        azureml_data_asset = _create_v2_data_asset(ml_client, datastore_name, data_asset_name)
 
     return azureml_data_asset
 
