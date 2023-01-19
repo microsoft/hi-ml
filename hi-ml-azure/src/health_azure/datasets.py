@@ -154,9 +154,9 @@ def _retrieve_v2_data_asset(
     no Data asset can be found with a matching name, the underlying code will raise an Exception
 
     :param ml_client: An Azure MLClient object for interacting with Azure resources.
-    :param data_asset_name: The name of the dataset to look for.
+    :param data_asset_name: The name of the data asset to look for.
     :param version: version of the data asset to retrieve, latest version retrieved if None.
-    :return: An Azure Data asset representing the dataset if found.
+    :return: An Azure Data asset representing the data asset if found.
     """
 
     if version is None:
@@ -178,7 +178,8 @@ def _create_v2_data_asset(
 
     :param ml_client: An Azure MLClient object for interacting with Azure resources.
     :param datastore_name: The name of the datastore in which to create or update the Data asset.
-    :param data_asset_name: The name of the dataset to be created.
+    :param data_asset_name: The name of the data asset to be created.
+    :param version: The version of the data asset to be created.
     :raises ValueError: If no datastore name is provided to define where to create the data.
     :return: The created or updated Data asset.
     """
@@ -204,20 +205,25 @@ def _create_v2_data_asset(
     return azureml_data_asset
 
 
-def _get_or_create_v2_data_asset(datastore_name: str, data_asset_name: str, ml_client: MLClient) -> Data:
+def _get_or_create_v2_data_asset(
+    ml_client: MLClient,
+    datastore_name: str,
+    data_asset_name: str,
+    version: Optional[str] = None
+) -> Data:
     """
-    Attempt to retrieve a v2 Dataset object and return that, otherwise attempt to create and register
-    a v2 Dataset and return that.
+    Attempt to retrieve a v2 data asset object and return that, otherwise attempt to create and register
+    a v2 data asset and return that.
 
+    :param ml_client: An Azure MLClient object for interacting with Azure resources.
     :param datastore_name: The name of the Datastore to either retrieve or create and register the Data asset in.
     :param data_asset_name: The name of the Data asset to be retrieved or registered.
-    :param ml_client: An Azure MLClient object for interacting with Azure resources.
     :return: An Azure Data asset object with the provided asset name, in the provided datastore
     """
     try:
-        azureml_data_asset = _retrieve_v2_data_asset(ml_client, data_asset_name)
+        azureml_data_asset = _retrieve_v2_data_asset(ml_client, data_asset_name, version)
     except ResourceNotFoundError:  # catch the exception and create the dataset, raise all other types of exceptions
-        azureml_data_asset = _create_v2_data_asset(ml_client, datastore_name, data_asset_name)
+        azureml_data_asset = _create_v2_data_asset(ml_client, datastore_name, data_asset_name, version)
 
     return azureml_data_asset
 
@@ -254,7 +260,7 @@ def get_or_create_dataset(datastore_name: str,
     else:
         try:
             ml_client = get_ml_client(ml_client=ml_client)
-            aml_dataset = _get_or_create_v2_data_asset(datastore_name, dataset_name, ml_client)
+            aml_dataset = _get_or_create_v2_data_asset(ml_client, datastore_name, dataset_name)
         except HttpResponseError as e:
             if "Cannot create v2 Data Version in v1 Data Container" in e.message:
                 logging.info("This appears to be a v1 Data Container. Reverting to API v1 to create this Dataset")

@@ -24,7 +24,7 @@ from testazure.utils_testazure import DEFAULT_DATASTORE, DEFAULT_WORKSPACE, get_
 
 from health_azure.datasets import (
     DatasetConfig, _create_v1_dataset, _create_v2_data_asset, _get_or_create_v1_dataset, _get_or_create_v2_data_asset,
-    _input_dataset_key, _output_dataset_key, _replace_string_datasets,_retrieve_v1_dataset, _retrieve_v2_data_asset,
+    _input_dataset_key, _output_dataset_key, _replace_string_datasets, _retrieve_v1_dataset, _retrieve_v2_data_asset,
     create_dataset_configs, get_datastore, get_or_create_dataset, _get_latest_v2_asset_version,
 )
 from health_azure.utils import PathOrString, get_ml_client
@@ -292,12 +292,12 @@ def test_get_or_create_v2_data_asset() -> None:
     with patch.multiple("health_azure.datasets",
                         _retrieve_v2_data_asset=DEFAULT,
                         _create_v2_data_asset=DEFAULT) as mocks:
-        _get_or_create_v2_data_asset(datastore, dataset_name, ml_client)
+        _get_or_create_v2_data_asset(ml_client, datastore, dataset_name)
         mocks["_retrieve_v2_data_asset"].assert_called_once()
         mocks["_create_v2_data_asset"].assert_not_called()
 
         mocks["_retrieve_v2_data_asset"].side_effect = _mock_error_from_retrieve_v2_data_asset
-        _get_or_create_v2_data_asset(datastore, dataset_name, ml_client)
+        _get_or_create_v2_data_asset(ml_client, datastore, dataset_name)
         assert mocks["_retrieve_v2_data_asset"].call_count == 2
         mocks["_create_v2_data_asset"].assert_called_once()
 
