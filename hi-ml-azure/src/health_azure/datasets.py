@@ -154,7 +154,7 @@ def _create_v2_data_asset(datastore_name: str, data_asset_name: str, ml_client: 
     :return: The created or updated Data asset.
     """
     if not data_asset_name:
-        raise ValueError(f"Cannot create data asset without a valid dataset name (received {data_asset_name})")
+        raise ValueError(f"Received data_asset_name={data_asset_name}. Cannot create data asset with empty name.")
 
     if not datastore_name:
         default_datastore = ml_client.datastores.get_default()
@@ -184,8 +184,9 @@ def _get_or_create_v2_data_asset(datastore_name: str, data_asset_name: str, ml_c
     """
     try:
         azureml_dataset = _retrieve_v2_data_asset(data_asset_name, ml_client)
-    except Exception:
+    except ResourceNotFoundError:  # catch the exception and create the dataset, raise all other types of exceptions
         azureml_dataset = _create_v2_data_asset(datastore_name, data_asset_name, ml_client)
+
     return azureml_dataset
 
 
