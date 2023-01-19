@@ -282,8 +282,8 @@ def test_get_or_create_v1_dataset() -> None:
 
 
 def test_get_or_create_v2_data_asset() -> None:
-    def _mock_error_from_retrieve_v2_data_asset(dataset_name: str, workspace: Workspace) -> None:
-        raise Exception("Error Message")
+    def _mock_error_from_retrieve_v2_data_asset(*_) -> None:
+        raise ResourceNotFoundError("Error Message")
 
     ml_client = MagicMock()
     datastore = "dummy_datastore"
