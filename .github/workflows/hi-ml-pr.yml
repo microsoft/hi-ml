@@ -275,7 +275,7 @@ jobs:
 
   himl-publish-testpypi-pkg:
     runs-on: ubuntu-20.04
-    needs: [ himl-test-artifact-pkg, himl-pyright, himl-mypy, himl-flake8 ]
+    needs: [ himl-test-artifact-pkg, himl-pyright, himl-mypy, himl-flake8, himl-smoke-tests ]
     if: "!startsWith(github.ref, 'refs/tags/v')"
     strategy:
       matrix:
@@ -307,7 +307,7 @@ jobs:
 
   himl-publish-pypi-pkg:
     runs-on: ubuntu-20.04
-    needs: [ himl-test-artifact-pkg, himl-pyright, himl-mypy, himl-flake8 ]
+    needs: [ himl-test-artifact-pkg, himl-pyright, himl-mypy, himl-flake8, himl-smoke-tests ]
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
