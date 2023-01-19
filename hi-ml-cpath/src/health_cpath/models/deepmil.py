@@ -20,7 +20,7 @@ from health_cpath.datasets.base_dataset import TilesDataset
 from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
 from health_cpath.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
                                              validate_class_names, EXTRA_PREFIX)
-from health_azure.logging import print_message_with_rank_pid
+
 
 RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
                 ResultsKey.CLASS_PROBS, ResultsKey.PRED_LABEL, ResultsKey.TRUE_LABEL, ResultsKey.BAG_ATTN]
@@ -102,7 +102,6 @@ class DeepMILModule(LightningModule):
         self.train_metrics = self.get_metrics()
         self.val_metrics = self.get_metrics()
         self.test_metrics = self.get_metrics()
-        self.val_samples_counter = 0
 
         self.reset_encoder_to_identity_if_caching()
 
@@ -384,7 +383,6 @@ class DeepMILModule(LightningModule):
         val_result = self._shared_step(batch, batch_idx, ModelKey.VAL)
         name = f'{self.get_extra_prefix()}val/loss'
         self.log(name, val_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True, sync_dist=True)
-        self.val_samples_counter += len(batch[SlideKey.IMAGE])
         return val_result
 
     def test_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
@@ -397,8 +395,6 @@ class DeepMILModule(LightningModule):
 
     def validation_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
         self.log_metrics(stage=ModelKey.VAL, prefix=self.get_extra_prefix())
-        print_message_with_rank_pid(f"Validation epoch end Model has seen {self.val_samples_counter} samples")
-        self.val_samples_counter = 0
         if self.outputs_handler:
             self.outputs_handler.save_validation_outputs(
                 epoch_results=epoch_results,
