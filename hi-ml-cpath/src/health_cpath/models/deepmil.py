@@ -384,7 +384,7 @@ class DeepMILModule(LightningModule):
         val_result = self._shared_step(batch, batch_idx, ModelKey.VAL)
         name = f'{self.get_extra_prefix()}val/loss'
         self.log(name, val_result[ResultsKey.LOSS], on_epoch=True, on_step=True, logger=True, sync_dist=True)
-        self.val_samples_counter += 1
+        self.val_samples_counter += len(batch[SlideKey.IMAGE])
         return val_result
 
     def test_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore

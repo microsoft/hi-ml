@@ -295,7 +295,7 @@ class MLRunner:
         self.inference_checkpoint = str(self.checkpoint_handler.get_checkpoint_to_test())
         if self.container.run_extra_val_epoch:
             self.container.on_run_extra_validation_epoch()
-        self.set_trainer_for_inference()
+        # self.set_trainer_for_inference()
         self.data_module = self.container.get_data_module()
 
     def run_training(self) -> None:
@@ -397,7 +397,7 @@ class MLRunner:
                 # Update the checkpoint handler state
                 self.checkpoint_handler.additional_training_done()
                 # Kill all processes besides rank 0 after training is done to start inference on a single device
-                self.after_ddp_cleanup(old_environ)
+                # self.after_ddp_cleanup(old_environ)
 
             self.init_inference()
 
