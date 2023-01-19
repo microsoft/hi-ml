@@ -75,3 +75,21 @@ pytest_and_coverage: pip_test call_pytest_and_coverage
 
 # install test requirements and run all tests
 test_all: pip_test flake8 mypy call_pytest_and_coverage
+
+# Smoke tests
+
+define SHARED_ARGS
+--conda_env environment.yml --cluster=pr-gpu --wait_for_completion
+endef
+
+smoke_helloworld_v1:
+	python src/health_ml/runner.py --model=health_ml.HelloWorld --strictly_aml_v1=True --tag smoke_helloworld_v1 ${SHARED_ARGS}
+
+smoke_helloworld_v2:
+	python src/health_ml/runner.py --model=health_ml.HelloWorld --strictly_aml_v1=False --tag smoke_helloworld_v1 ${SHARED_ARGS}
+
+smoke_helloworld_v1_2nodes:
+	python src/health_ml/runner.py --model=health_ml.HelloWorld --strictly_aml_v1=True --num_nodes=2 --tag smoke_helloworld_v1_2nodes ${SHARED_ARGS}
+
+smoke_helloworld_v2_2nodes:
+	python src/health_ml/runner.py --model=health_ml.HelloWorld --strictly_aml_v1=False --num_nodes=2 --tag smoke_helloworld_v2_2nodes ${SHARED_ARGS}
