@@ -224,7 +224,7 @@ jobs:
         with:
             flags: ${{ matrix.folder }}
 
-  himl-smoke_helloworld_v1:
+  himl-smoke-helloworld-v1:
     runs-on: ubuntu-20.04
     needs: [ cancel-azureml ]
     steps:
@@ -237,7 +237,7 @@ jobs:
           cd hi-ml
           make smoke_helloworld_v1
 
-  himl-smoke_helloworld_v2:
+  himl-smoke-helloworld-v2:
     runs-on: ubuntu-20.04
     needs: [ cancel-azureml ]
     steps:
@@ -250,7 +250,7 @@ jobs:
           cd hi-ml
           make smoke_helloworld_v2
 
-  himl-smoke_helloworld_v1_2nodes:
+  himl-smoke-helloworld-v1-2nodes:
     runs-on: ubuntu-20.04
     needs: [ cancel-azureml ]
     steps:
@@ -263,7 +263,7 @@ jobs:
           cd hi-ml
           make smoke_helloworld_v1_2nodes
 
-  himl-smoke_helloworld_v1_2nodes:
+  himl-smoke-helloworld-v1-2nodes:
     runs-on: ubuntu-20.04
     needs: [ cancel-azureml ]
     steps:
