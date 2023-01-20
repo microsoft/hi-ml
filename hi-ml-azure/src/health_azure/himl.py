@@ -498,9 +498,9 @@ def submit_run_v2(workspace: Optional[Workspace],
     :param ml_client: An Azure MLClient object for interacting with Azure resources.
     :param hyperparam_args: A dictionary of hyperparameter search args to pass into a sweep job.
     :param num_nodes: The number of nodes to use for the job in AzureML.
-    :param pytorch_processes_per_node: For plain PyTorch multi-GPU processing: The number of processes per node. This
-        is only supported with AML SDK v2, and ignored in v1. If supplied, it will run a command job with the
-        "pytorch" framework, rather than "Python".
+    :param pytorch_processes_per_node: For plain PyTorch multi-GPU processing: The number of processes per node.
+        If supplied, it will run a command job with the "pytorch" framework (rather than "Python"), and using "nccl"
+        as the communication backend.
     :return: An AzureML Run object.
     """
     if ml_client is None:
