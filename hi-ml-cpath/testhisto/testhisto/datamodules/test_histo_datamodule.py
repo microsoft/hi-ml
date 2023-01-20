@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import List, Optional
 from unittest.mock import MagicMock, patch
 from torch.utils.data import DataLoader, DistributedSampler, RandomSampler, SequentialSampler
+from pytorch_lightning.overrides.distributed import UnrepeatedDistributedSampler
+
 
 from health_cpath.datamodules.base_module import HistoDataModule
 from health_cpath.datamodules.panda_module import PandaSlidesDataModule, PandaTilesDataModule
@@ -119,36 +121,23 @@ def test_tiles_datamodule_different_batch_sizes(
     _assert_correct_batch_sizes(datamodule, batch_size, batch_size_inf)
 
 
-def _validate_sampler_type(datamodule: HistoDataModule, stages: List[ModelKey], expected_none: bool) -> None:
+def _test_datamodule_pl_replace_sampler_ddp(
+    datamodule: HistoDataModule, replace_sampler: bool, rank: int = 0, world_size: int = 1, device: str = "cpu"
+) -> None:
+    datamodule.setup()
+    if rank == 0:
+        time.sleep(15)  # slow down rank 0 to avoid concurrent file access
+    stages = [ModelKey.TRAIN, ModelKey.VAL, ModelKey.TEST]
     expected_sampler_types = {
-        ModelKey.TRAIN: RandomSampler if expected_none else DistributedSampler,
-        ModelKey.VAL: SequentialSampler,
-        ModelKey.TEST: SequentialSampler,
+        ModelKey.TRAIN: RandomSampler if replace_sampler else DistributedSampler,
+        ModelKey.VAL: SequentialSampler if replace_sampler else UnrepeatedDistributedSampler,
+        ModelKey.TEST: SequentialSampler if replace_sampler else UnrepeatedDistributedSampler,
     }
     for stage in stages:
         datamodule_sampler = datamodule._get_ddp_sampler(getattr(datamodule, f'{stage}_dataset'), stage)
-        assert (datamodule_sampler is None) == expected_none
+        assert (datamodule_sampler is None) == replace_sampler
         dataloader = getattr(datamodule, f'{stage.value}_dataloader')()
         assert isinstance(dataloader.sampler, expected_sampler_types[stage])
-
-
-def _test_datamodule_pl_ddp_sampler_true(
-    datamodule: HistoDataModule, rank: int = 0, world_size: int = 1, device: str = "cpu"
-) -> None:
-    datamodule.setup()
-    if rank == 0:
-        time.sleep(15)  # slow down rank 0 to avoid concurrent file access
-    _validate_sampler_type(datamodule, [ModelKey.TRAIN, ModelKey.VAL, ModelKey.TEST], expected_none=True)
-
-
-def _test_datamodule_pl_ddp_sampler_false(
-    datamodule: HistoDataModule, rank: int = 0, world_size: int = 1, device: str = "cpu"
-) -> None:
-    datamodule.setup()
-    if rank == 0:
-        time.sleep(15)  # slow down rank 0 to avoid concurrent file access
-    _validate_sampler_type(datamodule, [ModelKey.VAL, ModelKey.TEST], expected_none=True)
-    _validate_sampler_type(datamodule, [ModelKey.TRAIN], expected_none=False)
 
 
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
@@ -159,9 +148,9 @@ def test_slides_datamodule_pl_replace_sampler_ddp(mock_panda_slides_root_dir: Pa
                                               pl_replace_sampler_ddp=True,
                                               seed=42, tiling_params=TilingParams(),
                                               loading_params=get_loading_params())
-    run_distributed(_test_datamodule_pl_ddp_sampler_true, [slides_datamodule], world_size=2)
+    run_distributed(_test_datamodule_pl_replace_sampler_ddp, [slides_datamodule, True], world_size=2)
     slides_datamodule.pl_replace_sampler_ddp = False
-    run_distributed(_test_datamodule_pl_ddp_sampler_false, [slides_datamodule], world_size=2)
+    run_distributed(_test_datamodule_pl_replace_sampler_ddp, [slides_datamodule, False], world_size=2)
 
 
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
@@ -169,9 +158,9 @@ def test_slides_datamodule_pl_replace_sampler_ddp(mock_panda_slides_root_dir: Pa
 @pytest.mark.gpu
 def test_tiles_datamodule_pl_replace_sampler_ddp(mock_panda_tiles_root_dir: Path) -> None:
     tiles_datamodule = PandaTilesDataModule(root_path=mock_panda_tiles_root_dir, seed=42, pl_replace_sampler_ddp=True)
-    run_distributed(_test_datamodule_pl_ddp_sampler_true, [tiles_datamodule], world_size=2)
+    run_distributed(_test_datamodule_pl_replace_sampler_ddp, [tiles_datamodule, True], world_size=2)
     tiles_datamodule.pl_replace_sampler_ddp = False
-    run_distributed(_test_datamodule_pl_ddp_sampler_false, [tiles_datamodule], world_size=2)
+    run_distributed(_test_datamodule_pl_replace_sampler_ddp, [tiles_datamodule, False], world_size=2)
 
 
 def test_assertion_error_missing_seed(mock_panda_slides_root_dir: Path) -> None:

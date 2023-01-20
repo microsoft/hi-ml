@@ -9,7 +9,7 @@ import logging
 import param
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from azureml.core import Workspace, Run
 
@@ -186,9 +186,10 @@ class Runner:
             about datasets etc
         """
 
-        def after_submission_hook(azure_run: Run) -> None:
+        def after_submission_hook(azure_run: Run, *args: Any) -> None:
             """
-            A function that will be called right after job submission.
+            A function that will be called right after job submission. The function has a second unused argument
+            to support both the required signatures for AzureML SDK v1 and v2.
             """
             # Set the default display name to what was provided as the "tag". This will affect single runs
             # and Hyperdrive parent runs
@@ -267,7 +268,6 @@ class Runner:
                 after_submission=after_submission_hook,
                 tags=self.additional_run_tags(script_params),
                 strictly_aml_v1=self.experiment_config.strictly_aml_v1,
-                processes_per_node_v2=self.lightning_container.num_gpus_per_node(),
             )
         else:
             azure_run_info = submit_to_azure_if_needed(
