@@ -497,7 +497,7 @@ def submit_run_v2(workspace: Optional[Workspace],
         config
     :param ml_client: An Azure MLClient object for interacting with Azure resources.
     :param hyperparam_args: A dictionary of hyperparameter search args to pass into a sweep job.
-    :param num_nodes: The number of nodes to use for the job in AzureML.
+    :param num_nodes: The number of nodes to use for the job in AzureML. The value must be 1 or greater.
     :param pytorch_processes_per_node: For plain PyTorch multi-GPU processing: The number of processes per node.
         If supplied, it will run a command job with the "pytorch" framework (rather than "Python"), and using "nccl"
         as the communication backend.
@@ -538,9 +538,12 @@ def submit_run_v2(workspace: Optional[Workspace],
     display_name = get_display_name_v2(tags)
 
     # number of nodes and processes per node cannot be less than one
+    if num_nodes < 1:
+        raise ValueError("num_nodes cannot be less than 1")
     num_nodes = num_nodes if num_nodes >= 1 else 1
     if pytorch_processes_per_node is not None:
-        pytorch_processes_per_node = pytorch_processes_per_node if pytorch_processes_per_node >= 1 else 1
+        if pytorch_processes_per_node < 1:
+            raise ValueError("pytorch_processes_per_node cannot be less than 1")
 
     def create_command_job(cmd: str) -> Command:
         if pytorch_processes_per_node is None:
@@ -818,10 +821,13 @@ def submit_to_azure_if_needed(  # type: ignore
         will also register the data in this folder as an AzureML dataset.
     :param output_datasets: The script will create a temporary folder when running in AzureML, and while the job writes
         data to that folder, upload it to blob storage, in the data store.
-    :param num_nodes: The number of nodes to use in distributed training on AzureML. When using a value > 1, an
-        distributed MPI job will be started, with one process per node. This is suitable for PyTorch Lightning,
-        for example. To use plain PyTorch, specify the number the number of processes per node via the
-        `pytorch_processes_per_node_v2` argument.
+    :param num_nodes: The number of nodes to use in distributed training on AzureML. When using a value > 1, multiple
+        nodes in AzureML will be started. If `pytorch_processes_per_node_v2=None`, the job will be submitted
+        as a multi-node MPI job, with 1 process per node. This is suitable for PyTorch Lightning jobs.
+        If `pytorch_processes_per_node_v2` is not None,
+        a job with framework "PyTorch" and communication backend "nccl" will be started.
+        `pytorch_processes_per_node_v2` will guide the number of processes per node. This is suitable for plain PyTorch
+        training jobs without the use of frameworks like PyTorch Lightning.
     :param wait_for_completion: If False (the default) return after the run is submitted to AzureML, otherwise wait for
         the completion of this run (if True).
     :param wait_for_completion_show_output: If wait_for_completion is True this parameter indicates whether to show the
@@ -832,8 +838,8 @@ def submit_to_azure_if_needed(  # type: ignore
     :param hyperdrive_config: A configuration object for Hyperdrive (hyperparameter search).
     :param strictly_aml_v1: If True, use Azure ML SDK v1. Otherwise, attempt to use Azure ML SDK v2.
     :param pytorch_processes_per_node_v2: For plain PyTorch multi-GPU processing: The number of processes per node. This
-        is only supported with AML SDK v2, and ignored in v1. If supplied, it will run a command job with the
-        "pytorch" framework, rather than "Python".
+        is only supported with AML SDK v2, and ignored in v1. If supplied, the job will be submitted as using the
+        "pytorch" framework (rather than "Python"), and using "nccl" as the communication backend.
     :return: If the script is submitted to AzureML then we terminate python as the script should be executed in AzureML,
         otherwise we return a AzureRunInfo object.
     """

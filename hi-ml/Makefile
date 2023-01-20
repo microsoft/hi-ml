@@ -89,7 +89,7 @@ smoke_helloworld_v1:
 
 # HelloWorld model training on a single node, submitted using the v2 SDK
 smoke_helloworld_v2:
-	python src/health_ml/runner.py --model=health_ml.HelloWorld --strictly_aml_v1=False --tag smoke_helloworld_v1 ${SHARED_ARGS}
+	python src/health_ml/runner.py --model=health_ml.HelloWorld --strictly_aml_v1=False --tag smoke_helloworld_v2 ${SHARED_ARGS}
 
 # HelloWorld model training on 2 nodes, submitted using the v1 SDK
 smoke_helloworld_v1_2nodes:
