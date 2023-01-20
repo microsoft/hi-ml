@@ -1,5 +1,5 @@
 name: 'HI-ML Python environment setup'
-description: 'Check out the code, set up a Python environment for HI-ML, and install packages in editable mode'
+description: 'Set up a Python environment for HI-ML and install packages in editable mode'
 inputs:
   python-version:
     description: 'The version of Python to use'
@@ -8,10 +8,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - uses: actions/checkout@v3
-      with:
-        lfs: true
-
     - name: Set up Python ${{ inputs.python-version }}
       uses: actions/setup-python@v4
       with:
