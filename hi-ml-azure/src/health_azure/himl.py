@@ -23,7 +23,7 @@ from azure.ai.ml import MLClient, Input, Output, command
 from azure.ai.ml.constants import AssetTypes, InputOutputModes
 from azure.ai.ml.entities import Data, Job, Command, Sweep
 from azure.ai.ml.entities import Environment as EnvironmentV2
-from azure.ai.ml.entities._job.distribution import PyTorchDistribution
+from azure.ai.ml.entities._job.distribution import MpiDistribution, PyTorchDistribution
 
 from azure.ai.ml.sweep import Choice
 from azureml._base_sdk_common import user_agent
@@ -544,7 +544,10 @@ def submit_run_v2(workspace: Optional[Workspace],
 
     def create_command_job(cmd: str) -> Command:
         if pytorch_processes_per_node is None:
-            distribution = None
+            if num_nodes > 1:
+                distribution = MpiDistribution(process_count_per_instance=num_nodes)
+            else:
+                distribution = {}
         else:
             distribution = PyTorchDistribution(process_count_per_instance=pytorch_processes_per_node)
         return command(
@@ -559,7 +562,7 @@ def submit_run_v2(workspace: Optional[Workspace],
             shm_size=docker_shm_size,
             display_name=display_name,
             instance_count=num_nodes,
-            distribution=distribution,  # type: ignore
+            distribution=distribution,
         )
 
     if hyperparam_args:
