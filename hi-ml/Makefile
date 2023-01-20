@@ -76,9 +76,11 @@ pytest_and_coverage: pip_test call_pytest_and_coverage
 # install test requirements and run all tests
 test_all: pip_test flake8 mypy call_pytest_and_coverage
 
-# Smoke tests should all wait for completion and run for 15 minutes maximum
+# Smoke tests should all wait for completion and run for 15 minutes maximum.
+# Tests run with the cpath Conda environment because of some odd problems with the hi-ml environment on GPU machines.
+# Some of that can be fixed by pinning torch==1.10.0, but then that triggers problems with distutils.
 define SHARED_ARGS
---conda_env environment.yml --cluster=pr-gpu --max_run_duration=15m --wait_for_completion
+--conda_env ../hi-ml-cpath/environment.yml --cluster=pr-gpu --max_run_duration=15m --wait_for_completion
 endef
 
 # HelloWorld model training on a single node, submitted using the v1 SDK
