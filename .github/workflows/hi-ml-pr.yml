@@ -270,6 +270,7 @@ jobs:
     runs-on: ubuntu-20.04
     needs: [ cancel-azureml ]
     steps:
+      - name: Checkout and set up Python ${{ env.pythonVersion }}
         uses: ./.github/actions/prepare_himl_python_env
         with:
           python-version: ${{ env.pythonVersion }}
