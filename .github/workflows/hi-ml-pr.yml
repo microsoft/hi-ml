@@ -224,10 +224,11 @@ jobs:
         with:
             flags: ${{ matrix.folder }}
 
-  himl-smoke-helloworld-v1:
+  himl-smoke_helloworld_v1:
     runs-on: ubuntu-20.04
     needs: [ cancel-azureml ]
     steps:
+      - name: Checkout and set up Python ${{ env.pythonVersion }}
         uses: ./.github/actions/prepare_himl_python_env
         with:
           python-version: ${{ env.pythonVersion }}
@@ -237,10 +238,11 @@ jobs:
           cd hi-ml
           make smoke_helloworld_v1
 
-  himl-smoke-helloworld-v2:
+  himl-smoke_helloworld_v2:
     runs-on: ubuntu-20.04
     needs: [ cancel-azureml ]
     steps:
+      - name: Checkout and set up Python ${{ env.pythonVersion }}
         uses: ./.github/actions/prepare_himl_python_env
         with:
           python-version: ${{ env.pythonVersion }}
@@ -250,23 +252,11 @@ jobs:
           cd hi-ml
           make smoke_helloworld_v2
 
-  himl-smoke-helloworld-v1-2nodes:
+  himl-smoke_helloworld_v1_2nodes:
     runs-on: ubuntu-20.04
     needs: [ cancel-azureml ]
     steps:
-        uses: ./.github/actions/prepare_himl_python_env
-        with:
-          python-version: ${{ env.pythonVersion }}
-
-      - name: Run smoke_helloworld_v1_2nodes
-        run: |
-          cd hi-ml
-          make smoke_helloworld_v1_2nodes
-
-  himl-smoke-helloworld-v1-2nodes:
-    runs-on: ubuntu-20.04
-    needs: [ cancel-azureml ]
-    steps:
+      - name: Checkout and set up Python ${{ env.pythonVersion }}
         uses: ./.github/actions/prepare_himl_python_env
         with:
           python-version: ${{ env.pythonVersion }}
