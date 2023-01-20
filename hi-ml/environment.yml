@@ -29,6 +29,7 @@ dependencies:
   - openssl=1.1.1s=h0b41bf4_1
   - pip=20.1.1=py_1
   - python=3.7.3
+  - pytorch=1.10.0=py3.7_cuda11.3_cudnn8.2.0_0
   - pytorch-mutex=1.0=cuda
   - readline=8.1.2=h0f457ee_0
   - setuptools=66.0.0=pyhd8ed1ab_0
@@ -51,7 +52,7 @@ dependencies:
     - async-timeout==4.0.2
     - asynctest==0.13.0
     - attrs==22.2.0
-    - azure-ai-ml==1.2.0
+    - azure-ai-ml==1.3.0
     - azure-common==1.1.28
     - azure-core==1.26.2
     - azure-graphrbac==0.61.1
@@ -108,14 +109,12 @@ dependencies:
     - flask==2.2.2
     - fonttools==4.38.0
     - frozenlist==1.3.3
-    - fsspec==2022.11.0
+    - fsspec==2023.1.0
     - fusepy==3.0.1
     - gitdb==4.0.10
     - gitpython==3.1.30
-    - google-api-core==2.11.0
     - google-auth==2.16.0
     - google-auth-oauthlib==0.4.6
-    - googleapis-common-protos==1.58.0
     - greenlet==2.0.1
     - grpcio==1.51.1
     - gunicorn==20.1.0
@@ -165,14 +164,7 @@ dependencies:
     - ndg-httpsclient==0.5.1
     - nodeenv==1.7.0
     - numpy==1.21.6
-    - nvidia-cublas-cu11==11.10.3.66
-    - nvidia-cuda-nvrtc-cu11==11.7.99
-    - nvidia-cuda-runtime-cu11==11.7.99
-    - nvidia-cudnn-cu11==8.5.0.96
     - oauthlib==3.2.2
-    - opencensus==0.11.1
-    - opencensus-context==0.1.3
-    - opencensus-ext-azure==1.1.8
     - opencv-python-headless==4.7.0.68
     - packaging==21.3
     - pandas==1.3.5
@@ -189,7 +181,6 @@ dependencies:
     - prometheus-client==0.15.0
     - prometheus-flask-exporter==0.21.0
     - protobuf==3.20.3
-    - psutil==5.9.4
     - py==1.11.0
     - pyarrow==9.0.0
     - pyasn1==0.4.8
@@ -254,7 +245,6 @@ dependencies:
     - toml==0.10.2
     - tomli==2.0.1
     - tomlkit==0.11.6
-    - torch==1.13.1
     - torchmetrics==0.11.0
     - torchvision==0.14.1
     - tqdm==4.64.1
