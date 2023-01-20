@@ -26,7 +26,7 @@ from _pytest.capture import CaptureFixture
 from azure.ai.ml import Input, Output, MLClient
 from azure.ai.ml.constants import AssetTypes, InputOutputModes
 from azure.ai.ml.entities import Data, Job
-from azure.ai.ml.entities._job.distribution import PyTorchDistribution
+from azure.ai.ml.entities._job.distribution import MpiDistribution, PyTorchDistribution
 from azure.ai.ml.sweep import Choice
 from azureml._restclient.constants import RunStatus
 from azureml.core import ComputeTarget, Environment, RunConfiguration, ScriptRunConfig, Workspace
@@ -1853,4 +1853,23 @@ def test_submit_to_azure_v2_distributed() -> None:
                 assert call_kwargs.get("instance_count") == 1
                 distribution = call_kwargs.get("distribution")
                 assert isinstance(distribution, PyTorchDistribution)
+                # pytorch_processes_per_node_v2=0 should be updated to 1
+                assert distribution.process_count_per_instance == 1
+
+            # If num_nodes is specified without processes_per_node, an MPI job should be created.
+            num_nodes = 2
+            with patch("health_azure.himl.command") as mock_command:
+                _ = himl.submit_to_azure_if_needed(
+                    workspace_config_file="mockconfig.json",
+                    entry_script=Path(__file__),
+                    snapshot_root_directory=Path.cwd(),
+                    submit_to_azureml=True,
+                    strictly_aml_v1=False,
+                    num_nodes=num_nodes,
+                )
+                mock_command.assert_called_once()
+                _, call_kwargs = mock_command.call_args
+                assert call_kwargs.get("instance_count") == num_nodes
+                distribution = call_kwargs.get("distribution")
+                assert isinstance(distribution, MpiDistribution)
                 assert distribution.process_count_per_instance == 1

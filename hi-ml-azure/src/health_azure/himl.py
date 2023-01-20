@@ -545,7 +545,7 @@ def submit_run_v2(workspace: Optional[Workspace],
     def create_command_job(cmd: str) -> Command:
         if pytorch_processes_per_node is None:
             if num_nodes > 1:
-                distribution = MpiDistribution(process_count_per_instance=num_nodes)
+                distribution = MpiDistribution(process_count_per_instance=1)
             else:
                 # An empty dictionary for single node jobs would be in line with the type annotations on the
                 # 'command' function, but this is not recognized by the SDK. So we need to pass None instead.
@@ -818,7 +818,10 @@ def submit_to_azure_if_needed(  # type: ignore
         will also register the data in this folder as an AzureML dataset.
     :param output_datasets: The script will create a temporary folder when running in AzureML, and while the job writes
         data to that folder, upload it to blob storage, in the data store.
-    :param num_nodes: The number of nodes to use in distributed training on AzureML.
+    :param num_nodes: The number of nodes to use in distributed training on AzureML. When using a value > 1, an
+        distributed MPI job will be started, with one process per node. This is suitable for PyTorch Lightning,
+        for example. To use plain PyTorch, specify the number the number of processes per node via the
+        `pytorch_processes_per_node_v2` argument.
     :param wait_for_completion: If False (the default) return after the run is submitted to AzureML, otherwise wait for
         the completion of this run (if True).
     :param wait_for_completion_show_output: If wait_for_completion is True this parameter indicates whether to show the
