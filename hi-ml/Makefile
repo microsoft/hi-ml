@@ -77,11 +77,8 @@ pytest_and_coverage: pip_test call_pytest_and_coverage
 test_all: pip_test flake8 mypy call_pytest_and_coverage
 
 # Smoke tests should all wait for completion and run for 15 minutes maximum
-# There is an odd problem with the environment.yml file in hi-ml: Whatever we put into
-# primary_deps.yml, we don't get a conda environment with a conda pytorch package.
-# As a results, the jobs fail in AzureML. Use the cpath environment.yml file instead.
 define SHARED_ARGS
---conda_env ../hi-ml-cpath/environment.yml --cluster=pr-gpu --max_run_duration=15m --wait_for_completion
+--conda_env environment.yml --cluster=pr-gpu --max_run_duration=15m --wait_for_completion
 endef
 
 # HelloWorld model training on a single node, submitted using the v1 SDK
