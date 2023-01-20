@@ -547,7 +547,9 @@ def submit_run_v2(workspace: Optional[Workspace],
             if num_nodes > 1:
                 distribution = MpiDistribution(process_count_per_instance=num_nodes)
             else:
-                distribution = {}
+                # An empty dictionary for single node jobs would be in line with the type annotations on the
+                # 'command' function, but this is not recognized by the SDK. So we need to pass None instead.
+                distribution = None
         else:
             distribution = PyTorchDistribution(process_count_per_instance=pytorch_processes_per_node)
         return command(
@@ -562,7 +564,7 @@ def submit_run_v2(workspace: Optional[Workspace],
             shm_size=docker_shm_size,
             display_name=display_name,
             instance_count=num_nodes,
-            distribution=distribution,
+            distribution=distribution,  # type: ignore
         )
 
     if hyperparam_args:
