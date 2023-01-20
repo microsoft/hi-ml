@@ -545,7 +545,7 @@ def submit_run_v2(workspace: Optional[Workspace],
     def create_command_job(cmd: str) -> Command:
         if pytorch_processes_per_node is None:
             if num_nodes > 1:
-                distribution = MpiDistribution(process_count_per_instance=1)
+                distribution: Any = MpiDistribution(process_count_per_instance=1)
             else:
                 # An empty dictionary for single node jobs would be in line with the type annotations on the
                 # 'command' function, but this is not recognized by the SDK. So we need to pass None instead.
