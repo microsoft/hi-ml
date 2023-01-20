@@ -12,7 +12,6 @@ dependencies:
   - pytorch=1.10.0
   - pip:
       - -r ../hi-ml-azure/run_requirements.txt
-      # Use a pinned version of torch in run_requirements_pinned. Without this, no Conda pytorch package will be installed.
-      - -r run_requirements_pinned.txt
+      - -r run_requirements.txt
       - -r ../build_requirements.txt
       - -r ../test_requirements.txt
