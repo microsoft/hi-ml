@@ -539,11 +539,11 @@ def submit_run_v2(workspace: Optional[Workspace],
 
     # number of nodes and processes per node cannot be less than one
     if num_nodes < 1:
-        raise ValueError("num_nodes cannot be less than 1")
+        raise ValueError("num_nodes must be >= 1")
     num_nodes = num_nodes if num_nodes >= 1 else 1
     if pytorch_processes_per_node is not None:
         if pytorch_processes_per_node < 1:
-            raise ValueError("pytorch_processes_per_node cannot be less than 1")
+            raise ValueError("pytorch_processes_per_node must be >= 1")
 
     def create_command_job(cmd: str) -> Command:
         if pytorch_processes_per_node is None:

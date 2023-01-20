@@ -1836,8 +1836,30 @@ def test_submit_to_azure_v2_distributed() -> None:
                 assert call_kwargs.get("instance_count") == 1
                 assert call_kwargs.get("distribution") is None
 
-            # If num_nodes and/or processes_per_node are passed in to submit_to_azure_if_needed with
-            # values less than one, they should be updated to values of 1 before the command is created
+            with pytest.raises(ValueError, match="num_nodes must be >= 1"):
+                _ = himl.submit_to_azure_if_needed(
+                    workspace_config_file="mockconfig.json",
+                    entry_script=Path(__file__),
+                    snapshot_root_directory=Path.cwd(),
+                    submit_to_azureml=True,
+                    strictly_aml_v1=False,
+                    num_nodes=0
+                )
+
+            with pytest.raises(ValueError, match="pytorch_processes_per_node must be >= 1"):
+                _ = himl.submit_to_azure_if_needed(
+                    workspace_config_file="mockconfig.json",
+                    entry_script=Path(__file__),
+                    snapshot_root_directory=Path.cwd(),
+                    submit_to_azureml=True,
+                    strictly_aml_v1=False,
+                    num_nodes=1,
+                    pytorch_processes_per_node_v2=0,
+                )
+
+            # When specifying the number of pytorch processes, a PyTorchDistribution job should be created
+            num_nodes = 2
+            num_processes = 3
             with patch("health_azure.himl.command") as mock_command:
                 _ = himl.submit_to_azure_if_needed(
                     workspace_config_file="mockconfig.json",
@@ -1845,19 +1867,18 @@ def test_submit_to_azure_v2_distributed() -> None:
                     snapshot_root_directory=Path.cwd(),
                     submit_to_azureml=True,
                     strictly_aml_v1=False,
-                    num_nodes=-1,
-                    pytorch_processes_per_node_v2=0
+                    num_nodes=num_nodes,
+                    pytorch_processes_per_node_v2=num_processes
                 )
                 mock_command.assert_called_once()
                 _, call_kwargs = mock_command.call_args
-                assert call_kwargs.get("instance_count") == 1
+                assert call_kwargs.get("instance_count") == num_nodes
                 distribution = call_kwargs.get("distribution")
                 assert isinstance(distribution, PyTorchDistribution)
                 # pytorch_processes_per_node_v2=0 should be updated to 1
-                assert distribution.process_count_per_instance == 1
+                assert distribution.process_count_per_instance == num_processes
 
             # If num_nodes is specified without processes_per_node, an MPI job should be created.
-            num_nodes = 2
             with patch("health_azure.himl.command") as mock_command:
                 _ = himl.submit_to_azure_if_needed(
                     workspace_config_file="mockconfig.json",
