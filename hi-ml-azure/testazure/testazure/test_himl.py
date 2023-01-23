@@ -1583,6 +1583,17 @@ def test_create_v2_inputs() -> None:
 
 
 @pytest.mark.fast
+@pytest.mark.parametrize("missing", [None, ""])
+def test_create_v2_inputs_fails(missing: Any) -> None:
+    mock_ml_client = MagicMock()
+    # For this mock, we can't use the Data class because the constructor always fills in a non-empty path
+    mock_ml_client.data.get.return_value = MagicMock(path=missing)
+    mock_input_dataconfigs = [DatasetConfig(name="dummy_dataset")]
+    with pytest.raises(ValueError, match="has no path"):
+        himl.create_v2_inputs(mock_ml_client, mock_input_dataconfigs)
+
+
+@pytest.mark.fast
 def test_create_v2_outputs() -> None:
     mock_datastore_name = "dummy_datastore"
     mock_data_name = "dummy_dataset"
