@@ -396,7 +396,7 @@ class MLRunner:
                     self.run_training()
                 # Update the checkpoint handler state
                 self.checkpoint_handler.additional_training_done()
-                if self.container.max_num_gpus_inference != 1:
+                if self.container.max_num_gpus_inference == 1:
                     # Kill all processes besides rank 0 after training is done to start inference on a single device
                     self.after_ddp_cleanup(old_environ)
 

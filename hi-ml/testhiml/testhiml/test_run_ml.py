@@ -413,9 +413,13 @@ def test_run_inference_only(run_extra_val_epoch: bool, ml_runner_with_run_id: ML
                 assert mock_trainer.test.call_args[1]["datamodule"] == mock_datamodule
 
 
+@pytest.mark.parametrize("max_num_gpus_inf", [-1, 1])
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
-def test_resume_training_from_run_id(run_extra_val_epoch: bool, ml_runner_with_run_id: MLRunner) -> None:
+def test_resume_training_from_run_id(
+    run_extra_val_epoch: bool, max_num_gpus_inf: int, ml_runner_with_run_id: MLRunner
+) -> None:
     ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
+    ml_runner_with_run_id.container.max_num_gpus = max_num_gpus_inf
     ml_runner_with_run_id.container.max_num_gpus = 0
     ml_runner_with_run_id.container.max_epochs += 10
     assert ml_runner_with_run_id.checkpoint_handler.trained_weights_path
@@ -426,7 +430,7 @@ def test_resume_training_from_run_id(run_extra_val_epoch: bool, ml_runner_with_r
                 with patch.object(ml_runner_with_run_id, "after_ddp_cleanup") as mock_after_ddp_cleanup:
                     mock_get_checkpoint_to_test.return_value = MagicMock(is_file=MagicMock(return_value=True))
                     ml_runner_with_run_id.run()
-                    mock_after_ddp_cleanup.assert_called_once()
+                    assert mock_after_ddp_cleanup.called == (max_num_gpus_inf != 1)
                     mock_get_checkpoint_to_test.assert_called_once()
                     assert mock_trainer.validate.called == run_extra_val_epoch
                     mock_run_inference.assert_called_once()
