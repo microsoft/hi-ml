@@ -142,10 +142,11 @@ def test_on_train_and_val_batch_end(tmp_path: Path, mock_panda_tiles_root_dir: P
 
 
 def test_on_train_and_val_epoch_end(
-    tmp_path: Path, duplicate: bool = False, rank: int = 0, world_size: int = 1, device: str = "cpu"
+    tmp_path: Path, duplicate: bool = False, uneven_samples: bool = False, rank: int = 0, world_size: int = 1,
+    device: str = "cpu"
 ) -> None:
     current_epoch = 2
-    n_slides_per_process = 4
+    n_slides_per_process = 4 - rank * int(uneven_samples)
     trainer = MagicMock(current_epoch=current_epoch)
     pl_module = MagicMock(global_rank=rank)
 
@@ -188,6 +189,8 @@ def test_on_train_epoch_end_distributed(tmp_path: Path) -> None:
     run_distributed(test_on_train_and_val_epoch_end, [tmp_path, False], world_size=2)
     # Second scenario: introduce duplicates
     run_distributed(test_on_train_and_val_epoch_end, [tmp_path, True], world_size=2)
+    # Third scenario: uneven number of samples per process
+    run_distributed(test_on_train_and_val_epoch_end, [tmp_path, False, True], world_size=2)
 
 
 def test_on_train_and_val_end(tmp_path: Path) -> None:
