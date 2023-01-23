@@ -3,6 +3,8 @@ from pathlib import Path
 from typing import Optional
 import param
 
+from health_azure.himl import DEFAULT_DOCKER_BASE_IMAGE
+
 
 class DebugDDPOptions(Enum):
     OFF = "OFF"
@@ -28,6 +30,9 @@ class ExperimentConfig(param.Parameterized):
                                                "always be mounted.")
     docker_shm_size: str = param.String("400g",
                                         doc="The shared memory in the Docker image for the AzureML VMs.")
+    docker_base_image: str = param.String(
+        DEFAULT_DOCKER_BASE_IMAGE,
+        doc="The base image for the Docker image that will be built for the the AzureML run.")
     wait_for_completion: bool = param.Boolean(default=False,
                                               doc="If True, wait for AML Run to complete before proceeding. "
                                                   "If False, submit the run to AML and exit")

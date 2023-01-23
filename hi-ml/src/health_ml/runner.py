@@ -25,7 +25,6 @@ for folder in folders_to_add:
 from health_azure import AzureRunInfo, submit_to_azure_if_needed  # noqa: E402
 from health_azure.amulet import prepare_amulet_job, is_amulet_job  # noqa: E402
 from health_azure.datasets import create_dataset_configs  # noqa: E402
-from health_azure.himl import DEFAULT_DOCKER_BASE_IMAGE  # noqa: E402
 from health_azure.logging import logging_to_stdout   # noqa: E402
 from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
 from health_azure.utils import (get_workspace, get_ml_client, is_local_rank_zero,  # noqa: E402
@@ -261,7 +260,7 @@ class Runner:
                 max_run_duration=self.experiment_config.max_run_duration,
                 ignored_folders=[],
                 submit_to_azureml=bool(self.experiment_config.cluster),
-                docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
+                docker_base_image=self.experiment_config.docker_base_image,
                 docker_shm_size=self.experiment_config.docker_shm_size,
                 hyperdrive_config=hyperdrive_config,
                 hyperparam_args=hyperparam_args,
