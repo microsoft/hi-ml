@@ -274,7 +274,7 @@ class MLRunner:
         internally, which replicates some samples to make sure all devices have the same batch size in case of
         uneven inputs which biases the results."""
         mlflow_run_id = get_mlflow_run_id_from_previous_loggers(self.trainer)
-        self.container.max_num_gpus = 1
+        self.container.max_num_gpus = self.container.max_num_gpus_inference
         self.trainer, _ = create_lightning_trainer(
             container=self.container,
             num_nodes=1,
@@ -396,8 +396,9 @@ class MLRunner:
                     self.run_training()
                 # Update the checkpoint handler state
                 self.checkpoint_handler.additional_training_done()
-                # Kill all processes besides rank 0 after training is done to start inference on a single device
-                self.after_ddp_cleanup(old_environ)
+                if self.container.max_num_gpus_inference > 1:
+                    # Kill all processes besides rank 0 after training is done to start inference on a single device
+                    self.after_ddp_cleanup(old_environ)
 
             self.init_inference()
 
