@@ -720,9 +720,9 @@ def create_v2_inputs(ml_client: MLClient, input_datasets: List[DatasetConfig]) -
         data_path = data_asset.path
 
         inputs[input_name] = Input(  # type: ignore
-            type=AssetTypes.URI_FOLDER,
+            type=data_asset.type,
             path=data_path,
-            mode=InputOutputModes.MOUNT,
+            mode=InputOutputModes.MOUNT if input_dataset.use_mounting else InputOutputModes.DOWNLOAD
         )
     return inputs
 

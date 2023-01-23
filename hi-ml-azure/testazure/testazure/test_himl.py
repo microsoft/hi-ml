@@ -1546,24 +1546,38 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock,
 @pytest.mark.fast
 def test_create_v2_inputs() -> None:
     mock_ml_client = MagicMock()
-    mock_data_name = "mock_data"
+    mock_data_name = "some_arbitrary_name"
+    # These values are copied from an actual Data item
     mock_data_version = "1"
-    mock_data_path = "path/to/mock/data"
+    mock_data_id = f"/subscriptions/123/resourceGroups/myrg/providers/Microsoft.MachineLearningServices/workspaces/myws/data/{mock_data_name}/versions/{mock_data_version}"
+    mock_data_path = "azureml://subscriptions/123/resourcegroups/myrg/workspaces/myws/datastores/ds/paths/foldername/**"
+    # This is normally "uri_folder", but we want to test if that value is passed through unchanged
+    mock_data_type = "some_arbitrary_type"
     mock_ml_client.data.get.return_value = Data(
         name=mock_data_name,
         version=mock_data_version,
-        id=mock_data_path
+        id=mock_data_id,
+        path=mock_data_path,
+        type=mock_data_type,
     )
 
-    mock_input_dataconfigs = [DatasetConfig(name="dummy_dataset")]
+    mock_input_dataconfigs = [DatasetConfig(name="dummy_dataset", use_mounting=False)]
     inputs = himl.create_v2_inputs(mock_ml_client, mock_input_dataconfigs)
     assert isinstance(inputs, Dict)
     assert len(inputs) == len(mock_input_dataconfigs)
     input_entry = inputs["INPUT_0"]
     assert isinstance(input_entry, Input)
-    assert input_entry.type == AssetTypes.URI_FOLDER
-    actual_path: str = input_entry.path  # type: ignore
-    assert actual_path == mock_data_path
+    # This value should be passed through unchanged
+    assert input_entry.type == mock_data_type
+    assert input_entry.path == mock_data_path  # type: ignore
+    assert input_entry.mode == InputOutputModes.DOWNLOAD
+
+    mock_input_dataconfigs = [DatasetConfig(name="dummy_dataset", use_mounting=True)]
+    inputs = himl.create_v2_inputs(mock_ml_client, mock_input_dataconfigs)
+    input_entry = inputs["INPUT_0"]
+    assert isinstance(input_entry, Input)
+    # This value should be passed through unchanged
+    assert input_entry.mode == InputOutputModes.DOWNLOAD
 
 
 @pytest.mark.fast
