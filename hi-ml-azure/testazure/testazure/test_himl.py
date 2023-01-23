@@ -1561,24 +1561,20 @@ def test_create_v2_inputs() -> None:
         type=mock_data_type,
     )
 
-    mock_input_dataconfigs = [DatasetConfig(name="dummy_dataset", use_mounting=False)]
-    inputs = himl.create_v2_inputs(mock_ml_client, mock_input_dataconfigs)
-    assert isinstance(inputs, Dict)
-    assert len(inputs) == len(mock_input_dataconfigs)
-    input_entry = inputs["INPUT_0"]
-    assert isinstance(input_entry, Input)
-    # This value should be passed through unchanged
-    assert input_entry.type == mock_data_type
-    assert input_entry.path == mock_data_path  # type: ignore
-    assert input_entry.mode == InputOutputModes.DOWNLOAD
-
-    # Test only the "use_mounting" case
-    mock_input_dataconfigs = [DatasetConfig(name="dummy_dataset", use_mounting=True)]
-    inputs = himl.create_v2_inputs(mock_ml_client, mock_input_dataconfigs)
-    input_entry = inputs["INPUT_0"]
-    assert isinstance(input_entry, Input)
-    # This value should be passed through unchanged
-    assert input_entry.mode == InputOutputModes.MOUNT
+    for use_mounting in [True, False]:
+        mock_input_dataconfigs = [DatasetConfig(name="dummy_dataset", use_mounting=use_mounting)]
+        inputs = himl.create_v2_inputs(mock_ml_client, mock_input_dataconfigs)
+        assert isinstance(inputs, Dict)
+        assert len(inputs) == len(mock_input_dataconfigs)
+        input_entry = inputs["INPUT_0"]
+        assert isinstance(input_entry, Input)
+        # This value should be passed through unchanged
+        assert input_entry.type == mock_data_type
+        assert input_entry.path == mock_data_path  # type: ignore
+        if use_mounting:
+            assert input_entry.mode == InputOutputModes.MOUNT
+        else:
+            assert input_entry.mode == InputOutputModes.DOWNLOAD
 
 
 @pytest.mark.fast
