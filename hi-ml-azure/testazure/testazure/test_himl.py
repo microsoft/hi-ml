@@ -1279,11 +1279,13 @@ class TestOutputDataset:
 
 
 @pytest.mark.parametrize(["run_target", "local_folder"],
-                         [(RunTarget.LOCAL, False),
-                          (RunTarget.LOCAL, True),
-                          (RunTarget.AZUREML, False)])
+                         [(RunTarget.LOCAL, False, False),
+                          (RunTarget.LOCAL, True, False),
+                          (RunTarget.AZUREML, False, True,)
+                          (RunTarget.AZUREML, False, False)])
 def test_invoking_hello_world_datasets(run_target: RunTarget,
                                        local_folder: bool,
+                                       strictly_aml_v1: bool,
                                        tmp_path: Path) -> None:
     """
     Test that invoking rendered 'simple' / 'hello_world_template.txt' elevates itself to AzureML with config.json,
@@ -1291,6 +1293,7 @@ def test_invoking_hello_world_datasets(run_target: RunTarget,
 
     :param run_target: Where to run the script.
     :param local_folder: True to use data in local folder when running locally, False to mount/download data.
+    :param strictly_aml_v1: If True, use only AML v1 features. If False, use AML v2 features if available.
     :param tmp_path: PyTest test fixture for temporary path.
     """
     input_count = 5
@@ -1392,6 +1395,7 @@ import sys
             DatasetConfig(name="{output_datasets[2].blob_name}", datastore="{DEFAULT_DATASTORE}",
                           use_mounting=False),
         ]""",
+        'strictly_aml_v1': str(strictly_aml_v1),
         'body': f"""
     input_datasets = [
         {script_input_datasets}
