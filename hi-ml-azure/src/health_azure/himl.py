@@ -45,7 +45,7 @@ from health_azure.utils import (ENV_EXPERIMENT_NAME, create_python_environment, 
                                 V2_OUTPUT_DATASET_PATTERN, wait_for_job_completion)
 from health_azure.datasets import (DatasetConfig, StrOrDatasetConfig, setup_local_datasets,
                                    _input_dataset_key, _output_dataset_key, _replace_string_datasets,
-                                   _get_or_create_v2_data_asset)
+                                   _get_or_create_v2_data_asset, _get_latest_v2_asset_version)
 
 
 logger = logging.getLogger('health_azure')
@@ -707,7 +707,7 @@ def create_v2_inputs(ml_client: MLClient, input_datasets: List[DatasetConfig]) -
     inputs: Dict[str, Input] = {}
     for i, input_dataset in enumerate(input_datasets):
         input_name = f"INPUT_{i}"
-        version = input_dataset.version or 1
+        version = input_dataset.version or _get_latest_v2_asset_version(ml_client, input_dataset.name)
         # data_asset: Data = ml_client.data.get(input_dataset.name, version=str(version))
         data_asset = _get_or_create_v2_data_asset(ml_client, input_dataset.datastore, input_dataset.name, str(version))
         data_path = data_asset.id or ""
