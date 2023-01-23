@@ -49,5 +49,18 @@
             ],
             "console": "integratedTerminal"
         },
+        {
+            "name": "Train HelloWorld model in AzureML, passing dataset arg",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/health_ml/runner.py",
+            "args": [
+                "--model=HelloWorld",
+                "--cluster=lite-testing-ds2",
+                "--azure_dataset=hello_world",
+                "--wait_for_completion"
+            ],
+            "console": "integratedTerminal"
+        },
     ]
 }

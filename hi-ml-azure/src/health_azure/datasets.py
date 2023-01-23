@@ -206,6 +206,13 @@ def _create_v2_data_asset(
     )
 
     ml_client.data.create_or_update(azureml_data_asset)
+
+    if not azureml_data_asset.id:
+        raise ValueError(
+            f"Created erroneous data asset '{data_asset_name}' - empty ID returned. Ensure your blob storage"
+            f" attached to the datastore '{datastore_name}' contains a folder named '{data_asset_name}'."
+        )
+
     return azureml_data_asset
 
 
@@ -228,7 +235,7 @@ def _get_or_create_v2_data_asset(
         azureml_data_asset = _retrieve_v2_data_asset(ml_client, data_asset_name, version)
     except ResourceNotFoundError:  # catch the exception and create the dataset, raise all other types of exceptions
         logging.info(
-            "Data asset {data_asset_name} not found in datastore {datastore_name}, attempting to create a new one."
+            f"Data asset {data_asset_name} not found in datastore {datastore_name}, attempting to create a new one."
         )
         azureml_data_asset = _create_v2_data_asset(ml_client, datastore_name, data_asset_name, version)
 

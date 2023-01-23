@@ -709,7 +709,7 @@ def create_v2_inputs(ml_client: MLClient, input_datasets: List[DatasetConfig]) -
         input_name = f"INPUT_{i}"
         version = input_dataset.version or 1
         # data_asset: Data = ml_client.data.get(input_dataset.name, version=str(version))
-        data_asset = _get_or_create_v2_data_asset(ml_client, input_dataset.datastore, input_dataset.name, version)
+        data_asset = _get_or_create_v2_data_asset(ml_client, input_dataset.datastore, input_dataset.name, str(version))
         data_path = data_asset.id or ""
         # Note that there are alternative formats that the input path can take, such as:
         # v1_datastore_path = f"azureml://datastores/{input_dataset.datastore}/paths/<path_to_dataset>"
