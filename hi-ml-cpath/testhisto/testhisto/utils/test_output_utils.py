@@ -189,18 +189,22 @@ def _create_batch_results(batch_idx: int, batch_size: int, num_batches: int, ran
     return results
 
 
-def _create_epoch_results(batch_size: int, num_batches: int, rank: int, device: str) -> EpochResultsType:
+def _create_epoch_results(
+    batch_size: int, num_batches: int, uneven_samples: bool, rank: int, device: str
+) -> EpochResultsType:
     epoch_results: EpochResultsType = []
     for batch_idx in range(num_batches):
+        if uneven_samples and rank != 0 and batch_idx == num_batches - 1:
+            batch_size -= 1  # last batch has one less sample to simulate uneven samples
         batch_results = _create_batch_results(batch_idx, batch_size, num_batches, rank, device)
         epoch_results.append(batch_results)
     return epoch_results
 
 
-def test_gather_results(rank: int = 0, world_size: int = 1, device: str = 'cpu') -> None:
+def test_gather_results(uneven_samples: bool = False, rank: int = 0, world_size: int = 1, device: str = 'cpu') -> None:
     num_batches = 5
     batch_size = 3
-    epoch_results = _create_epoch_results(batch_size, num_batches, rank, device)
+    epoch_results = _create_epoch_results(batch_size, num_batches, uneven_samples, rank, device)
     assert len(epoch_results) == num_batches
 
     gathered_results = gather_results(epoch_results)
@@ -217,8 +221,9 @@ def test_gather_results(rank: int = 0, world_size: int = 1, device: str = 'cpu')
 @pytest.mark.gpu
 def test_gather_results_distributed() -> None:
     # These tests need to be called sequentially to prevent them to be run in parallel
-    run_distributed(test_gather_results, world_size=1)
-    run_distributed(test_gather_results, world_size=2)
+    run_distributed(test_gather_results, [False], world_size=1)
+    run_distributed(test_gather_results, [False], world_size=2)
+    run_distributed(test_gather_results, [True], world_size=2)  # uneven samples
 
 
 def _test_collate_results(epoch_results: EpochResultsType, total_num_samples: int) -> None:
