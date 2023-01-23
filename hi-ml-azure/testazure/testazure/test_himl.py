@@ -1278,10 +1278,10 @@ class TestOutputDataset:
     folder_name: Path
 
 
-@pytest.mark.parametrize(["run_target", "local_folder"],
+@pytest.mark.parametrize(["run_target", "local_folder", "strictly_aml_v1"],
                          [(RunTarget.LOCAL, False, False),
                           (RunTarget.LOCAL, True, False),
-                          (RunTarget.AZUREML, False, True,)
+                          (RunTarget.AZUREML, False, True),
                           (RunTarget.AZUREML, False, False)])
 def test_invoking_hello_world_datasets(run_target: RunTarget,
                                        local_folder: bool,
