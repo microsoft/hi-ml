@@ -220,11 +220,16 @@ def test_run_training() -> None:
             mock_trainer.loggers[0].finalize.assert_called_once()
 
 
+@pytest.mark.parametrize("max_num_gpus_inf", [-1, 1])
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
 @pytest.mark.parametrize("run_inference_only", [True, False])
-def test_init_inference(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with_run_id: MLRunner) -> None:
+def test_init_inference(
+    run_inference_only: bool, run_extra_val_epoch: bool, max_num_gpus_inf: int, ml_runner_with_run_id: MLRunner
+) -> None:
     ml_runner_with_run_id.container.run_inference_only = run_inference_only
     ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
+    ml_runner_with_run_id.container.max_num_gpus_inference = max_num_gpus_inf
+    assert ml_runner_with_run_id.container.max_num_gpus == -1
     ml_runner_with_run_id.init_training()
     if run_inference_only:
         expected_mlflow_run_id = None
@@ -256,7 +261,7 @@ def test_init_inference(run_inference_only: bool, run_extra_val_epoch: bool, ml_
 
                 mock_create_trainer.assert_called_once()
                 assert ml_runner_with_run_id.trainer == mock_trainer
-                assert ml_runner_with_run_id.container.max_num_gpus == 1
+                assert ml_runner_with_run_id.container.max_num_gpus == max_num_gpus_inf
                 assert mock_create_trainer.call_args[1]["container"] == ml_runner_with_run_id.container
                 assert mock_create_trainer.call_args[1]["num_nodes"] == 1
                 assert mock_create_trainer.call_args[1]["mlflow_run_for_logging"] == expected_mlflow_run_id
@@ -348,9 +353,12 @@ def test_run_inference(ml_runner_with_container: MLRunner, regression_datadir: P
     assert _expected_files_exist()
 
 
+@pytest.mark.parametrize("max_num_gpus_inf", [-1, 1])
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
 @pytest.mark.parametrize("run_inference_only", [True, False])
-def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with_container: MLRunner) -> None:
+def test_run(
+    run_inference_only: bool, run_extra_val_epoch: bool, max_num_gpus_inf: int, ml_runner_with_container: MLRunner
+) -> None:
     """Test that model runner gets called """
     ml_runner_with_container.container.run_inference_only = run_inference_only
     ml_runner_with_container.container.run_extra_val_epoch = run_extra_val_epoch
@@ -372,7 +380,7 @@ def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with
             assert ml_runner_with_container.checkpoint_handler.has_continued_training != run_inference_only
 
             assert mocks["run_training"].called != run_inference_only
-            assert mocks["after_ddp_cleanup"].called != run_inference_only
+            assert mocks["after_ddp_cleanup"].called == (not run_inference_only and max_num_gpus_inf != 1)
             assert mocks["checkpoint_handler"].additional_training_done.called != run_inference_only
             mocks["run_validation"].assert_called_once()
             mocks["run_inference"].assert_called_once()
