@@ -132,7 +132,7 @@ def _get_or_create_v1_dataset(datastore_name: str, dataset_name: str, workspace:
 
 def _get_latest_v2_asset_version(ml_client: MLClient, data_asset_name: str) -> str:
     """
-    Retrieve the latest version of a v2 data asset
+    Retrieve the version of a v2 data asset that has the highest value (version numbers are assumed to be integers).
 
     :param ml_client: An Azure MLClient object for interacting with Azure resources.
     :param data_asset_name: The name of the data asset to look for.
@@ -142,9 +142,15 @@ def _get_latest_v2_asset_version(ml_client: MLClient, data_asset_name: str) -> s
     data_assets = ml_client.data.list(name=data_asset_name)
     highest_version = 0
     for data_asset in data_assets:
-        data_asset_version = int(data_asset.version)
+
+        try:
+            data_asset_version = int(data_asset.version)
+        except ValueError as val_er:
+            logging.warning(f"Failed to convert data asset version to int: {val_er}")
+
         if data_asset_version > highest_version:
             highest_version = data_asset_version
+
     return str(highest_version)
 
 
@@ -228,7 +234,8 @@ def _get_or_create_v2_data_asset(
         azureml_data_asset = _retrieve_v2_data_asset(ml_client, data_asset_name, version)
     except ResourceNotFoundError:  # catch the exception and create the dataset, raise all other types of exceptions
         logging.info(
-            "Data asset {data_asset_name} not found in datastore {datastore_name}, attempting to create a new one."
+            f"Data asset {data_asset_name} not found in datastore {datastore_name}. Version specified: {version}."
+            "Attempting to create a new data asseet with specified name and version."
         )
         azureml_data_asset = _create_v2_data_asset(ml_client, datastore_name, data_asset_name, version)
 
