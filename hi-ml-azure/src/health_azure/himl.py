@@ -719,8 +719,9 @@ def create_v2_inputs(ml_client: MLClient, input_datasets: List[DatasetConfig]) -
         # InvalidInput { message: "invalid uri format"
         data_path = data_asset.path
 
-        inputs[input_name] = Input(  # type: ignore
-            type=data_asset.type,
+        inputs[input_name] = Input(
+            # Data assets can be of type "uri_folder", "uri_file", "mltable", all of which are value types in Input
+            type=data_asset.type,  # type: ignore
             path=data_path,
             mode=InputOutputModes.MOUNT if input_dataset.use_mounting else InputOutputModes.DOWNLOAD
         )
