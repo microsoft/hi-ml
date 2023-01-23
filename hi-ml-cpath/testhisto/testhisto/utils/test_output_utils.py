@@ -242,18 +242,20 @@ def _test_collate_results(epoch_results: EpochResultsType, total_num_samples: in
         assert_close(epoch_elements, expected_elements, check_device=False)
 
 
-def test_collate_results_cpu() -> None:
+@pytest.mark.parametrize('uneven_samples', [False, True])
+def test_collate_results_cpu(uneven_samples: bool) -> None:
     num_batches = 5
     batch_size = 3
-    epoch_results = _create_epoch_results(batch_size, num_batches, rank=0, device='cpu')
+    epoch_results = _create_epoch_results(batch_size, num_batches, uneven_samples, rank=0, device='cpu')
     _test_collate_results(epoch_results, total_num_samples=num_batches * batch_size)
 
 
 @pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
 @pytest.mark.gpu
-def test_collate_results_multigpu() -> None:
+@pytest.mark.parametrize('uneven_samples', [False, True])
+def test_collate_results_multigpu(uneven_samples: bool) -> None:
     num_batches = 5
     batch_size = 3
-    epoch_results = _create_epoch_results(batch_size, num_batches, rank=0, device='cuda:0') \
-        + _create_epoch_results(batch_size, num_batches, rank=1, device='cuda:1')
+    epoch_results = _create_epoch_results(batch_size, num_batches, uneven_samples, rank=0, device='cuda:0') \
+        + _create_epoch_results(batch_size, num_batches, uneven_samples, rank=1, device='cuda:1')
     _test_collate_results(epoch_results, total_num_samples=2 * num_batches * batch_size)
