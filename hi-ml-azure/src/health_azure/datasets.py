@@ -188,7 +188,7 @@ def _create_v2_data_asset(
     :return: The created or updated Data asset.
     """
     if not data_asset_name:
-        raise ValueError(f"Cannot create data asset with empty name.")
+        raise ValueError("Cannot create data asset with empty name.")
 
     if not datastore_name:
         default_datastore = ml_client.datastores.get_default()
