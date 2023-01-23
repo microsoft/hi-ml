@@ -1,0 +1,30 @@
+name: 'HI-ML Python environment setup'
+description: 'Set up a Python environment for HI-ML and install packages in editable mode'
+inputs:
+  python-version:
+    description: 'The version of Python to use'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python ${{ inputs.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install hi-ml-azure in editable mode
+      shell: bash
+      run: |
+        cd hi-ml-azure
+
+        # Install local package in editable mode
+        make pip_local
+
+    - name: Install hi-ml in editable mode
+      shell: bash
+      run: |
+        cd hi-ml
+
+        # Install local package in editable mode
+        make pip_local
