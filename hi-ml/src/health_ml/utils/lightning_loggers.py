@@ -157,3 +157,21 @@ def get_mlflow_run_id_from_trainer(trainer: Trainer) -> Optional[str]:
         return mlflow_logger.run_id
     except IndexError:
         return None
+
+
+def mlflow_logger_from_keyvault(subscription, resource_group, workspace) -> HimlMLFlowLogger:
+    subscription = subscription or os.environ["HIML_LOGGING_SUBSCRIPTION_ID"]
+    resource_group = resource_group or os.environ["HIML_LOGGING_RESOURCE_GROUP"]
+    workspace = workspace or os.environ["HIML_LOGGING_WORKSPACE"]
+    cred = ClientSecretCredential(tenant_id=tenant_id,
+                                  client_id=service_principal_id,
+                                  client_secret=service_principal_password)
+
+    ml_client = MLClient(credential=cred,
+                        subscription_id=subscription_id,
+                        resource_group_name=resource_group)
+    mlflow_tracking_uri = ml_client.workspaces.get(ml_client.workspace_name).mlflow_tracking_uri
+    import mlflow
+
+    mlflow.set_tracking_uri(mlflow_tracking_uri)
+    mlflow.set_experiment(experiment_name)
