@@ -137,7 +137,7 @@ def test_aggregate_shallow_slide_nodes(
     n_batches = 10
     total_batches = n_batches * world_size
     num_top_tiles = 2
-    n_samples = batch_size * total_batches - rank * int(uneven_samples)
+    n_samples = batch_size * total_batches - int(uneven_samples)
     torch.manual_seed(42)
     data = _create_mock_data(n_samples=n_samples, n_tiles=n_tiles, device=device)
     results = _create_mock_results(n_samples=n_samples, n_tiles=n_tiles, n_classes=n_classes, device=device)
@@ -257,7 +257,7 @@ def test_select_k_top_bottom_tiles_on_the_fly(
     total_batches = n_batches * world_size
     num_top_tiles = 2
     num_top_slides = 2
-    n_samples = batch_size * total_batches - rank * int(uneven_samples)
+    n_samples = batch_size * total_batches - int(uneven_samples)
     torch.manual_seed(42)
     data = _create_mock_data(n_samples=n_samples, n_tiles=n_tiles, device=device)
     results = _create_mock_results(n_samples=n_samples, n_tiles=n_tiles, n_classes=n_classes, device=device)
@@ -328,7 +328,7 @@ def test_tiles_are_selected_only_with_non_zero_num_top_slides(
     num_top_tiles = 2
     num_top_slides = 0
     n_classes = 2
-    n_samples = batch_size * total_batches - rank * int(uneven_samples)
+    n_samples = batch_size * total_batches - int(uneven_samples)
     torch.manual_seed(42)
     data = _create_mock_data(n_samples=n_samples, n_tiles=n_tiles, device=device)
     results = _create_mock_results(n_samples=n_samples, n_tiles=n_tiles, n_classes=n_classes, device=device)
