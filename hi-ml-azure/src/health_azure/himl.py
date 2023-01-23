@@ -44,7 +44,8 @@ from health_azure.utils import (ENV_EXPERIMENT_NAME, create_python_environment, 
                                 create_python_environment_v2, register_environment_v2, V2_INPUT_DATASET_PATTERN,
                                 V2_OUTPUT_DATASET_PATTERN, wait_for_job_completion)
 from health_azure.datasets import (DatasetConfig, StrOrDatasetConfig, setup_local_datasets,
-                                   _input_dataset_key, _output_dataset_key, _replace_string_datasets)
+                                   _input_dataset_key, _output_dataset_key, _replace_string_datasets,
+                                   _get_or_create_v2_data_asset)
 
 
 logger = logging.getLogger('health_azure')
@@ -707,7 +708,8 @@ def create_v2_inputs(ml_client: MLClient, input_datasets: List[DatasetConfig]) -
     for i, input_dataset in enumerate(input_datasets):
         input_name = f"INPUT_{i}"
         version = input_dataset.version or 1
-        data_asset: Data = ml_client.data.get(input_dataset.name, version=str(version))
+        # data_asset: Data = ml_client.data.get(input_dataset.name, version=str(version))
+        data_asset = _get_or_create_v2_data_asset(ml_client, input_dataset.datastore, input_dataset.name, version)
         data_path = data_asset.id or ""
         # Note that there are alternative formats that the input path can take, such as:
         # v1_datastore_path = f"azureml://datastores/{input_dataset.datastore}/paths/<path_to_dataset>"
