@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from typing import Optional
 import cv2
 import numpy as np
 import torch
@@ -176,7 +177,7 @@ class GaussianBlur(object):
         prob = np.random.random_sample()
         if prob < p:
             sigma = (max - min) * np.random.random_sample() + min
-            sample = sample.permute([0, 2, 3, 1]).squeeze().numpy()   # B,H,W,C format
+            sample = sample.permute([0, 2, 3, 1]).squeeze().numpy()   # only 3 channels, color channel last
             sample = cv2.GaussianBlur(sample, (kernel_size, kernel_size), sigma)
             sample = torch.Tensor(sample).unsqueeze(0).permute(0, 3, 1, 2)
         return sample
@@ -189,10 +190,12 @@ class GaussianBlur(object):
         if img.shape[0] > 1:
             for i in range(img.shape[0]):
                 img_tile = img[i]
-                img[i] = self.apply_gaussian_blur(img_tile.unsqueeze(0), self.kernel_size, self.p, self.min, self.max)
+                img[i] = self.apply_gaussian_blur(sample=img_tile.unsqueeze(0), kernel_size=self.kernel_size, p=self.p,
+                                                  min=self.min, max=self.max)
             return img
         else:
-            img = self.apply_gaussian_blur(img, self.kernel_size, self.p, self.min, self.max)
+            img = self.apply_gaussian_blur(sample=img, kernel_size=self.kernel_size, p=self.p,
+                                           min=self.min, max=self.max)
             if len(original_shape) == 3:
                 return img.squeeze(0)
             return img
