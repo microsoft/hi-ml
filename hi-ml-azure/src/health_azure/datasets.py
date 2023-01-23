@@ -140,8 +140,12 @@ def _get_latest_v2_asset_version(ml_client: MLClient, data_asset_name: str) -> s
     :return: The latest version of the data asset if found, else None.
     """
     data_assets = ml_client.data.list(name=data_asset_name)
-    n_versions = len([_ for _ in data_assets])
-    return str(n_versions)
+    highest_version = 0
+    for data_asset in data_assets:
+        data_asset_version = int(data_asset.version)
+        if data_asset_version > highest_version:
+            highest_version = data_asset_version
+    return str(highest_version)
 
 
 def _retrieve_v2_data_asset(
@@ -163,7 +167,7 @@ def _retrieve_v2_data_asset(
         version = _get_latest_v2_asset_version(ml_client, data_asset_name)
 
     aml_data = ml_client.data.get(name=data_asset_name, version=version)
-
+    assert aml_data.version == version, "Version of retrieved data asset does not match requested version"
     return aml_data
 
 
@@ -184,7 +188,7 @@ def _create_v2_data_asset(
     :return: The created or updated Data asset.
     """
     if not data_asset_name:
-        raise ValueError(f"Received data_asset_name={data_asset_name}. Cannot create data asset with empty name.")
+        raise ValueError(f"Cannot create data asset with empty name.")
 
     if not datastore_name:
         default_datastore = ml_client.datastores.get_default()
@@ -223,6 +227,9 @@ def _get_or_create_v2_data_asset(
     try:
         azureml_data_asset = _retrieve_v2_data_asset(ml_client, data_asset_name, version)
     except ResourceNotFoundError:  # catch the exception and create the dataset, raise all other types of exceptions
+        logging.info(
+            "Data asset {data_asset_name} not found in datastore {datastore_name}, attempting to create a new one."
+        )
         azureml_data_asset = _create_v2_data_asset(ml_client, datastore_name, data_asset_name, version)
 
     return azureml_data_asset
