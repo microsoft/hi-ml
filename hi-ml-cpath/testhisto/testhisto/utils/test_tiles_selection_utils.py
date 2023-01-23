@@ -128,7 +128,8 @@ def _get_expected_slides_by_probability(
 @pytest.mark.parametrize("num_top_slides", [2, 10])
 @pytest.mark.parametrize("n_classes", [2, 3])  # n_classes=2 represents the binary case.
 def test_aggregate_shallow_slide_nodes(
-    n_classes: int, num_top_slides: int, rank: int = 0, world_size: int = 1, device: str = "cpu"
+    n_classes: int, num_top_slides: int, uneven_samples: bool = False, rank: int = 0, world_size: int = 1,
+    device: str = "cpu"
 ) -> None:
     """This test ensures that shallow copies of slide nodes are gathered properlyy across devices in a ddp context."""
     n_tiles = 3
@@ -136,12 +137,10 @@ def test_aggregate_shallow_slide_nodes(
     n_batches = 10
     total_batches = n_batches * world_size
     num_top_tiles = 2
-
+    n_samples = batch_size * total_batches - rank * int(uneven_samples)
     torch.manual_seed(42)
-    data = _create_mock_data(n_samples=batch_size * total_batches, n_tiles=n_tiles, device=device)
-    results = _create_mock_results(
-        n_samples=batch_size * total_batches, n_tiles=n_tiles, n_classes=n_classes, device=device
-    )
+    data = _create_mock_data(n_samples=n_samples, n_tiles=n_tiles, device=device)
+    results = _create_mock_results(n_samples=n_samples, n_tiles=n_tiles, n_classes=n_classes, device=device)
 
     tiles_selector = _create_and_update_top_bottom_tiles_selector(
         data, results, num_top_slides, num_top_tiles, n_classes, rank, batch_size, n_batches
@@ -184,8 +183,9 @@ def test_aggregate_shallow_slide_nodes(
 def test_aggregate_shallow_slide_nodes_distributed() -> None:
     """These tests need to be called sequentially to prevent them to be run in parallel."""
     # test with n_classes = 2, n_slides = 2
-    run_distributed(test_aggregate_shallow_slide_nodes, [2, 2], world_size=1)
-    run_distributed(test_aggregate_shallow_slide_nodes, [2, 2], world_size=2)
+    run_distributed(test_aggregate_shallow_slide_nodes, [2, 2, False], world_size=1)
+    run_distributed(test_aggregate_shallow_slide_nodes, [2, 2, False], world_size=2)
+    run_distributed(test_aggregate_shallow_slide_nodes, [2, 2, True], world_size=2)
     # test with n_classes = 3, n_slides = 2
     run_distributed(test_aggregate_shallow_slide_nodes, [3, 2], world_size=1)
     run_distributed(test_aggregate_shallow_slide_nodes, [3, 2], world_size=2)
@@ -235,7 +235,8 @@ def assert_equal_top_bottom_attention_tiles(
 @pytest.mark.parametrize("num_top_slides", [2, 10])
 @pytest.mark.parametrize("n_classes", [2, 3])  # n_classes=2 represents the binary case.
 def test_select_k_top_bottom_tiles_on_the_fly(
-    n_classes: int, num_top_slides: int, rank: int = 0, world_size: int = 1, device: str = "cpu"
+    n_classes: int, num_top_slides: int, uneven_samples: bool = False, rank: int = 0, world_size: int = 1,
+    device: str = "cpu"
 ) -> None:
     """This tests checks that k top and bottom tiles are selected properly `on the fly`:
         1- Create a mock dataset and corresponding mock results that are small enough to fit in memory
@@ -256,12 +257,10 @@ def test_select_k_top_bottom_tiles_on_the_fly(
     total_batches = n_batches * world_size
     num_top_tiles = 2
     num_top_slides = 2
-
+    n_samples = batch_size * total_batches - rank * int(uneven_samples)
     torch.manual_seed(42)
-    data = _create_mock_data(n_samples=batch_size * total_batches, n_tiles=n_tiles, device=device)
-    results = _create_mock_results(
-        n_samples=batch_size * total_batches, n_tiles=n_tiles, n_classes=n_classes, device=device
-    )
+    data = _create_mock_data(n_samples=n_samples, n_tiles=n_tiles, device=device)
+    results = _create_mock_results(n_samples=n_samples, n_tiles=n_tiles, n_classes=n_classes, device=device)
 
     tiles_selector = _create_and_update_top_bottom_tiles_selector(
         data, results, num_top_slides, num_top_tiles, n_classes, rank, batch_size, n_batches
@@ -305,8 +304,9 @@ def test_select_k_top_bottom_tiles_on_the_fly(
 def test_select_k_top_bottom_tiles_on_the_fly_distributed() -> None:
     """These tests need to be called sequentially to prevent them to be run in parallel"""
     # test with n_classes = 2, n_slides = 2
-    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [2, 2], world_size=1)
-    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [2, 2], world_size=2)
+    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [2, 2, False], world_size=1)
+    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [2, 2, False], world_size=2)
+    run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [2, 2, True], world_size=2)
     # test with n_classes = 3, n_slides = 2
     run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [3, 2], world_size=1)
     run_distributed(test_select_k_top_bottom_tiles_on_the_fly, [3, 2], world_size=2)
@@ -319,7 +319,7 @@ def test_disable_top_bottom_tiles_selector() -> None:
 
 
 def test_tiles_are_selected_only_with_non_zero_num_top_slides(
-    rank: int = 0, world_size: int = 1, device: str = "cpu"
+    uneven_samples: bool = False, rank: int = 0, world_size: int = 1, device: str = "cpu"
 ) -> None:
     n_tiles = 3
     batch_size = 1
@@ -328,12 +328,10 @@ def test_tiles_are_selected_only_with_non_zero_num_top_slides(
     num_top_tiles = 2
     num_top_slides = 0
     n_classes = 2
-
+    n_samples = batch_size * total_batches - rank * int(uneven_samples)
     torch.manual_seed(42)
-    data = _create_mock_data(n_samples=batch_size * total_batches, n_tiles=n_tiles, device=device)
-    results = _create_mock_results(
-        n_samples=batch_size * total_batches, n_tiles=n_tiles, n_classes=n_classes, device=device
-    )
+    data = _create_mock_data(n_samples=n_samples, n_tiles=n_tiles, device=device)
+    results = _create_mock_results(n_samples=n_samples, n_tiles=n_tiles, n_classes=n_classes, device=device)
     tiles_selector = TilesSelector(n_classes, num_slides=num_top_slides, num_tiles=num_top_tiles)
 
     with patch.object(tiles_selector, "_update_label_slides") as mock_update_label_slides:
@@ -357,5 +355,6 @@ def test_tiles_are_selected_only_with_non_zero_num_top_slides(
 @pytest.mark.gpu
 def test_tiles_are_selected_only_with_non_zero_num_top_slides_distributed() -> None:
     """These tests need to be called sequentially to prevent them to be run in parallel"""
-    run_distributed(test_tiles_are_selected_only_with_non_zero_num_top_slides, world_size=1)
-    run_distributed(test_tiles_are_selected_only_with_non_zero_num_top_slides, world_size=2)
+    run_distributed(test_tiles_are_selected_only_with_non_zero_num_top_slides, [False], world_size=1)
+    run_distributed(test_tiles_are_selected_only_with_non_zero_num_top_slides, [False], world_size=2)
+    run_distributed(test_tiles_are_selected_only_with_non_zero_num_top_slides, [True], world_size=2)
