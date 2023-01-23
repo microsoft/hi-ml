@@ -1553,7 +1553,8 @@ def test_create_v2_inputs() -> None:
     mock_data_name = "some_arbitrary_name"
     # These values are copied from an actual Data item
     mock_data_version = "1"
-    mock_data_id = f"/subscriptions/123/resourceGroups/myrg/providers/Microsoft.MachineLearningServices/workspaces/myws/data/{mock_data_name}/versions/{mock_data_version}"
+    mock_data_id = ("/subscriptions/123/resourceGroups/myrg/providers/Microsoft.MachineLearningServices/workspaces/"
+                    f"myws/data/{mock_data_name}/versions/{mock_data_version}")
     mock_data_path = "azureml://subscriptions/123/resourcegroups/myrg/workspaces/myws/datastores/ds/paths/foldername/**"
     # This is normally "uri_folder", but we want to test if that value is passed through unchanged
     mock_data_type = "some_arbitrary_type"
@@ -1565,23 +1566,20 @@ def test_create_v2_inputs() -> None:
         type=mock_data_type,
     )
 
-    mock_input_dataconfigs = [DatasetConfig(name="dummy_dataset", use_mounting=False)]
-    inputs = himl.create_v2_inputs(mock_ml_client, mock_input_dataconfigs)
-    assert isinstance(inputs, Dict)
-    assert len(inputs) == len(mock_input_dataconfigs)
-    input_entry = inputs["INPUT_0"]
-    assert isinstance(input_entry, Input)
-    # This value should be passed through unchanged
-    assert input_entry.type == mock_data_type
-    assert input_entry.path == mock_data_path  # type: ignore
-    assert input_entry.mode == InputOutputModes.DOWNLOAD
-
-    mock_input_dataconfigs = [DatasetConfig(name="dummy_dataset", use_mounting=True)]
-    inputs = himl.create_v2_inputs(mock_ml_client, mock_input_dataconfigs)
-    input_entry = inputs["INPUT_0"]
-    assert isinstance(input_entry, Input)
-    # This value should be passed through unchanged
-    assert input_entry.mode == InputOutputModes.DOWNLOAD
+    for use_mounting in [True, False]:
+        mock_input_dataconfigs = [DatasetConfig(name="dummy_dataset", use_mounting=use_mounting)]
+        inputs = himl.create_v2_inputs(mock_ml_client, mock_input_dataconfigs)
+        assert isinstance(inputs, Dict)
+        assert len(inputs) == len(mock_input_dataconfigs)
+        input_entry = inputs["INPUT_0"]
+        assert isinstance(input_entry, Input)
+        # This value should be passed through unchanged
+        assert input_entry.type == mock_data_type
+        assert input_entry.path == mock_data_path  # type: ignore
+        if use_mounting:
+            assert input_entry.mode == InputOutputModes.MOUNT
+        else:
+            assert input_entry.mode == InputOutputModes.DOWNLOAD
 
 
 @pytest.mark.fast
