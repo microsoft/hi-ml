@@ -1549,7 +1549,8 @@ def test_create_v2_inputs() -> None:
     mock_data_name = "some_arbitrary_name"
     # These values are copied from an actual Data item
     mock_data_version = "1"
-    mock_data_id = f"/subscriptions/123/resourceGroups/myrg/providers/Microsoft.MachineLearningServices/workspaces/myws/data/{mock_data_name}/versions/{mock_data_version}"
+    mock_data_id = ("/subscriptions/123/resourceGroups/myrg/providers/Microsoft.MachineLearningServices/workspaces/"
+                    f"myws/data/{mock_data_name}/versions/{mock_data_version}")
     mock_data_path = "azureml://subscriptions/123/resourcegroups/myrg/workspaces/myws/datastores/ds/paths/foldername/**"
     # This is normally "uri_folder", but we want to test if that value is passed through unchanged
     mock_data_type = "some_arbitrary_type"
