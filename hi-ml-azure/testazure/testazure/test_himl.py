@@ -1415,7 +1415,10 @@ import sys
         """,
     }
     extra_args: List[str] = []
-    output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
+    # Support for private wheels is only available in SDK v1
+    upload_package = strictly_aml_v1
+    output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args,
+                                        expected_pass=True, upload_package=upload_package)
 
     for input_dataset in input_datasets:
         for output_dataset in output_datasets:
