@@ -105,20 +105,22 @@ def test_gaussian_blur() -> None:
          [[0.4345, 0.4845],
           [0.4600, 0.4450]]]])
 
-    expected_output_bag = torch.Tensor([[[[0.5950, 0.6317],
-                                          [0.4534, 0.5127]],
-                                         [[0.9127, 0.9139],
-                                          [0.9229, 0.9298]],
-                                         [[0.4345, 0.4845],
-                                          [0.4600, 0.4450]]],
-                                        [[[0.5161, 0.4645],
-                                          [0.6229, 0.5892]],
-                                         [[0.9286, 0.9227],
-                                          [0.9147, 0.9133]],
-                                         [[0.4478, 0.4579],
-                                          [0.4797, 0.4385]]]])
-
     _test_data_augmentation(data_augmentation, dummy_img, expected_output_img, stochastic=True, seed=1, atol=1e-3)
+    expected_output_img1 = torch.Tensor(
+        [[[[0.5953, 0.6321],
+          [0.4528, 0.5125]],
+         [[0.9126, 0.9138],
+          [0.9229, 0.9299]],
+         [[0.4343, 0.4848],
+          [0.4601, 0.4448]]]])
+    expected_output_img2 = torch.Tensor(
+        [[[[0.5161, 0.4645],
+          [0.6229, 0.5892]],
+         [[0.9286, 0.9227],
+          [0.9147, 0.9133]],
+         [[0.4478, 0.4579],
+          [0.4797, 0.4385]]]])
+    expected_output_bag = torch.vstack([expected_output_img1, expected_output_img2])
     _test_data_augmentation(data_augmentation, dummy_bag, expected_output_bag, stochastic=True, seed=1, atol=1e-3)
 
     # Test tiling on the fly (i.e. when the input image does not have a batch dimension)
