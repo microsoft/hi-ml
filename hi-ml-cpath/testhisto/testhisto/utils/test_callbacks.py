@@ -25,12 +25,19 @@ def _assert_loss_cache_contains_n_elements(loss_cache: LossCacheDictType, n: int
         assert len(loss_cache[key]) == n
 
 
-def get_loss_cache(n_slides: int = 4, rank: int = 0) -> LossCacheDictType:
+def get_loss_cache(n_slides: int = 4, offset: int = 0, rank: int = 0) -> LossCacheDictType:
+    """Get a loss cache with n_slides elements.
+
+    :param n_slides: The number of slides, defaults to 4
+    :param offset: An offset to simulate uneven samples scenario, defaults to 0
+    :param rank: The rank of the process, defaults to 0
+    :return: A loss cache dictionary with n_slides elements
+    """
     return {
-        ResultsKey.LOSS: list(range(1, n_slides + 1)),
-        ResultsKey.ENTROPY: list(range(1, n_slides + 1)),
-        ResultsKey.SLIDE_ID: [f"id_{i}" for i in range(rank * n_slides, (rank + 1) * n_slides)],
-        ResultsKey.TILE_ID: [f"a${i * (rank + 1)}$b" for i in range(rank * n_slides, (rank + 1) * n_slides)],
+        ResultsKey.LOSS: list(range(1, n_slides + 1 - offset)),
+        ResultsKey.ENTROPY: list(range(1, n_slides + 1 - offset)),
+        ResultsKey.SLIDE_ID: [f"id_{i}" for i in range(rank * n_slides + offset, (rank + 1) * n_slides)],
+        ResultsKey.TILE_ID: [f"a${i * (rank + 1)}$b" for i in range(rank * n_slides + offset, (rank + 1) * n_slides)],
     }
 
 
@@ -146,7 +153,7 @@ def test_on_train_and_val_epoch_end(
     device: str = "cpu"
 ) -> None:
     current_epoch = 2
-    n_slides_per_process = 4 - rank * int(uneven_samples)
+    n_slides_per_process = 4
     trainer = MagicMock(current_epoch=current_epoch)
     pl_module = MagicMock(global_rank=rank)
 
@@ -156,13 +163,13 @@ def test_on_train_and_val_epoch_end(
     stages = [ModelKey.TRAIN, ModelKey.VAL]
     hooks = [loss_callback.on_train_epoch_end, loss_callback.on_validation_epoch_end]
     for stage, on_epoch_hook in zip(stages, hooks):
-        loss_callback.loss_cache[stage] = get_loss_cache(rank=rank, n_slides=n_slides_per_process)
+        offset = rank * int(uneven_samples) if stage == ModelKey.VAL else 0  # simulate uneven samples for validation
+        loss_callback.loss_cache[stage] = get_loss_cache(n_slides=n_slides_per_process, offset=offset, rank=rank)
 
         if duplicate:
             # Duplicate slide "id_0" to test that the duplicates are removed
             loss_callback.loss_cache[stage][ResultsKey.SLIDE_ID][0] = "id_0"
-
-        _assert_loss_cache_contains_n_elements(loss_callback.loss_cache[stage], n_slides_per_process)
+        _assert_loss_cache_contains_n_elements(loss_callback.loss_cache[stage], n_slides_per_process - offset)
         on_epoch_hook(trainer, pl_module)
         # Loss cache is flushed after each epoch
         _assert_loss_cache_contains_n_elements(loss_callback.loss_cache[stage], 0)
@@ -177,6 +184,7 @@ def test_on_train_and_val_epoch_end(
 
         loss_cache = pd.read_csv(loss_cache_path)
         total_slides = n_slides_per_process * world_size if not duplicate else n_slides_per_process * world_size - 1
+        total_slides = total_slides - int(uneven_samples) if stage == ModelKey.VAL else total_slides
         _assert_loss_cache_contains_n_elements(loss_cache, total_slides)
         _assert_is_sorted(loss_cache[ResultsKey.LOSS].values)
 
@@ -186,9 +194,9 @@ def test_on_train_and_val_epoch_end(
 def test_on_train_epoch_end_distributed(tmp_path: Path) -> None:
     # Test that the loss cache is saved correctly when using multiple GPUs
     # First scenario: no duplicates
-    run_distributed(test_on_train_and_val_epoch_end, [tmp_path, False], world_size=2)
+    run_distributed(test_on_train_and_val_epoch_end, [tmp_path, False, False], world_size=2)
     # Second scenario: introduce duplicates
-    run_distributed(test_on_train_and_val_epoch_end, [tmp_path, True], world_size=2)
+    run_distributed(test_on_train_and_val_epoch_end, [tmp_path, True, False], world_size=2)
     # Third scenario: uneven number of samples per process
     run_distributed(test_on_train_and_val_epoch_end, [tmp_path, False, True], world_size=2)
 
