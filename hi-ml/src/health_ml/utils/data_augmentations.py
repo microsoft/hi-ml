@@ -171,16 +171,31 @@ class GaussianBlur(object):
         self.kernel_size = kernel_size
         self.p = p
 
-    def __call__(self, sample: torch.Tensor) -> torch.Tensor:
+    @staticmethod
+    def apply_gaussian_blur(sample: torch.Tensor, kernel_size: int, p: float, min: float, max: float) -> torch.Tensor:
         prob = np.random.random_sample()
-
-        if prob < self.p:
-            sigma = (self.max - self.min) * np.random.random_sample() + self.min
-            sample = np.array(sample.squeeze())  # type: ignore
-            sample = cv2.GaussianBlur(sample, (self.kernel_size, self.kernel_size), sigma)
-            sample = torch.Tensor(sample).unsqueeze(0)
-
+        if prob < p:
+            sigma = (max - min) * np.random.random_sample() + min
+            sample = sample.permute([0, 2, 3, 1]).squeeze().numpy()   # B,H,W,C format
+            sample = cv2.GaussianBlur(sample, (kernel_size, kernel_size), sigma)
+            sample = torch.Tensor(sample).unsqueeze(0).permute(0, 3, 1, 2)
         return sample
+
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+        original_shape = img.shape
+        if len(original_shape) == 3:
+            img = img.unsqueeze(0)  # add batch dimension if missing
+        # if the input is a bag of images, gaussian blur needs to run on each image separately
+        if img.shape[0] > 1:
+            for i in range(img.shape[0]):
+                img_tile = img[i]
+                img[i] = self.apply_gaussian_blur(img_tile.unsqueeze(0), self.kernel_size, self.p, self.min, self.max)
+            return img
+        else:
+            img = self.apply_gaussian_blur(img, self.kernel_size, self.p, self.min, self.max)
+            if len(original_shape) == 3:
+                return img.squeeze(0)
+            return img
 
 
 class RandomRotationByMultiplesOf90(object):
