@@ -147,6 +147,7 @@ def _get_latest_v2_asset_version(ml_client: MLClient, data_asset_name: str) -> s
             data_asset_version = int(data_asset.version)
         except ValueError as val_er:
             logging.warning(f"Failed to convert data asset version to int: {val_er}")
+            data_asset_version = -1
 
         if data_asset_version > highest_version:
             highest_version = data_asset_version
