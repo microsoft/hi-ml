@@ -77,9 +77,10 @@ check: flake8 mypy
 pytest:
 	pytest
 
-# run pytest with coverage on package
+# Run pytest with coverage on package
+# Output the slowest tests via the --durations flag.
 pytest_coverage:
-	pytest --cov=health_cpath --cov SSL --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc
+	pytest --durations=20 --cov=health_cpath --cov SSL --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc
 
 # run pytest using GPUs via an AzureML job
 pytest_gpu:

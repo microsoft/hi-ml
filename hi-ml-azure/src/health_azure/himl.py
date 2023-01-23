@@ -708,15 +708,22 @@ def create_v2_inputs(ml_client: MLClient, input_datasets: List[DatasetConfig]) -
         input_name = f"INPUT_{i}"
         version = input_dataset.version or 1
         data_asset: Data = ml_client.data.get(input_dataset.name, version=str(version))
-        data_path = data_asset.id or ""
-        # Note that there are alternative formats that the input path can take, such as:
-        # v1_datastore_path = f"azureml://datastores/{input_dataset.datastore}/paths/<path_to_dataset>"
-        # v2_dataset_path = f"azureml:{input_dataset.name}:1"
+        if not data_asset.path:
+            raise ValueError(f"Data asset {data_asset.id} has no path.")
+        # Some mismatches with the documentation here:
+        # data_path = data_asset.id: This works in some jobs, but in other gives a
+        # DataAccessError(InvalidInput { message: "invalid uri format", source: None }))
+        # Unclear what the difference is between failing and successful jobs
+        # Alternative: data_path = f"azureml:{data_asset.name}:{version}"
+        # This does not work at all, neither with v1 nor v2 data assets. In both cases, we get
+        # InvalidInput { message: "invalid uri format"
+        data_path = data_asset.path
 
-        inputs[input_name] = Input(  # type: ignore
-            type=AssetTypes.URI_FOLDER,
+        inputs[input_name] = Input(
+            # Data assets can be of type "uri_folder", "uri_file", "mltable", all of which are value types in Input
+            type=data_asset.type,  # type: ignore
             path=data_path,
-            mode=InputOutputModes.MOUNT,
+            mode=InputOutputModes.MOUNT if input_dataset.use_mounting else InputOutputModes.DOWNLOAD
         )
     return inputs
 
