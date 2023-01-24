@@ -236,13 +236,13 @@ def test_end_training(max_num_gpus_inf: int) -> None:
         with patch.object(runner.checkpoint_handler, "additional_training_done") as mock_additional_training_done:
             with patch.object(runner, "after_ddp_cleanup") as mock_after_ddp_cleanup:
                 with patch("health_ml.run_ml.cleanup_checkpoints") as mock_cleanup_ckpt:
-                    old_environ = {"old": "environ"}
-                    runner.end_training(old_environ=old_environ)
+                    environ_before_training = {"old": "environ"}
+                    runner.end_training(environ_before_training=environ_before_training)
                     mock_additional_training_done.assert_called_once()
                     mock_cleanup_ckpt.assert_called_once()
                     if max_num_gpus_inf == 1:
                         mock_after_ddp_cleanup.assert_called_once()
-                        mock_after_ddp_cleanup.assert_called_with(old_environ)
+                        mock_after_ddp_cleanup.assert_called_with(environ_before_training)
 
 
 @pytest.mark.parametrize("max_num_gpus_inf", [-1, 1])

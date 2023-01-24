@@ -216,7 +216,7 @@ class MLRunner:
             )
             logging.info(f"Environment variables: {rank_info}. trainer.global_rank: {self.trainer.global_rank}")
 
-    def after_ddp_cleanup(self, old_environ: Dict) -> None:
+    def after_ddp_cleanup(self, environ_before_training: Dict) -> None:
         """
         Run processes cleanup after ddp context to prepare for single device inference.
         Kill all processes in DDP besides rank 0.
@@ -235,7 +235,7 @@ class MLRunner:
         # those environment variables will mislead the training runs in the test suite, and make them crash.
         # Hence, restore the original environment after training.
         os.environ.clear()
-        os.environ.update(old_environ)
+        os.environ.update(environ_before_training)
 
         if ENV_OMPI_COMM_WORLD_RANK in os.environ:
             del os.environ[ENV_OMPI_COMM_WORLD_RANK]
@@ -245,7 +245,7 @@ class MLRunner:
         if torch.distributed.is_initialized():  # type: ignore
             torch.distributed.destroy_process_group()  # type: ignore
 
-    def end_training(self, old_environ: Dict) -> None:
+    def end_training(self, environ_before_training: Dict) -> None:
         """Cleanup after training is done. This is called after the trainer has finished fit to the data. This is called
         to update the checkpoint handler state and remove redundant checkpoint files. If running inference on a single
         device, this is also called to kill all processes besides rank 0.
@@ -258,7 +258,7 @@ class MLRunner:
 
         if self.container.max_num_gpus_inference == 1:
             # Kill all processes besides rank 0 after training is done to start inference on a single device
-            self.after_ddp_cleanup(old_environ)
+            self.after_ddp_cleanup(environ_before_training)
 
     def is_crossval_disabled_or_child_0(self) -> bool:
         """
@@ -390,12 +390,12 @@ class MLRunner:
 
             if not self.container.run_inference_only:
                 # Backup the environment variables in case we need to run a second training in the unit tests.
-                old_environ = dict(os.environ)
+                environ_before_training = dict(os.environ)
 
                 with logging_section("Model training"):
                     self.run_training()
 
-                self.end_training(old_environ)
+                self.end_training(environ_before_training)
 
             self.init_inference()
 
