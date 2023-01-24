@@ -21,11 +21,11 @@ from pytorch_lightning import Trainer
 from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
-from health_ml.run_ml import MLRunner, get_mlflow_run_id_from_previous_loggers
+from health_ml.run_ml import MLRunner
 from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_ml.utils.common_utils import is_gpu_available
-from health_ml.utils.lightning_loggers import HimlMLFlowLogger, StoringLogger
+from health_ml.utils.lightning_loggers import HimlMLFlowLogger, StoringLogger, get_mlflow_run_id_from_trainer
 from health_azure.utils import ENV_EXPERIMENT_NAME, is_global_rank_zero
 from testazure.utils_testazure import DEFAULT_WORKSPACE, experiment_for_unittests
 from testhiml.utils.fixed_paths_for_tests import mock_run_id
@@ -501,21 +501,21 @@ def test_experiment_name() -> None:
         assert container.effective_experiment_name == experiment_name
 
 
-def test_get_mlflow_run_id_from_previous_loggers() -> None:
+def test_get_mlflow_run_id_from_trainer() -> None:
     trainer_without_loggers = Trainer()
-    run_id = get_mlflow_run_id_from_previous_loggers(trainer_without_loggers)
+    run_id = get_mlflow_run_id_from_trainer(trainer_without_loggers)
     assert run_id is None
 
     loggers_not_inc_mlflow = [StoringLogger()]
     trainer_with_single_logger = Trainer(logger=loggers_not_inc_mlflow)
-    run_id = get_mlflow_run_id_from_previous_loggers(trainer_with_single_logger)
+    run_id = get_mlflow_run_id_from_trainer(trainer_with_single_logger)
     assert run_id is None
 
     mock_run_id = "run_id_123"
     loggers_inc_mlflow = [StoringLogger(), HimlMLFlowLogger(run_id=mock_run_id)]
     trainer_with_loggers = Trainer(logger=loggers_inc_mlflow)
     with patch.object(mlflow.tracking.client.TrackingServiceClient, "get_run"):
-        run_id = get_mlflow_run_id_from_previous_loggers(trainer_with_loggers)
+        run_id = get_mlflow_run_id_from_trainer(trainer_with_loggers)
         assert run_id == mock_run_id
 
 

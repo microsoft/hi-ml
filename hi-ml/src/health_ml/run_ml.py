@@ -34,25 +34,9 @@ from health_ml.utils.common_utils import (
     df_to_json,
     seed_monai_if_available,
 )
-from health_ml.utils.lightning_loggers import HimlMLFlowLogger, StoringLogger
+from health_ml.utils.lightning_loggers import StoringLogger, get_mlflow_run_id_from_trainer
 from health_ml.utils.regression_test_utils import REGRESSION_TEST_METRICS_FILENAME, compare_folders_and_run_outputs
 from health_ml.utils.type_annotations import PathOrString
-
-
-def get_mlflow_run_id_from_previous_loggers(trainer: Optional[Trainer]) -> Optional[str]:
-    """
-    If self.trainer has already been intialised with loggers, attempt to retrieve a HimlMLFLowLogger and
-    return the mlflow run_id associated with it, to allow continued logging to the same run. Otherwise, return None
-
-    :return: The mlflow run id from the existing HimlMLFlowLogger
-    """
-    if trainer is None:
-        return None
-    try:
-        mlflow_logger = [logger for logger in trainer.loggers if isinstance(logger, HimlMLFlowLogger)][0]
-        return mlflow_logger.run_id
-    except IndexError:
-        return None
 
 
 def check_dataset_folder_exists(local_dataset: PathOrString) -> Path:
@@ -273,7 +257,7 @@ class MLRunner:
         We run inference on a single device because distributed strategies such as DDP use DistributedSampler
         internally, which replicates some samples to make sure all devices have the same batch size in case of
         uneven inputs which biases the results."""
-        mlflow_run_id = get_mlflow_run_id_from_previous_loggers(self.trainer)
+        mlflow_run_id = get_mlflow_run_id_from_trainer(self.trainer)
         self.container.max_num_gpus = self.container.max_num_gpus_inference
         self.trainer, _ = create_lightning_trainer(
             container=self.container,
