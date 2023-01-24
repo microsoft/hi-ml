@@ -1,9 +1,8 @@
 from pathlib import Path
 from typing import Dict, List
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
-from requests import patch
 import torch
 import torch.distributed
 import torch.multiprocessing
@@ -281,7 +280,8 @@ def test_results_gather_only_if_necessary(save_intermediate_outputs: bool, tmp_p
                             epoch_results=epoch_results,  # type: ignore
                             metrics_dict=_get_mock_metrics_dict(metric_value),
                             epoch=0,
-                            is_global_rank_zero=rank == 0)
+                            is_global_rank_zero=rank == 0,
+                            on_extra_val=False)
                         assert mock_gather_results.called == save_intermediate_outputs
                         assert mock_gather_tiles.called == save_intermediate_outputs
                         mock_clear_cache.assert_called()
@@ -292,6 +292,6 @@ def test_results_gather_only_if_necessary(save_intermediate_outputs: bool, tmp_p
                         epoch=1,
                         is_global_rank_zero=True,
                         on_extra_val=True)
-                    assert mock_gather_results.called == save_intermediate_outputs
-                    assert mock_gather_tiles.called == save_intermediate_outputs
+                    mock_gather_results.assert_called()
+                    mock_gather_tiles.assert_called()
                     mock_clear_cache.assert_called()
