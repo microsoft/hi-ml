@@ -3,11 +3,13 @@ from typing import Dict, List
 from unittest.mock import MagicMock
 
 import pytest
+from requests import patch
 import torch
 import torch.distributed
 import torch.multiprocessing
 from ruamel.yaml import YAML
 from health_cpath.preprocessing.loading import LoadingParams
+from health_cpath.utils.tiles_selection_utils import TilesSelector
 from testhisto.utils.utils_testhisto import run_distributed
 from torch.testing import assert_close
 from torchmetrics.metric import Metric
@@ -258,3 +260,38 @@ def test_collate_results_multigpu(uneven_samples: bool) -> None:
     epoch_results = _create_epoch_results(batch_size, num_batches, uneven_samples, rank=0, device='cuda:0') \
         + _create_epoch_results(batch_size, num_batches, uneven_samples, rank=1, device='cuda:1')
     _test_collate_results(epoch_results, total_num_samples=2 * num_batches * batch_size - int(uneven_samples))
+
+
+@pytest.mark.parametrize('save_intermediate_outputs', [True, False])
+def test_results_gather_only_if_necessary(save_intermediate_outputs: bool, tmp_path: Path) -> None:
+    outputs_handler = _create_outputs_handler(tmp_path)
+    outputs_handler.tiles_selector = TilesSelector(2, num_slides=2, num_tiles=2)
+    outputs_handler.save_intermediate_outputs = save_intermediate_outputs
+    outputs_handler._save_outputs = MagicMock()  # type: ignore
+    metric_value = 0.5
+    with patch("health_cpath.utils.output_utils.gather_results") as mock_gather_results:
+        with patch.object(outputs_handler.tiles_selector, "gather_selected_tiles_across_devices") as mock_gather_tiles:
+            with patch.object(outputs_handler.tiles_selector, "_clear_cached_slides_heaps") as mock_clear_cache:
+                with patch.object(outputs_handler, "should_gather_tiles") as mock_should_gather_tiles:
+                    mock_should_gather_tiles.return_value = True
+                    # Intermediate outputs are gathered only if save_intermediate_outputs is True
+                    for rank in range(2):
+                        epoch_results = [{_PRIMARY_METRIC_KEY: [metric_value] * 5, _RANK_KEY: rank}]
+                        outputs_handler.save_validation_outputs(
+                            epoch_results=epoch_results,  # type: ignore
+                            metrics_dict=_get_mock_metrics_dict(metric_value),
+                            epoch=0,
+                            is_global_rank_zero=rank == 0)
+                        assert mock_gather_results.called == save_intermediate_outputs
+                        assert mock_gather_tiles.called == save_intermediate_outputs
+                        mock_clear_cache.assert_called()
+                    # Or if it's an extra validation epoch
+                    outputs_handler.save_validation_outputs(
+                        epoch_results=epoch_results,  # type: ignore
+                        metrics_dict=_get_mock_metrics_dict(metric_value),
+                        epoch=1,
+                        is_global_rank_zero=True,
+                        on_extra_val=True)
+                    assert mock_gather_results.called == save_intermediate_outputs
+                    assert mock_gather_tiles.called == save_intermediate_outputs
+                    mock_clear_cache.assert_called()
