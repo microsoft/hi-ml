@@ -1278,12 +1278,16 @@ class TestOutputDataset:
     folder_name: Path
 
 
-@pytest.mark.parametrize(["run_target", "local_folder"],
-                         [(RunTarget.LOCAL, False),
-                          (RunTarget.LOCAL, True),
-                          (RunTarget.AZUREML, False)])
+@pytest.mark.parametrize(["run_target", "local_folder", "strictly_aml_v1"],
+                         [(RunTarget.LOCAL, False, False),
+                          (RunTarget.LOCAL, True, False),
+                          (RunTarget.AZUREML, False, True),
+                          # Test with AML SDK v2 fails, logged as https://github.com/microsoft/hi-ml/issues/763
+                          # (RunTarget.AZUREML, False, False)
+                          ])
 def test_invoking_hello_world_datasets(run_target: RunTarget,
                                        local_folder: bool,
+                                       strictly_aml_v1: bool,
                                        tmp_path: Path) -> None:
     """
     Test that invoking rendered 'simple' / 'hello_world_template.txt' elevates itself to AzureML with config.json,
@@ -1291,6 +1295,7 @@ def test_invoking_hello_world_datasets(run_target: RunTarget,
 
     :param run_target: Where to run the script.
     :param local_folder: True to use data in local folder when running locally, False to mount/download data.
+    :param strictly_aml_v1: If True, use only AML v1 features. If False, use AML v2 features if available.
     :param tmp_path: PyTest test fixture for temporary path.
     """
     input_count = 5
@@ -1392,6 +1397,7 @@ import sys
             DatasetConfig(name="{output_datasets[2].blob_name}", datastore="{DEFAULT_DATASTORE}",
                           use_mounting=False),
         ]""",
+        'strictly_aml_v1': str(strictly_aml_v1),
         'body': f"""
     input_datasets = [
         {script_input_datasets}
@@ -1411,7 +1417,11 @@ import sys
         """,
     }
     extra_args: List[str] = []
-    output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args, True)
+    # Support for private wheels is only available in SDK v1, hence only upload the package when using v1.
+    # Test script rendering will upload the full source folder instead.
+    upload_package = strictly_aml_v1
+    output = render_and_run_test_script(tmp_path, run_target, extra_options, extra_args,
+                                        expected_pass=True, upload_package=upload_package)
 
     for input_dataset in input_datasets:
         for output_dataset in output_datasets:
@@ -1546,24 +1556,47 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock,
 @pytest.mark.fast
 def test_create_v2_inputs() -> None:
     mock_ml_client = MagicMock()
-    mock_data_name = "mock_data"
+    mock_data_name = "some_arbitrary_name"
+    # These values are copied from an actual Data item
     mock_data_version = "1"
-    mock_data_path = "path/to/mock/data"
+    mock_data_id = ("/subscriptions/123/resourceGroups/myrg/providers/Microsoft.MachineLearningServices/workspaces/"
+                    f"myws/data/{mock_data_name}/versions/{mock_data_version}")
+    mock_data_path = "azureml://subscriptions/123/resourcegroups/myrg/workspaces/myws/datastores/ds/paths/foldername/**"
+    # This is normally "uri_folder", but we want to test if that value is passed through unchanged
+    mock_data_type = "some_arbitrary_type"
     mock_ml_client.data.get.return_value = Data(
         name=mock_data_name,
         version=mock_data_version,
-        id=mock_data_path
+        id=mock_data_id,
+        path=mock_data_path,
+        type=mock_data_type,
     )
 
+    for use_mounting in [True, False]:
+        mock_input_dataconfigs = [DatasetConfig(name="dummy_dataset", use_mounting=use_mounting)]
+        inputs = himl.create_v2_inputs(mock_ml_client, mock_input_dataconfigs)
+        assert isinstance(inputs, Dict)
+        assert len(inputs) == len(mock_input_dataconfigs)
+        input_entry = inputs["INPUT_0"]
+        assert isinstance(input_entry, Input)
+        # This value should be passed through unchanged
+        assert input_entry.type == mock_data_type
+        assert input_entry.path == mock_data_path  # type: ignore
+        if use_mounting:
+            assert input_entry.mode == InputOutputModes.MOUNT
+        else:
+            assert input_entry.mode == InputOutputModes.DOWNLOAD
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize("missing", [None, ""])
+def test_create_v2_inputs_fails(missing: Any) -> None:
+    mock_ml_client = MagicMock()
+    # For this mock, we can't use the Data class because the constructor always fills in a non-empty path
+    mock_ml_client.data.get.return_value = MagicMock(path=missing)
     mock_input_dataconfigs = [DatasetConfig(name="dummy_dataset")]
-    inputs = himl.create_v2_inputs(mock_ml_client, mock_input_dataconfigs)
-    assert isinstance(inputs, Dict)
-    assert len(inputs) == len(mock_input_dataconfigs)
-    input_entry = inputs["INPUT_0"]
-    assert isinstance(input_entry, Input)
-    assert input_entry.type == AssetTypes.URI_FOLDER
-    actual_path: str = input_entry.path  # type: ignore
-    assert actual_path == mock_data_path
+    with pytest.raises(ValueError, match="has no path"):
+        himl.create_v2_inputs(mock_ml_client, mock_input_dataconfigs)
 
 
 @pytest.mark.fast
