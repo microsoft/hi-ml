@@ -2,7 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, Optional, Tuple, List
+from typing import Any, Optional, Tuple, List, Callable
 from yacs.config import CfgNode
 from pytorch_lightning import Callback
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
@@ -49,10 +49,10 @@ class HistoSSLContainer(SSLContainer):
                 val_transforms = DualViewTransformWrapper(val_transforms)  # type: ignore
         return train_transforms, val_transforms
 
-    def get_preprocessing_transforms(self) -> List[Any]:
+    def get_preprocessing_transforms(self) -> List[Callable]:
         return([])
 
-    def get_augmentations(self) -> List[Any]:
+    def get_augmentations(self) -> List[Callable]:
         # SimClr augmentations
         return([RandomResizedCrop(size=224),
                 RandomHorizontalFlip(p=0.5),
