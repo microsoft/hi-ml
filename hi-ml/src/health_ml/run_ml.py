@@ -246,9 +246,9 @@ class MLRunner:
             torch.distributed.destroy_process_group()  # type: ignore
 
     def end_training(self, environ_before_training: Dict) -> None:
-        """Cleanup after training is done. This is called after the trainer has finished fit to the data. This is called
-        to update the checkpoint handler state and remove redundant checkpoint files. If running inference on a single
-        device, this is also called to kill all processes besides rank 0.
+        """Cleanup after training is done. This is called after the trainer has finished fitting the data.
+        This is called to update the checkpoint handler state and remove redundant checkpoint files. If running
+        inference on a single device, this is also called to kill all processes besides rank 0.
         """
         # Update the checkpoint handler state
         self.checkpoint_handler.additional_training_done()

@@ -220,7 +220,7 @@ def test_run_training() -> None:
             mock_trainer.loggers[0].finalize.assert_called_once()
 
 
-@pytest.mark.parametrize("max_num_gpus_inf", [-1, 1])
+@pytest.mark.parametrize("max_num_gpus_inf", [2, 1])
 def test_end_training(max_num_gpus_inf: int) -> None:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
@@ -243,9 +243,11 @@ def test_end_training(max_num_gpus_inf: int) -> None:
                     if max_num_gpus_inf == 1:
                         mock_after_ddp_cleanup.assert_called_once()
                         mock_after_ddp_cleanup.assert_called_with(environ_before_training)
+                    else:
+                        mock_after_ddp_cleanup.assert_not_called()
 
 
-@pytest.mark.parametrize("max_num_gpus_inf", [-1, 1])
+@pytest.mark.parametrize("max_num_gpus_inf", [2, 1])
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
 @pytest.mark.parametrize("run_inference_only", [True, False])
 def test_init_inference(
@@ -254,7 +256,7 @@ def test_init_inference(
     ml_runner_with_run_id.container.run_inference_only = run_inference_only
     ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
     ml_runner_with_run_id.container.max_num_gpus_inference = max_num_gpus_inf
-    assert ml_runner_with_run_id.container.max_num_gpus == -1
+    assert ml_runner_with_run_id.container.max_num_gpus == -1  # This is the default value of max_num_gpus
     ml_runner_with_run_id.init_training()
     if run_inference_only:
         expected_mlflow_run_id = None

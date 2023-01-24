@@ -452,7 +452,8 @@ class TrainerParams(param.Parameterized):
                                                     "single device inference. This guarantees reproducibility of "
                                                     "results without any duplication of data. However, if you use "
                                                     "pl_replace_sampler_ddp=False, you can set this to a higher value "
-                                                    "to speed up inference.")
+                                                    "to speed up inference. Use a negative value to use all available "
+                                                    "GPUs in the system.")
     pl_progress_bar_refresh_rate: Optional[int] = \
         param.Integer(default=None,
                       doc="PyTorch Lightning trainer flag 'progress_bar_refresh_rate': How often to refresh "
