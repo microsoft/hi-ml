@@ -226,7 +226,9 @@ class MLRunner:
         # We can now use the global_rank of the Lightning model, rather than environment variables, because DDP has set
         # all necessary properties.
         if self.container.model.global_rank != 0:
-            print_message_with_rank_pid(f"Terminating training thread with rank {self.container.model.global_rank}.")
+            print_message_with_rank_pid(
+                f"Terminating training thread with rank {self.container.model.global_rank}.", level='INFO'
+            )
             sys.exit()
 
         # Lightning modifies a ton of environment variables. If we first run training and then the test suite,
