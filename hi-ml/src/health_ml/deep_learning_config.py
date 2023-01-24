@@ -532,7 +532,7 @@ class TrainerParams(param.Parameterized):
             logging.warning("The 'pl_replace_sampler_ddp' flag is set to True, but the 'max_num_gpus_inference' > 1. "
                             "This might bias the inference results due to duplicate samples. Consider setting "
                             "--pl_replace_sampler_ddp=False if you want to use multiple GPUs for inference."
-                            "pytorch_lightning.overrides.distributed.UnrepeatedDistributedSampler cab be used instead "
+                            "pytorch_lightning.overrides.distributed.UnrepeatedDistributedSampler can be used instead "
                             "of DistributedSampler.")
 
     @property
