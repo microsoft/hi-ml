@@ -245,6 +245,7 @@ def test_end_training(max_num_gpus_inf: int) -> None:
                         mock_after_ddp_cleanup.assert_called_with(old_environ)
 
 
+@pytest.mark.parametrize("max_num_gpus_inf", [-1, 1])
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
 @pytest.mark.parametrize("run_inference_only", [True, False])
 def test_init_inference(
@@ -252,6 +253,7 @@ def test_init_inference(
 ) -> None:
     ml_runner_with_run_id.container.run_inference_only = run_inference_only
     ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
+    ml_runner_with_run_id.container.max_num_gpus_inference = max_num_gpus_inf
     assert ml_runner_with_run_id.container.max_num_gpus == -1
     ml_runner_with_run_id.init_training()
     if run_inference_only:
@@ -376,12 +378,9 @@ def test_run_inference(ml_runner_with_container: MLRunner, regression_datadir: P
     assert _expected_files_exist()
 
 
-@pytest.mark.parametrize("max_num_gpus_inf", [-1, 1])
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
 @pytest.mark.parametrize("run_inference_only", [True, False])
-def test_run(
-    run_inference_only: bool, run_extra_val_epoch: bool, max_num_gpus_inf: int, ml_runner_with_container: MLRunner
-) -> None:
+def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with_container: MLRunner) -> None:
     """Test that model runner gets called """
     ml_runner_with_container.container.run_inference_only = run_inference_only
     ml_runner_with_container.container.run_extra_val_epoch = run_extra_val_epoch
@@ -395,16 +394,13 @@ def test_run(
             run_training=mock.DEFAULT,
             run_validation=mock.DEFAULT,
             run_inference=mock.DEFAULT,
-            after_ddp_cleanup=mock.DEFAULT,
+            end_training=mock.DEFAULT,
         ) as mocks:
             ml_runner_with_container.run()
             assert ml_runner_with_container.container.has_custom_test_step()
             assert ml_runner_with_container._has_setup_run
-            assert ml_runner_with_container.checkpoint_handler.has_continued_training != run_inference_only
-
+            assert mocks["end_training"] != run_inference_only
             assert mocks["run_training"].called != run_inference_only
-            assert mocks["after_ddp_cleanup"].called == (not run_inference_only and max_num_gpus_inf != 1)
-            assert mocks["checkpoint_handler"].additional_training_done.called != run_inference_only
             mocks["run_validation"].assert_called_once()
             mocks["run_inference"].assert_called_once()
 
@@ -436,13 +432,9 @@ def test_run_inference_only(run_extra_val_epoch: bool, ml_runner_with_run_id: ML
                 assert mock_trainer.test.call_args[1]["datamodule"] == mock_datamodule
 
 
-@pytest.mark.parametrize("max_num_gpus_inf", [-1, 1])
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
-def test_resume_training_from_run_id(
-    run_extra_val_epoch: bool, max_num_gpus_inf: int, ml_runner_with_run_id: MLRunner
-) -> None:
+def test_resume_training_from_run_id(run_extra_val_epoch: bool, ml_runner_with_run_id: MLRunner) -> None:
     ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
-    ml_runner_with_run_id.container.max_num_gpus = max_num_gpus_inf
     ml_runner_with_run_id.container.max_num_gpus = 0
     ml_runner_with_run_id.container.max_epochs += 10
     assert ml_runner_with_run_id.checkpoint_handler.trained_weights_path
@@ -450,11 +442,11 @@ def test_resume_training_from_run_id(
     with patch("health_ml.run_ml.create_lightning_trainer", return_value=(mock_trainer, MagicMock())):
         with patch.object(ml_runner_with_run_id.container, "get_checkpoint_to_test") as mock_get_checkpoint_to_test:
             with patch.object(ml_runner_with_run_id, "run_inference") as mock_run_inference:
-                with patch.object(ml_runner_with_run_id, "after_ddp_cleanup") as mock_after_ddp_cleanup:
+                with patch("health_ml.run_ml.cleanup_checkpoints") as mock_cleanup_ckpt:
                     mock_get_checkpoint_to_test.return_value = MagicMock(is_file=MagicMock(return_value=True))
                     ml_runner_with_run_id.run()
-                    assert mock_after_ddp_cleanup.called == (max_num_gpus_inf == 1)
                     mock_get_checkpoint_to_test.assert_called_once()
+                    mock_cleanup_ckpt.assert_called_once()
                     assert mock_trainer.validate.called == run_extra_val_epoch
                     mock_run_inference.assert_called_once()
 
