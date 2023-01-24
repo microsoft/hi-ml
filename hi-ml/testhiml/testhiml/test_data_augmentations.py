@@ -31,6 +31,7 @@ def _test_data_augmentation(data_augmentation: Callable[[Tensor], Tensor],
         random.seed(seed)
 
     augmented_img = data_augmentation(input_img)
+    print(augmented_img)
 
     # Check types
     assert torch.is_tensor(augmented_img)

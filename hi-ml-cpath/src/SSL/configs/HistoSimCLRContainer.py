@@ -9,7 +9,7 @@ from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from torchvision.transforms import ColorJitter, RandomHorizontalFlip, RandomGrayscale, RandomResizedCrop, Lambda,\
     RandomApply
 
-from health_ml.utils.data_augmentations import StainNormalization, GaussianBlur
+from health_ml.utils.data_augmentations import GaussianBlur
 from SSL.lightning_containers.ssl_container import SSLContainer
 from SSL.data.transforms_utils import DualViewTransformWrapper
 from SSL.data.transform_pipeline import ImageTransformationPipeline
@@ -49,17 +49,21 @@ class HistoSSLContainer(SSLContainer):
                 val_transforms = DualViewTransformWrapper(val_transforms)  # type: ignore
         return train_transforms, val_transforms
 
-    @staticmethod
-    def get_transforms(apply_augmentations: bool) -> ImageTransformationPipeline:
-        transforms: List[Any] = [StainNormalization()]         # Common transforms
-        # TODO: add background normalization if available
+    def get_preprocessing_transforms(self) -> List[Any]:
+        return([])
+
+    def get_augmentations(self) -> List[Any]:
+        # SimClr augmentations
+        return([RandomResizedCrop(size=224),
+                RandomHorizontalFlip(p=0.5),
+                RandomApply([ColorJitter(brightness=0.8, contrast=0.8, saturation=0.8, hue=0.2)], 0.8),
+                RandomGrayscale(p=0.2),
+                GaussianBlur(int(224 * 0.1) + 1)])
+
+    def get_transforms(self, apply_augmentations: bool) -> ImageTransformationPipeline:
+        transforms: List[Any] = self.get_preprocessing_transforms()                 # Pre-processing transforms
         if apply_augmentations:
-            # SimClr augmentations
-            transforms += [RandomResizedCrop(size=224),
-                           RandomHorizontalFlip(p=0.5),
-                           RandomApply([ColorJitter(brightness=0.8, contrast=0.8, saturation=0.8, hue=0.2)], 0.8),
-                           RandomGrayscale(p=0.2),
-                           GaussianBlur(int(224 * 0.1) + 1)]
+            transforms += self.get_augmentations()                                  # Augmentations
         else:
             # TODO Are there some transformations that we want to apply anyway?
             # not sure it will work without, DualViewTransformWrapper will call

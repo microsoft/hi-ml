@@ -173,9 +173,17 @@ class GaussianBlur(object):
 
     @staticmethod
     def apply_gaussian_blur(sample: torch.Tensor, kernel_size: int, p: float, min: float, max: float) -> torch.Tensor:
-        prob = np.random.random_sample()
-        if prob < p:
-            sigma = (max - min) * np.random.random_sample() + min
+        """
+        Applies Gaussian blur to image.
+
+        :param img: Input image.
+        :param kernel_size: Size of the Gaussian kernel, e.g., about 10% of the image size.
+        :param p: Probability of applying blur.
+        :param min: lower bound of the interval from which we sample the STD
+        :param max: upper bound of the interval from which we sample the STD
+        """
+        if np.random.binomial(n=1, p=p):
+            sigma = np.random.uniform(low=min, high=max)    # (max - min) * np.random.random_sample() + min
             sample = sample.permute([0, 2, 3, 1]).squeeze().numpy()   # only 3 channels, color channel last
             sample = cv2.GaussianBlur(sample, (kernel_size, kernel_size), sigma)
             sample = torch.Tensor(sample).unsqueeze(0).permute(0, 3, 1, 2)
