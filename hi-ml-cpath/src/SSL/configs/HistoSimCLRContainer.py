@@ -50,7 +50,7 @@ class HistoSSLContainer(SSLContainer):
         return train_transforms, val_transforms
 
     def get_preprocessing_transforms(self) -> List[Callable]:
-        return([])
+        return([Lambda(lambda x: x)])
 
     def get_augmentations(self) -> List[Callable]:
         # SimClr augmentations
@@ -64,11 +64,6 @@ class HistoSSLContainer(SSLContainer):
         transforms: List[Any] = self.get_preprocessing_transforms()                 # Pre-processing transforms
         if apply_augmentations:
             transforms += self.get_augmentations()                                  # Augmentations
-        else:
-            # TODO Are there some transformations that we want to apply anyway?
-            # not sure it will work without, DualViewTransformWrapper will call
-            # an empty list
-            transforms += [Lambda(lambda x: x)]
         pipeline = ImageTransformationPipeline(transforms)
         return pipeline
 
