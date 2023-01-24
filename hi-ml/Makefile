@@ -66,9 +66,10 @@ pytest:
 pytest_fast:
 	pytest -m fast testhiml
 
-# run pytest with coverage on package
+# Run pytest with coverage on package.
+# Output the slowest tests via the --durations flag.
 call_pytest_and_coverage:
-	pytest --cov=health_ml --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc testhiml
+	pytest --durations=20 --cov=health_ml --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc testhiml
 
 # install test requirements and run pytest coverage
 pytest_and_coverage: pip_test call_pytest_and_coverage
