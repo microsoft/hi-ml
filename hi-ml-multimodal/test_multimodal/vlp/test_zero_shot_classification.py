@@ -1,7 +1,7 @@
 import tempfile
 from enum import Enum, unique
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import requests
 from torchvision.datasets.utils import check_integrity
@@ -46,7 +46,7 @@ def _get_default_text_prompts_for_pneumonia() -> Tuple[List, List]:
     return pos_query, neg_query
 
 
-def save_img_from_url(image_url: str, local_path: Union[str, Path], md5: str = None) -> None:
+def save_img_from_url(image_url: str, local_path: Union[str, Path], md5: Optional[str] = None) -> None:
     """
     Pull an image from a URL and save it to a local path
     """
