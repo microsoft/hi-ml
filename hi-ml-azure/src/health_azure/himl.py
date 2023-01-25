@@ -23,7 +23,7 @@ from azure.ai.ml import MLClient, Input, Output, command
 from azure.ai.ml.constants import AssetTypes, InputOutputModes
 from azure.ai.ml.entities import Data, Job, Command, Sweep
 from azure.ai.ml.entities import Environment as EnvironmentV2
-from azure.ai.ml.entities._job.distribution import DistributionConfiguration, MpiDistribution, PyTorchDistribution
+from azure.ai.ml.entities._job.distribution import MpiDistribution, PyTorchDistribution
 
 from azure.ai.ml.sweep import Choice
 from azureml._base_sdk_common import user_agent
@@ -548,9 +548,9 @@ def submit_run_v2(workspace: Optional[Workspace],
     def create_command_job(cmd: str) -> Command:
         if pytorch_processes_per_node is None:
             # On AML managed compute, we can set distribution to None for single node jobs.
-            # However, on Kubernetes, we need to set it to MpiDistribution even for single node jobs, otherwise
-            # the GPUs won't be recognized.
-            distribution: DistributionConfiguration = MpiDistribution(process_count_per_instance=1)
+            # However, on Kubernetes compute, single node jobs don't see any GPUs. GPUs are visible for MpiDistribution
+            # jobs, so we set MpiDistribution even for single node jobs.
+            distribution: Union[MpiDistribution, PyTorchDistribution] = MpiDistribution(process_count_per_instance=1)
         else:
             distribution = PyTorchDistribution(process_count_per_instance=pytorch_processes_per_node)
         return command(
@@ -565,7 +565,7 @@ def submit_run_v2(workspace: Optional[Workspace],
             shm_size=docker_shm_size,
             display_name=display_name,
             instance_count=num_nodes,
-            distribution=distribution,  # type: ignore
+            distribution=distribution,
         )
 
     if hyperparam_args:
