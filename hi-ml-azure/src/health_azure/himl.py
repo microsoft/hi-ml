@@ -23,7 +23,7 @@ from azure.ai.ml import MLClient, Input, Output, command
 from azure.ai.ml.constants import AssetTypes, InputOutputModes
 from azure.ai.ml.entities import Data, Job, Command, Sweep
 from azure.ai.ml.entities import Environment as EnvironmentV2
-from azure.ai.ml.entities._job.distribution import MpiDistribution, PyTorchDistribution
+from azure.ai.ml.entities._job.distribution import DistributionConfiguration, MpiDistribution, PyTorchDistribution
 
 from azure.ai.ml.sweep import Choice
 from azureml._base_sdk_common import user_agent
@@ -547,12 +547,10 @@ def submit_run_v2(workspace: Optional[Workspace],
 
     def create_command_job(cmd: str) -> Command:
         if pytorch_processes_per_node is None:
-            if num_nodes > 1:
-                distribution: Any = MpiDistribution(process_count_per_instance=1)
-            else:
-                # An empty dictionary for single node jobs would be in line with the type annotations on the
-                # 'command' function, but this is not recognized by the SDK. So we need to pass None instead.
-                distribution = None
+            # On AML managed compute, we can set distribution to None for single node jobs.
+            # However, on Kubernetes, we need to set it to MpiDistribution even for single node jobs, otherwise
+            # the GPUs won't be recognized.
+            distribution: DistributionConfiguration = MpiDistribution(process_count_per_instance=1)
         else:
             distribution = PyTorchDistribution(process_count_per_instance=pytorch_processes_per_node)
         return command(
