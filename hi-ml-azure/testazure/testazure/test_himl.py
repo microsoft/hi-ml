@@ -1297,11 +1297,11 @@ def test_invoking_hello_world_datasets(run_target: RunTarget,
     :param strictly_aml_v1: If True, use only AML v1 features. If False, use AML v2 features if available.
     :param tmp_path: PyTest test fixture for temporary path.
     """
-    input_count=5
-    input_datasets=[TestInputDataset(
-        filename= f"{uuid4().hex}.txt",
-        blob_name= f"himl_dataset_test_input{i}",
-        folder_name = tmp_path / f"local_dataset_test_input{i}")
+    input_count = 5
+    input_datasets = [TestInputDataset(
+        filename=f"{uuid4().hex}.txt",
+        blob_name=f"himl_dataset_test_input{i}",
+        folder_name=tmp_path / f"local_dataset_test_input{i}")
         for i in range(0, input_count)]
     output_count = 3
     output_datasets = [TestOutputDataset(
