@@ -130,63 +130,117 @@ def _get_or_create_v1_dataset(datastore_name: str, dataset_name: str, workspace:
     return azureml_dataset
 
 
-def _retrieve_v2_dataset(dataset_name: str, ml_client: MLClient) -> Data:
+def _get_latest_v2_asset_version(ml_client: MLClient, data_asset_name: str) -> str:
+    """
+    Retrieve the version of a v2 data asset that has the highest value (version numbers are assumed to be integers).
+
+    :param ml_client: An Azure MLClient object for interacting with Azure resources.
+    :param data_asset_name: The name of the data asset to look for.
+    :raises ResourceNotFoundError: If no data asset can be found with a matching name.
+    :return: The latest version of the data asset if found, else None.
+    """
+    data_assets = ml_client.data.list(name=data_asset_name)
+    highest_version = 0
+    for data_asset in data_assets:
+
+        try:
+            data_asset_version = int(data_asset.version)
+        except ValueError as val_er:
+            logging.warning(f"Failed to convert data asset version to int: {val_er}")
+            data_asset_version = -1
+
+        if data_asset_version > highest_version:
+            highest_version = data_asset_version
+
+    return str(highest_version)
+
+
+def _retrieve_v2_data_asset(
+    ml_client: MLClient,
+    data_asset_name: str,
+    version: Optional[str] = None,
+) -> Data:
     """
     Attempt to retrieve a v2 Data Asset using a provided Azure ML Workspace connection. If
     no Data asset can be found with a matching name, the underlying code will raise an Exception
 
-    :param dataset_name: The name of the dataset to look for.
     :param ml_client: An Azure MLClient object for interacting with Azure resources.
-    :return: An Azure Data asset representing the dataset if found, otherwise an Exception will be raised.
+    :param data_asset_name: The name of the data asset to look for.
+    :param version: version of the data asset to retrieve, latest version retrieved if None.
+    :return: An Azure Data asset representing the data asset if found.
     """
-    aml_data = ml_client.data.get(name=dataset_name)
+
+    if version is None:
+        version = _get_latest_v2_asset_version(ml_client, data_asset_name)
+
+    aml_data = ml_client.data.get(name=data_asset_name, version=version)
+    assert aml_data.version == version, "Version of retrieved data asset does not match requested version"
     return aml_data
 
 
-def _create_v2_dataset(datastore_name: str, dataset_name: str, ml_client: MLClient) -> Data:
+def _create_v2_data_asset(
+    ml_client: MLClient,
+    datastore_name: str,
+    data_asset_name: str,
+    version: Optional[str] = None
+) -> Data:
     """
     Create or update a v2 Data asset in the specified Datastore
 
-    :param datastore_name: The name of the datastore in which to create or update the Data asset.
-    :param dataset_name: The name of the dataset to be created.
     :param ml_client: An Azure MLClient object for interacting with Azure resources.
-    :raises ValueError: If no datastore name is provided to define where to create the data
+    :param datastore_name: The name of the datastore in which to create or update the Data asset.
+    :param data_asset_name: The name of the data asset to be created.
+    :param version: The version of the data asset to be created.
+    :raises ValueError: If no datastore name is provided to define where to create the data.
     :return: The created or updated Data asset.
     """
-    if not dataset_name:
-        raise ValueError(f"Cannot create data asset without a valid dataset name (received {dataset_name})")
+    if not data_asset_name:
+        raise ValueError("Cannot create data asset with empty name.")
 
     if not datastore_name:
         default_datastore = ml_client.datastores.get_default()
         datastore_name = default_datastore.name
 
-    logging.info(f"Creating a new Data asset from data in folder '{dataset_name}' in the datastore '{datastore_name}'")
+    logging.info(
+        f"Creating a new Data asset from data in folder '{data_asset_name}' in the datastore '{datastore_name}'"
+    )
     azureml_data_asset = Data(
-        path=f"azureml://datastores/{datastore_name}/paths/{dataset_name}/",
+        path=f"azureml://datastores/{datastore_name}/paths/{data_asset_name}/",
         type=AssetTypes.URI_FOLDER,
         description="<description>",
-        name=dataset_name,
-        version=None
+        name=data_asset_name,
+        version=version,
     )
+
     ml_client.data.create_or_update(azureml_data_asset)
     return azureml_data_asset
 
 
-def _get_or_create_v2_dataset(datastore_name: str, dataset_name: str, ml_client: MLClient) -> Data:
+def _get_or_create_v2_data_asset(
+    ml_client: MLClient,
+    datastore_name: str,
+    data_asset_name: str,
+    version: Optional[str] = None
+) -> Data:
     """
-    Attempt to retrieve a v2 Dataset object and return that, otherwise attempt to create and register
-    a v2 Dataset and return that.
+    Attempt to retrieve a v2 data asset object and return that, otherwise attempt to create and register
+    a v2 data asset and return that.
 
-    :param datastore_name: The name of the Datastore to either retrieve or create and register the Data asset in.
-    :param dataset_name: The name of the Data asset to be retrieved or registered.
     :param ml_client: An Azure MLClient object for interacting with Azure resources.
-    :return: An Azure Data asset object with the provided dataset name, in the provided datastore
+    :param datastore_name: The name of the Datastore to either retrieve or create and register the Data asset in.
+    :param data_asset_name: The name of the Data asset to be retrieved or registered.
+    :return: An Azure Data asset object with the provided asset name, in the provided datastore
     """
     try:
-        azureml_dataset = _retrieve_v2_dataset(dataset_name, ml_client)
-    except Exception:
-        azureml_dataset = _create_v2_dataset(datastore_name, dataset_name, ml_client)
-    return azureml_dataset
+        azureml_data_asset = _retrieve_v2_data_asset(ml_client, data_asset_name, version)
+    except ResourceNotFoundError:  # catch the exception and create the dataset, raise all other types of exceptions
+        logging.info(
+            f"Data asset {data_asset_name} not found in datastore {datastore_name}. Version specified: {version}."
+            "Attempting to create a new data asseet with specified name and version."
+        )
+        azureml_data_asset = _create_v2_data_asset(ml_client, datastore_name, data_asset_name, version)
+
+    return azureml_data_asset
 
 
 def get_or_create_dataset(datastore_name: str,
@@ -221,7 +275,7 @@ def get_or_create_dataset(datastore_name: str,
     else:
         try:
             ml_client = get_ml_client(ml_client=ml_client)
-            aml_dataset = _get_or_create_v2_dataset(datastore_name, dataset_name, ml_client)
+            aml_dataset = _get_or_create_v2_data_asset(ml_client, datastore_name, dataset_name)
         except HttpResponseError as e:
             if "Cannot create v2 Data Version in v1 Data Container" in e.message:
                 logging.info("This appears to be a v1 Data Container. Reverting to API v1 to create this Dataset")
@@ -311,11 +365,13 @@ class DatasetConfig:
         if workspace is None:
             raise ValueError(f"Unable to make dataset '{self.name} available for a local run because no AzureML "
                              "workspace has been provided. Provide a workspace, or set a folder for local execution.")
-        azureml_dataset = get_or_create_dataset(workspace=workspace,
-                                                ml_client=ml_client,
-                                                dataset_name=self.name,
-                                                datastore_name=self.datastore,
-                                                strictly_aml_v1=strictly_aml_v1)
+        azureml_dataset = get_or_create_dataset(
+            datastore_name=self.datastore,
+            dataset_name=self.name,
+            workspace=workspace,
+            strictly_aml_v1=strictly_aml_v1,
+            ml_client=ml_client,
+        )
         if isinstance(azureml_dataset, FileDataset):
             target_path = self.target_folder or Path(tempfile.mkdtemp())
             use_mounting = self.use_mounting if self.use_mounting is not None else False
@@ -350,11 +406,13 @@ class DatasetConfig:
         :param ml_client: An Azure MLClient object for interacting with Azure resources.
         """
         status = f"In AzureML, dataset {self.name} (index {dataset_index}) will be "
-        azureml_dataset = get_or_create_dataset(workspace=workspace,
-                                                ml_client=ml_client,
-                                                dataset_name=self.name,
-                                                datastore_name=self.datastore,
-                                                strictly_aml_v1=strictly_aml_v1)
+        azureml_dataset = get_or_create_dataset(
+            datastore_name=self.datastore,
+            dataset_name=self.name,
+            workspace=workspace,
+            strictly_aml_v1=strictly_aml_v1,
+            ml_client=ml_client,
+        )
         # If running on windows then self.target_folder may be a WindowsPath, make sure it is
         # in posix format for Azure.
         use_mounting = False if self.use_mounting is None else self.use_mounting

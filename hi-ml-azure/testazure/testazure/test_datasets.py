@@ -6,27 +6,35 @@
 Test the data input and output functionality
 """
 from pathlib import Path
-from unittest.mock import create_autospec, DEFAULT, MagicMock, patch
-from health_azure.utils import PathOrString, get_ml_client
-from typing import List, Union, Optional
+from typing import List, Optional, Union
+from unittest.mock import DEFAULT, MagicMock, create_autospec, patch
 
 import pytest
 from azure.ai.ml import MLClient
 from azure.ai.ml.entities import Data
 from azure.ai.ml.operations import DatastoreOperations
-from azure.core.exceptions import HttpResponseError
+from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
 from azureml._restclient.exceptions import ServiceException
 from azureml.core import Dataset, Workspace
 from azureml.data import FileDataset, OutputFileDatasetConfig
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.exceptions._azureml_exception import UserErrorException
+from testazure.utils_testazure import DEFAULT_DATASTORE, DEFAULT_WORKSPACE, get_test_ml_client
 
-from health_azure.datasets import (DatasetConfig, _input_dataset_key, _output_dataset_key,
-                                   _replace_string_datasets, get_datastore, get_or_create_dataset,
-                                   create_dataset_configs, _get_or_create_v1_dataset, _get_or_create_v2_dataset,
-                                   _retrieve_v1_dataset, _create_v1_dataset, _retrieve_v2_dataset, _create_v2_dataset)
-from testazure.utils_testazure import DEFAULT_DATASTORE, DEFAULT_WORKSPACE
+from health_azure.datasets import (
+    DatasetConfig, _create_v1_dataset, _create_v2_data_asset, _get_or_create_v1_dataset, _get_or_create_v2_data_asset,
+    _input_dataset_key, _output_dataset_key, _replace_string_datasets, _retrieve_v1_dataset, _retrieve_v2_data_asset,
+    create_dataset_configs, get_datastore, get_or_create_dataset, _get_latest_v2_asset_version,
+)
+from health_azure.utils import PathOrString, get_ml_client
+
+
+TEST_ML_CLIENT = get_test_ml_client()
+TEST_DATASET_NAME = "test_dataset"
+TEST_DATA_ASSET_NAME = "test_dataset"
+TEST_INVALID_DATA_ASSET_NAME = "non_existent_dataset"
+TEST_DATASTORE_NAME = "test_datastore"
 
 
 def test_datasetconfig_init() -> None:
@@ -35,9 +43,9 @@ def test_datasetconfig_init() -> None:
     assert "name of the dataset must be a non-empty string" in str(ex)
 
 
-def test_get_datastore() -> None:
+def test_get_datastore_v1() -> None:
     """
-    Test retrieving a datastore from the AML workspace.
+    Test retrieving a datastore from the AML workspace using the v1 SDK.
     """
     # Retrieving a datastore that does not exist should fail
     does_not_exist = "does_not_exist"
@@ -66,26 +74,31 @@ def test_get_datastore() -> None:
     assert isinstance(single_store, AzureBlobDatastore)
     assert single_store.name == name
 
+
+def test_get_datastore_v2() -> None:
+    """
+    Test retrieving a datastore from the AML workspace using the v2 SDK.
+    """
     # Now test retrieving a v2 datastore by name
-    mock_v2_dataset_name = "dummy_v2_datastore"
+    mock_v2_datastore_name = "dummy_v2_datastore"
     mock_returned_datastore = MagicMock()
-    mock_returned_datastore.name = mock_v2_dataset_name
+    mock_returned_datastore.name = mock_v2_datastore_name
     mock_workspace = MagicMock()
     mock_workspace.datastores = create_autospec(DatastoreOperations)
     mock_workspace.datastores.get.return_value = mock_returned_datastore
-    v2_datastore = get_datastore(mock_workspace, datastore_name=mock_v2_dataset_name)
-    assert v2_datastore.name == mock_v2_dataset_name
+    v2_datastore = get_datastore(mock_workspace, datastore_name=mock_v2_datastore_name)
+    assert v2_datastore.name == mock_v2_datastore_name
 
     # Test retrieving a default v2 datastore
     mock_workspace.datastores.list.return_value = [mock_returned_datastore]
     v2_default_datastore = get_datastore(mock_workspace, datastore_name="")
-    assert v2_default_datastore.name == mock_v2_dataset_name
+    assert v2_default_datastore.name == mock_v2_datastore_name
 
     # Mock case where list is empty but get_default returns a value
     mock_workspace.datastores.list.return_value = []
     mock_workspace.datastores.get_default.return_value = mock_returned_datastore
     v2_default_datastore = get_datastore(mock_workspace, datastore_name="")
-    assert v2_default_datastore.name == mock_v2_dataset_name
+    assert v2_default_datastore.name == mock_v2_datastore_name
 
     # If datastores has an unknown format, an exception should be raised
     mock_workspace = MagicMock()
@@ -196,7 +209,9 @@ def test_datasets_from_string() -> None:
 
 
 def test_get_or_create_dataset() -> None:
-    def _mock_retrieve_or_create_v2_dataset_fails(datastore_name: str, dataset_name: str, ml_client: MLClient) -> None:
+    def _mock_retrieve_or_create_v2_dataset_fails(
+        datastore_name: str, dataset_name: str, ml_client: MLClient
+    ) -> None:
         raise HttpResponseError("Cannot create v2 Data Version in v1 Data Container")
 
     data_asset_name = "himl_tiny_data_asset"
@@ -215,7 +230,7 @@ def test_get_or_create_dataset() -> None:
     mock_v1_dataset = "v1_dataset"
     with patch.multiple("health_azure.datasets",
                         _get_or_create_v1_dataset=DEFAULT,
-                        _get_or_create_v2_dataset=DEFAULT) as mocks:
+                        _get_or_create_v2_data_asset=DEFAULT) as mocks:
         mocks["_get_or_create_v1_dataset"].return_value = mock_v1_dataset
         dataset = get_or_create_dataset(workspace=workspace,
                                         ml_client=ml_client,
@@ -223,30 +238,30 @@ def test_get_or_create_dataset() -> None:
                                         dataset_name=data_asset_name,
                                         strictly_aml_v1=True)
         mocks["_get_or_create_v1_dataset"].assert_called_once()
-        mocks["_get_or_create_v2_dataset"].assert_not_called()
+        mocks["_get_or_create_v2_data_asset"].assert_not_called()
         assert dataset == mock_v1_dataset
 
         # Now pass strictly_aml_v1 as False
         mock_v2_dataset = "v2_dataset"
-        mocks["_get_or_create_v2_dataset"].return_value = mock_v2_dataset
+        mocks["_get_or_create_v2_data_asset"].return_value = mock_v2_dataset
         dataset = get_or_create_dataset(workspace=workspace,
                                         ml_client=ml_client,
                                         datastore_name="himldatasetsv2",
                                         dataset_name=data_asset_name,
                                         strictly_aml_v1=False)
         mocks["_get_or_create_v1_dataset"].assert_called_once()
-        mocks["_get_or_create_v2_dataset"].assert_called_once()
+        mocks["_get_or_create_v2_data_asset"].assert_called_once()
         assert dataset == mock_v2_dataset
 
         # if  trying to get or create a v2 dataset fails, should revert back to _get_or_create_v1_dataset
-        mocks["_get_or_create_v2_dataset"].side_effect = _mock_retrieve_or_create_v2_dataset_fails
+        mocks["_get_or_create_v2_data_asset"].side_effect = _mock_retrieve_or_create_v2_dataset_fails
         dataset = get_or_create_dataset(workspace=workspace,
                                         ml_client=ml_client,
                                         datastore_name="himldatasetsv2",
                                         dataset_name=data_asset_name,
                                         strictly_aml_v1=False)
         assert mocks["_get_or_create_v1_dataset"].call_count == 2
-        assert mocks["_get_or_create_v2_dataset"].call_count == 2
+        assert mocks["_get_or_create_v2_data_asset"].call_count == 2
         assert dataset == mock_v1_dataset
 
 
@@ -271,25 +286,29 @@ def test_get_or_create_v1_dataset() -> None:
         mocks["_create_v1_dataset"].assert_called_once()
 
 
-def test_get_or_create_v2_dataset() -> None:
-    def _mock_error_from_retrieve_v2_dataset(dataset_name: str, workspace: Workspace) -> None:
-        raise Exception("Error Message")
+def test_get_or_create_v2_data_asset() -> None:
+    def _mock_error_from_retrieve_v2_data_asset(
+        ml_client: MLClient,
+        data_asset_name: str,
+        version: Optional[str] = None,
+    ) -> None:
+        raise ResourceNotFoundError("Error Message")
 
     ml_client = MagicMock()
     datastore = "dummy_datastore"
     dataset_name = "foo"
 
     with patch.multiple("health_azure.datasets",
-                        _retrieve_v2_dataset=DEFAULT,
-                        _create_v2_dataset=DEFAULT) as mocks:
-        _get_or_create_v2_dataset(datastore, dataset_name, ml_client)
-        mocks["_retrieve_v2_dataset"].assert_called_once()
-        mocks["_create_v2_dataset"].assert_not_called()
+                        _retrieve_v2_data_asset=DEFAULT,
+                        _create_v2_data_asset=DEFAULT) as mocks:
+        _get_or_create_v2_data_asset(ml_client, datastore, dataset_name)
+        mocks["_retrieve_v2_data_asset"].assert_called_once()
+        mocks["_create_v2_data_asset"].assert_not_called()
 
-        mocks["_retrieve_v2_dataset"].side_effect = _mock_error_from_retrieve_v2_dataset
-        _get_or_create_v2_dataset(datastore, dataset_name, ml_client)
-        assert mocks["_retrieve_v2_dataset"].call_count == 2
-        mocks["_create_v2_dataset"].assert_called_once()
+        mocks["_retrieve_v2_data_asset"].side_effect = _mock_error_from_retrieve_v2_data_asset
+        _get_or_create_v2_data_asset(ml_client, datastore, dataset_name)
+        assert mocks["_retrieve_v2_data_asset"].call_count == 2
+        mocks["_create_v2_data_asset"].assert_called_once()
 
 
 def test_retrieve_v1_dataset() -> None:
@@ -350,25 +369,103 @@ def test_create_v1_dataset() -> None:
         pass
 
 
-def test_retrieve_v2_dataset() -> None:
-    dataset_name = "dummydataset"
-    mock_ml_client = MagicMock()
-    mock_retrieved_dataset = "dummy_data"
-    mock_ml_client.data.get.return_value = mock_retrieved_dataset
-    data_asset = _retrieve_v2_dataset(dataset_name, mock_ml_client)
-    assert data_asset == mock_retrieved_dataset
+@pytest.mark.parametrize(["asset_name", "asset_version"],
+                         [(TEST_DATA_ASSET_NAME, None),
+                          (TEST_DATA_ASSET_NAME, "1"),
+                          (TEST_INVALID_DATA_ASSET_NAME, None),
+                          (TEST_INVALID_DATA_ASSET_NAME, "1")])
+def test_retrieve_v2_data_asset(asset_name: str, asset_version: Optional[str]) -> None:
+    with patch("health_azure.datasets._get_latest_v2_asset_version") as mock_get_v2_asset_version:
+        mock_get_v2_asset_version.side_effect = _get_latest_v2_asset_version
+        try:
+            data_asset = _retrieve_v2_data_asset(
+                ml_client=TEST_ML_CLIENT,
+                data_asset_name=asset_name,
+                version=asset_version,
+            )
+        except ResourceNotFoundError as ex:
+            if asset_name == TEST_INVALID_DATA_ASSET_NAME:
+                if asset_version is None:
+                    expected_error_message = f"{TEST_INVALID_DATA_ASSET_NAME} container was not found."
+                else:
+                    expected_error_message = \
+                        f"{TEST_INVALID_DATA_ASSET_NAME}:{asset_version} (dataContainerName:version) not found."
+
+                assert expected_error_message in str(ex)
+            else:
+                pytest.fail(f"Unexpected error: {ex}")
+        else:
+            assert isinstance(data_asset, Data)
+            if asset_version is not None:
+                assert data_asset.version == asset_version
+            else:
+                mock_get_v2_asset_version.assert_called_once()
+            data_asset_path = data_asset.path
+            assert isinstance(data_asset_path, str)  # makes pyright happy
+            assert f"{TEST_DATASTORE_NAME}/paths/{TEST_DATA_ASSET_NAME}" in data_asset_path
 
 
-def test_create_v2_dataset() -> None:
-    dataset_name = "dummydataset"
-    datastore = "dummydataset"
-    mock_ml_client = MagicMock()
-    # mock_ml_client.data.create_or_update.return_value = None
-    data_asset = _create_v2_dataset(datastore, dataset_name, mock_ml_client)
-    assert isinstance(data_asset, Data)
-    assert data_asset.path == "azureml://datastores/dummydataset/paths/dummydataset/"
-    assert data_asset.type == "uri_folder"
-    assert data_asset.name == dataset_name
+def test_retrieve_v2_data_asset_invalid_version() -> None:
+    invalid_asset_version = str(int(_get_latest_v2_asset_version(TEST_ML_CLIENT, TEST_DATA_ASSET_NAME)) + 1)
+    with pytest.raises(ResourceNotFoundError) as ex:
+        _retrieve_v2_data_asset(
+            ml_client=TEST_ML_CLIENT,
+            data_asset_name=TEST_DATA_ASSET_NAME,
+            version=invalid_asset_version,
+        )
+        assert f"{TEST_DATA_ASSET_NAME}:{invalid_asset_version} (dataContainerName:version) not found." in str(ex)
+
+
+def test_retrieving_v2_data_asset_does_not_increment() -> None:
+    """Test if calling the get_or_create_data_asset on an existing asset does not increment the version number.
+    """
+
+    with patch("health_azure.datasets._create_v2_data_asset") as mock_create_v2_data_asset:
+        asset_version_before_get_or_create = _get_latest_v2_asset_version(TEST_ML_CLIENT, TEST_DATA_ASSET_NAME)
+        get_or_create_dataset(
+            TEST_DATASTORE_NAME,
+            TEST_DATA_ASSET_NAME,
+            DEFAULT_WORKSPACE,
+            strictly_aml_v1=False,
+            ml_client=TEST_ML_CLIENT,
+        )
+        asset_version_after_get_or_create = _get_latest_v2_asset_version(TEST_ML_CLIENT, TEST_DATA_ASSET_NAME)
+
+        mock_create_v2_data_asset.assert_not_called()
+        assert asset_version_before_get_or_create == asset_version_after_get_or_create
+
+
+@pytest.mark.parametrize(["asset_name", "version"],
+                         [(TEST_DATA_ASSET_NAME, None),
+                          (TEST_DATA_ASSET_NAME, "1"),
+                          ("", 1)])
+def test_create_v2_data_asset(asset_name: str, version: Optional[str]) -> None:
+    try:
+        data_asset = _create_v2_data_asset(
+            ml_client=TEST_ML_CLIENT,
+            datastore_name=TEST_DATASTORE_NAME,
+            data_asset_name=asset_name,
+            version=version,
+        )
+    except HttpResponseError as ex:
+        if version is not None:
+            assert "A data version with this name and version already exists" in str(ex)
+        else:
+            pytest.fail(f"Unexpected error: {ex}")
+
+    except ValueError as ex:
+        if asset_name == "":
+            assert "Cannot create data asset with empty name." in str(ex)
+        else:
+            pytest.fail(f"Unexpected error: {ex}")
+
+    else:
+        assert isinstance(data_asset, Data)
+        assert data_asset.path == f"azureml://datastores/{TEST_DATASTORE_NAME}/paths/{TEST_DATA_ASSET_NAME}/"
+        assert data_asset.type == "uri_folder"
+        assert data_asset.name == TEST_DATASET_NAME
+        if version:
+            assert data_asset.version == version
 
 
 def test_dataset_keys() -> None:
