@@ -43,6 +43,7 @@ class LightningContainer(WorkflowParams,
     def validate(self) -> None:
         WorkflowParams.validate(self)
         OptimizerParams.validate(self)
+        TrainerParams.validate(self)
 
     def setup(self) -> None:
         """

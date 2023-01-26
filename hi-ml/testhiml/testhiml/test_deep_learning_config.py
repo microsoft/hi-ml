@@ -204,6 +204,14 @@ def test_trainer_params_use_gpu() -> None:
             assert config.use_gpu is patch_gpu
 
 
+def test_trainer_params_max_num_gpus_inference(caplog: LogCaptureFixture) -> None:
+    config = TrainerParams(max_num_gpus_inference=2, pl_replce_sampler_ddp=True)
+    config.validate()
+    assert config.max_num_gpus_inference == 2
+    assert config.pl_replace_sampler_ddp is True
+    assert "The 'pl_replace_sampler_ddp' flag is set to True, but the 'max_num_gpus_inference'" in caplog.messages[-1]
+
+
 @patch("health_ml.utils.common_utils.is_gpu_available")
 def test_trainer_params_num_gpus_per_node(mock_gpu_available: MagicMock, caplog: LogCaptureFixture) -> None:
     mock_gpu_available.return_value = True

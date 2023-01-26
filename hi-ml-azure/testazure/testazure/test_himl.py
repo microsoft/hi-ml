@@ -798,7 +798,7 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 tags=dummy_tags,
                 shm_size=dummy_docker_shm_size,
                 display_name=dummy_display_name,
-                distribution=None,
+                distribution=MpiDistribution(process_count_per_instance=1),
                 instance_count=1
             )
 
@@ -858,7 +858,7 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 tags=dummy_tags,
                 shm_size=dummy_docker_shm_size,
                 display_name=dummy_display_name,
-                distribution=None,
+                distribution=MpiDistribution(process_count_per_instance=1),
                 instance_count=1
             )
 
@@ -1867,7 +1867,7 @@ def test_submit_to_azure_v2_distributed() -> None:
                 mock_command.assert_called_once()
                 _, call_kwargs = mock_command.call_args
                 assert call_kwargs.get("instance_count") == 1
-                assert call_kwargs.get("distribution") is None
+                assert call_kwargs.get("distribution") == MpiDistribution(process_count_per_instance=1)
 
             with pytest.raises(ValueError, match="num_nodes must be >= 1"):
                 _ = himl.submit_to_azure_if_needed(
@@ -1925,5 +1925,4 @@ def test_submit_to_azure_v2_distributed() -> None:
                 _, call_kwargs = mock_command.call_args
                 assert call_kwargs.get("instance_count") == num_nodes
                 distribution = call_kwargs.get("distribution")
-                assert isinstance(distribution, MpiDistribution)
-                assert distribution.process_count_per_instance == 1
+                assert distribution == MpiDistribution(process_count_per_instance=1)

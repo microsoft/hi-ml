@@ -20,6 +20,7 @@ from health_azure.utils import (create_run_recovery_id, ENV_OMPI_COMM_WORLD_RANK
                                 aggregate_hyperdrive_metrics, get_metrics_for_childless_run,
                                 ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK,
                                 is_local_rank_zero, is_global_rank_zero, create_aml_run_object)
+from health_azure.logging import print_message_with_rank_pid
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.model_trainer import create_lightning_trainer, write_experiment_summary_file
@@ -215,7 +216,7 @@ class MLRunner:
             )
             logging.info(f"Environment variables: {rank_info}. trainer.global_rank: {self.trainer.global_rank}")
 
-    def after_ddp_cleanup(self, old_environ: Dict) -> None:
+    def after_ddp_cleanup(self, environ_before_training: Dict) -> None:
         """
         Run processes cleanup after ddp context to prepare for single device inference.
         Kill all processes in DDP besides rank 0.
@@ -225,16 +226,16 @@ class MLRunner:
         # We can now use the global_rank of the Lightning model, rather than environment variables, because DDP has set
         # all necessary properties.
         if self.container.model.global_rank != 0:
-            logging.info(f"Terminating training thread with rank {self.container.model.global_rank}.")
+            print_message_with_rank_pid(
+                f"Terminating training thread with rank {self.container.model.global_rank}.", level='INFO'
+            )
             sys.exit()
 
-        logging.info("Removing redundant checkpoint files.")
-        cleanup_checkpoints(self.container.checkpoint_folder)
         # Lightning modifies a ton of environment variables. If we first run training and then the test suite,
         # those environment variables will mislead the training runs in the test suite, and make them crash.
         # Hence, restore the original environment after training.
         os.environ.clear()
-        os.environ.update(old_environ)
+        os.environ.update(environ_before_training)
 
         if ENV_OMPI_COMM_WORLD_RANK in os.environ:
             del os.environ[ENV_OMPI_COMM_WORLD_RANK]
@@ -243,6 +244,21 @@ class MLRunner:
         # and would block on some GPU operations. Hence, clean up distributed training.
         if torch.distributed.is_initialized():  # type: ignore
             torch.distributed.destroy_process_group()  # type: ignore
+
+    def end_training(self, environ_before_training: Dict) -> None:
+        """Cleanup after training is done. This is called after the trainer has finished fitting the data.
+        This is called to update the checkpoint handler state and remove redundant checkpoint files. If running
+        inference on a single device, this is also called to kill all processes besides rank 0.
+        """
+        # Update the checkpoint handler state
+        self.checkpoint_handler.additional_training_done()
+        if self.container.model.global_rank == 0:
+            logging.info("Removing redundant checkpoint files.")
+            cleanup_checkpoints(self.container.checkpoint_folder)
+
+        if self.container.max_num_gpus_inference == 1:
+            # Kill all processes besides rank 0 after training is done to start inference on a single device
+            self.after_ddp_cleanup(environ_before_training)
 
     def is_crossval_disabled_or_child_0(self) -> bool:
         """
@@ -258,7 +274,7 @@ class MLRunner:
         internally, which replicates some samples to make sure all devices have the same batch size in case of
         uneven inputs which biases the results."""
         mlflow_run_id = get_mlflow_run_id_from_trainer(self.trainer)
-        self.container.max_num_gpus = 1
+        self.container.max_num_gpus = self.container.max_num_gpus_inference
         self.trainer, _ = create_lightning_trainer(
             container=self.container,
             num_nodes=1,
@@ -374,14 +390,12 @@ class MLRunner:
 
             if not self.container.run_inference_only:
                 # Backup the environment variables in case we need to run a second training in the unit tests.
-                old_environ = dict(os.environ)
-                # Do training
+                environ_before_training = dict(os.environ)
+
                 with logging_section("Model training"):
                     self.run_training()
-                # Update the checkpoint handler state
-                self.checkpoint_handler.additional_training_done()
-                # Kill all processes besides rank 0 after training is done to start inference on a single device
-                self.after_ddp_cleanup(old_environ)
+
+                self.end_training(environ_before_training)
 
             self.init_inference()
 

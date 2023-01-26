@@ -220,11 +220,43 @@ def test_run_training() -> None:
             mock_trainer.loggers[0].finalize.assert_called_once()
 
 
+@pytest.mark.parametrize("max_num_gpus_inf", [2, 1])
+def test_end_training(max_num_gpus_inf: int) -> None:
+    experiment_config = ExperimentConfig(model="HelloWorld")
+    container = HelloWorld()
+    container.max_num_gpus_inference = max_num_gpus_inf
+    runner = MLRunner(experiment_config=experiment_config, container=container)
+
+    with patch.object(container, "get_data_module"):
+        with patch("health_ml.run_ml.create_lightning_trainer", return_value=(MagicMock(), MagicMock())):
+            runner.setup()
+            runner.init_training()
+            runner.run_training()
+
+        with patch.object(runner.checkpoint_handler, "additional_training_done") as mock_additional_training_done:
+            with patch.object(runner, "after_ddp_cleanup") as mock_after_ddp_cleanup:
+                with patch("health_ml.run_ml.cleanup_checkpoints") as mock_cleanup_ckpt:
+                    environ_before_training = {"old": "environ"}
+                    runner.end_training(environ_before_training=environ_before_training)
+                    mock_additional_training_done.assert_called_once()
+                    mock_cleanup_ckpt.assert_called_once()
+                    if max_num_gpus_inf == 1:
+                        mock_after_ddp_cleanup.assert_called_once()
+                        mock_after_ddp_cleanup.assert_called_with(environ_before_training)
+                    else:
+                        mock_after_ddp_cleanup.assert_not_called()
+
+
+@pytest.mark.parametrize("max_num_gpus_inf", [2, 1])
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
 @pytest.mark.parametrize("run_inference_only", [True, False])
-def test_init_inference(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with_run_id: MLRunner) -> None:
+def test_init_inference(
+    run_inference_only: bool, run_extra_val_epoch: bool, max_num_gpus_inf: int, ml_runner_with_run_id: MLRunner
+) -> None:
     ml_runner_with_run_id.container.run_inference_only = run_inference_only
     ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
+    ml_runner_with_run_id.container.max_num_gpus_inference = max_num_gpus_inf
+    assert ml_runner_with_run_id.container.max_num_gpus == -1  # This is the default value of max_num_gpus
     ml_runner_with_run_id.init_training()
     if run_inference_only:
         expected_mlflow_run_id = None
@@ -256,7 +288,7 @@ def test_init_inference(run_inference_only: bool, run_extra_val_epoch: bool, ml_
 
                 mock_create_trainer.assert_called_once()
                 assert ml_runner_with_run_id.trainer == mock_trainer
-                assert ml_runner_with_run_id.container.max_num_gpus == 1
+                assert ml_runner_with_run_id.container.max_num_gpus == max_num_gpus_inf
                 assert mock_create_trainer.call_args[1]["container"] == ml_runner_with_run_id.container
                 assert mock_create_trainer.call_args[1]["num_nodes"] == 1
                 assert mock_create_trainer.call_args[1]["mlflow_run_for_logging"] == expected_mlflow_run_id
@@ -364,16 +396,13 @@ def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with
             run_training=mock.DEFAULT,
             run_validation=mock.DEFAULT,
             run_inference=mock.DEFAULT,
-            after_ddp_cleanup=mock.DEFAULT,
+            end_training=mock.DEFAULT,
         ) as mocks:
             ml_runner_with_container.run()
             assert ml_runner_with_container.container.has_custom_test_step()
             assert ml_runner_with_container._has_setup_run
-            assert ml_runner_with_container.checkpoint_handler.has_continued_training != run_inference_only
-
+            assert mocks["end_training"] != run_inference_only
             assert mocks["run_training"].called != run_inference_only
-            assert mocks["after_ddp_cleanup"].called != run_inference_only
-            assert mocks["checkpoint_handler"].additional_training_done.called != run_inference_only
             mocks["run_validation"].assert_called_once()
             mocks["run_inference"].assert_called_once()
 
@@ -415,11 +444,11 @@ def test_resume_training_from_run_id(run_extra_val_epoch: bool, ml_runner_with_r
     with patch("health_ml.run_ml.create_lightning_trainer", return_value=(mock_trainer, MagicMock())):
         with patch.object(ml_runner_with_run_id.container, "get_checkpoint_to_test") as mock_get_checkpoint_to_test:
             with patch.object(ml_runner_with_run_id, "run_inference") as mock_run_inference:
-                with patch.object(ml_runner_with_run_id, "after_ddp_cleanup") as mock_after_ddp_cleanup:
+                with patch("health_ml.run_ml.cleanup_checkpoints") as mock_cleanup_ckpt:
                     mock_get_checkpoint_to_test.return_value = MagicMock(is_file=MagicMock(return_value=True))
                     ml_runner_with_run_id.run()
-                    mock_after_ddp_cleanup.assert_called_once()
                     mock_get_checkpoint_to_test.assert_called_once()
+                    mock_cleanup_ckpt.assert_called_once()
                     assert mock_trainer.validate.called == run_extra_val_epoch
                     mock_run_inference.assert_called_once()
 

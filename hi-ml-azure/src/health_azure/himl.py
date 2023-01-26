@@ -547,12 +547,10 @@ def submit_run_v2(workspace: Optional[Workspace],
 
     def create_command_job(cmd: str) -> Command:
         if pytorch_processes_per_node is None:
-            if num_nodes > 1:
-                distribution: Any = MpiDistribution(process_count_per_instance=1)
-            else:
-                # An empty dictionary for single node jobs would be in line with the type annotations on the
-                # 'command' function, but this is not recognized by the SDK. So we need to pass None instead.
-                distribution = None
+            # On AML managed compute, we can set distribution to None for single node jobs.
+            # However, on Kubernetes compute, single node jobs don't see any GPUs. GPUs are visible for MpiDistribution
+            # jobs, so we set MpiDistribution even for single node jobs.
+            distribution: Union[MpiDistribution, PyTorchDistribution] = MpiDistribution(process_count_per_instance=1)
         else:
             distribution = PyTorchDistribution(process_count_per_instance=pytorch_processes_per_node)
         return command(
@@ -567,7 +565,7 @@ def submit_run_v2(workspace: Optional[Workspace],
             shm_size=docker_shm_size,
             display_name=display_name,
             instance_count=num_nodes,
-            distribution=distribution,  # type: ignore
+            distribution=distribution,
         )
 
     if hyperparam_args:

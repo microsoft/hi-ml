@@ -447,6 +447,13 @@ class TrainerParams(param.Parameterized):
                                       doc="The maximum number of GPUS to use. If set to a value < 0, use"
                                           "all available GPUs. In distributed training, this is the "
                                           "maximum number of GPUs per node.")
+    max_num_gpus_inference: int = param.Integer(default=1,
+                                                doc="The maximum number of GPUS to use for inference. Default is 1 for "
+                                                    "single device inference. This guarantees reproducibility of "
+                                                    "results without any duplication of data. However, if you use "
+                                                    "pl_replace_sampler_ddp=False, you can set this to a higher value "
+                                                    "to speed up inference. Use a negative value to use all available "
+                                                    "GPUs in the system.")
     pl_progress_bar_refresh_rate: Optional[int] = \
         param.Integer(default=None,
                       doc="PyTorch Lightning trainer flag 'progress_bar_refresh_rate': How often to refresh "
@@ -519,6 +526,14 @@ class TrainerParams(param.Parameterized):
                                                  "sets the sampler for distributed training with shuffle=True during "
                                                  "training and shuffle=False during validation. Default to True. Set to"
                                                  "False to set your own sampler.")
+
+    def validate(self) -> None:
+        if self.max_num_gpus_inference > 1 and self.pl_replace_sampler_ddp:
+            logging.warning("The 'pl_replace_sampler_ddp' flag is set to True, but the 'max_num_gpus_inference' > 1. "
+                            "This might bias the inference results due to duplicate samples. Consider setting "
+                            "--pl_replace_sampler_ddp=False if you want to use multiple GPUs for inference."
+                            "pytorch_lightning.overrides.distributed.UnrepeatedDistributedSampler can be used instead "
+                            "of DistributedSampler.")
 
     @property
     def use_gpu(self) -> bool:

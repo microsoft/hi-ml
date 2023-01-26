@@ -355,13 +355,13 @@ class DeepMILOutputsHandler:
         :param epoch: Current epoch number.
         :param on_extra_val: Whether this is an extra validation epoch (e.g. after training).
         """
-        epoch_results = gather_results(epoch_results)
+        if self.save_intermediate_outputs or on_extra_val:
+            epoch_results = gather_results(epoch_results)
 
-        if self.should_gather_tiles(self.val_plots_handler):
-            self.tiles_selector.gather_selected_tiles_across_devices()  # type: ignore
+            if self.should_gather_tiles(self.val_plots_handler):
+                self.tiles_selector.gather_selected_tiles_across_devices()  # type: ignore
 
         # Only global rank-0 process should actually render and save the outputs
-        # We also want to save the plots of the extra validation epoch
         if self.save_intermediate_outputs and self.outputs_policy.should_save_validation_outputs(
             metrics_dict, epoch, is_global_rank_zero, on_extra_val
         ):
@@ -376,6 +376,7 @@ class DeepMILOutputsHandler:
             # Writing completed successfully; delete temporary back-up
             if self.previous_validation_outputs_dir.exists():
                 shutil.rmtree(self.previous_validation_outputs_dir, ignore_errors=True)
+        # We also want to save the plots of the extra validation epoch
         elif on_extra_val and is_global_rank_zero:
             self._save_outputs(epoch_results, self.extra_validation_outputs_dir, ModelKey.VAL)
 
