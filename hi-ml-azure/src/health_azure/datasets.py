@@ -365,11 +365,13 @@ class DatasetConfig:
         if workspace is None:
             raise ValueError(f"Unable to make dataset '{self.name} available for a local run because no AzureML "
                              "workspace has been provided. Provide a workspace, or set a folder for local execution.")
-        azureml_dataset = get_or_create_dataset(workspace=workspace,
-                                                ml_client=ml_client,
-                                                dataset_name=self.name,
-                                                datastore_name=self.datastore,
-                                                strictly_aml_v1=strictly_aml_v1)
+        azureml_dataset = get_or_create_dataset(
+            datastore_name=self.datastore,
+            dataset_name=self.name,
+            workspace=workspace,
+            strictly_aml_v1=strictly_aml_v1,
+            ml_client=ml_client,
+        )
         if isinstance(azureml_dataset, FileDataset):
             target_path = self.target_folder or Path(tempfile.mkdtemp())
             use_mounting = self.use_mounting if self.use_mounting is not None else False
@@ -404,11 +406,13 @@ class DatasetConfig:
         :param ml_client: An Azure MLClient object for interacting with Azure resources.
         """
         status = f"In AzureML, dataset {self.name} (index {dataset_index}) will be "
-        azureml_dataset = get_or_create_dataset(workspace=workspace,
-                                                ml_client=ml_client,
-                                                dataset_name=self.name,
-                                                datastore_name=self.datastore,
-                                                strictly_aml_v1=strictly_aml_v1)
+        azureml_dataset = get_or_create_dataset(
+            datastore_name=self.datastore,
+            dataset_name=self.name,
+            workspace=workspace,
+            strictly_aml_v1=strictly_aml_v1,
+            ml_client=ml_client,
+        )
         # If running on windows then self.target_folder may be a WindowsPath, make sure it is
         # in posix format for Azure.
         use_mounting = False if self.use_mounting is None else self.use_mounting

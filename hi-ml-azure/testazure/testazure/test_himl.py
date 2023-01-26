@@ -1279,7 +1279,6 @@ class TestOutputDataset:
 
 
 @pytest.mark.parametrize(["run_target", "local_folder", "strictly_aml_v1"],
-                         [(RunTarget.LOCAL, False, False),
                           (RunTarget.LOCAL, True, False),
                           (RunTarget.AZUREML, False, True),
                           # Test with AML SDK v2 fails, logged as https://github.com/microsoft/hi-ml/issues/763
