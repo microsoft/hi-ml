@@ -177,7 +177,7 @@ def _retrieve_v2_data_asset(
         version = _get_latest_v2_asset_version(ml_client, data_asset_name)
 
     aml_data = ml_client.data.get(name=data_asset_name, version=version)
-    assert aml_data.version == version, "Version of retrieved data asset does not match requested version"
+    assert aml_data.version == version, f"Data asset version ({aml_data.version}) does not match version ({version})"
     return aml_data
 
 
