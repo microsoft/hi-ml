@@ -45,7 +45,7 @@ from health_azure.utils import (ENV_EXPERIMENT_NAME, create_python_environment, 
                                 V2_OUTPUT_DATASET_PATTERN, wait_for_job_completion)
 from health_azure.datasets import (DatasetConfig, StrOrDatasetConfig, setup_local_datasets,
                                    _input_dataset_key, _output_dataset_key, _replace_string_datasets,
-                                   _get_latest_v2_asset_version, _get_or_create_v2_data_asset)
+                                   _get_or_create_v2_data_asset)
 
 
 logger = logging.getLogger('health_azure')
