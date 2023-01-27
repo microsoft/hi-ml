@@ -239,7 +239,7 @@ def _get_or_create_v2_data_asset(
     except ResourceNotFoundError:  # catch the exception and create the dataset, raise all other types of exceptions
         logging.info(
             f"Data asset {data_asset_name} not found in datastore {datastore_name}. Version specified: {version}."
-            "Attempting to create a new data asseet with specified name and version."
+            "Attempting to create a new data asset with specified name and version."
         )
         azureml_data_asset = _create_v2_data_asset(ml_client, datastore_name, data_asset_name, version)
 

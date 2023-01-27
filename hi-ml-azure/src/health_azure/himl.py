@@ -714,7 +714,7 @@ def create_v2_inputs(ml_client: MLClient, input_datasets: List[DatasetConfig]) -
             ml_client,
             input_dataset.datastore,
             input_dataset.name,
-            version=str(version),
+            version=str(version) if version else None,
         )
         if not data_asset.path:
             raise ValueError(f"Data asset {data_asset.id} has no path.")
