@@ -461,7 +461,7 @@ def test_create_v2_data_asset(asset_name: str, version: Optional[str]) -> None:
 
     else:
         assert isinstance(data_asset, Data)
-        assert data_asset.path == f"azureml://datastores/{TEST_DATASTORE_NAME}/paths/{TEST_DATA_ASSET_NAME}/"
+        assert f"{TEST_DATASTORE_NAME}/paths/{TEST_DATA_ASSET_NAME}/" in data_asset.path
         assert data_asset.type == "uri_folder"
         assert data_asset.name == TEST_DATASET_NAME
         if version:

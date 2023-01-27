@@ -152,6 +152,9 @@ def _get_latest_v2_asset_version(ml_client: MLClient, data_asset_name: str) -> s
         if data_asset_version > highest_version:
             highest_version = data_asset_version
 
+    if highest_version == 0:
+        raise ResourceNotFoundError(f"No data asset found with the provided name: {data_asset_name}")
+
     return str(highest_version)
 
 
@@ -212,7 +215,7 @@ def _create_v2_data_asset(
         version=version,
     )
 
-    ml_client.data.create_or_update(azureml_data_asset)
+    azureml_data_asset = ml_client.data.create_or_update(azureml_data_asset)
     return azureml_data_asset
 
 

@@ -1563,7 +1563,7 @@ def test_create_v2_inputs() -> None:
     mock_data_path = "azureml://subscriptions/123/resourcegroups/myrg/workspaces/myws/datastores/ds/paths/foldername/**"
     # This is normally "uri_folder", but we want to test if that value is passed through unchanged
     mock_data_type = "some_arbitrary_type"
-    mock_ml_client.data.get.return_value = Data(
+    mock_ml_client.data.create_or_update.return_value = Data(
         name=mock_data_name,
         version=mock_data_version,
         id=mock_data_id,
