@@ -28,6 +28,7 @@ from azure.ai.ml.constants import AssetTypes, InputOutputModes
 from azure.ai.ml.entities import Data, Job
 from azure.ai.ml.entities._job.distribution import MpiDistribution, PyTorchDistribution
 from azure.ai.ml.sweep import Choice
+from azure.core.exceptions import ResourceNotFoundError
 from azureml._restclient.constants import RunStatus
 from azureml.core import ComputeTarget, Environment, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
@@ -1553,7 +1554,8 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock,
 
 
 @pytest.mark.fast
-def test_create_v2_inputs() -> None:
+@pytest.mark.parametrize("already_exists", [True, False])
+def test_create_v2_inputs(already_exists: bool) -> None:
     mock_ml_client = MagicMock()
     mock_data_name = "some_arbitrary_name"
     # These values are copied from an actual Data item
@@ -1563,16 +1565,27 @@ def test_create_v2_inputs() -> None:
     mock_data_path = "azureml://subscriptions/123/resourcegroups/myrg/workspaces/myws/datastores/ds/paths/foldername/**"
     # This is normally "uri_folder", but we want to test if that value is passed through unchanged
     mock_data_type = "some_arbitrary_type"
-    mock_ml_client.data.get.return_value = Data(
+    mock_asset = Data(
         name=mock_data_name,
         version=mock_data_version,
         id=mock_data_id,
         path=mock_data_path,
         type=mock_data_type,
     )
+    if already_exists:
+        mock_ml_client.data.get.return_value = mock_asset
+    else:
+        def mock_v2_data_get(*args: Any, **kwargs: Any) -> None:
+            raise ResourceNotFoundError("dummy error")
+        mock_ml_client.data.get.side_effect = mock_v2_data_get
+        mock_ml_client.data.create_or_update.return_value = mock_asset
 
     for use_mounting in [True, False]:
-        mock_input_dataconfigs = [DatasetConfig(name="dummy_dataset", use_mounting=use_mounting)]
+        mock_input_dataconfigs = [DatasetConfig(
+            name="dummy_dataset",
+            use_mounting=use_mounting,
+            version=int(mock_data_version)
+        )]
         inputs = himl.create_v2_inputs(mock_ml_client, mock_input_dataconfigs)
         assert isinstance(inputs, Dict)
         assert len(inputs) == len(mock_input_dataconfigs)
@@ -1590,12 +1603,13 @@ def test_create_v2_inputs() -> None:
 @pytest.mark.fast
 @pytest.mark.parametrize("missing", [None, ""])
 def test_create_v2_inputs_fails(missing: Any) -> None:
-    mock_ml_client = MagicMock()
-    # For this mock, we can't use the Data class because the constructor always fills in a non-empty path
-    mock_ml_client.data.get.return_value = MagicMock(path=missing)
-    mock_input_dataconfigs = [DatasetConfig(name="dummy_dataset")]
-    with pytest.raises(ValueError, match="has no path"):
-        himl.create_v2_inputs(mock_ml_client, mock_input_dataconfigs)
+
+    with patch("health_azure.himl._get_or_create_v2_data_asset") as mock_get_or_create_v2_data_asset:
+        mock_get_or_create_v2_data_asset.return_value = MagicMock(path=missing)
+        mock_ml_client = MagicMock()
+        mock_input_dataconfigs = [DatasetConfig(name="dummy_dataset")]
+        with pytest.raises(ValueError, match="has no path"):
+            himl.create_v2_inputs(mock_ml_client, mock_input_dataconfigs)
 
 
 @pytest.mark.fast

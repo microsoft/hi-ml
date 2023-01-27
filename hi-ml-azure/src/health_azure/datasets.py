@@ -140,17 +140,20 @@ def _get_latest_v2_asset_version(ml_client: MLClient, data_asset_name: str) -> s
     :return: The latest version of the data asset if found, else None.
     """
     data_assets = ml_client.data.list(name=data_asset_name)
-    highest_version = 0
-    for data_asset in data_assets:
+    highest_version = float('-inf')
 
+    for data_asset in data_assets:
         try:
             data_asset_version = int(data_asset.version)
         except ValueError as val_er:
             logging.warning(f"Failed to convert data asset version to int: {val_er}")
-            data_asset_version = -1
+            continue
 
         if data_asset_version > highest_version:
             highest_version = data_asset_version
+
+    if highest_version == float('-inf'):
+        raise ResourceNotFoundError(f"No data asset found with the provided name: {data_asset_name}")
 
     return str(highest_version)
 
@@ -174,7 +177,7 @@ def _retrieve_v2_data_asset(
         version = _get_latest_v2_asset_version(ml_client, data_asset_name)
 
     aml_data = ml_client.data.get(name=data_asset_name, version=version)
-    assert aml_data.version == version, "Version of retrieved data asset does not match requested version"
+    assert aml_data.version == version, f"Data asset version ({aml_data.version}) does not match version ({version})"
     return aml_data
 
 
@@ -212,7 +215,7 @@ def _create_v2_data_asset(
         version=version,
     )
 
-    ml_client.data.create_or_update(azureml_data_asset)
+    azureml_data_asset = ml_client.data.create_or_update(azureml_data_asset)
     return azureml_data_asset
 
 
@@ -236,7 +239,7 @@ def _get_or_create_v2_data_asset(
     except ResourceNotFoundError:  # catch the exception and create the dataset, raise all other types of exceptions
         logging.info(
             f"Data asset {data_asset_name} not found in datastore {datastore_name}. Version specified: {version}."
-            "Attempting to create a new data asseet with specified name and version."
+            "Attempting to create a new data asset with specified name and version."
         )
         azureml_data_asset = _create_v2_data_asset(ml_client, datastore_name, data_asset_name, version)
 
