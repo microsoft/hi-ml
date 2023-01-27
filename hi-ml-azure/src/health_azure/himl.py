@@ -707,6 +707,9 @@ def create_v2_inputs(ml_client: MLClient, input_datasets: List[DatasetConfig]) -
         input_name = f"INPUT_{i}"
         version = input_dataset.version
         # if version is None, this function gets the latest version
+        logging.info(
+            f"Trying to access data asset {input_dataset.name} version {version}, datastore {input_dataset.datastore}"
+        )
         data_asset: Data = _get_or_create_v2_data_asset(
             ml_client,
             input_dataset.datastore,
