@@ -757,7 +757,7 @@ def test_submit_run_v2(tmp_path: Path) -> None:
     dummy_script_params = ["--arg1=val1", "--arg2=val2", "--conda_env=some_path"]
     dummy_compute_target = "my_compute_target"
     dummy_display_name = "job_display_name"
-    dummy_tags = {"tag": dummy_display_name}
+    dummy_tags = {"tag1": "tag1value"}
     dummy_docker_shm_size = '1g'
 
     # job without hyperparameter sampling
@@ -777,7 +777,8 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 docker_shm_size=dummy_docker_shm_size,
                 workspace_config_path=None,
                 ml_client=mock_ml_client,
-                hyperparam_args=None
+                hyperparam_args=None,
+                display_name=dummy_display_name,
             )
 
             expected_arg_str = " ".join(dummy_script_params)
@@ -839,7 +840,8 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 docker_shm_size=dummy_docker_shm_size,
                 workspace_config_path=None,
                 ml_client=mock_ml_client,
-                hyperparam_args=dummy_hyperparam_args
+                hyperparam_args=dummy_hyperparam_args,
+                display_name=dummy_display_name,
             )
 
             # 'command' should be called with the same args
@@ -1694,28 +1696,6 @@ def test_extract_v2_inputs_outputs_from_args() -> None:
         input_datasets, output_datasets = himl._extract_v2_inputs_outputs_from_args()
         assert len(input_datasets) == 0
         assert len(output_datasets) == 0
-
-
-@pytest.mark.fast
-def test_get_display_name_v2() -> None:
-    dummy_display_name = "job display name"
-    expected_display_name = "job-display-name"
-    dummy_tags = {
-        "tag": dummy_display_name
-    }
-    display_name = himl.get_display_name_v2(dummy_tags)
-    assert display_name == expected_display_name
-
-    # if tag named 'tag' is missing, display name should be empty
-    dummy_tags_missing = {
-        "some_tag": dummy_display_name
-    }
-    display_name = himl.get_display_name_v2(dummy_tags_missing)
-    assert display_name == ""
-
-    # if no tags provided, display name should be empty
-    display_name = himl.get_display_name_v2()
-    assert display_name == ""
 
 
 @pytest.mark.parametrize("wait_for_completion", [True, False])
