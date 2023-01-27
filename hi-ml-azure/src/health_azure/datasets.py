@@ -140,19 +140,19 @@ def _get_latest_v2_asset_version(ml_client: MLClient, data_asset_name: str) -> s
     :return: The latest version of the data asset if found, else None.
     """
     data_assets = ml_client.data.list(name=data_asset_name)
-    highest_version = 0
-    for data_asset in data_assets:
+    highest_version = float('-inf')
 
+    for data_asset in data_assets:
         try:
             data_asset_version = int(data_asset.version)
         except ValueError as val_er:
             logging.warning(f"Failed to convert data asset version to int: {val_er}")
-            data_asset_version = -1
+            continue
 
         if data_asset_version > highest_version:
             highest_version = data_asset_version
 
-    if highest_version == 0:
+    if highest_version == float('-inf'):
         raise ResourceNotFoundError(f"No data asset found with the provided name: {data_asset_name}")
 
     return str(highest_version)
