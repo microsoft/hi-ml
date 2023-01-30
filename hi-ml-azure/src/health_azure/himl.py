@@ -21,7 +21,7 @@ from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
 
 from azure.ai.ml import MLClient, Input, Output, command
 from azure.ai.ml.constants import AssetTypes, InputOutputModes
-from azure.ai.ml.entities import Data, Job, Command, Sweep
+from azure.ai.ml.entities import Data, Job, Command, Sweep, UserIdentityConfiguration
 from azure.ai.ml.entities import Environment as EnvironmentV2
 from azure.ai.ml.entities._job.distribution import MpiDistribution, PyTorchDistribution
 
@@ -553,6 +553,7 @@ def submit_run_v2(workspace: Optional[Workspace],
             display_name=display_name,
             instance_count=num_nodes,
             distribution=distribution,
+            identity=UserIdentityConfiguration(),
         )
 
     if hyperparam_args:
