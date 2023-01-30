@@ -63,6 +63,7 @@ from testazure.test_data.make_tests import render_environment_yaml, render_test_
 from testazure.utils_testazure import (
     DEFAULT_DATASTORE,
     change_working_directory,
+    current_test_name,
     get_shared_config_json,
     repository_root
 )
@@ -979,6 +980,10 @@ def render_and_run_test_script(path: Path,
     if run_target == RunTarget.AZUREML:
         extra_options["submit_to_azureml"] = 'True'
 
+    # To easily identify the matching test run in AzureML, we set the display name to the test name.
+    if "display_name" not in extra_options:
+        extra_options["display_name"] = current_test_name()
+
     environment_yaml_path = path / "environment.yml"
     render_environment_yaml(environment_yaml_path, version, run_requirements, extra_options=extra_options)
 
@@ -1026,6 +1031,8 @@ def render_and_run_test_script(path: Path,
         if run.status not in ["Failed", "Completed", "Cancelled"]:
             run.wait_for_completion()
         assert run.status == "Completed"
+        if "display_name" in extra_options:
+            assert run.display_name == extra_options["display_name"], "Display name has not been set"
 
         # test error case mocking where no log file is present
         log_text_undownloaded = get_driver_log_file_text(run=run, download_file=False)
@@ -1100,7 +1107,8 @@ def test_invoking_hello_world_config(run_target: RunTarget, use_package: bool, t
     parser_args = "parser.add_argument('-m', '--message', type=str, required=True, help='The message to print out')"
     extra_options = {
         'args': parser_args,
-        'body': 'print(f"The message was: {args.message}")'
+        'body': 'print(f"The message was: {args.message}")',
+        'display_name': current_test_name()
     }
     extra_args = [f"--message={message_guid}"]
     if use_package:
@@ -1117,6 +1125,7 @@ def test_invoking_hello_world_config(run_target: RunTarget, use_package: bool, t
 def test_invoking_hello_world_using_azureml_flag(tmp_path: Path) -> None:
     """
     Test that invoking hello_world.py with the --azureml flag will submit to AzureML and not run locally.
+
     :param tmp_path: PyTest test fixture for temporary path.
     """
 
@@ -1753,6 +1762,36 @@ def test_submitting_script_with_sdk_v2(tmp_path: Path, wait_for_completion: bool
         )
 
     assert after_submission_called, "after_submission callback was not called"
+
+
+def test_submitting_script_with_sdk_v2_passes_display_name(tmp_path: Path) -> None:
+    """
+    Test that submission of a script with SDK v2 passes the display_name parameter to the "command" function
+    that does the actual submission
+    """
+    # Create a minimal script in a temp folder.
+    test_script = tmp_path / "test_script.py"
+    test_script.write_text("print('hello world')")
+    shared_config_json = get_shared_config_json()
+    conda_env_path = create_empty_conda_env(tmp_path)
+    display_name = "my_display_name"
+
+    with check_config_json(tmp_path, shared_config_json=shared_config_json),\
+            change_working_directory(tmp_path), \
+            patch("health_azure.himl.command", side_effect=ValueError) as mock_command:
+        with pytest.raises(ValueError):
+            himl.submit_to_azure_if_needed(
+                aml_workspace=None,
+                entry_script=test_script,
+                conda_environment_file=conda_env_path,
+                snapshot_root_directory=tmp_path,
+                submit_to_azureml=True,
+                strictly_aml_v1=False,
+                display_name=display_name
+            )
+        mock_command.assert_called_once()
+        _, call_kwargs = mock_command.call_args
+        assert call_kwargs.get("display_name") == display_name, "display_name was not passed to command"
 
 
 def test_conda_env_missing(tmp_path: Path) -> None:
