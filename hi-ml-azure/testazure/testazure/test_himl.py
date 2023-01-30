@@ -1092,6 +1092,7 @@ def test_invoking_hello_world_config(run_target: RunTarget, use_package: bool, t
     Test that invoking hello_world.py elevates itself to AzureML with config.json.
     Test against either the local src folder or a package. If running locally, ensure that there
     are no whl's in the dist folder, or that will be used.
+
     :param run_target: Local execution if True, else in AzureML.
     :param use_package: True to test against package, False to test against copy of src folder.
     :param tmp_path: PyTest test fixture for temporary path.
@@ -1108,7 +1109,7 @@ def test_invoking_hello_world_config(run_target: RunTarget, use_package: bool, t
     extra_options = {
         'args': parser_args,
         'body': 'print(f"The message was: {args.message}")',
-        'display_name': current_test_name()
+        'display_name': current_test_name(),
     }
     extra_args = [f"--message={message_guid}"]
     if use_package:
