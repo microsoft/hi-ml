@@ -989,6 +989,7 @@ def submit_to_azure_if_needed(  # type: ignore
                                 script_params=script_params,
                                 compute_target=compute_cluster_name,
                                 tags=tags,
+                                display_name=display_name,
                                 docker_shm_size=docker_shm_size,
                                 wait_for_completion=wait_for_completion,
                                 hyperparam_args=hyperparam_args,
