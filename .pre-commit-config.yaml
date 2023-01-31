@@ -54,3 +54,8 @@ repos:
   hooks:
   - id: autopep8
     args: [--in-place, --max-line-length, "120"]
+
+- repo: https://github.com/asottile/add-trailing-comma
+  rev: v2.3.0
+  hooks:
+  - id: add-trailing-comma
