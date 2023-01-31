@@ -62,6 +62,7 @@ from health_azure.utils import (
 from testazure.test_data.make_tests import render_environment_yaml, render_test_script
 from testazure.utils_testazure import (
     DEFAULT_DATASTORE,
+    USER_IDENTITY_TEST_DATASTORE,
     change_working_directory,
     get_shared_config_json,
     repository_root

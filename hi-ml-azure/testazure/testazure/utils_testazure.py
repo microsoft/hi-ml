@@ -19,6 +19,7 @@ from health_azure.himl import effective_experiment_name
 from health_azure.utils import get_ml_client, get_workspace
 
 DEFAULT_DATASTORE = "himldatasets"
+USER_IDENTITY_TEST_DATASTORE = "test_identity_based_datastore"
 FALLBACK_SINGLE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538212_d2b07afd"
 
 # List of root folders to add to .amlignore
