@@ -222,7 +222,11 @@ class DeepMILPlotsHandler:
         self.ihc_slides_dataset: Optional[SlidesDataset] = None
 
     def get_slide_dict(self, slide_node: SlideNode, slides_dataset: SlidesDataset) -> SlideDictType:
-        """Returns the slide dictionary for a given slide node"""
+        """Returns the slide dictionary for a given slide node from a slides dataset.
+
+        :param slide_node: The slide node that encapsulates the slide metadata.
+        :param slides_dataset: The slides dataset that contains the slide image and other metadata.
+        """
         slide_index = slides_dataset.dataset_df.index.get_loc(slide_node.slide_id)
         assert isinstance(slide_index, int), f"Got non-unique slide ID: {slide_node.slide_id}"
         slide_dict = slides_dataset[slide_index]
