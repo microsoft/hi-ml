@@ -231,28 +231,33 @@ def test_plot_slide(
 
 
 @pytest.mark.skipif(is_windows(), reason="Rendering is different on Windows")
-def test_plot_heatmap_overlay(test_output_dirs: OutputFolderForTests) -> None:
+@pytest.mark.parametrize("add_ihc_plot", [True, False])
+def test_plot_heatmap_overlay(add_ihc_plot: bool, test_output_dirs: OutputFolderForTests) -> None:
     set_random_seed(0)
     slide_image = np.random.rand(3, 1000, 2000)
+    ihc_image = np.random.rand(3, 950, 1952)
     slide_node = SlideNode(
         slide_id=1, gt_prob_score=0.04, pred_prob_score=0.96, true_label=1, pred_label=0  # type: ignore
     )
     location_bbox = [100, 100]
     slide_dict = {SlideKey.IMAGE: slide_image, SlideKey.ORIGIN: location_bbox, SlideKey.SCALE: 1}
+    ihc_slide_dict = {SlideKey.IMAGE: ihc_image, SlideKey.ORIGIN: location_bbox, SlideKey.SCALE: 1}
     tile_size = 224
     fig = plot_heatmap_overlay(case="FN",
                                slide_node=slide_node,
                                slide_dict=slide_dict,
                                results=test_dict,  # type: ignore
                                tile_size=tile_size,
-                               should_upscale_coords=False)
+                               should_upscale_coords=False,
+                               ihc_slide_dict=ihc_slide_dict if add_ihc_plot else None)
     assert isinstance(fig, matplotlib.figure.Figure)
+    filename = "heatmap_overlay_ihc.png" if add_ihc_plot else "heatmap_overlay.png"
     file = Path(test_output_dirs.root_dir) / "plot_heatmap_overlay.png"
     resize_and_save(5, 5, file)
     assert file.exists()
-    expected = full_ml_test_data_path("histo_heatmaps") / "heatmap_overlay.png"
+    expected = full_ml_test_data_path("histo_heatmaps") / filename
     # To update the stored results, uncomment this line:
-    # expected.write_bytes(file.read_bytes())
+    expected.write_bytes(file.read_bytes())
     assert_binary_files_match(file, expected)
 
 

@@ -205,8 +205,8 @@ def plot_heatmap_overlay(
             ihc_image = cv2.resize(
                 ihc_image, (slide_image.shape[1], slide_image.shape[0]), interpolation=cv2.INTER_AREA
             )
-            ax2.imshow(ihc_image)
-            ax2.tick_params('x', labelbottom=False)
+        ax2.imshow(ihc_image)
+        ax2.tick_params('x', labelbottom=False)
     for ax in axes:
         ax.set_xlim(0, slide_image.shape[1])
         ax.set_ylim(slide_image.shape[0], 0)
