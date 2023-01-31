@@ -256,7 +256,7 @@ class DeepMILPlotsHandler:
                     ihc_slide_dict = None
                 save_attention_heatmap(
                     case, slide_node, slide_dict, case_dir, results, self.tile_size, self.should_upscale_coords,
-                    ihc_slide_dict
+                    ihc_slide_dict,
                 )
 
     def save_plots(self, outputs_dir: Path, tiles_selector: Optional[TilesSelector], results: ResultsType) -> None:
