@@ -58,7 +58,7 @@ def save_pr_curve(results: ResultsType, figures_dir: Path, stage: str = '') -> N
     only works for binary classification.
 ''
     :param results: Dict of lists that contains slide_level results
-    :param figures_dir: The path to the directory where to save the histogram scores
+    :param figures_dir: The path to the directory where to save the figure
     :param stage: Test or validation, used to name the figure. Empty string by default.
     """
     true_labels = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.TRUE_LABEL]]
@@ -78,7 +78,7 @@ def save_roc_curve(results: ResultsType, figures_dir: Path, stage: str = '') -> 
     only works for binary classification.
 ''
     :param results: Dict of lists that contains slide_level results
-    :param figures_dir: The path to the directory where to save the histogram scores
+    :param figures_dir: The path to the directory where to save the figure
     :param stage: Test or validation, used to name the figure. Empty string by default.
     """
     true_labels = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.TRUE_LABEL]]
@@ -87,10 +87,10 @@ def save_roc_curve(results: ResultsType, figures_dir: Path, stage: str = '') -> 
         fig, ax = plt.subplots()
         plot_roc_curve(true_labels, scores, legend_label=stage, ax=ax)
         ax.legend()
-        format_pr_or_roc_axes(plot_type='pr', ax=ax)
+        format_pr_or_roc_axes(plot_type='roc', ax=ax)
         save_figure(fig=fig, figpath=figures_dir / f"roc_curve_{stage}.png")
     else:
-        logging.warning("The PR curve plot implementation works only for binary cases, this plot will be skipped.")
+        logging.warning("The ROC curve plot implementation works only for binary cases, this plot will be skipped.")
 
 
 def save_confusion_matrix(results: ResultsType, class_names: Sequence[str], figures_dir: Path, stage: str = '') -> None:
