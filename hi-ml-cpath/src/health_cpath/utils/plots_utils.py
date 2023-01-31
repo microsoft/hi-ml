@@ -20,7 +20,7 @@ from health_cpath.utils.viz_utils import (
     plot_scores_hist,
     plot_slide,
 )
-from health_cpath.utils.analysis_plot_utils import plot_pr_curve, format_pr_or_roc_axes
+from health_cpath.utils.analysis_plot_utils import plot_pr_curve, format_pr_or_roc_axes, plot_roc_curve
 from health_cpath.utils.naming import PlotOption, ResultsKey, SlideKey
 from health_cpath.utils.tiles_selection_utils import SlideNode, TilesSelector
 from health_cpath.utils.viz_utils import save_figure
@@ -69,6 +69,26 @@ def save_pr_curve(results: ResultsType, figures_dir: Path, stage: str = '') -> N
         ax.legend()
         format_pr_or_roc_axes(plot_type='pr', ax=ax)
         save_figure(fig=fig, figpath=figures_dir / f"pr_curve_{stage}.png")
+    else:
+        logging.warning("The PR curve plot implementation works only for binary cases, this plot will be skipped.")
+
+
+def save_roc_curve(results: ResultsType, figures_dir: Path, stage: str = '') -> None:
+    """Plots and saves ROC curve figure in its dedicated directory. This implementation
+    only works for binary classification.
+''
+    :param results: Dict of lists that contains slide_level results
+    :param figures_dir: The path to the directory where to save the histogram scores
+    :param stage: Test or validation, used to name the figure. Empty string by default.
+    """
+    true_labels = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.TRUE_LABEL]]
+    if len(set(true_labels)) == 2:
+        scores = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.PROB]]
+        fig, ax = plt.subplots()
+        plot_roc_curve(true_labels, scores, legend_label=stage, ax=ax)
+        ax.legend()
+        format_pr_or_roc_axes(plot_type='pr', ax=ax)
+        save_figure(fig=fig, figpath=figures_dir / f"roc_curve_{stage}.png")
     else:
         logging.warning("The PR curve plot implementation works only for binary cases, this plot will be skipped.")
 
@@ -266,6 +286,9 @@ class DeepMILPlotsHandler:
 
             if PlotOption.PR_CURVE in self.plot_options:
                 save_pr_curve(results=results, figures_dir=figures_dir, stage=self.stage)
+
+            if PlotOption.ROC_CURVE in self.plot_options:
+                save_roc_curve(results=results, figures_dir=figures_dir, stage=self.stage)
 
             if PlotOption.HISTOGRAM in self.plot_options:
                 save_scores_histogram(results=results, figures_dir=figures_dir, stage=self.stage,)

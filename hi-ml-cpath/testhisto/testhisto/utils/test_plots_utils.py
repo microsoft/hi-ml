@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from health_cpath.preprocessing.loading import LoadingParams, ROIType
 from health_cpath.utils.naming import PlotOption, ResultsKey
-from health_cpath.utils.plots_utils import DeepMILPlotsHandler, save_confusion_matrix, save_pr_curve
+from health_cpath.utils.plots_utils import DeepMILPlotsHandler, save_confusion_matrix, save_pr_curve, save_roc_curve
 from health_cpath.utils.tiles_selection_utils import SlideNode, TilesSelector
 from testhisto.mocks.container import MockDeepSMILETilesPanda
 
@@ -97,6 +97,7 @@ def test_plots_handler_plots_only_desired_plot_options(plot_options: Collection[
         PlotOption.CONFUSION_MATRIX: patch("health_cpath.utils.plots_utils.save_confusion_matrix"),
         PlotOption.HISTOGRAM: patch("health_cpath.utils.plots_utils.save_scores_histogram"),
         PlotOption.PR_CURVE: patch("health_cpath.utils.plots_utils.save_pr_curve"),
+        PlotOption.ROC_CURVE: patch("health_cpath.utils.plots_utils.save_roc_curve"),
     }
 
     mock_funcs = {option: patcher.start() for option, patcher in patchers.items()}  # type: ignore
@@ -171,6 +172,28 @@ def test_pr_curve_integration(tmp_path: Path, caplog: pytest.LogCaptureFixture) 
 
     save_pr_curve(results, tmp_path, stage='foo')  # type: ignore
     warning_message = "The PR curve plot implementation works only for binary cases, this plot will be skipped."
+    assert warning_message in caplog.records[-1].getMessage()
+
+    assert not file.exists()
+
+
+def test_roc_curve_integration(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    results = {
+        ResultsKey.TRUE_LABEL: [0, 1, 0, 1, 0, 1],
+        ResultsKey.PROB: [0.1, 0.8, 0.6, 0.3, 0.5, 0.4]
+    }
+
+    # check plot is produced and it has right filename
+    save_roc_curve(results, tmp_path, stage='foo')  # type: ignore
+    file = Path(tmp_path) / "roc_curve_foo.png"
+    assert file.exists()
+    os.remove(file)
+
+    # check warning is logged and plot is not produced if NOT a binary case
+    results[ResultsKey.TRUE_LABEL] = [0, 1, 0, 2, 0, 1]
+
+    save_roc_curve(results, tmp_path, stage='foo')  # type: ignore
+    warning_message = "The ROC curve plot implementation works only for binary cases, this plot will be skipped."
     assert warning_message in caplog.records[-1].getMessage()
 
     assert not file.exists()
