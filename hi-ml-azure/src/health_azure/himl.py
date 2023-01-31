@@ -20,8 +20,9 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
 
 from azure.ai.ml import MLClient, Input, Output, command
+from azure.ai.ml._internal import ITPConfiguration, ITPResourceConfiguration, ITPPriorityConfiguration, ITPInteractiveConfiguration, ITPRetrySettings
 from azure.ai.ml.constants import AssetTypes, InputOutputModes
-from azure.ai.ml.entities import Data, Job, Command, Sweep
+from azure.ai.ml.entities import Data, Job, JobResourceConfiguration, Command, Sweep
 from azure.ai.ml.entities import Environment as EnvironmentV2
 from azure.ai.ml.entities._job.distribution import MpiDistribution, PyTorchDistribution
 
@@ -552,9 +553,39 @@ def submit_run_v2(workspace: Optional[Workspace],
             shm_size=docker_shm_size,
             display_name=display_name,
             instance_count=num_nodes,
-            distribution=distribution,
+            distribution=None,
+            # resources=JobResourceConfiguration(properties={"itp": itp_config})
         )
 
+    itp_config = ITPConfiguration(
+        resource_configuration=ITPResourceConfiguration(
+            gpu_count=8,
+        ),
+        priority_configuration=ITPPriorityConfiguration(
+            job_priority=123,
+        ),
+    )
+    itp_config = ITPConfiguration(
+        resource_configuration=ITPResourceConfiguration(
+            gpu_count=8,
+            cpu_count=2,
+            memory_request_in_gb=2,
+        ),
+        priority_configuration=ITPPriorityConfiguration(
+            job_priority=200,
+            is_preemptible=True,
+        ),
+        interactive_configuration=ITPInteractiveConfiguration(
+            is_ssh_enabled=True,
+            ssh_public_key="ssh_key",
+            is_i_python_enabled=True,
+            is_tensor_board_enabled=True,
+            interactive_port=40000,
+        ),
+        retry=ITPRetrySettings(
+            max_retry_count=1,
+        ),
+    )
     if hyperparam_args:
         param_sampling = hyperparam_args[PARAM_SAMPLING_ARG]
 
@@ -582,7 +613,7 @@ def submit_run_v2(workspace: Optional[Workspace],
 
     else:
         job_to_submit = create_command_job(cmd)
-
+    job_to_submit.resources.properties["itp"] = itp_config
     returned_job = ml_client.jobs.create_or_update(job_to_submit)
     logging.info(f"URL to job: {returned_job.services['Studio'].endpoint}")  # type: ignore
     if wait_for_completion:
