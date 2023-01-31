@@ -25,15 +25,17 @@ def test_format_time_from_second() -> None:
     assert time == "2.04 hours"
 
 
-def test_print_message_with_rank_pid(capsys: SysCapture) -> None:
+@pytest.mark.parametrize("level", ['DEBUG', 'INFO'])
+def test_print_message_with_rank_pid(level: str, capsys: SysCapture) -> None:
     rank = "0"
     os.environ[ENV_LOCAL_RANK] = rank
     message = "test"
-    print_message_with_rank_pid(message)
+    print_message_with_rank_pid(message, level=level)
     stdout: str = capsys.readouterr().out  # type: ignore
     assert f"Rank {rank}" in stdout
     assert "PID" in stdout
     assert message in stdout
+    assert level in stdout
 
 
 @pytest.mark.parametrize("format_seconds", [True, False])

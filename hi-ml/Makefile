@@ -66,12 +66,36 @@ pytest:
 pytest_fast:
 	pytest -m fast testhiml
 
-# run pytest with coverage on package
+# Run pytest with coverage on package.
+# Output the slowest tests via the --durations flag.
 call_pytest_and_coverage:
-	pytest --cov=health_ml --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc testhiml
+	pytest --durations=20 --cov=health_ml --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc testhiml
 
 # install test requirements and run pytest coverage
 pytest_and_coverage: pip_test call_pytest_and_coverage
 
 # install test requirements and run all tests
 test_all: pip_test flake8 mypy call_pytest_and_coverage
+
+# Smoke tests should all wait for completion and run for 15 minutes maximum.
+# Tests run with the cpath Conda environment because of some odd problems with the hi-ml environment on GPU machines.
+# Some of that can be fixed by pinning torch==1.10.0, but then that triggers problems with distutils.
+define SHARED_ARGS
+--conda_env ../hi-ml-cpath/environment.yml --cluster=pr-gpu --max_run_duration=15m --wait_for_completion
+endef
+
+# HelloWorld model training on a single node, submitted using the v1 SDK
+smoke_helloworld_v1:
+	python src/health_ml/runner.py --model=health_ml.HelloWorld --strictly_aml_v1=True --tag smoke_helloworld_v1 ${SHARED_ARGS}
+
+# HelloWorld model training on a single node, submitted using the v2 SDK
+smoke_helloworld_v2:
+	python src/health_ml/runner.py --model=health_ml.HelloWorld --strictly_aml_v1=False --tag smoke_helloworld_v2 ${SHARED_ARGS}
+
+# HelloWorld model training on 2 nodes, submitted using the v1 SDK
+smoke_helloworld_v1_2nodes:
+	python src/health_ml/runner.py --model=health_ml.HelloWorld --strictly_aml_v1=True --num_nodes=2 --tag smoke_helloworld_v1_2nodes ${SHARED_ARGS}
+
+# HelloWorld model training on 2 nodes, submitted using the v2 SDK
+smoke_helloworld_v2_2nodes:
+	python src/health_ml/runner.py --model=health_ml.HelloWorld --strictly_aml_v1=False --num_nodes=2 --tag smoke_helloworld_v2_2nodes ${SHARED_ARGS}

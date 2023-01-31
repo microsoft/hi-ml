@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from azureml.core import Workspace, Run
+from azureml.core import Workspace
 
 # Add hi-ml packages to sys.path so that AML can find them if we are using the runner directly from the git repo
 himl_root = Path(__file__).resolve().parent.parent.parent.parent
@@ -185,16 +185,6 @@ class Runner:
             specified, the attribute 'run' will None, but the object still contains helpful information
             about datasets etc
         """
-
-        def after_submission_hook(azure_run: Run) -> None:
-            """
-            A function that will be called right after job submission.
-            """
-            # Set the default display name to what was provided as the "tag". This will affect single runs
-            # and Hyperdrive parent runs
-            if self.lightning_container.tag:
-                azure_run.display_name = self.lightning_container.tag
-
         root_folder = self.project_root
         entry_script = Path(sys.argv[0]).resolve()
         script_params = sys.argv[1:]
@@ -237,7 +227,7 @@ class Runner:
             else:
                 hyperparam_args = self.lightning_container.get_hyperparam_args()
                 hyperdrive_config = None
-            ml_client = get_ml_client() if not self.experiment_config.strictly_aml_v1 else None
+            ml_client = get_ml_client(aml_workspace=workspace) if not self.experiment_config.strictly_aml_v1 else None
 
             env_file = choose_conda_env_file(env_file=self.experiment_config.conda_env)
             logging.info(f"Using this Conda environment definition: {env_file}")
@@ -264,7 +254,7 @@ class Runner:
                 docker_shm_size=self.experiment_config.docker_shm_size,
                 hyperdrive_config=hyperdrive_config,
                 hyperparam_args=hyperparam_args,
-                after_submission=after_submission_hook,
+                display_name=self.lightning_container.tag,
                 tags=self.additional_run_tags(script_params),
                 strictly_aml_v1=self.experiment_config.strictly_aml_v1,
             )

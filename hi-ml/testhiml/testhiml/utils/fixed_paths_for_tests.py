@@ -57,7 +57,6 @@ def mock_run_id(id: int = 0) -> str:
 
     run_to_download_from.upload_file("outputs/checkpoints/last.ckpt", str(full_file_path))
     run_to_download_from.upload_file("outputs/checkpoints/best_val_loss.ckpt", str(full_file_path))
-
     run_to_download_from.upload_file("custom/path/model.ckpt", str(full_file_path))
 
     run_to_download_from.complete()
