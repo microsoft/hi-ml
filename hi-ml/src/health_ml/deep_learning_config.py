@@ -156,6 +156,12 @@ class WorkflowParams(param.Parameterized):
     crossval_index: int = param.Integer(default=0, bounds=(0, None),
                                         doc="When doing cross validation, this is the index of the current "
                                             "split. Valid values: 0 .. (crossval_count -1)")
+    resubmit_crossval_child: bool = param.Boolean(default=False,
+                                                  doc="If True, the current run is a cross validation child run that "
+                                                      "has been resubmitted manually along with the flags "
+                                                      "--crossval_count > 1 and --crossval_index=i. This is useful in "
+                                                      "case one of the crossvalidation folds fails and needs to be "
+                                                      "resubmitted manually. Default False")
     hyperdrive: bool = param.Boolean(False,
                                      doc="If True, use the Hyperdrive configuration specified in the "
                                          "LightningContainer to run hyperparameter tuning. If False, just "
@@ -222,7 +228,7 @@ class WorkflowParams(param.Parameterized):
         :return:
         """
         seed = self.random_seed
-        if self.is_crossvalidation_enabled:
+        if self.is_crossvalidation_enabled or self.resubmit_crossval_child:
             # Offset the random seed based on the cross validation split index so each
             # fold has a different initial random state. Cross validation index 0 will have
             # a different seed from a non cross validation run.
@@ -234,7 +240,7 @@ class WorkflowParams(param.Parameterized):
         """
         Returns True if the present parameters indicate that cross-validation should be used.
         """
-        return self.crossval_count > 1
+        return self.crossval_count > 1 and not self.resubmit_crossval_child
 
     def get_crossval_hyperdrive_config(self) -> HyperDriveConfig:
         # For crossvalidation, the name of the metric to monitor does not matter because no early termination or such
