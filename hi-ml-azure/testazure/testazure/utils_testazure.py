@@ -94,3 +94,12 @@ def get_test_ml_client() -> MLClient:
 
     workspace = get_workspace()
     return get_ml_client(aml_workspace=workspace)
+
+
+def current_test_name() -> str:
+    """Get the name of the currently executed test. This is read off an environment variable. If that
+    is not found, the function returns an empty string."""
+    current_test = os.environ.get("PYTEST_CURRENT_TEST", "")
+    if current_test:
+        return current_test.split(':')[-1].split(' ')[0]
+    return ""
