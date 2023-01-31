@@ -6,6 +6,7 @@
 import logging
 import sys
 import math
+import cv2
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -162,6 +163,7 @@ def plot_heatmap_overlay(
     results: Dict[ResultsKey, List[Any]],
     tile_size: int = 224,
     should_upscale_coords: bool = True,
+    ihc_slide_dict: Optional[Dict[SlideKey, Any]] = None,
 ) -> plt.Figure:
     """Plots heatmap of selected tiles (e.g. tiles in a bag) overlay on the corresponding slide.
 
@@ -173,23 +175,39 @@ def plot_heatmap_overlay(
     :param results: Dict containing ResultsKey keys (e.g. slide id) and values as lists of output slides.
     :param tile_size: Size of each tile. Default 224.
     :param should_upscale_coords: If True, upscales the heatmap coordinates to the slide level. Default True.
+    :param ihc_slide_dict: An optional dictionary containing an IHC slide image and metadata. Default None.
     :return: matplotlib figure of the heatmap of the given tiles on slide.
     """
     fig = plt.figure(constrained_layout=True)
-    gs = fig.add_gridspec(2, 1)
+    gs = fig.add_gridspec(2 if not ihc_slide_dict else 3, 1)
     ax0 = fig.add_subplot(gs[0, 0])
     ax1 = fig.add_subplot(gs[1, 0], sharex=ax0, sharey=ax0)
     cax = ax1.inset_axes([1.02, 0, 0.03, 1], transform=ax1.transAxes)  # add colorbar axis
+    axes = [ax0, ax1]
+    if ihc_slide_dict:
+        ax2 = fig.add_subplot(gs[2, 0], sharex=ax0, sharey=ax0)
+        axes.append(ax2)
     fig.execute_constrained_layout()
     fig.suptitle(_get_histo_plot_title(case, slide_node))
 
-    slide_image = slide_dict[SlideKey.IMAGE]
-    assert isinstance(slide_image, np.ndarray), f"slide image must be a numpy array, got {type(slide_image)}"
-    slide_image = slide_image.transpose(1, 2, 0)
+    def _get_slide_image_from_slide_dict(slide_dict: Dict[SlideKey, Any]) -> np.ndarray:
+        slide_image = slide_dict[SlideKey.IMAGE]
+        assert isinstance(slide_image, np.ndarray), f"slide image must be a numpy array, got {type(slide_image)}"
+        return slide_image.transpose(1, 2, 0)
+
+    slide_image = _get_slide_image_from_slide_dict(slide_dict)
 
     ax0.imshow(slide_image)
     ax1.imshow(slide_image, alpha=0.5)
-    for ax in (ax0, ax1):
+    if ihc_slide_dict:
+        ihc_image = _get_slide_image_from_slide_dict(ihc_slide_dict)
+        if ihc_image.shape != slide_image.shape:
+            ihc_image = cv2.resize(
+                ihc_image, (slide_image.shape[1], slide_image.shape[0]), interpolation=cv2.INTER_AREA
+            )
+            ax2.imshow(ihc_image)
+            ax2.tick_params('x', labelbottom=False)
+    for ax in axes:
         ax.set_xlim(0, slide_image.shape[1])
         ax.set_ylim(slide_image.shape[0], 0)
     ax0.tick_params('x', labelbottom=False)
