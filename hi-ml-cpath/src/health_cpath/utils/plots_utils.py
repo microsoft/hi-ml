@@ -221,13 +221,17 @@ class DeepMILPlotsHandler:
         self.slides_dataset: Optional[SlidesDataset] = None
         self.extra_slides_dataset: Optional[SlidesDataset] = None
 
-    def get_slide_dict(self, slide_node: SlideNode, slides_dataset: SlidesDataset) -> SlideDictType:
+    def get_slide_dict(self, slide_node: SlideNode, slides_dataset: SlidesDataset) -> Optional[SlideDictType]:
         """Returns the slide dictionary for a given slide node from a slides dataset.
 
         :param slide_node: The slide node that encapsulates the slide metadata.
         :param slides_dataset: The slides dataset that contains the slide image and other metadata.
         """
-        slide_index = slides_dataset.dataset_df.index.get_loc(slide_node.slide_id)
+        try:
+            slide_index = slides_dataset.dataset_df.index.get_loc(slide_node.slide_id)
+        except KeyError:
+            logging.warning(f"Could not find slide {slide_node.slide_id} in the dataset. Skipping...")
+            return None
         assert isinstance(slide_index, int), f"Got non-unique slide ID: {slide_node.slide_id}"
         slide_dict = slides_dataset[slide_index]
         loader = self.loading_params.get_load_roid_transform()
@@ -249,13 +253,14 @@ class DeepMILPlotsHandler:
         if PlotOption.ATTENTION_HEATMAP in self.plot_options or PlotOption.SLIDE_THUMBNAIL in self.plot_options:
             assert self.slides_dataset is not None, "Cannot plot attention heatmap or thumbnail without slides dataset"
             slide_dict = self.get_slide_dict(slide_node=slide_node, slides_dataset=self.slides_dataset)
+            assert slide_dict is not None, "Slide dict is None. Cannot plot attention heatmap or thumbnail."
 
             if PlotOption.SLIDE_THUMBNAIL in self.plot_options:
                 save_slide_thumbnail(case=case, slide_node=slide_node, slide_dict=slide_dict, figures_dir=case_dir)
 
             if PlotOption.ATTENTION_HEATMAP in self.plot_options:
                 if self.extra_slides_dataset is not None:
-                    extra_slide_dict = self.get_slide_dict(slide_node=slide_node, slides_dataset=self.extra_slides_dataset)
+                    extra_slide_dict = self.get_slide_dict(slide_node, self.extra_slides_dataset)
                 else:
                     extra_slide_dict = None
                 save_attention_heatmap(
