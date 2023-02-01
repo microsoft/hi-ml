@@ -220,12 +220,16 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
                                        analyse_loss=self.analyse_loss)
         deepmil_module.transfer_weights(self.trained_weights_path)
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
+        outputs_handler.set_extra_slides_dataset_for_plots_handlers(self.get_extra_slides_dataset_for_plotting())
         return deepmil_module
 
     def get_data_module(self) -> HistoDataModule:
         raise NotImplementedError
 
     def get_slides_dataset(self) -> Optional[SlidesDataset]:
+        return None
+
+    def get_extra_slides_dataset_for_plotting(self) -> Optional[SlidesDataset]:
         return None
 
     def ignore_pl_warnings(self) -> None:
