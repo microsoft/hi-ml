@@ -230,7 +230,7 @@ class DeepMILPlotsHandler:
         try:
             slide_index = slides_dataset.dataset_df.index.get_loc(slide_node.slide_id)
         except KeyError:
-            logging.warning(f"Could not find slide {slide_node.slide_id} in the dataset. Skipping...")
+            logging.warning(f"Could not find slide {slide_node.slide_id} in the dataset. Skipping extra slide...")
             return None
         assert isinstance(slide_index, int), f"Got non-unique slide ID: {slide_node.slide_id}"
         slide_dict = slides_dataset[slide_index]
