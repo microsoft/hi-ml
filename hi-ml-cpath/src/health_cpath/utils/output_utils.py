@@ -319,6 +319,10 @@ class DeepMILOutputsHandler:
         self.test_plots_handler.slides_dataset = slides_dataset
         self.val_plots_handler.slides_dataset = slides_dataset
 
+    def set_extra_slides_dataset_for_plots_handlers(self, extra_slides_dataset: Optional[SlidesDataset]) -> None:
+        self.test_plots_handler.extra_slides_dataset = extra_slides_dataset
+        self.val_plots_handler.extra_slides_dataset = extra_slides_dataset
+
     def should_gather_tiles(self, plots_handler: DeepMILPlotsHandler) -> bool:
         return PlotOption.TOP_BOTTOM_TILES in plots_handler.plot_options and self.tiles_selector is not None
 
