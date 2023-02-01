@@ -143,7 +143,7 @@ def save_attention_heatmap(
     results: ResultsType,
     tile_size: int = 224,
     should_upscale_coords: bool = False,
-    ihc_slide_dict: Optional[Dict[SlideKey, Any]] = None,
+    extra_slide_dict: Optional[Dict[SlideKey, Any]] = None,
 ) -> None:
     """Plots and saves a slide thumbnail and attention heatmap
 
@@ -154,7 +154,7 @@ def save_attention_heatmap(
     :param results: Dict containing ResultsKey keys (e.g. slide id) and values as lists of output slides.
     :param tile_size: Size of each tile. Default 224.
     :param should_upscale_coords: Whether to upscale the coordinates of the attention heatmap. Default False.
-    :param ihc_slide_dict: An optional dictionary containing an IHC slide image and metadata. Default None.
+    :param extra_slide_dict: An optional dictionary containing an extra slide image and metadata. Default None.
     """
     fig = plot_heatmap_overlay(
         case=case,
@@ -163,7 +163,7 @@ def save_attention_heatmap(
         results=results,
         tile_size=tile_size,
         should_upscale_coords=should_upscale_coords,
-        ihc_slide_dict=ihc_slide_dict,
+        extra_slide_dict=extra_slide_dict,
     )
     save_figure(fig=fig, figpath=figures_dir / f"{slide_node.slide_id}_heatmap.png")
 
@@ -219,7 +219,7 @@ class DeepMILPlotsHandler:
         self.should_upscale_coords = loading_params.should_upscale_coordinates()
         self.loading_params.set_roi_type_to_foreground()
         self.slides_dataset: Optional[SlidesDataset] = None
-        self.ihc_slides_dataset: Optional[SlidesDataset] = None
+        self.extra_slides_dataset: Optional[SlidesDataset] = None
 
     def get_slide_dict(self, slide_node: SlideNode, slides_dataset: SlidesDataset) -> SlideDictType:
         """Returns the slide dictionary for a given slide node from a slides dataset.
@@ -254,13 +254,13 @@ class DeepMILPlotsHandler:
                 save_slide_thumbnail(case=case, slide_node=slide_node, slide_dict=slide_dict, figures_dir=case_dir)
 
             if PlotOption.ATTENTION_HEATMAP in self.plot_options:
-                if self.ihc_slides_dataset is not None:
-                    ihc_slide_dict = self.get_slide_dict(slide_node=slide_node, slides_dataset=self.ihc_slides_dataset)
+                if self.extra_slides_dataset is not None:
+                    extra_slide_dict = self.get_slide_dict(slide_node=slide_node, slides_dataset=self.extra_slides_dataset)
                 else:
-                    ihc_slide_dict = None
+                    extra_slide_dict = None
                 save_attention_heatmap(
                     case, slide_node, slide_dict, case_dir, results, self.tile_size, self.should_upscale_coords,
-                    ihc_slide_dict,
+                    extra_slide_dict,
                 )
 
     def save_plots(self, outputs_dir: Path, tiles_selector: Optional[TilesSelector], results: ResultsType) -> None:
