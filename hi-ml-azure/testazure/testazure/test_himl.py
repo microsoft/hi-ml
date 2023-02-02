@@ -63,6 +63,8 @@ from testazure.test_data.make_tests import render_environment_yaml, render_test_
 from testazure.utils_testazure import (
     DEFAULT_DATASTORE,
     USER_IDENTITY_TEST_DATASTORE,
+    USER_IDENTITY_TEST_ASSET,
+    USER_IDENTITY_TEST_FILE,
     change_working_directory,
     get_shared_config_json,
     repository_root
@@ -1267,7 +1269,7 @@ class TestInputDataset:
     # Name of container for this dataset in blob storage.
     blob_name: str
     # Local folder for this dataset when running locally.
-    folder_name: Path
+    folder_name: Optional[Path] = None
     # Contents of test file.
     contents: str = ""
     # Local folder str
@@ -1279,7 +1281,7 @@ class TestOutputDataset:
     # Name of container for this dataset in blob storage.
     blob_name: str
     # Local folder for this dataset when running locally or when testing after running in Azure.
-    folder_name: Path
+    folder_name: Optional[Path] = None
 
 
 @pytest.mark.parametrize(["run_target", "local_folder", "strictly_aml_v1"],
@@ -1445,7 +1447,44 @@ import sys
             assert input_dataset.contents == output_dummy_txt_file.read_text()
 
 
-# endregion Elevate to AzureML unit tests
+def test_invoking_user_identity_datasets(tmp_path: Path) -> None:
+
+    extra_options: Dict[str, str] = {
+        'imports': """
+import shutil
+import sys
+import os
+""",
+        'prequel': """
+    print(os.environ)
+        """,
+        'default_datastore': f'"{USER_IDENTITY_TEST_DATASTORE}"',
+        'input_datasets': "['test_identity_based_data_asset_v1']",
+        # 'input_datasets': f"['{USER_IDENTITY_TEST_ASSET}']",
+        'default_datastore': f'"{DEFAULT_DATASTORE}"',
+        # 'output_datasets': f"['{output_dataset.blob_name}']",
+        'strictly_aml_v1': str(False),
+        'body': "print('testing')",
+    #     'body': f"""
+    # print(f"output_folder: {{run_info.output_datasets[0]}}")
+    # input_folder = run_info.input_datasets[0]
+    # filename = "{USER_IDENTITY_TEST_FILE}"
+    # output_folder = run_info.output_datasets[0]
+    # file = input_folder / filename
+    # shutil.copy(file, output_folder)
+    # print(f"Copied file: {{file.name}} from {{input_folder}} to {{output_folder}}")
+    #     """,
+    }
+    extra_args: List[str] = []
+
+    render_and_run_test_script(
+        tmp_path,
+        RunTarget.AZUREML,
+        extra_options,
+        extra_args,
+        expected_pass=True,
+        upload_package=False,
+    )
 
 
 @pytest.mark.fast

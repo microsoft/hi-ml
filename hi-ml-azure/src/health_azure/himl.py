@@ -386,36 +386,6 @@ def create_script_run(
         arguments=script_params)
 
 
-def _generate_input_dataset_command(input_datasets_v2: Dict[str, Input]) -> str:
-    """
-    Generate command line arguments to pass AML v2 data assets into a script
-
-    :param input_datasets_v2: A dictionary of Input objects that have been passed into the AML command
-    :return: A string representing the input datasets that the script should expect
-    """
-    input_cmd = ""
-    for i, (input_data_name, input_dataset_v2) in enumerate(input_datasets_v2.items()):
-        input_name = f"INPUT_{i}"
-        input_str = "${{inputs." + f"{input_name}" + "}}"
-        input_cmd += f" --{input_name}={input_str}"
-    return input_cmd
-
-
-def _generate_output_dataset_command(output_datasets_v2: Dict[str, Output]) -> str:
-    """
-    Generate command line arguments to pass AML v2 outputs into a script
-
-    :param output_datasets_v2: A dictionary of Output objects that have been passed into the AML command
-    :return: A string representing the output values that the script should expect
-    """
-    output_cmd = ""
-    for i, (output_data_name, output_dataset_v2) in enumerate(output_datasets_v2.items()):
-        output_name = f"OUTPUT_{i}"
-        output_str = "${{outputs." + f"{output_name}" + "}}"
-        output_cmd += f" --{output_name}={output_str}"
-    return output_cmd
-
-
 def effective_experiment_name(experiment_name: Optional[str],
                               entry_script: Optional[PathOrString] = None) -> str:
     """Choose the experiment name to use for the run. If provided in the environment variable HIML_EXPERIMENT_NAME,
@@ -511,16 +481,6 @@ def submit_run_v2(workspace: Optional[Workspace],
 
     script_params = script_params or []
     cmd = " ".join(["python", str(entry_script), *script_params])
-
-    if input_datasets_v2:
-        cmd += _generate_input_dataset_command(input_datasets_v2)
-    else:
-        input_datasets_v2 = {}
-
-    if output_datasets_v2:
-        cmd += _generate_output_dataset_command(output_datasets_v2)
-    else:
-        output_datasets_v2 = {}
 
     job_to_submit: Union[Command, Sweep]
 
