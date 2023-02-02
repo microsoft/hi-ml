@@ -158,7 +158,7 @@ class WorkflowParams(param.Parameterized):
                                                       "split. Valid values: 0 .. (crossval_count -1). Default: None"
                                                       "when launching a cross-validation run, this will be set by "
                                                       "the hyperdrive config. To submit a single cross-validation fold,"
-                                                      "set thisto the fold index along with --crossval_count > 1.")
+                                                      "set this to the fold index along with --crossval_count > 1.")
     hyperdrive: bool = param.Boolean(False,
                                      doc="If True, use the Hyperdrive configuration specified in the "
                                          "LightningContainer to run hyperparameter tuning. If False, just "
@@ -199,7 +199,7 @@ class WorkflowParams(param.Parameterized):
     RANDOM_SEED_ARG_NAME = "random_seed"
 
     def validate(self) -> None:
-        if self.crossval_count > 1:
+        if self.crossval_count > 1 and self.crossval_index is not None:
             if not (0 <= self.crossval_index < self.crossval_count):
                 raise ValueError(f"Attribute crossval_index out of bounds (crossval_count = {self.crossval_count})")
 
@@ -225,20 +225,28 @@ class WorkflowParams(param.Parameterized):
         :return:
         """
         seed = self.random_seed
-        if self.is_crossvalidation_enabled or self.crossval_index is not None:
+        if self.is_crossvalidation_child_run:
             # Offset the random seed based on the cross validation split index so each
             # fold has a different initial random state. Cross validation index 0 will have
             # a different seed from a non cross validation run.
-            assert self.crossval_index is not None
+            assert self.crossval_index is not None, "crossval_index must be set for cross validation child runs"
             seed += self.crossval_index + 1
         return seed
 
     @property
-    def is_crossvalidation_enabled(self) -> bool:
+    def is_crossvalidation_parent_run(self) -> bool:
         """
-        Returns True if the present parameters indicate that cross-validation should be used.
+        Returns True if the present parameters indicate that this is cross-validation parent run that should trigger
+        a hyperdrive run.
         """
         return self.crossval_count > 1 and self.crossval_index is None
+
+    @property
+    def is_crossvalidation_child_run(self) -> bool:
+        """
+        Returns True if the present parameters indicate that this is a cross-validation child run.
+        """
+        return self.crossval_count > 1 and self.crossval_index is not None
 
     def get_crossval_hyperdrive_config(self) -> HyperDriveConfig:
         # For crossvalidation, the name of the metric to monitor does not matter because no early termination or such
