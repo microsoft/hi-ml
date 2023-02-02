@@ -688,23 +688,31 @@ def create_v2_inputs(ml_client: MLClient, input_datasets: List[DatasetConfig]) -
     return inputs
 
 
-def create_v2_outputs(output_datasets: List[DatasetConfig]) -> Dict[str, Output]:
+def create_v2_outputs(ml_client: MLClient, output_datasets: List[DatasetConfig]) -> Dict[str, Output]:
     """
     Create a dictionary of Azure ML v2 Output objects, required for passing output data in to an AML job
 
     :param output_datasets: A list of DatasetConfigs to convert to Outputs.
     :return: A dictionary in the format "output_name": Output.
     """
-    outputs = {}
+
+    outputs: Dict[str, Output] = {}
     for i, output_dataset in enumerate(output_datasets):
         output_name = f"OUTPUT_{i}"
-        v1_datastore_path = f"azureml://datastores/{output_dataset.datastore}/paths/{output_dataset.name}"
+        version = output_dataset.version
+        data_asset: Data = _get_or_create_v2_data_asset(
+            ml_client,
+            output_dataset.datastore,
+            output_dataset.name,
+            version=str(version) if version else None,
+        )
+        assert data_asset.path != "" and data_asset.path is not None
         # Note that there are alternative formats that the output path can take, such as:
         # v2_data_asset_path = f"azureml:{output_dataset.name}@latest"
         outputs[output_name] = Output(  # type: ignore
-            type=AssetTypes.URI_FOLDER,
-            path=v1_datastore_path,
-            mode=InputOutputModes.DIRECT,
+            type=data_asset.type,
+            path=data_asset.path,
+            mode=InputOutputModes.UPLOAD,
         )
     return outputs
 
@@ -938,7 +946,7 @@ def submit_to_azure_if_needed(  # type: ignore
             ml_client = get_ml_client(ml_client=ml_client, aml_workspace=workspace)
             registered_env = register_environment_v2(environment, ml_client)
             input_datasets_v2 = create_v2_inputs(ml_client, cleaned_input_datasets)
-            output_datasets_v2 = create_v2_outputs(cleaned_output_datasets)
+            output_datasets_v2 = create_v2_outputs(ml_client, cleaned_output_datasets)
 
             job = submit_run_v2(workspace=workspace,
                                 input_datasets_v2=input_datasets_v2,
@@ -1083,6 +1091,23 @@ def _extract_v2_inputs_outputs_from_args() -> Tuple[List[Path], List[Path]]:
         if re.match(V2_OUTPUT_DATASET_PATTERN, sys_arg):
             returned_output_datasets += [_get_dataset_names_from_string(sys_arg, V2_OUTPUT_DATASET_PATTERN)]
     return returned_input_datasets, returned_output_datasets
+
+
+def _extract_v2_inputs_outputs_from_env_vars() -> Tuple[List[Path], List[Path]]:
+    """Provides paths to the input and output datasets for v2 jobs by extracting them from the environment variables.
+
+    :return: A list of Input paths and a list of Output paths
+    """
+    # returned_input_datasets: List[Path] = []
+    # returned_output_datasets: List[Path] = []
+    # input_pattern_string = r"azure_ml_input_\d+"
+    # output_pattern_string = r"azure_ml_output_\d+"
+    # for env_var in os.environ:
+    #     if re.match(input_pattern_string, env_var):
+    #         if "_input_" in env_var:
+    #             returned_input_datasets += [Path(os.environ[env_var])]
+    #         else:
+    pass
 
 
 def _generate_v2_azure_datasets(cleaned_input_datasets: List[DatasetConfig],

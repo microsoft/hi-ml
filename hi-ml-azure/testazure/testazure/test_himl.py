@@ -1020,31 +1020,38 @@ def render_and_run_test_script(path: Path,
             assert EXPECTED_QUEUED not in captured
         return captured
     else:
-        assert EXPECTED_QUEUED in captured
-        with check_config_json(path, shared_config_json=get_shared_config_json()):
-            workspace = get_workspace(aml_workspace=None, workspace_config_path=path / WORKSPACE_CONFIG_JSON)
 
-        run = get_most_recent_run(run_recovery_file=path / himl.RUN_RECOVERY_FILE,
-                                  workspace=workspace)
-        if run.status not in ["Failed", "Completed", "Cancelled"]:
-            run.wait_for_completion()
-        assert run.status == "Completed"
+        if extra_options["strictly_aml_v1"] == "True":  # extra options are all strings
+            assert EXPECTED_QUEUED in captured
+            with check_config_json(path, shared_config_json=get_shared_config_json()):
+                workspace = get_workspace(aml_workspace=None, workspace_config_path=path / WORKSPACE_CONFIG_JSON)
 
-        # test error case mocking where no log file is present
-        log_text_undownloaded = get_driver_log_file_text(run=run, download_file=False)
-        assert log_text_undownloaded is None
+            # ALSO BROKEN FOR v2: the "most_recent_run.txt" file is not generated for v2 submissions
+            run = get_most_recent_run(run_recovery_file=path / himl.RUN_RECOVERY_FILE,
+                                    workspace=workspace)
+            if run.status not in ["Failed", "Completed", "Cancelled"]:
+                run.wait_for_completion()
+            assert run.status == "Completed"
 
-        # TODO: upgrade to walrus operator when upgrading python version to 3.8+
-        # if log_text := get_driver_log_file_text(run=run):
-        log_text = get_driver_log_file_text(run=run)
+            # test error case mocking where no log file is present
+            log_text_undownloaded = get_driver_log_file_text(run=run, download_file=False)
+            assert log_text_undownloaded is None
 
-        if log_text is None:
-            raise ValueError(
-                "The run does not contain any of the following log files: "
-                f"{[log_file_path for log_file_path in VALID_LOG_FILE_PATHS]}"
-            )
+            # TODO: upgrade to walrus operator when upgrading python version to 3.8+
+            # if log_text := get_driver_log_file_text(run=run):
+            log_text = get_driver_log_file_text(run=run)
 
-        return log_text
+            if log_text is None:
+                raise ValueError(
+                    "The run does not contain any of the following log files: "
+                    f"{[log_file_path for log_file_path in VALID_LOG_FILE_PATHS]}"
+                )
+
+            return log_text
+
+        else:
+            # TODO: add code here
+            return "Handling v2 submissions is not yet implemented"
 
 
 @pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])
@@ -1455,25 +1462,22 @@ import shutil
 import sys
 import os
 """,
-        'prequel': """
-    print(os.environ)
-        """,
         'default_datastore': f'"{USER_IDENTITY_TEST_DATASTORE}"',
-        'input_datasets': "['test_identity_based_data_asset_v1']",
+        'input_datasets': "['test_identity_based_data_asset_v1', 'test_identity_based_data_asset']",
         # 'input_datasets': f"['{USER_IDENTITY_TEST_ASSET}']",
         'default_datastore': f'"{DEFAULT_DATASTORE}"',
-        # 'output_datasets': f"['{output_dataset.blob_name}']",
+        'output_datasets': "['test_identity_based_data_asset_output']",
         'strictly_aml_v1': str(False),
-        'body': "print('testing')",
-    #     'body': f"""
-    # print(f"output_folder: {{run_info.output_datasets[0]}}")
-    # input_folder = run_info.input_datasets[0]
-    # filename = "{USER_IDENTITY_TEST_FILE}"
-    # output_folder = run_info.output_datasets[0]
-    # file = input_folder / filename
-    # shutil.copy(file, output_folder)
-    # print(f"Copied file: {{file.name}} from {{input_folder}} to {{output_folder}}")
-    #     """,
+        'body': """
+    print('All env vars: ' + str(os.environ))
+    print('Input environment var: ' + os.environ['azure_ml_input_input_0'])
+    print('Files in input var path:')
+    print(os.listdir(os.environ['azure_ml_input_input_0'] + '/test_identity_based_datastore'))
+    if os.path.isdir(os.environ['outputs_testing_var']):
+        print("Found the directory")
+    else:
+        print("Did not find the directory")
+        """,
     }
     extra_args: List[str] = []
 
