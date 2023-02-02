@@ -410,6 +410,20 @@ def effective_experiment_name(experiment_name: Optional[str],
     return cleaned_value
 
 
+def _generate_output_dataset_command(output_datasets_v2: Dict[str, Output]) -> str:
+    """
+    Generate command line arguments to pass AML v2 outputs into a script
+    :param output_datasets_v2: A dictionary of Output objects that have been passed into the AML command
+    :return: A string representing the output values that the script should expect
+    """
+    output_cmd = ""
+    for i, (output_data_name, output_dataset_v2) in enumerate(output_datasets_v2.items()):
+        output_name = f"OUTPUT_{i}"
+        output_str = "${{outputs." + f"{output_name}" + "}}"
+        output_cmd += f" --{output_name}={output_str}"
+    return output_cmd
+
+
 def submit_run_v2(workspace: Optional[Workspace],
                   experiment_name: str,
                   environment: EnvironmentV2,
@@ -482,6 +496,11 @@ def submit_run_v2(workspace: Optional[Workspace],
     script_params = script_params or []
     cmd = " ".join(["python", str(entry_script), *script_params])
 
+    if output_datasets_v2:
+        cmd += _generate_output_dataset_command(output_datasets_v2)
+    else:
+        output_datasets_v2 = {}
+
     job_to_submit: Union[Command, Sweep]
 
     # number of nodes and processes per node cannot be less than one
@@ -503,7 +522,7 @@ def submit_run_v2(workspace: Optional[Workspace],
         return command(
             code=str(snapshot_root_directory),
             command=cmd,
-            inputs=input_datasets_v2,
+            inputs=input_datasets_v2 or {},
             outputs=output_datasets_v2,
             environment=environment.name + "@latest",
             compute=compute_target,
