@@ -55,11 +55,12 @@ def test_workflow_params_get_effective_random_seed() -> None:
     params = WorkflowParams(random_seed=seed0)
     assert params.get_effective_random_seed() == seed0
     params.crossval_count = 5
-    params.crossval_index = 0
-    params.resubmit_crossval_child = False
+    params.crossval_index = None
     assert params.is_crossvalidation_enabled
+    params.crossval_index = 0
     assert params.get_effective_random_seed() != seed0
-    params.resubmit_crossval_child = True
+    params.crossval_count = 5
+    params.crossval_index = 0
     assert not params.is_crossvalidation_enabled
     assert params.get_effective_random_seed() != seed0
 

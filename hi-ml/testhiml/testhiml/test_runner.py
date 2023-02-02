@@ -200,9 +200,9 @@ def test_crossvalidation_flag() -> None:
     container = HelloWorld()
     assert not container.is_crossvalidation_enabled
     container.crossval_count = 5
-    container.resubmit_crossval_child = True
+    container.crossval_index = 0
     assert not container.is_crossvalidation_enabled
-    container.resubmit_crossval_child = False
+    container.crossval_index = None
     assert container.is_crossvalidation_enabled
     container.validate()
     # Try all valid values

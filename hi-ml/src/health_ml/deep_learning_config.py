@@ -153,15 +153,12 @@ class WorkflowParams(param.Parameterized):
     crossval_count: int = param.Integer(default=1, bounds=(0, None),
                                         doc="The number of splits to use when doing cross-validation. "
                                             "Use 1 to disable cross-validation")
-    crossval_index: int = param.Integer(default=0, bounds=(0, None),
-                                        doc="When doing cross validation, this is the index of the current "
-                                            "split. Valid values: 0 .. (crossval_count -1)")
-    resubmit_crossval_child: bool = param.Boolean(default=False,
-                                                  doc="If True, the current run is a cross validation child run that "
-                                                      "has been resubmitted manually along with the flags "
-                                                      "--crossval_count > 1 and --crossval_index=i. This is useful in "
-                                                      "case one of the crossvalidation folds fails and needs to be "
-                                                      "resubmitted manually. Default False")
+    crossval_index: Optional[int] = param.Integer(default=None, bounds=(0, None), allow_None=True,
+                                                  doc="When doing cross validation, this is the index of the current "
+                                                      "split. Valid values: 0 .. (crossval_count -1). Default: None"
+                                                      "when launching a cross-validation run, this will be set by "
+                                                      "the hyperdrive config. To submit a single cross-validation fold,"
+                                                      "set thisto the fold index along with --crossval_count > 1.")
     hyperdrive: bool = param.Boolean(False,
                                      doc="If True, use the Hyperdrive configuration specified in the "
                                          "LightningContainer to run hyperparameter tuning. If False, just "
@@ -228,10 +225,11 @@ class WorkflowParams(param.Parameterized):
         :return:
         """
         seed = self.random_seed
-        if self.is_crossvalidation_enabled or self.resubmit_crossval_child:
+        if self.is_crossvalidation_enabled or self.crossval_index is not None:
             # Offset the random seed based on the cross validation split index so each
             # fold has a different initial random state. Cross validation index 0 will have
             # a different seed from a non cross validation run.
+            assert self.crossval_index is not None
             seed += self.crossval_index + 1
         return seed
 
@@ -240,7 +238,7 @@ class WorkflowParams(param.Parameterized):
         """
         Returns True if the present parameters indicate that cross-validation should be used.
         """
-        return self.crossval_count > 1 and not self.resubmit_crossval_child
+        return self.crossval_count > 1 and self.crossval_index is None
 
     def get_crossval_hyperdrive_config(self) -> HyperDriveConfig:
         # For crossvalidation, the name of the metric to monitor does not matter because no early termination or such
