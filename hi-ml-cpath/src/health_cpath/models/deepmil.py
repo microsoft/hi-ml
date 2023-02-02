@@ -299,7 +299,7 @@ class DeepMILModule(LightningModule):
         results.update({ResultsKey.SLIDE_ID: batch[SlideKey.SLIDE_ID],
                         ResultsKey.TILE_ID: batch[TileKey.TILE_ID]})
         # Add tiles coordinates if available
-        coordinates_keys = [TileKey.TILE_TOP, TileKey.TILE_LEFT, TileKey.TILE_RIGHT, TileKey.TILE_LEFT]
+        coordinates_keys = [TileKey.TILE_TOP, TileKey.TILE_BOTTOM, TileKey.TILE_RIGHT, TileKey.TILE_LEFT]
         if all([key in batch for key in coordinates_keys]):
             for key in coordinates_keys:
                 results[key] = batch[key]
