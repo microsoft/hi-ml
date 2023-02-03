@@ -8,9 +8,6 @@ from pathlib import Path
 from typing import Any, Collection, Dict, List
 from unittest.mock import MagicMock, patch
 import pytest
-import matplotlib
-matplotlib.use('Agg')
-
 from health_cpath.preprocessing.loading import LoadingParams, ROIType
 from health_cpath.utils.naming import PlotOption, ResultsKey
 from health_cpath.utils.plots_utils import DeepMILPlotsHandler, save_confusion_matrix, save_pr_curve, save_roc_curve

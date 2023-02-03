@@ -125,7 +125,7 @@ def test_plot_pr_curve(test_output_dirs: OutputFolderForTests) -> None:
     _, ax = plt.subplots()
     true_labels = test_dict[ResultsKey.TRUE_LABEL]
     scores = test_dict[ResultsKey.PROB]
-    plot_pr_curve(labels=true_labels, scores=scores, legend_label='', ax=ax)
+    plot_pr_curve(labels=true_labels, scores=scores, legend_label='', ax=ax)            # type: ignore
     file = Path(test_output_dirs.root_dir) / "plot_pr_curve.png"
     resize_and_save(5, 5, file)
     assert file.exists()
@@ -140,7 +140,7 @@ def test_plot_roc_curve(test_output_dirs: OutputFolderForTests) -> None:
     _, ax = plt.subplots()
     true_labels = test_dict[ResultsKey.TRUE_LABEL]
     scores = test_dict[ResultsKey.PROB]
-    plot_roc_curve(labels=true_labels, scores=scores, legend_label='', ax=ax)
+    plot_roc_curve(labels=true_labels, scores=scores, legend_label='', ax=ax)           # type: ignore
     file = Path(test_output_dirs.root_dir) / "plot_roc_curve.png"
     resize_and_save(5, 5, file)
     assert file.exists()
