@@ -921,6 +921,48 @@ def spawn_and_monitor_subprocess(process: str, args: List[str],
     return p.wait(), stdout_lines
 
 
+def assert_v1_job_success(captured: str, run_path: Path,) -> str:
+    """Assert that a v1 job/run has completed successfully.
+
+    :param captured: The captured output from the test script.
+    :param run_path: File path to where the run was executed.
+    :raises ValueError: Raises a value error if missing expected output files.
+    :return: Log text stored in the v1 log driver file.
+    """
+    assert EXPECTED_QUEUED in captured
+    with check_config_json(run_path, shared_config_json=get_shared_config_json()):
+        workspace = get_workspace(aml_workspace=None, workspace_config_path=run_path / WORKSPACE_CONFIG_JSON)
+
+    run = get_most_recent_run(
+        run_recovery_file=run_path / himl.RUN_RECOVERY_FILE,
+        workspace=workspace,
+    )
+    if run.status not in ["Failed", "Completed", "Cancelled"]:
+        run.wait_for_completion()
+    assert run.status == "Completed"
+
+    # test error case mocking where no log file is present
+    log_text_undownloaded = get_driver_log_file_text(run=run, download_file=False)
+    assert log_text_undownloaded is None
+
+    # TODO: upgrade to walrus operator when upgrading python version to 3.8+
+    # if log_text := get_driver_log_file_text(run=run):
+    log_text = get_driver_log_file_text(run=run)
+
+    if log_text is None:
+        raise ValueError(
+            "The run does not contain any of the following log files: "
+            f"{[log_file_path for log_file_path in VALID_LOG_FILE_PATHS]}"
+        )
+
+    return log_text
+
+
+def assert_v2_job_success() -> bool:
+    ...
+
+
+
 def render_and_run_test_script(path: Path,
                                run_target: RunTarget,
                                extra_options: Dict[str, Any],
@@ -1023,32 +1065,7 @@ def render_and_run_test_script(path: Path,
     else:
 
         if extra_options["strictly_aml_v1"] == "True":  # extra options are all strings
-            assert EXPECTED_QUEUED in captured
-            with check_config_json(path, shared_config_json=get_shared_config_json()):
-                workspace = get_workspace(aml_workspace=None, workspace_config_path=path / WORKSPACE_CONFIG_JSON)
-
-            # ALSO BROKEN FOR v2: the "most_recent_run.txt" file is not generated for v2 submissions
-            run = get_most_recent_run(run_recovery_file=path / himl.RUN_RECOVERY_FILE,
-                                    workspace=workspace)
-            if run.status not in ["Failed", "Completed", "Cancelled"]:
-                run.wait_for_completion()
-            assert run.status == "Completed"
-
-            # test error case mocking where no log file is present
-            log_text_undownloaded = get_driver_log_file_text(run=run, download_file=False)
-            assert log_text_undownloaded is None
-
-            # TODO: upgrade to walrus operator when upgrading python version to 3.8+
-            # if log_text := get_driver_log_file_text(run=run):
-            log_text = get_driver_log_file_text(run=run)
-
-            if log_text is None:
-                raise ValueError(
-                    "The run does not contain any of the following log files: "
-                    f"{[log_file_path for log_file_path in VALID_LOG_FILE_PATHS]}"
-                )
-
-            return log_text
+            return assert_v1_job_success(captured, path)
 
         else:
             # TODO: add code here
@@ -1501,6 +1518,7 @@ import os
     print("File successfully copied!")
         """,
     }
+
     extra_args: List[str] = []
 
     render_and_run_test_script(
