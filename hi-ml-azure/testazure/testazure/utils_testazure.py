@@ -21,6 +21,7 @@ from health_azure.utils import get_ml_client, get_workspace
 DEFAULT_DATASTORE = "himldatasets"
 USER_IDENTITY_TEST_DATASTORE = "test_identity_based_datastore"
 USER_IDENTITY_TEST_ASSET = "test_identity_based_data_asset"
+USER_IDENTITY_TEST_ASSET_OUTPUT = "test_identity_based_data_asset_output"
 USER_IDENTITY_TEST_FILE = "test_identity_based_file.txt"
 FALLBACK_SINGLE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538212_d2b07afd"
 

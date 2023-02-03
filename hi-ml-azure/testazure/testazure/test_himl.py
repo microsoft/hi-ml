@@ -64,6 +64,7 @@ from testazure.utils_testazure import (
     DEFAULT_DATASTORE,
     USER_IDENTITY_TEST_DATASTORE,
     USER_IDENTITY_TEST_ASSET,
+    USER_IDENTITY_TEST_ASSET_OUTPUT,
     USER_IDENTITY_TEST_FILE,
     change_working_directory,
     get_shared_config_json,
@@ -1455,28 +1456,47 @@ import sys
 
 
 def test_invoking_user_identity_datasets(tmp_path: Path) -> None:
-
+    output_test_file_name = f"test_output_{uuid4().hex}.txt"
     extra_options: Dict[str, str] = {
         'imports': """
 import shutil
 import sys
 import os
 """,
-        'default_datastore': f'"{USER_IDENTITY_TEST_DATASTORE}"',
-        'input_datasets': "['test_identity_based_data_asset_v1', 'test_identity_based_data_asset']",
-        # 'input_datasets': f"['{USER_IDENTITY_TEST_ASSET}']",
-        'default_datastore': f'"{DEFAULT_DATASTORE}"',
-        'output_datasets': "['test_identity_based_data_asset_output']",
+        'default_datastore': f"'{USER_IDENTITY_TEST_DATASTORE}'",
+        'input_datasets': f"['{USER_IDENTITY_TEST_ASSET}']",
+        'output_datasets': f"['{USER_IDENTITY_TEST_ASSET_OUTPUT}']",
         'strictly_aml_v1': str(False),
-        'body': """
-    print('All env vars: ' + str(os.environ))
-    print('Input environment var: ' + os.environ['azure_ml_input_input_0'])
-    print('Files in input var path:')
-    print(os.listdir(os.environ['azure_ml_input_input_0'] + '/test_identity_based_datastore'))
-    if os.path.isdir(os.environ['outputs_testing_var']):
-        print("Found the directory")
-    else:
-        print("Did not find the directory")
+        'body': f"""
+
+    # input_folder = os.environ['azure_ml_input_input_0']
+    # output_folder = os.environ['azure_ml_output_output_0']
+
+    input_folder = run_info.input_datasets[0]
+    output_folder = run_info.output_datasets[0]
+
+    print("input dir contents: " + str(os.listdir(input_folder)))
+    print("output dir contents before copying:" + str(os.listdir(output_folder)))
+
+    input_file = input_folder + "/" + "{USER_IDENTITY_TEST_FILE}"
+    output_file = output_folder + "/" + "{output_test_file_name}"
+
+    print('input file: ' + input_file + ', output file: ' + output_file)
+
+    if os.path.exists(input_file):
+        print("Input file exists")
+
+    if not os.path.exists(output_file):
+        print("Output file does not exist (yet)")
+
+    # shutil.copy(input_file, output_folder)
+    print("Copying file")
+    shutil.copy(input_file, output_file)
+
+    print("output dir contents after copying:" + str(os.listdir(output_folder)))
+
+    # print('Files in output var path:')
+    # print(os.listdir(os.environ['azure_ml_output_output_0']))
         """,
     }
     extra_args: List[str] = []

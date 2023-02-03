@@ -410,20 +410,6 @@ def effective_experiment_name(experiment_name: Optional[str],
     return cleaned_value
 
 
-def _generate_output_dataset_command(output_datasets_v2: Dict[str, Output]) -> str:
-    """
-    Generate command line arguments to pass AML v2 outputs into a script
-    :param output_datasets_v2: A dictionary of Output objects that have been passed into the AML command
-    :return: A string representing the output values that the script should expect
-    """
-    output_cmd = ""
-    for i, (output_data_name, output_dataset_v2) in enumerate(output_datasets_v2.items()):
-        output_name = f"OUTPUT_{i}"
-        output_str = "${{outputs." + f"{output_name}" + "}}"
-        output_cmd += f" --{output_name}={output_str}"
-    return output_cmd
-
-
 def submit_run_v2(workspace: Optional[Workspace],
                   experiment_name: str,
                   environment: EnvironmentV2,
@@ -495,11 +481,6 @@ def submit_run_v2(workspace: Optional[Workspace],
 
     script_params = script_params or []
     cmd = " ".join(["python", str(entry_script), *script_params])
-
-    if output_datasets_v2:
-        cmd += _generate_output_dataset_command(output_datasets_v2)
-    else:
-        output_datasets_v2 = {}
 
     job_to_submit: Union[Command, Sweep]
 
@@ -731,7 +712,7 @@ def create_v2_outputs(ml_client: MLClient, output_datasets: List[DatasetConfig])
         outputs[output_name] = Output(  # type: ignore
             type=data_asset.type,
             path=data_asset.path,
-            mode=InputOutputModes.UPLOAD,
+            mode=InputOutputModes.MOUNT,
         )
     return outputs
 
@@ -1117,16 +1098,19 @@ def _extract_v2_inputs_outputs_from_env_vars() -> Tuple[List[Path], List[Path]]:
 
     :return: A list of Input paths and a list of Output paths
     """
-    # returned_input_datasets: List[Path] = []
-    # returned_output_datasets: List[Path] = []
-    # input_pattern_string = r"azure_ml_input_\d+"
-    # output_pattern_string = r"azure_ml_output_\d+"
-    # for env_var in os.environ:
-    #     if re.match(input_pattern_string, env_var):
-    #         if "_input_" in env_var:
-    #             returned_input_datasets += [Path(os.environ[env_var])]
-    #         else:
-    pass
+    returned_input_datasets: List[Path] = []
+    returned_output_datasets: List[Path] = []
+
+    input_pattern_string = r"AZURE_ML_INPUT_INPUT_\d+"
+    output_pattern_string = r"AZURE_ML_OUTPUT_OUTPUT_\d+"
+
+    for env_var in os.environ:
+        if re.match(input_pattern_string, env_var):
+            returned_input_datasets.append(Path(os.environ[env_var]))
+        elif re.match(output_pattern_string, env_var):
+            returned_output_datasets.append(Path(env_var))
+
+    return returned_input_datasets, returned_output_datasets
 
 
 def _generate_v2_azure_datasets(cleaned_input_datasets: List[DatasetConfig],
@@ -1139,7 +1123,7 @@ def _generate_v2_azure_datasets(cleaned_input_datasets: List[DatasetConfig],
     :param cleaned_output_datasets: The list of output dataset configs
     :return: The AzureRunInfo containing the AzureML input and output dataset lists etc.
     """
-    returned_input_datasets, returned_output_datasets = _extract_v2_inputs_outputs_from_args()
+    returned_input_datasets, returned_output_datasets = _extract_v2_inputs_outputs_from_env_vars()
 
     return AzureRunInfo(
         input_datasets=returned_input_datasets,  # type: ignore
