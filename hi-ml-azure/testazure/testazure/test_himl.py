@@ -2052,3 +2052,29 @@ def test_submit_to_azure_v2_distributed() -> None:
                 assert call_kwargs.get("instance_count") == num_nodes
                 distribution = call_kwargs.get("distribution")
                 assert distribution == MpiDistribution(process_count_per_instance=1)
+
+
+@pytest.mark.fast
+def test_extract_v2_inputs_outputs_from_env_vars() -> None:
+    valid_mock_environment = {
+        "AZURE_ML_INPUT_INPUT_0": "input_0",
+        "AZURE_ML_INPUT_INPUT_1": "input_1",
+        "AZURE_ML_OUTPUT_OUTPUT_0": "output_0",
+        "AZURE_ML_OUTPUT_OUTPUT_1": "output_1",
+    }
+
+    with patch.dict(os.environ, valid_mock_environment):
+        input_datasets, output_datasets = himl._extract_v2_inputs_outputs_from_env_vars()
+        assert input_datasets == [Path("input_0"), Path("input_1")]
+        assert output_datasets == [Path("output_0"), Path("output_1")]
+
+    invalid_mock_environment = {
+        "ML_INPUT_INPUT_0": "input_0",
+        "AZURE_ML_INPUT_INPUT__1": "input_1",
+        "AZURE_ML_OUTPUT_OUTPUT_test": "output_0",
+        "bad_string": "output_1",
+    }
+
+    with patch.dict(os.environ, invalid_mock_environment):
+        input_datasets, output_datasets = himl._extract_v2_inputs_outputs_from_env_vars()
+        assert input_datasets == output_datasets == []
