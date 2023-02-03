@@ -210,7 +210,7 @@ def make_figure_dirs(subfolder: str, parent_dir: Path) -> Path:
 def get_list_from_results_dict(results: ResultsType, results_key: ResultsKey) -> List[Any]:
     """ Get a specific results list from the slide_level results dictionary
     :param results: Dict of lists that contains slide_level results
-    param results_key: ResultsKey key for the list to be retrieved
+    :param results_key: ResultsKey key for the list to be retrieved
     """
     return [i.item() if isinstance(i, Tensor) else i for i in results[results_key]]
 
