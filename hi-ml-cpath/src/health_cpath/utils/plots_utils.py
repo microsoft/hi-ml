@@ -20,7 +20,7 @@ from health_cpath.utils.viz_utils import (
     plot_scores_hist,
     plot_slide,
 )
-from health_cpath.utils.analysis_plot_utils import plot_pr_curve, format_pr_or_roc_axes
+from health_cpath.utils.analysis_plot_utils import plot_pr_curve, format_pr_or_roc_axes, plot_roc_curve
 from health_cpath.utils.naming import PlotOption, ResultsKey, SlideKey
 from health_cpath.utils.tiles_selection_utils import SlideNode, TilesSelector
 from health_cpath.utils.viz_utils import save_figure
@@ -58,12 +58,12 @@ def save_pr_curve(results: ResultsType, figures_dir: Path, stage: str = '') -> N
     only works for binary classification.
 ''
     :param results: Dict of lists that contains slide_level results
-    :param figures_dir: The path to the directory where to save the histogram scores
+    :param figures_dir: The path to the directory where to save the figure
     :param stage: Test or validation, used to name the figure. Empty string by default.
     """
-    true_labels = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.TRUE_LABEL]]
+    true_labels = get_list_from_results_dict(results=results, results_key=ResultsKey.TRUE_LABEL)
     if len(set(true_labels)) == 2:
-        scores = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.PROB]]
+        scores = get_list_from_results_dict(results=results, results_key=ResultsKey.PROB)
         fig, ax = plt.subplots()
         plot_pr_curve(true_labels, scores, legend_label=stage, ax=ax)
         ax.legend()
@@ -71,6 +71,26 @@ def save_pr_curve(results: ResultsType, figures_dir: Path, stage: str = '') -> N
         save_figure(fig=fig, figpath=figures_dir / f"pr_curve_{stage}.png")
     else:
         logging.warning("The PR curve plot implementation works only for binary cases, this plot will be skipped.")
+
+
+def save_roc_curve(results: ResultsType, figures_dir: Path, stage: str = '') -> None:
+    """Plots and saves ROC curve figure in its dedicated directory. This implementation
+    only works for binary classification.
+''
+    :param results: Dict of lists that contains slide_level results
+    :param figures_dir: The path to the directory where to save the figure
+    :param stage: Test or validation, used to name the figure. Empty string by default.
+    """
+    true_labels = get_list_from_results_dict(results=results, results_key=ResultsKey.TRUE_LABEL)
+    if len(set(true_labels)) == 2:
+        scores = get_list_from_results_dict(results=results, results_key=ResultsKey.PROB)
+        fig, ax = plt.subplots()
+        plot_roc_curve(true_labels, scores, legend_label=stage, ax=ax)
+        ax.legend()
+        format_pr_or_roc_axes(plot_type='roc', ax=ax)
+        save_figure(fig=fig, figpath=figures_dir / f"roc_curve_{stage}.png")
+    else:
+        logging.warning("The ROC curve plot implementation works only for binary cases, this plot will be skipped.")
 
 
 def save_confusion_matrix(results: ResultsType, class_names: Sequence[str], figures_dir: Path, stage: str = '') -> None:
@@ -81,8 +101,8 @@ def save_confusion_matrix(results: ResultsType, class_names: Sequence[str], figu
     :param figures_dir: The path to the directory where to save the confusion matrix.
     :param stage: Test or validation, used to name the figure. Empty string by default.
     """
-    true_labels = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.TRUE_LABEL]]
-    pred_labels = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.PRED_LABEL]]
+    true_labels = get_list_from_results_dict(results=results, results_key=ResultsKey.TRUE_LABEL)
+    pred_labels = get_list_from_results_dict(results=results, results_key=ResultsKey.PRED_LABEL)
     all_potential_labels = list(range(len(class_names)))
     true_labels_diff_expected = set(true_labels).difference(set(all_potential_labels))
     pred_labels_diff_expected = set(pred_labels).difference(set(all_potential_labels))
@@ -187,6 +207,15 @@ def make_figure_dirs(subfolder: str, parent_dir: Path) -> Path:
     return figures_dir
 
 
+def get_list_from_results_dict(results: ResultsType, results_key: ResultsKey) -> List[Any]:
+    """ Get a specific results list from the slide_level results dictionary, we extract items from tensors
+    here so that it's compatible with inputs formats of scikit learn functions.
+    :param results: Dict of lists that contains slide_level results
+    :param results_key: ResultsKey key for the list to be retrieved
+    """
+    return [i.item() if isinstance(i, Tensor) else i for i in results[results_key]]
+
+
 class DeepMILPlotsHandler:
     def __init__(
         self,
@@ -284,6 +313,9 @@ class DeepMILPlotsHandler:
 
             if PlotOption.PR_CURVE in self.plot_options:
                 save_pr_curve(results=results, figures_dir=figures_dir, stage=self.stage)
+
+            if PlotOption.ROC_CURVE in self.plot_options:
+                save_roc_curve(results=results, figures_dir=figures_dir, stage=self.stage)
 
             if PlotOption.HISTOGRAM in self.plot_options:
                 save_scores_histogram(results=results, figures_dir=figures_dir, stage=self.stage,)
