@@ -1078,24 +1078,6 @@ def _get_dataset_names_from_string(sys_arg: str, pattern: str) -> Path:
     return dataset_path
 
 
-def _extract_v2_inputs_outputs_from_args() -> Tuple[List[Path], List[Path]]:
-    """
-    Extract all command line arguments of the format INPUT_i=path_to_input or OUTPUT_i=path_to_output (where i is any
-    integer) and return a list of the Paths for each.
-
-    :return: A list of Input paths and a list of Output paths
-    """
-    returned_input_datasets: List[Path] = []
-    returned_output_datasets: List[Path] = []
-
-    for sys_arg in sys.argv:
-        if re.match(V2_INPUT_DATASET_PATTERN, sys_arg):
-            returned_input_datasets += [_get_dataset_names_from_string(sys_arg, V2_INPUT_DATASET_PATTERN)]
-        if re.match(V2_OUTPUT_DATASET_PATTERN, sys_arg):
-            returned_output_datasets += [_get_dataset_names_from_string(sys_arg, V2_OUTPUT_DATASET_PATTERN)]
-    return returned_input_datasets, returned_output_datasets
-
-
 def _extract_v2_inputs_outputs_from_env_vars() -> Tuple[List[Path], List[Path]]:
     """Provides paths to the input and output datasets for v2 jobs by extracting them from the environment variables.
 
