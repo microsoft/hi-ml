@@ -136,7 +136,7 @@ class Runner:
             if self.lightning_container.hyperdrive:
                 raise ValueError("HyperDrive for hyperparameters tuning is only supported when submitting the job to "
                                  "AzureML. You need to specify a compute cluster with the argument --cluster.")
-            if self.lightning_container.is_crossvalidation_enabled and not is_amulet_job():
+            if self.lightning_container.is_crossvalidation_parent_run and not is_amulet_job():
                 raise ValueError("Cross-validation is only supported when submitting the job to AzureML."
                                  "You need to specify a compute cluster with the argument --cluster.")
 
@@ -270,7 +270,7 @@ class Runner:
             # This code is only reached inside Azure. Set display name again - this will now affect
             # Hypdrive child runs (for other jobs, this has already been done after submission)
             suffix = None
-            if self.lightning_container.is_crossvalidation_enabled:
+            if self.lightning_container.is_crossvalidation_child_run:
                 suffix = f"crossval {self.lightning_container.crossval_index}"
             elif self.lightning_container.different_seeds > 0:
                 suffix = f"seed {self.lightning_container.random_seed}"
