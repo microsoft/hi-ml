@@ -100,6 +100,7 @@ class PlotOption(Enum):
     CONFUSION_MATRIX = "confusion_matrix"
     HISTOGRAM = "histogram"
     PR_CURVE = "pr_curve"
+    ROC_CURVE = "roc_curve"
 
 
 class DeepMILSubmodules(str, Enum):

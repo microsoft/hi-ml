@@ -928,6 +928,7 @@ def submit_to_azure_if_needed(  # type: ignore
                              experiment_name=effective_experiment_name(experiment_name, script_run_config.script),
                              script_run_config=config_to_submit,
                              tags=tags,
+                             display_name=display_name,
                              wait_for_completion=wait_for_completion,
                              wait_for_completion_show_output=wait_for_completion_show_output)
             if after_submission is not None:
@@ -958,6 +959,7 @@ def submit_to_azure_if_needed(  # type: ignore
                                 script_params=script_params,
                                 compute_target=compute_cluster_name,
                                 tags=tags,
+                                display_name=display_name,
                                 docker_shm_size=docker_shm_size,
                                 wait_for_completion=wait_for_completion,
                                 hyperparam_args=hyperparam_args,

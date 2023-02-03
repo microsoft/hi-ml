@@ -8,9 +8,11 @@ from pathlib import Path
 from typing import Any, Collection, Dict, List
 from unittest.mock import MagicMock, patch
 import pytest
+import torch
 from health_cpath.preprocessing.loading import LoadingParams, ROIType
 from health_cpath.utils.naming import PlotOption, ResultsKey
-from health_cpath.utils.plots_utils import DeepMILPlotsHandler, save_confusion_matrix, save_pr_curve
+from health_cpath.utils.plots_utils import (DeepMILPlotsHandler, save_confusion_matrix, save_pr_curve,
+                                            save_roc_curve, get_list_from_results_dict)
 from health_cpath.utils.tiles_selection_utils import SlideNode, TilesSelector
 from testhisto.mocks.container import MockDeepSMILETilesPanda
 
@@ -76,6 +78,7 @@ def assert_plot_func_called_if_among_plot_options(
             PlotOption.SLIDE_THUMBNAIL,
             PlotOption.ATTENTION_HEATMAP,
             PlotOption.ATTENTION_HISTOGRAM,
+            PlotOption.ROC_CURVE,
         },
     ],
 )
@@ -97,6 +100,7 @@ def test_plots_handler_plots_only_desired_plot_options(plot_options: Collection[
         PlotOption.CONFUSION_MATRIX: patch("health_cpath.utils.plots_utils.save_confusion_matrix"),
         PlotOption.HISTOGRAM: patch("health_cpath.utils.plots_utils.save_scores_histogram"),
         PlotOption.PR_CURVE: patch("health_cpath.utils.plots_utils.save_pr_curve"),
+        PlotOption.ROC_CURVE: patch("health_cpath.utils.plots_utils.save_roc_curve"),
     }
 
     mock_funcs = {option: patcher.start() for option, patcher in patchers.items()}  # type: ignore
@@ -174,3 +178,38 @@ def test_pr_curve_integration(tmp_path: Path, caplog: pytest.LogCaptureFixture) 
     assert warning_message in caplog.records[-1].getMessage()
 
     assert not file.exists()
+
+
+def test_roc_curve_integration(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    results = {
+        ResultsKey.TRUE_LABEL: [0, 1, 0, 1, 0, 1],
+        ResultsKey.PROB: [0.1, 0.8, 0.6, 0.3, 0.5, 0.4]
+    }
+
+    # check plot is produced and it has right filename
+    save_roc_curve(results, tmp_path, stage='foo')  # type: ignore
+    file = Path(tmp_path) / "roc_curve_foo.png"
+    assert file.exists()
+    os.remove(file)
+
+    # check warning is logged and plot is not produced if NOT a binary case
+    results[ResultsKey.TRUE_LABEL] = [0, 1, 0, 2, 0, 1]
+
+    save_roc_curve(results, tmp_path, stage='foo')  # type: ignore
+    warning_message = "The ROC curve plot implementation works only for binary cases, this plot will be skipped."
+    assert warning_message in caplog.records[-1].getMessage()
+
+    assert not file.exists()
+
+
+def test_get_list_from_results_dict() -> None:
+    results = {ResultsKey.TRUE_LABEL: [torch.tensor(0), torch.tensor(1), torch.tensor(0)],
+               ResultsKey.PRED_LABEL: [torch.tensor(1), torch.tensor(0), torch.tensor(0)],
+               ResultsKey.PROB: [torch.tensor(0.9), torch.tensor(0.6), torch.tensor(0.8)]}
+    true_labels = get_list_from_results_dict(results=results, results_key=ResultsKey.TRUE_LABEL)
+    scores = get_list_from_results_dict(results=results, results_key=ResultsKey.PROB)
+    pred_labels = get_list_from_results_dict(results=results, results_key=ResultsKey.PRED_LABEL)
+    assert all(isinstance(x, int) for x in true_labels)
+    assert all(isinstance(x, float) for x in scores)
+    assert all(isinstance(x, int) for x in pred_labels)
+    assert len(true_labels) == len(pred_labels) == len(scores)

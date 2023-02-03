@@ -44,6 +44,10 @@ class TilingParams(param.Parameterized):
     intensity_threshold: float = param.Number(
         default=255.,
         doc="The intensity threshold to filter out tiles based on intensity values. Default to None.")
+    intensity_threshold_scale: float = param.Number(
+        default=0.999,
+        doc="The scale factor to be applied to the intensity threshold. Default to 0.999"
+    )
     background_val: int = param.Integer(
         default=255,
         doc="The intensity value of background. Default to 255.")
@@ -65,7 +69,7 @@ class TilingParams(param.Parameterized):
     def scaled_threshold(self) -> float:
         """Returns the threshold to be used for filtering out tiles based on intensity values. We need to multiply
         the threshold by the tile size to account for the fact that the intensity is computed on the entire tile"""
-        return 0.999 * 3 * self.intensity_threshold * self.tile_size * self.tile_size
+        return self.intensity_threshold_scale * 3 * self.intensity_threshold * self.tile_size * self.tile_size
 
     def get_tiling_transform(self, bag_size: int, stage: ModelKey,) -> Callable:
         if stage == ModelKey.TRAIN:
