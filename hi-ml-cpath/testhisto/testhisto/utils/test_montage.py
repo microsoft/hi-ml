@@ -7,13 +7,16 @@ from PIL import Image
 from pandas.testing import assert_frame_equal
 from typing import List
 
-from health_cpath.scripts.create_montage import MontageConfig, create_montage
-from health_cpath.utils.montage_utils import (MONTAGE_FILE,
-                                                dataset_from_folder, dataset_to_records,
-                                                make_montage,
-                                                make_montage_from_dir,
-                                                montage_from_included_and_excluded_slides,
-                                                restrict_dataset)
+from health_cpath.utils.montage_utils import (
+    MONTAGE_FILE,
+    MontageConfig,
+    dataset_from_folder,
+    dataset_to_records,
+    make_montage,
+    make_montage_from_dir,
+    montage_from_included_and_excluded_slides,
+    restrict_dataset,
+)
 from health_cpath.datasets.base_dataset import SlidesDataset
 from health_cpath.datasets.panda_dataset import PandaDataset
 from health_cpath.utils.naming import SlideKey
@@ -256,7 +259,7 @@ def test_montage_from_folder_full(tmp_path: Path) -> None:
     config.output_path = tmp_path / "outputs"
     # Cucim is the only backend that supports TIFF files as created in the test images, openslide fails.
     config.backend = "cucim"
-    create_montage(config, input_folder=tmp_path)
+    config.create_montage(input_folder=tmp_path)
     assert (config.output_path / "montage.png").is_file()
 
 
@@ -272,7 +275,7 @@ def test_montage_fails(tmp_path: Path) -> None:
     config.width = 1000
     config.input_folder = tmp_path
     with pytest.raises(ValueError, match="Failed to create montage"):
-        create_montage(config, input_folder=tmp_path)
+        config.create_montage(input_folder=tmp_path)
 
 
 def test_montage_no_images(tmp_path: Path) -> None:
@@ -281,7 +284,7 @@ def test_montage_no_images(tmp_path: Path) -> None:
     config.input_folder = tmp_path
     config.image_glob_pattern = "**/*.tiff"
     with pytest.raises(ValueError, match="No images found"):
-        create_montage(config, input_folder=tmp_path)
+        config.create_montage(input_folder=tmp_path)
 
 
 def test_exclusion_list(tmp_path: Path) -> None:
@@ -298,8 +301,8 @@ def test_exclusion_list(tmp_path: Path) -> None:
 
     config.image_glob_pattern = "*.png"
     (tmp_path / "image.png").touch()
-    with mock.patch("health_cpath.scripts.azure_create_montage.montage_from_included_and_excluded_slides") as mock_mont:
-        create_montage(config, input_folder=tmp_path)
+    with mock.patch("health_cpath.utils.montage_utils.montage_from_included_and_excluded_slides") as mock_mont:
+        config.create_montage(input_folder=tmp_path)
         assert mock_mont.call_count == 1
         assert mock_mont.call_args[1]["items"] == ids
         assert mock_mont.call_args[1]["exclude_items"]
@@ -309,7 +312,7 @@ def test_raises_if_no_glob(tmp_path: Path) -> None:
     """Test for exception if no file pattern specified."""
     config = MontageConfig()
     with pytest.raises(ValueError, match="you must provide a glob pattern to find the files"):
-        create_montage(config, input_folder=tmp_path)
+        config.create_montage(input_folder=tmp_path)
 
 
 def test_raises_if_no_images(tmp_path: Path) -> None:
@@ -317,4 +320,4 @@ def test_raises_if_no_images(tmp_path: Path) -> None:
     config = MontageConfig()
     config.image_glob_pattern = "*.png"
     with pytest.raises(ValueError, match="No images found in folder"):
-        create_montage(config, input_folder=tmp_path)
+        config.create_montage(input_folder=tmp_path)
