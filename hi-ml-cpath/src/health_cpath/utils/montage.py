@@ -29,14 +29,16 @@ DatasetRecord = Dict[SlideKey, Any]
 
 def add_text(image: Image, text: str, y: float = 0.9, color: TupleInt3 = (27, 77, 40), fontsize_step: int = 2) -> None:
     """Add text to a PIL image.
+
     :param image: Image object to which text needs to be added.
     :param text: The text that needs to be added.
     :param y: Float between 0-1 specifying the vertical position of the text (default=0.9).
     :param color: A 3-tuple indicating the fill color of the text (default = (27, 77, 40)).
     :param fontsize_step: Steps of font size to reduce if the text size is more than image size (default=2).
     """
-    font_path = Path('cpath/utils/fonts/DejaVuSans.ttf')  # TODO: stop hard-coding this
-    fontsize = 48  # TODO: stop hard-coding this
+    # This fond is usually found in a path like /usr/share/fonts/truetype/dejavu
+    font_path = Path('DejaVuSans.ttf')
+    fontsize = 48
     draw = ImageDraw.Draw(image)
     image_size_x, image_size_y = image.size
     font = ImageFont.truetype(str(font_path), fontsize)
@@ -53,6 +55,7 @@ def add_text(image: Image, text: str, y: float = 0.9, color: TupleInt3 = (27, 77
 
 def load_slide_as_pil(reader: WSIReader, slide_file: Path, level: int = 0) -> Image:
     """Load a WSI as a PIL image.
+
     :param reader: The WSI reader for loading the slide.
     :param slide_file: The file to read from.
     :param level: Resolution downsampling level (default=0).
@@ -73,6 +76,7 @@ def _make_thumbnail(sample: DatasetRecord, reader: WSIReader, level: int, slide_
                     masks_dir: Optional[Path] = None, image_suffix: str = '.png',
                     default_mask_color: TupleInt3 = (119, 161, 120)) -> None:
     """Make thumbnails of the slides in slides dataset.
+
     :param sample: The slide dataset object dictionary for which thumbnail needs to be created.
     :param reader: The WSI reader for loading the slide.
     :param slide_size: The tuple of slide size (width, height).
@@ -155,6 +159,7 @@ def make_thumbnails(records: List[DatasetRecord],
 def make_montage_from_dir(images_dir: Path, num_cols: int, masks_dir: Optional[Path] = None,
                           image_suffix: str = '.png') -> Image:
     """Create the montage image from the thumbnails.
+
     :param images_dir: The path to the `images` directory where WSI thumbnails will be stored.
     :param num_cols: Number of columns in the montage.
     :param masks_dir: Optional path to `masks` directory where mask thumbnails will be stored (default=None).
@@ -527,13 +532,15 @@ class MontageConfig(param.Parameterized):
         else:
             items = []
             exclude_items = True
-        montage_from_included_and_excluded_slides(dataset=dataset,
-                                                items=items,
-                                                exclude_items=exclude_items,
-                                                output_path=self.output_path,
-                                                width=self.width,
-                                                num_parallel=self.parallel,
-                                                backend=self.backend)
+        montage_from_included_and_excluded_slides(
+            dataset=dataset,
+            items=items,
+            exclude_items=exclude_items,
+            output_path=self.output_path,
+            width=self.width,
+            num_parallel=self.parallel,
+            backend=self.backend,
+        )
 
 
 def create_config_from_args() -> MontageConfig:
