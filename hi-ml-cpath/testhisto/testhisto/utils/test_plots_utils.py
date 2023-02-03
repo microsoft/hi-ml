@@ -8,9 +8,11 @@ from pathlib import Path
 from typing import Any, Collection, Dict, List
 from unittest.mock import MagicMock, patch
 import pytest
+import torch
 from health_cpath.preprocessing.loading import LoadingParams, ROIType
 from health_cpath.utils.naming import PlotOption, ResultsKey
-from health_cpath.utils.plots_utils import DeepMILPlotsHandler, save_confusion_matrix, save_pr_curve, save_roc_curve
+from health_cpath.utils.plots_utils import (DeepMILPlotsHandler, save_confusion_matrix, save_pr_curve,
+                                            save_roc_curve, get_list_from_results_dict)
 from health_cpath.utils.tiles_selection_utils import SlideNode, TilesSelector
 from testhisto.mocks.container import MockDeepSMILETilesPanda
 
@@ -198,3 +200,16 @@ def test_roc_curve_integration(tmp_path: Path, caplog: pytest.LogCaptureFixture)
     assert warning_message in caplog.records[-1].getMessage()
 
     assert not file.exists()
+
+
+def test_get_list_from_results_dict() -> None:
+    results = {ResultsKey.TRUE_LABEL: [torch.tensor(0), torch.tensor(1), torch.tensor(0)],
+               ResultsKey.PRED_LABEL: [torch.tensor(1), torch.tensor(0), torch.tensor(0)],
+               ResultsKey.PROB: [torch.tensor(0.9), torch.tensor(0.6), torch.tensor(0.8)]}
+    true_labels = get_list_from_results_dict(results=results, results_key=ResultsKey.TRUE_LABEL)
+    scores = get_list_from_results_dict(results=results, results_key=ResultsKey.PROB)
+    pred_labels = get_list_from_results_dict(results=results, results_key=ResultsKey.PRED_LABEL)
+    assert all(isinstance(x, int) for x in true_labels)
+    assert all(isinstance(x, float) for x in scores)
+    assert all(isinstance(x, int) for x in pred_labels)
+    assert len(true_labels) == len(pred_labels) == len(scores)
