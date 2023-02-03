@@ -91,7 +91,8 @@ def _make_thumbnail(sample: DatasetRecord, reader: WSIReader, level: int, slide_
         image_pil = load_slide_as_pil(reader, sample[SlideKey.IMAGE], level)
         image_pil = image_pil.resize(slide_size)
         slide_id = sample.get(SlideKey.SLIDE_ID, "")
-        text_to_add = slide_id
+        # Slide IDs can be purely numeric, in those cases need to convert to str
+        text_to_add = str(slide_id)
         if SlideKey.LABEL in sample:
             label = str(sample[SlideKey.LABEL])
             text_to_add += ", " + str(label)
@@ -419,9 +420,9 @@ class MontageConfig(param.Parameterized):
         param.String(default="",
                      doc="The name of the AzureML dataset to use for creating the montage. The dataset will be "
                          "mounted automatically. Use an absolute path to a folder on the local machine to bypass "
-                         "mounting")
+                         "mounting.")
     datastore = \
-        param.String(default="innereyedatasets",
+        param.String(default="",
                      doc="The name of the AzureML datastore where the dataset is defined.")
     conda_env: Optional[Path] = \
         param.ClassSelector(class_=Path, default=Path("hi-ml/hi-ml-cpath/environment.yml"), allow_None=True,
@@ -504,19 +505,24 @@ class MontageConfig(param.Parameterized):
 
         :param input_folder: The folder where the dataset is located.
         :return: A SlidesDataset or dataframe object that contains the dataset."""
-        print("Trying to create a dataset from all files in the input folder.")
-        if not self.image_glob_pattern:
+        if self.image_glob_pattern:
+            print(f"Trying to create a dataset from files in the input folder that match: {self.image_glob_pattern}")
+            try:
+                dataset = dataset_from_folder(input_folder, glob_pattern=self.image_glob_pattern)
+            except Exception as ex:
+                raise ValueError(f"Unable to create dataset from files in folder {input_folder}: {ex}")
+            if len(dataset) == 0:
+                raise ValueError(f"No images found in folder {input_folder} with pattern {self.image_glob_pattern}")
+            return dataset
+        else:
+            csv_file = input_folder / SlidesDataset.DEFAULT_CSV_FILENAME
+            print(f"Trying to load the dataset as a SlidesDataset object from {SlidesDataset.DEFAULT_CSV_FILENAME}")
+            if csv_file.is_file():
+                return SlidesDataset(root=input_folder)
             raise ValueError(
-                "When the dataset name does not indicate the dataset type, you must provide a glob "
-                "pattern to find the files that should be included via --image_glob_pattern"
+                f"No dataset file '{SlidesDataset.DEFAULT_CSV_FILENAME}' found in the input folder. Please add "
+                "this file, or provide a glob pattern to find the slides for the montage via --image_glob_pattern"
             )
-        try:
-            dataset = dataset_from_folder(input_folder, glob_pattern=self.image_glob_pattern)
-        except Exception as ex:
-            raise ValueError(f"Unable to create dataset from files in folder {input_folder}: {ex}")
-        if len(dataset) == 0:
-            raise ValueError(f"No images found in folder {input_folder} with pattern {self.image_glob_pattern}")
-        return dataset
 
     def create_montage(self, input_folder: Path) -> None:
         dataset = self.read_dataset(input_folder)

@@ -11,6 +11,7 @@ import pandas as pd
 import torch
 from tifffile.tifffile import TiffWriter, PHOTOMETRIC, COMPRESSION
 from torch import Tensor
+from health_cpath.datasets.base_dataset import DEFAULT_LABEL_COLUMN
 from health_cpath.datasets.panda_dataset import PandaDataset
 from testhisto.mocks.base_data_generator import MockHistoDataGenerator, MockHistoDataType, PANDA_N_CLASSES
 
@@ -53,6 +54,7 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         :param n_tiles_list: A list to use different n_tiles per slide for randomly positioned tiles.
         :param kwargs: Same params passed to MockHistoDataGenerator.
         """
+        self.generated_files: List[str] = []
         super().__init__(**kwargs)
 
         self.n_levels = n_levels
@@ -222,6 +224,7 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
 
             slide_tiff_filename = self.dest_data_path / "train_images" / f"_{slide_counter}.tiff"
             self._save_mock_wsi_as_tiff_file(slide_tiff_filename, wsi_levels)
+            self.generated_files.append(str(slide_tiff_filename))
 
             if dump_tiles is not None:
                 dump_tiles_filename = self.dest_data_path / "dump_tiles" / f"_{slide_counter}.npy"

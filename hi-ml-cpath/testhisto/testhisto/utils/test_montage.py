@@ -33,7 +33,7 @@ def expected_results_folder() -> Path:
     return full_ml_test_data_path("montages")
 
 
-def _create_slides_images(tmp_path: Path, n_slides: int = 6) -> None:
+def _create_slides_images(tmp_path: Path, n_slides: int = 6) -> MockPandaSlidesGenerator:
     print(f"Result folder: {tmp_path}")
     wsi_generator = MockPandaSlidesGenerator(
         dest_data_path=tmp_path,
@@ -46,7 +46,17 @@ def _create_slides_images(tmp_path: Path, n_slides: int = 6) -> None:
         background_val=255,
     )
     wsi_generator.generate_mock_histo_data()
-    print(f"Generated data in {tmp_path}")
+    print(f"Generated images in {tmp_path}")
+    # Create a CSV file with the 3 required columns for montage creation. Mask is optional.
+    metadata = {
+        SlideKey.SLIDE_ID: list(range(n_slides)),
+        SlideKey.IMAGE: wsi_generator.generated_files,
+        SlideKey.LABEL: [1 for _ in range(n_slides)],
+    }
+    df = pd.DataFrame(data=metadata)
+    csv_filename = tmp_path / SlidesDataset.DEFAULT_CSV_FILENAME
+    df.to_csv(csv_filename, index=False)
+    return wsi_generator
 
 
 def _create_slides_dataset(tmp_path: Path, n_slides: int = 6) -> SlidesDataset:
@@ -321,3 +331,27 @@ def test_raises_if_no_images(tmp_path: Path) -> None:
     config.image_glob_pattern = "*.png"
     with pytest.raises(ValueError, match="No images found in folder"):
         config.create_montage(input_folder=tmp_path)
+
+
+def test_read_dataset_if_csv_present(tmp_path: Path) -> None:
+    """Test if a SlidesDataset can be read from a folder that contains a dataset.csv file."""
+    _create_slides_images(tmp_path)
+    config = MontageConfig()
+    dataset = config.read_dataset(tmp_path)
+    assert isinstance(dataset, SlidesDataset)
+    dataset_csv = tmp_path / SlidesDataset.DEFAULT_CSV_FILENAME
+    dataset_csv.unlink()
+    with pytest.raises(ValueError, match="No dataset file"):
+        config.read_dataset(tmp_path)
+
+
+def test_montage_from_slides_dataset(tmp_path: Path) -> None:
+    """Test if a montage can be created via SlidesDataset, when the folder contains a dataset.csv file."""
+    _create_slides_images(tmp_path)
+    config = MontageConfig()
+    config.width = 200
+    outputs = tmp_path / "outputs"
+    config.output_path = outputs
+    config.create_montage(input_folder=tmp_path)
+    montage = outputs / MONTAGE_FILE
+    assert montage.is_file()

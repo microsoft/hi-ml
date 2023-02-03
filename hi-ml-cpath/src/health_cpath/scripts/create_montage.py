@@ -14,10 +14,10 @@ from typing import Optional
 
 
 current_file = Path(__file__)
-cpath_root = current_file.absolute().parent.parent.parent.parent
-sys.path.append(str(cpath_root))
+repository_root = current_file.absolute().parent.parent.parent.parent.parent
+sys.path.append(str(repository_root))
 
-himl_root = cpath_root / "hi-ml"
+himl_root = repository_root / "hi-ml"
 folders_to_add = [himl_root / "hi-ml" / "src",
                   himl_root / "hi-ml-azure" / "src",
                   himl_root / "hi-ml-cpath" / "src"]
@@ -44,15 +44,16 @@ if __name__ == "__main__":
         logging.info(f"In AzureML use mounted dataset '{config.dataset}' in datastore {config.datastore}")
         input_dataset = DatasetConfig(name=config.dataset, datastore=config.datastore, use_mounting=True)
         logging.info(f"Submitting to AzureML, running on cluster {config.cluster}")
-        run_info = submit_to_azure_if_needed(entry_script=current_file,
-                                             snapshot_root_directory=cpath_root,
-                                             compute_cluster_name=config.cluster,
-                                             conda_environment_file=config.conda_env,
-                                             submit_to_azureml=submit_to_azureml,
-                                             input_datasets=[input_dataset],
-                                             strictly_aml_v1=True,
-                                             docker_shm_size="100g",
-                                             )
+        run_info = submit_to_azure_if_needed(
+            entry_script=current_file,
+            snapshot_root_directory=repository_root,
+            compute_cluster_name=config.cluster,
+            conda_environment_file=config.conda_env,
+            submit_to_azureml=submit_to_azureml,
+            input_datasets=[input_dataset],
+            strictly_aml_v1=True,
+            docker_shm_size="100g",
+        )
         input_folder = run_info.input_datasets[0]
 
     assert input_folder is not None
