@@ -646,6 +646,36 @@ def _str_to_path(s: Optional[PathOrString]) -> Optional[Path]:
     return s
 
 
+def get_data_assets_from_configs(ml_client: MLClient, dataset_list: List[DatasetConfig]) -> List[Data]:
+    """Given a list of dataset configs, generates and returns a list of data assets.
+
+    :param ml_client: An MLClient object.
+    :param dataset_list: The list of datasets to create data assets for.
+    :raises ValueError: Raised if a data asset has no path.
+    :return: A list of data assets.
+    """
+    data_assets: List[Data] = []
+    for dataset in dataset_list:
+        version = dataset.version
+        logging.info(
+            f"Trying to access data asset {dataset.name} version {version}, datastore {dataset.datastore}"
+        )
+
+        # if version is None, this function gets the latest version
+        data_asset: Data = _get_or_create_v2_data_asset(
+            ml_client,
+            dataset.datastore,
+            dataset.name,
+            version=str(version) if version else None,
+        )
+        if not data_asset.path:
+            raise ValueError(f"Data asset {data_asset.id} has no path.")
+
+        data_assets.append(data_asset)
+
+    return data_assets
+
+
 def create_v2_inputs(ml_client: MLClient, input_datasets: List[DatasetConfig]) -> Dict[str, Input]:
     """
     Create a dictionary of Azure ML v2 Input objects, required for passing input data in to an AML job
@@ -654,38 +684,15 @@ def create_v2_inputs(ml_client: MLClient, input_datasets: List[DatasetConfig]) -
     :param input_datasets: A list of DatasetConfigs to convert to Inputs.
     :return: A dictionary in the format "input_name": Input.
     """
-    inputs: Dict[str, Input] = {}
-    for i, input_dataset in enumerate(input_datasets):
-        input_name = f"INPUT_{i}"
-        version = input_dataset.version
-        # if version is None, this function gets the latest version
-        logging.info(
-            f"Trying to access data asset {input_dataset.name} version {version}, datastore {input_dataset.datastore}"
-        )
-        data_asset: Data = _get_or_create_v2_data_asset(
-            ml_client,
-            input_dataset.datastore,
-            input_dataset.name,
-            version=str(version) if version else None,
-        )
-        if not data_asset.path:
-            raise ValueError(f"Data asset {data_asset.id} has no path.")
-        # Some mismatches with the documentation here:
-        # data_path = data_asset.id: This works in some jobs, but in other gives a
-        # DataAccessError(InvalidInput { message: "invalid uri format", source: None }))
-        # Unclear what the difference is between failing and successful jobs
-        # Alternative: data_path = f"azureml:{data_asset.name}:{version}"
-        # This does not work at all, neither with v1 nor v2 data assets. In both cases, we get
-        # InvalidInput { message: "invalid uri format"
-        data_path = data_asset.path
-
-        inputs[input_name] = Input(
-            # Data assets can be of type "uri_folder", "uri_file", "mltable", all of which are value types in Input
+    input_assets = get_data_assets_from_configs(ml_client, input_datasets)
+    # Data assets can be of type "uri_folder", "uri_file", "mltable", all of which are value types in Input
+    return {
+        f"INPUT_{i}": Input(
             type=data_asset.type,  # type: ignore
-            path=data_path,
-            mode=InputOutputModes.MOUNT if input_dataset.use_mounting else InputOutputModes.DOWNLOAD
-        )
-    return inputs
+            path=data_asset.path,
+            mode=InputOutputModes.MOUNT if input_datasets[i].use_mounting else InputOutputModes.DOWNLOAD
+        ) for i, data_asset in enumerate(input_assets)
+    }
 
 
 def create_v2_outputs(ml_client: MLClient, output_datasets: List[DatasetConfig]) -> Dict[str, Output]:
@@ -696,25 +703,15 @@ def create_v2_outputs(ml_client: MLClient, output_datasets: List[DatasetConfig])
     :return: A dictionary in the format "output_name": Output.
     """
 
-    outputs: Dict[str, Output] = {}
-    for i, output_dataset in enumerate(output_datasets):
-        output_name = f"OUTPUT_{i}"
-        version = output_dataset.version
-        data_asset: Data = _get_or_create_v2_data_asset(
-            ml_client,
-            output_dataset.datastore,
-            output_dataset.name,
-            version=str(version) if version else None,
-        )
-        assert data_asset.path != "" and data_asset.path is not None
-        # Note that there are alternative formats that the output path can take, such as:
-        # v2_data_asset_path = f"azureml:{output_dataset.name}@latest"
-        outputs[output_name] = Output(  # type: ignore
-            type=data_asset.type,
+    output_assets = get_data_assets_from_configs(ml_client, output_datasets)
+    return {
+        # Data assets can be of type "uri_folder", "uri_file", "mltable", all of which are value types in Input
+        f"OUTPUT_{i}": Output(
+            type=data_asset.type,  # type: ignore
             path=data_asset.path,
-            mode=InputOutputModes.MOUNT,
-        )
-    return outputs
+            mode=InputOutputModes.MOUNT,  # hard-coded to mount for now, as this is the only mode that doesn't break
+        ) for i, data_asset in enumerate(output_assets)
+    }
 
 
 def submit_to_azure_if_needed(  # type: ignore
@@ -964,7 +961,6 @@ def submit_to_azure_if_needed(  # type: ignore
                                 num_nodes=num_nodes,
                                 pytorch_processes_per_node=pytorch_processes_per_node_v2,
                                 )
-
 
             if after_submission is not None:
                 after_submission(job, ml_client)  # type: ignore

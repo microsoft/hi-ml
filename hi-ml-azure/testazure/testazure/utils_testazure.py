@@ -19,6 +19,12 @@ from health_azure.himl import effective_experiment_name
 from health_azure.utils import get_ml_client, get_workspace
 
 DEFAULT_DATASTORE = "himldatasets"
+
+TEST_DATASET_NAME = "test_dataset"
+TEST_DATA_ASSET_NAME = "test_dataset"
+TEST_INVALID_DATA_ASSET_NAME = "non_existent_dataset"
+TEST_DATASTORE_NAME = "test_datastore"
+
 USER_IDENTITY_TEST_DATASTORE = "test_identity_based_datastore"
 USER_IDENTITY_TEST_ASSET = "test_identity_based_data_asset"
 USER_IDENTITY_TEST_ASSET_OUTPUT = "test_identity_based_data_asset_output"

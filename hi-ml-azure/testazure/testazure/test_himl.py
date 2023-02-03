@@ -25,7 +25,7 @@ import pytest
 from _pytest.capture import CaptureFixture
 from azure.ai.ml import Input, Output, MLClient
 from azure.ai.ml.constants import AssetTypes, InputOutputModes
-from azure.ai.ml.entities import Data, Job
+from azure.ai.ml.entities import Data, Job, UserIdentityConfiguration
 from azure.ai.ml.entities._job.distribution import MpiDistribution, PyTorchDistribution
 from azure.ai.ml.sweep import Choice
 from azure.core.exceptions import ResourceNotFoundError
@@ -58,6 +58,7 @@ from health_azure.utils import (
     get_workspace,
     is_running_in_azure_ml,
     get_driver_log_file_text,
+    get_ml_client,
 )
 from testazure.test_data.make_tests import render_environment_yaml, render_test_script
 from testazure.utils_testazure import (
@@ -66,6 +67,8 @@ from testazure.utils_testazure import (
     USER_IDENTITY_TEST_ASSET,
     USER_IDENTITY_TEST_ASSET_OUTPUT,
     USER_IDENTITY_TEST_FILE,
+    TEST_DATA_ASSET_NAME,
+    TEST_DATASTORE_NAME,
     change_working_directory,
     get_shared_config_json,
     repository_root
@@ -75,6 +78,8 @@ INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXPECTED_QUEUED = "This command will be run in AzureML:"
 GITHUB_SHIBBOLETH = "GITHUB_RUN_ID"  # https://docs.github.com/en/actions/reference/environment-variables
 AZUREML_FLAG = himl.AZUREML_FLAG
+
+TEST_ML_CLIENT = get_ml_client()
 
 logger = logging.getLogger('test.health_azure')
 logger.setLevel(logging.DEBUG)
@@ -787,11 +792,8 @@ def test_submit_run_v2(tmp_path: Path) -> None:
             )
 
             expected_arg_str = " ".join(dummy_script_params)
-            expected_inputs_str = "--INPUT_0=${{inputs.INPUT_0}}"
-            expected_outputs_str = "--OUTPUT_0=${{outputs.OUTPUT_0}}"
             relative_entry_script = dummy_entry_script.relative_to(dummy_root_directory)
-            expected_command = f"python {relative_entry_script} {expected_arg_str} {expected_inputs_str} "\
-                f"{expected_outputs_str}"
+            expected_command = f"python {relative_entry_script} {expected_arg_str}"
 
             mock_command.assert_called_once_with(
                 code=str(dummy_root_directory),
@@ -805,7 +807,8 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 shm_size=dummy_docker_shm_size,
                 display_name=dummy_display_name,
                 distribution=MpiDistribution(process_count_per_instance=1),
-                instance_count=1
+                instance_count=1,
+                identity=UserIdentityConfiguration(),
             )
 
             # job with hyperparameter sampling:
@@ -866,7 +869,8 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 shm_size=dummy_docker_shm_size,
                 display_name=dummy_display_name,
                 distribution=MpiDistribution(process_count_per_instance=1),
-                instance_count=1
+                instance_count=1,
+                identity=UserIdentityConfiguration(),
             )
 
             mock_command.assert_any_call(**param_sampling)
@@ -1471,6 +1475,8 @@ import sys
             output_dummy_txt_file = output_dataset.folder_name / output_dataset.blob_name / input_dataset.filename
             assert input_dataset.contents == output_dummy_txt_file.read_text()
 
+# endregion Elevate to AzureML unit tests
+
 
 def test_invoking_user_identity_datasets(tmp_path: Path) -> None:
     output_test_file_name = f"test_output_{uuid4().hex}.txt"
@@ -1700,18 +1706,20 @@ def test_create_v2_inputs_fails(missing: Any) -> None:
 
 @pytest.mark.fast
 def test_create_v2_outputs() -> None:
-    mock_datastore_name = "dummy_datastore"
-    mock_data_name = "dummy_dataset"
+    test_dataset_config = DatasetConfig(
+        name=TEST_DATA_ASSET_NAME,
+        datastore=TEST_DATASTORE_NAME,
+    )
+    outputs = himl.create_v2_outputs(TEST_ML_CLIENT, [test_dataset_config])
 
-    mock_output_dataconfigs = [DatasetConfig(name=mock_data_name, datastore=mock_datastore_name)]
-    outputs = himl.create_v2_outputs(mock_output_dataconfigs)
-    assert isinstance(outputs, Dict)
-    assert len(outputs) == len(mock_output_dataconfigs)
-    output_entry = outputs["OUTPUT_0"]
-    assert isinstance(output_entry, Output)
-    assert output_entry.type == AssetTypes.URI_FOLDER
-    expected_path = f"azureml://datastores/{mock_datastore_name}/paths/{mock_data_name}"
-    assert expected_path in output_entry['path']
+    output_key = "OUTPUT_0"
+    assert output_key in outputs
+    assert len(outputs) == 1
+
+    output = outputs[output_key]
+    assert output.path is not None
+    assert isinstance(output, Output)
+    assert output.mode == InputOutputModes.MOUNT
 
 
 def test_submit_to_azure_if_needed_v2() -> None:
@@ -1758,20 +1766,6 @@ def test_submit_to_azure_if_needed_v2() -> None:
                 )
                 mock_submit_run.assert_called_once()
                 assert return_value is None
-
-
-@pytest.mark.fast
-def test_generate_input_dataset_command() -> None:
-    input_datasets = {"INPUT_0": Input(), "INPUT_1": Input()}
-    input_data_cmd = himl._generate_input_dataset_command(input_datasets)
-    assert input_data_cmd == " --INPUT_0=${{inputs.INPUT_0}} --INPUT_1=${{inputs.INPUT_1}}"
-
-
-@pytest.mark.fast
-def test_generate_output_dataset_command() -> None:
-    output_datasets = {"OUTPUT_0": Output(), "OUTPUT_1": Output()}
-    output_data_cmd = himl._generate_output_dataset_command(output_datasets)
-    assert output_data_cmd == " --OUTPUT_0=${{outputs.OUTPUT_0}} --OUTPUT_1=${{outputs.OUTPUT_1}}"
 
 
 @pytest.mark.fast
