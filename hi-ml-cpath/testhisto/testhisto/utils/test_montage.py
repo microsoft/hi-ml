@@ -321,7 +321,7 @@ def test_exclusion_list(tmp_path: Path) -> None:
 def test_raises_if_no_glob(tmp_path: Path) -> None:
     """Test for exception if no file pattern specified."""
     config = MontageConfig()
-    with pytest.raises(ValueError, match="you must provide a glob pattern to find the files"):
+    with pytest.raises(ValueError, match="No dataset file"):
         config.create_montage(input_folder=tmp_path)
 
 
