@@ -2,11 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from testhisto.mocks.container import MockDeepSMILETilesPanda
-from health_cpath.utils.tiles_selection_utils import SlideNode, TilesSelector
-from health_cpath.utils.plots_utils import DeepMILPlotsHandler, save_confusion_matrix, save_pr_curve, save_roc_curve
-from health_cpath.utils.naming import PlotOption, ResultsKey
-from health_cpath.preprocessing.loading import LoadingParams, ROIType
 import logging
 import os
 from pathlib import Path
