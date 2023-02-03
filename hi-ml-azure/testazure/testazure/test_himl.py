@@ -921,7 +921,7 @@ def spawn_and_monitor_subprocess(process: str, args: List[str],
     return p.wait(), stdout_lines
 
 
-def assert_v1_job_success(captured: str, run_path: Path,) -> str:
+def validate_v1_job_outputs(captured: str, run_path: Path,) -> str:
     """Assert that a v1 job/run has completed successfully.
 
     :param captured: The captured output from the test script.
@@ -958,11 +958,10 @@ def assert_v1_job_success(captured: str, run_path: Path,) -> str:
     return log_text
 
 
-def assert_v2_job_success() -> str:
+def validate_v2_job_outputs() -> str:
     # TODO: implement this using run recovery files, issue open here:
     # https://github.com/microsoft/hi-ml/issues/785
     return "Not implemented yet"
-
 
 
 def render_and_run_test_script(path: Path,
@@ -1067,10 +1066,10 @@ def render_and_run_test_script(path: Path,
     else:
 
         if extra_options["strictly_aml_v1"] == "True":  # extra options are all strings
-            return assert_v1_job_success(captured, path)
+            return validate_v1_job_outputs(captured, path)
 
         else:
-            return assert_v2_job_success()
+            return validate_v2_job_outputs()
 
 
 @pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])
