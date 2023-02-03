@@ -1484,6 +1484,7 @@ import sys
                     show_progress=True)
                 assert downloaded == 1
 
+            assert isinstance(output_dataset.folder_name, Path)
             output_dummy_txt_file = output_dataset.folder_name / output_dataset.blob_name / input_dataset.filename
             assert input_dataset.contents == output_dummy_txt_file.read_text()
 
