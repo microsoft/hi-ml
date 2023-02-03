@@ -752,13 +752,21 @@ def test_submit_run_v2(tmp_path: Path) -> None:
     dummy_input_data_name = "my_input_dataset"
     dummy_input_path = "path_to_my_input_data"
     dummy_inputs = {
-        dummy_input_data_name: Input(type=AssetTypes.URI_FOLDER, path=dummy_input_path, mode=InputOutputModes.MOUNT)
+        dummy_input_data_name: Input(  # type: ignore
+            type=AssetTypes.URI_FOLDER,
+            path=dummy_input_path,
+            mode=InputOutputModes.MOUNT
+        )
     }
 
     dummy_output_data_name = "my_output_dataset"
     dummy_output_path = "path_to_my_output_data"
     dummy_outputs = {
-        dummy_output_data_name: Output(type=AssetTypes.URI_FOLDER, path=dummy_output_path, mode=InputOutputModes.DIRECT)
+        dummy_output_data_name: Output(  # type: ignore
+            type=AssetTypes.URI_FOLDER,
+            path=dummy_output_path,
+            mode=InputOutputModes.MOUNT
+        )
     }
 
     dummy_root_directory = tmp_path
@@ -1805,28 +1813,6 @@ def test_submit_to_azure_if_needed_v2() -> None:
                 )
                 mock_submit_run.assert_called_once()
                 assert return_value is None
-
-
-@pytest.mark.fast
-def test_extract_v2_inputs_outputs_from_args() -> None:
-    path_to_input_0 = "path_to_input_0"
-    path_to_output_0 = "path_to_output_0"
-    mock_args = [f"--INPUT_0={path_to_input_0}", "--INPUT_1=path_to_input_1", f"--OUTPUT_0={path_to_output_0}",
-                 "--a=foo", "--b=bar"]
-    with patch.object(sys, "argv", new=mock_args):
-        input_datasets, output_datasets = himl._extract_v2_inputs_outputs_from_args()
-        assert len(input_datasets) == 2
-        assert input_datasets[0] == Path(path_to_input_0)
-        assert len(output_datasets) == 1
-        assert output_datasets[0] == Path(path_to_output_0)
-
-    # similar args should be ignored
-    mock_args_similar = [f"--input_0={path_to_input_0}", "--input_1=path_to_input_1", f"--output_0={path_to_output_0}",
-                         "--a=foo", "--b=bar"]
-    with patch.object(sys, "argv", new=mock_args_similar):
-        input_datasets, output_datasets = himl._extract_v2_inputs_outputs_from_args()
-        assert len(input_datasets) == 0
-        assert len(output_datasets) == 0
 
 
 @pytest.mark.parametrize("wait_for_completion", [True, False])

@@ -519,8 +519,8 @@ def submit_run_v2(workspace: Optional[Workspace],
     if hyperparam_args:
         param_sampling = hyperparam_args[PARAM_SAMPLING_ARG]
 
-        # keep mypy happy
-        assert input_datasets_v2 is not None, "input datasets must be provided to use hyperparameter search"
+        if input_datasets_v2 is None:
+            input_datasets_v2 = {}
 
         for sample_param, choices in param_sampling.items():
             input_datasets_v2[sample_param] = choices.values[0]
