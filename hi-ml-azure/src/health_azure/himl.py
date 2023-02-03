@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
 
 from azure.ai.ml import MLClient, Input, Output, command
-from azure.ai.ml.constants import AssetTypes, InputOutputModes
+from azure.ai.ml.constants import InputOutputModes
 from azure.ai.ml.entities import Data, Job, Command, Sweep, UserIdentityConfiguration
 from azure.ai.ml.entities import Environment as EnvironmentV2
 from azure.ai.ml.entities._job.distribution import MpiDistribution, PyTorchDistribution
@@ -503,7 +503,7 @@ def submit_run_v2(workspace: Optional[Workspace],
         return command(
             code=str(snapshot_root_directory),
             command=cmd,
-            inputs=input_datasets_v2 or {},
+            inputs=input_datasets_v2,
             outputs=output_datasets_v2,
             environment=environment.name + "@latest",
             compute=compute_target,
@@ -518,6 +518,9 @@ def submit_run_v2(workspace: Optional[Workspace],
 
     if hyperparam_args:
         param_sampling = hyperparam_args[PARAM_SAMPLING_ARG]
+
+        # keep mypy happy
+        assert input_datasets_v2 is not None, "input datasets must be provided to use hyperparameter search"
 
         for sample_param, choices in param_sampling.items():
             input_datasets_v2[sample_param] = choices.values[0]
@@ -687,8 +690,8 @@ def create_v2_inputs(ml_client: MLClient, input_datasets: List[DatasetConfig]) -
     input_assets = get_data_assets_from_configs(ml_client, input_datasets)
     # Data assets can be of type "uri_folder", "uri_file", "mltable", all of which are value types in Input
     return {
-        f"INPUT_{i}": Input(
-            type=data_asset.type,  # type: ignore
+        f"INPUT_{i}": Input(  # type: ignore
+            type=data_asset.type,
             path=data_asset.path,
             mode=InputOutputModes.MOUNT if input_datasets[i].use_mounting else InputOutputModes.DOWNLOAD
         ) for i, data_asset in enumerate(input_assets)
@@ -706,8 +709,8 @@ def create_v2_outputs(ml_client: MLClient, output_datasets: List[DatasetConfig])
     output_assets = get_data_assets_from_configs(ml_client, output_datasets)
     return {
         # Data assets can be of type "uri_folder", "uri_file", "mltable", all of which are value types in Input
-        f"OUTPUT_{i}": Output(
-            type=data_asset.type,  # type: ignore
+        f"OUTPUT_{i}": Output(  # type: ignore
+            type=data_asset.type,
             path=data_asset.path,
             mode=InputOutputModes.MOUNT,  # hard-coded to mount for now, as this is the only mode that doesn't break
         ) for i, data_asset in enumerate(output_assets)
