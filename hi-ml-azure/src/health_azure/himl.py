@@ -964,6 +964,8 @@ def submit_to_azure_if_needed(  # type: ignore
                                 num_nodes=num_nodes,
                                 pytorch_processes_per_node=pytorch_processes_per_node_v2,
                                 )
+
+
             if after_submission is not None:
                 after_submission(job, ml_client)  # type: ignore
 

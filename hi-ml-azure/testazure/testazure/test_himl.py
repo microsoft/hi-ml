@@ -958,8 +958,10 @@ def assert_v1_job_success(captured: str, run_path: Path,) -> str:
     return log_text
 
 
-def assert_v2_job_success() -> bool:
-    ...
+def assert_v2_job_success() -> str:
+    # TODO: implement this using run recovery files, issue open here:
+    # https://github.com/microsoft/hi-ml/issues/785
+    return "Not implemented yet"
 
 
 
@@ -1068,8 +1070,7 @@ def render_and_run_test_script(path: Path,
             return assert_v1_job_success(captured, path)
 
         else:
-            # TODO: add code here
-            return "Handling v2 submissions is not yet implemented"
+            return assert_v2_job_success()
 
 
 @pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])
