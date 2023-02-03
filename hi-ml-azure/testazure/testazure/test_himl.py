@@ -1469,19 +1469,21 @@ import os
         'strictly_aml_v1': str(False),
         'body': f"""
 
-    # input_folder = os.environ['azure_ml_input_input_0']
-    # output_folder = os.environ['azure_ml_output_output_0']
-
     input_folder = run_info.input_datasets[0]
     output_folder = run_info.output_datasets[0]
 
     print("input dir contents: " + str(os.listdir(input_folder)))
-    print("output dir contents before copying:" + str(os.listdir(output_folder)))
 
-    input_file = input_folder + "/" + "{USER_IDENTITY_TEST_FILE}"
-    output_file = output_folder + "/" + "{output_test_file_name}"
+    output_dir_contents = os.listdir(output_folder)
+    num_output_items = len(output_dir_contents)
 
-    print('input file: ' + input_file + ', output file: ' + output_file)
+    print("output dir contents before copying: " + str(output_dir_contents))
+    print("Number of items in output dir before copying: " + str(num_output_items))
+
+    input_file = input_folder / "{USER_IDENTITY_TEST_FILE}"
+    output_file = output_folder / "{output_test_file_name}"
+
+    print('input file: ' + str(input_file) + ', output file: ' + str(output_file))
 
     if os.path.exists(input_file):
         print("Input file exists")
@@ -1489,14 +1491,14 @@ import os
     if not os.path.exists(output_file):
         print("Output file does not exist (yet)")
 
-    # shutil.copy(input_file, output_folder)
-    print("Copying file")
+    print("Copying file...")
     shutil.copy(input_file, output_file)
 
-    print("output dir contents after copying:" + str(os.listdir(output_folder)))
+    num_output_dir_items_after_copying = len(os.listdir(output_folder))
 
-    # print('Files in output var path:')
-    # print(os.listdir(os.environ['azure_ml_output_output_0']))
+    assert num_output_dir_items_after_copying == num_output_items + 1, "Copied file not present in output dir"
+
+    print("File successfully copied!")
         """,
     }
     extra_args: List[str] = []

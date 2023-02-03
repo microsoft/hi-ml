@@ -1108,7 +1108,7 @@ def _extract_v2_inputs_outputs_from_env_vars() -> Tuple[List[Path], List[Path]]:
         if re.match(input_pattern_string, env_var):
             returned_input_datasets.append(Path(os.environ[env_var]))
         elif re.match(output_pattern_string, env_var):
-            returned_output_datasets.append(Path(env_var))
+            returned_output_datasets.append(Path(os.environ[env_var]))
 
     return returned_input_datasets, returned_output_datasets
 
