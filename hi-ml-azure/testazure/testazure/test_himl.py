@@ -1379,6 +1379,7 @@ def test_invoking_hello_world_datasets(run_target: RunTarget,
             assert downloaded == 1
 
             # Check that the input file is downloaded
+            assert input_dataset.folder_name is not None
             downloaded_dummy_txt_file = input_dataset.folder_name / input_dataset.blob_name / input_dataset.filename
             # Check it has expected contents
             assert input_dataset.contents == downloaded_dummy_txt_file.read_text()
@@ -1386,6 +1387,7 @@ def test_invoking_hello_world_datasets(run_target: RunTarget,
 
     if run_target == RunTarget.LOCAL:
         for output_dataset in output_datasets:
+            assert output_dataset.folder_name is not None
             output_blob_folder = output_dataset.folder_name / output_dataset.blob_name
             output_blob_folder.mkdir(parents=True)
     else:
@@ -1653,6 +1655,10 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock,
                             strictly_aml_v1=True)
                         mock_submit_run.assert_called_once()
                         mock_hyperdrive_config.assert_called_once()
+
+
+def test_get_data_assets_from_configs() -> None:
+    pass
 
 
 @pytest.mark.fast
