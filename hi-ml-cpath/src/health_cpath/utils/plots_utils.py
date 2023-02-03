@@ -61,9 +61,9 @@ def save_pr_curve(results: ResultsType, figures_dir: Path, stage: str = '') -> N
     :param figures_dir: The path to the directory where to save the figure
     :param stage: Test or validation, used to name the figure. Empty string by default.
     """
-    true_labels = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.TRUE_LABEL]]
+    true_labels = get_list_from_results_dict(results=results, results_key=ResultsKey.TRUE_LABEL)
     if len(set(true_labels)) == 2:
-        scores = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.PROB]]
+        scores = get_list_from_results_dict(results=results, results_key=ResultsKey.PROB)
         fig, ax = plt.subplots()
         plot_pr_curve(true_labels, scores, legend_label=stage, ax=ax)
         ax.legend()
@@ -81,9 +81,9 @@ def save_roc_curve(results: ResultsType, figures_dir: Path, stage: str = '') -> 
     :param figures_dir: The path to the directory where to save the figure
     :param stage: Test or validation, used to name the figure. Empty string by default.
     """
-    true_labels = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.TRUE_LABEL]]
+    true_labels = get_list_from_results_dict(results=results, results_key=ResultsKey.TRUE_LABEL)
     if len(set(true_labels)) == 2:
-        scores = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.PROB]]
+        scores = get_list_from_results_dict(results=results, results_key=ResultsKey.PROB)
         fig, ax = plt.subplots()
         plot_roc_curve(true_labels, scores, legend_label=stage, ax=ax)
         ax.legend()
@@ -101,8 +101,8 @@ def save_confusion_matrix(results: ResultsType, class_names: Sequence[str], figu
     :param figures_dir: The path to the directory where to save the confusion matrix.
     :param stage: Test or validation, used to name the figure. Empty string by default.
     """
-    true_labels = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.TRUE_LABEL]]
-    pred_labels = [i.item() if isinstance(i, Tensor) else i for i in results[ResultsKey.PRED_LABEL]]
+    true_labels = get_list_from_results_dict(results=results, results_key=ResultsKey.TRUE_LABEL)
+    pred_labels = get_list_from_results_dict(results=results, results_key=ResultsKey.PRED_LABEL)
     all_potential_labels = list(range(len(class_names)))
     true_labels_diff_expected = set(true_labels).difference(set(all_potential_labels))
     pred_labels_diff_expected = set(pred_labels).difference(set(all_potential_labels))
@@ -205,6 +205,14 @@ def make_figure_dirs(subfolder: str, parent_dir: Path) -> Path:
     figures_dir = parent_dir / subfolder
     figures_dir.mkdir(parents=True, exist_ok=True)
     return figures_dir
+
+
+def get_list_from_results_dict(results: ResultsType, results_key: ResultsKey) -> List[Any]:
+    """ Get a specific results list from the slide_level results dictionary
+    :param results: Dict of lists that contains slide_level results
+    param results_key: ResultsKey key for the list to be retrieved
+    """
+    return [i.item() if isinstance(i, Tensor) else i for i in results[results_key]]
 
 
 class DeepMILPlotsHandler:
