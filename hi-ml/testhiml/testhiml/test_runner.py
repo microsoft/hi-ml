@@ -198,9 +198,14 @@ def test_crossvalidation_flag() -> None:
     :return:
     """
     container = HelloWorld()
-    assert not container.is_crossvalidation_enabled
+    assert not container.is_crossvalidation_parent_run
+    assert not container.is_crossvalidation_child_run
     container.crossval_count = 5
-    assert container.is_crossvalidation_enabled
+    container.crossval_index = None
+    assert container.is_crossvalidation_parent_run
+    assert not container.is_crossvalidation_child_run
+    container.crossval_index = 0
+    assert container.is_crossvalidation_child_run
     container.validate()
     # Try all valid values
     for i in range(container.crossval_count):
@@ -228,7 +233,7 @@ def test_crossval_config() -> None:
         # Triggering cross validation works by just setting crossval_count
         container.hyperdrive = False
         container.crossval_count = 2
-        assert container.is_crossvalidation_enabled
+        assert container.is_crossvalidation_parent_run
         crossval_config = container.get_hyperdrive_config()
         assert isinstance(crossval_config, HyperDriveConfig)
 

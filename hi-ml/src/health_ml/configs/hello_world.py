@@ -79,7 +79,7 @@ class HelloWorldDataModule(LightningDataModule):
     A data module that gives the training, validation and test data for a simple 1-dim regression task.
     """
 
-    def __init__(self, crossval_count: int, crossval_index: int) -> None:
+    def __init__(self, crossval_count: int, crossval_index: Optional[int]) -> None:
         super().__init__()
         n_total = 200
         xy = _create_1d_regression_dataset(n=n_total)
@@ -92,6 +92,7 @@ class HelloWorldDataModule(LightningDataModule):
         else:
             # This could be done via a library function like sklearn's KFold function, but we don't want to add
             # scikit-learn as a dependency just for this example.
+            assert crossval_index is not None, "crossval_index must be set if crossval_count > 1"
             train, val = _split_crossval(xy[n_test:], crossval_count=crossval_count, crossval_index=crossval_index)
             self.val = HelloWorldDataset(xy=val)
             self.train = HelloWorldDataset(xy=train)
