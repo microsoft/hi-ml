@@ -30,11 +30,9 @@ for folder in folders_to_add:
 from health_azure.himl import submit_to_azure_if_needed, DatasetConfig  # noqa
 from health_azure.utils import apply_overrides, create_argparser, parse_arguments  # noqa
 from health_azure.logging import logging_to_stdout  # noqa
-from cpath.datasets.tcga_prad_private_dataset import TcgaPradPrivateDataset  # noqa
-from cpath.datasets.tcga_brca_private_dataset import TcgaBrcaPrivateDataset  # noqa
-from cpath.utils.montage_utils import (TCGA_BRCA_PREFIX, TCGA_PRAD_PREFIX, DatasetOrDataframe,  # noqa
-                                       dataset_from_folder,
-                                       montage_from_included_and_excluded_slides)
+from health_cpath.utils.montage_utils import (DatasetOrDataframe,  # noqa
+                                                dataset_from_folder,
+                                                montage_from_included_and_excluded_slides)
 
 
 class MontageConfig(param.Parameterized):
@@ -127,25 +125,18 @@ class MontageConfig(param.Parameterized):
 
         :param input_folder: The folder where the dataset is located.
         :return: A SlidesDataset or dataframe object that contains the dataset."""
-        if self.dataset.startswith(TCGA_PRAD_PREFIX):
-            print("The dataset name indicates that its format is TCGA-PRAD, trying to load that.")
-            dataset: DatasetOrDataframe = TcgaPradPrivateDataset(input_folder)
-        elif self.dataset.startswith(TCGA_BRCA_PREFIX):
-            print("The dataset name indicates that its format is TCGA-BRCA, trying to load that.")
-            dataset = TcgaBrcaPrivateDataset(input_folder)
-        else:
-            print("Trying to create a dataset from all files in the input folder.")
-            if not self.image_glob_pattern:
-                raise ValueError(
-                    "When the dataset name does not indicate the dataset type, you must provide a glob "
-                    "pattern to find the files that should be included via --image_glob_pattern"
-                )
-            try:
-                dataset = dataset_from_folder(input_folder, glob_pattern=self.image_glob_pattern)
-            except Exception as ex:
-                raise ValueError(f"Unable to create dataset from files in folder {input_folder}: {ex}")
-            if len(dataset) == 0:
-                raise ValueError(f"No images found in folder {input_folder} with pattern {self.image_glob_pattern}")
+        print("Trying to create a dataset from all files in the input folder.")
+        if not self.image_glob_pattern:
+            raise ValueError(
+                "When the dataset name does not indicate the dataset type, you must provide a glob "
+                "pattern to find the files that should be included via --image_glob_pattern"
+            )
+        try:
+            dataset = dataset_from_folder(input_folder, glob_pattern=self.image_glob_pattern)
+        except Exception as ex:
+            raise ValueError(f"Unable to create dataset from files in folder {input_folder}: {ex}")
+        if len(dataset) == 0:
+            raise ValueError(f"No images found in folder {input_folder} with pattern {self.image_glob_pattern}")
         return dataset
 
 

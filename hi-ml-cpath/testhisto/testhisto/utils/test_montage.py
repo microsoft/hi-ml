@@ -7,7 +7,7 @@ from PIL import Image
 from pandas.testing import assert_frame_equal
 from typing import List
 
-from health_cpath.scripts.azure_create_montage import MontageConfig, create_montage
+from health_cpath.scripts.create_montage import MontageConfig, create_montage
 from health_cpath.utils.montage_utils import (MONTAGE_FILE,
                                                 dataset_from_folder, dataset_to_records,
                                                 make_montage,
@@ -176,7 +176,7 @@ def test_montage_included_and_excluded2(tmp_path: Path) -> None:
     out_path = tmp_path / "montage"
     out_path.mkdir(exist_ok=True)
     for exclude_items in [True, False]:
-        with mock.patch("cpath.utils.montage_utils.make_montage") as mock_montage:
+        with mock.patch("health_cpath.utils.montage_utils.make_montage") as mock_montage:
             montage_file = montage_from_included_and_excluded_slides(
                 dataset,
                 items=["_0", "_1"],
@@ -298,7 +298,7 @@ def test_exclusion_list(tmp_path: Path) -> None:
 
     config.image_glob_pattern = "*.png"
     (tmp_path / "image.png").touch()
-    with mock.patch("cpath.scripts.azure.azure_create_montage.montage_from_included_and_excluded_slides") as mock_mont:
+    with mock.patch("health_cpath.scripts.azure_create_montage.montage_from_included_and_excluded_slides") as mock_mont:
         create_montage(config, input_folder=tmp_path)
         assert mock_mont.call_count == 1
         assert mock_mont.call_args[1]["items"] == ids
