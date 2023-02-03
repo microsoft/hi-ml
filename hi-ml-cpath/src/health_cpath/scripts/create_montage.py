@@ -27,7 +27,7 @@ for folder in folders_to_add:
 
 from health_azure.himl import submit_to_azure_if_needed, DatasetConfig  # noqa
 from health_azure.logging import logging_to_stdout  # noqa
-from health_cpath.utils.montage_utils import create_config_from_args  # noqa
+from health_cpath.utils.montage import create_config_from_args  # noqa
 
 
 if __name__ == "__main__":
