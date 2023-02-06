@@ -11,7 +11,6 @@ import pandas as pd
 import torch
 from tifffile.tifffile import TiffWriter, PHOTOMETRIC, COMPRESSION
 from torch import Tensor
-from health_cpath.datasets.base_dataset import DEFAULT_LABEL_COLUMN
 from health_cpath.datasets.panda_dataset import PandaDataset
 from testhisto.mocks.base_data_generator import MockHistoDataGenerator, MockHistoDataType, PANDA_N_CLASSES
 
