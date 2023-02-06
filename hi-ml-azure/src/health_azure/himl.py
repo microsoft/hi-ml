@@ -72,6 +72,7 @@ GOAL_ARG = "goal"
 V2_INPUT_PATTERN = "INPUT_"
 V2_OUTPUT_PATTERN = "OUTPUT_"
 
+
 @dataclass
 class AzureRunInfo:
     """
