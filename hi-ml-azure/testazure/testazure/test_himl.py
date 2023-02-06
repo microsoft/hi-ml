@@ -1666,7 +1666,7 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock,
                         mock_hyperdrive_config.assert_called_once()
 
 
-def test_get_data_assets_from_configs() -> None:
+def test_get_data_asset_from_config() -> None:
     n_configs = 3
     test_dataset_configs = [
         DatasetConfig(
@@ -1675,21 +1675,21 @@ def test_get_data_assets_from_configs() -> None:
         ) for _ in range(n_configs)
     ]
 
-    test_assets = himl.get_data_assets_from_configs(TEST_ML_CLIENT, test_dataset_configs)
+    test_assets = [
+        himl.get_data_asset_from_config(TEST_ML_CLIENT, test_dataset_config)
+        for test_dataset_config in test_dataset_configs
+    ]
     assert len(test_assets) == n_configs
     assert all([asset.name == TEST_DATA_ASSET_NAME for asset in test_assets])
 
     test_version = 1
-    test_versioned_config = [
-        DatasetConfig(
-            name=TEST_DATA_ASSET_NAME,
-            datastore=TEST_DATASTORE_NAME,
-            version=test_version,
-        )
-    ]
-    test_versioned_asset = himl.get_data_assets_from_configs(TEST_ML_CLIENT, test_versioned_config)
-    assert len(test_versioned_asset) == 1
-    assert test_versioned_asset[0].version == str(test_version)
+    test_versioned_config = DatasetConfig(
+        name=TEST_DATA_ASSET_NAME,
+        datastore=TEST_DATASTORE_NAME,
+        version=test_version,
+    )
+    test_versioned_asset = himl.get_data_asset_from_config(TEST_ML_CLIENT, test_versioned_config)
+    assert test_versioned_asset.version == str(test_version)
 
 
 @pytest.mark.fast
