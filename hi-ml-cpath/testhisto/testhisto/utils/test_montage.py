@@ -345,7 +345,7 @@ def test_raises_if_no_images(tmp_path: Path) -> None:
 
 def test_read_dataset_if_csv_present(tmp_path: Path) -> None:
     """Test if a SlidesDataset can be read from a folder that contains a dataset.csv file."""
-    _create_slides_images(tmp_path)
+    _create_slides_dataset(tmp_path)
     config = MontageConfig()
     dataset = config.read_dataset(tmp_path)
     assert isinstance(dataset, SlidesDataset)
@@ -357,7 +357,7 @@ def test_read_dataset_if_csv_present(tmp_path: Path) -> None:
 
 def test_montage_from_slides_dataset(tmp_path: Path) -> None:
     """Test if a montage can be created via SlidesDataset, when the folder contains a dataset.csv file."""
-    _create_slides_images(tmp_path)
+    _create_slides_dataset(tmp_path)
     config = MontageConfig()
     config.width = 200
     outputs = tmp_path / "outputs"
