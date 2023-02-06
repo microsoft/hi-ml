@@ -27,7 +27,7 @@ from testhisto.utils.utils_testhisto import assert_binary_files_match, full_ml_t
 
 
 # Set this to True to update all stored images in the test_data folder.
-UPDATE_STORED_RESULTS = False
+UPDATE_STORED_RESULTS = True
 
 
 def expected_results_folder() -> Path:
@@ -52,6 +52,18 @@ def _create_slides_images(tmp_path: Path, n_slides: int = 6) -> MockPandaSlidesG
     )
     wsi_generator.generate_mock_histo_data()
     print(f"Generated images in {tmp_path}")
+    return wsi_generator
+
+
+def _create_panda_dataset(tmp_path: Path, n_slides: int = 6) -> SlidesDataset:
+    _create_slides_images(tmp_path, n_slides)
+    usecols = [PandaDataset.SLIDE_ID_COLUMN, PandaDataset.MASK_COLUMN]
+    dataset = PandaDataset(root=tmp_path, dataframe_kwargs={"usecols": usecols + list(PandaDataset.METADATA_COLUMNS)})
+    return dataset
+
+
+def _create_slides_dataset(tmp_path: Path, n_slides: int = 6) -> SlidesDataset:
+    wsi_generator = _create_slides_images(tmp_path, n_slides)
     # Create a CSV file with the 3 required columns for montage creation. Mask is optional.
     metadata = {
         SlideKey.SLIDE_ID: [f"ID {i}" for i in range(n_slides)],
@@ -61,13 +73,7 @@ def _create_slides_images(tmp_path: Path, n_slides: int = 6) -> MockPandaSlidesG
     df = pd.DataFrame(data=metadata)
     csv_filename = tmp_path / SlidesDataset.DEFAULT_CSV_FILENAME
     df.to_csv(csv_filename, index=False)
-    return wsi_generator
-
-
-def _create_slides_dataset(tmp_path: Path, n_slides: int = 6) -> SlidesDataset:
-    _create_slides_images(tmp_path, n_slides)
-    usecols = [PandaDataset.SLIDE_ID_COLUMN, PandaDataset.MASK_COLUMN]
-    dataset = PandaDataset(root=tmp_path, dataframe_kwargs={"usecols": usecols + list(PandaDataset.METADATA_COLUMNS)})
+    dataset = SlidesDataset(root=tmp_path)
     return dataset
 
 
@@ -113,28 +119,17 @@ def test_montage_from_dir(tmp_path: Path) -> None:
     assert_binary_files_match(montage_path, expected_file)
 
 
-def test_montage_from_dataset(tmp_path: Path) -> None:
+@pytest.mark.parametrize("use_masks", [True, False])
+def test_montage_from_dataset(tmp_path: Path, use_masks: bool) -> None:
     """Test if a montage can be generated from a slides dataset."""
-    # Create a montage from the dataset, including thumbnails for the masks
-    dataset = dataset_to_records(_create_slides_dataset(tmp_path))
-    file_name1 = "montage_with_masks.png"
-    montage_with_masks = tmp_path / file_name1
-    make_montage(dataset, out_path=montage_with_masks, width=1000)
-    assert montage_with_masks.is_file()
-    expected_file = expected_results_folder() / file_name1
+    dataset = dataset_to_records(_create_panda_dataset(tmp_path))
+    montage = tmp_path / "montage.png"
+    make_montage(dataset, out_path=montage, width=1000, num_parallel=1, masks=use_masks)
+    assert montage.is_file()
+    expected_file = expected_results_folder() / ("montage_with_masks.png" if use_masks else "montage_without_masks.png")
     if UPDATE_STORED_RESULTS:
-        shutil.copyfile(montage_with_masks, expected_file)
-    assert_binary_files_match(montage_with_masks, expected_file)
-    # Create a montage from the dataset, this time only including the slides
-    file_name2 = "montage_without_masks.png"
-    montage_without_masks = tmp_path / file_name2
-    # Use a pool size of 1 here to test that codepath too
-    make_montage(dataset, out_path=montage_without_masks, width=1000, num_parallel=1, masks=False)
-    assert montage_without_masks.is_file()
-    expected_file = expected_results_folder() / file_name2
-    if UPDATE_STORED_RESULTS:
-        shutil.copyfile(montage_without_masks, expected_file)
-    assert_binary_files_match(montage_without_masks, expected_file)
+        shutil.copyfile(montage, expected_file)
+    assert_binary_files_match(montage, expected_file)
 
 
 def test_restrict_dataset() -> None:
@@ -183,7 +178,7 @@ def test_montage_included_and_excluded1(tmp_path: Path, exclude_items: bool) -> 
     out_path.mkdir(exist_ok=True)
     montage_from_included_and_excluded_slides(
         dataset,
-        items=["_0", "_1"],
+        items=["ID 0", "ID 1"],
         exclude_items=exclude_items,
         output_path=out_path,
         width=1000
@@ -205,7 +200,7 @@ def test_montage_included_and_excluded2(tmp_path: Path) -> None:
         with mock.patch("health_cpath.utils.montage.make_montage") as mock_montage:
             montage_file = montage_from_included_and_excluded_slides(
                 dataset,
-                items=["_0", "_1"],
+                items=["ID 0", "ID 1"],
                 exclude_items=exclude_items,
                 output_path=out_path,
                 width=1000
@@ -216,9 +211,9 @@ def test_montage_included_and_excluded2(tmp_path: Path) -> None:
             assert isinstance(records, List)
             slide_ids = sorted([d[SlideKey.SLIDE_ID] for d in records])
             if exclude_items:
-                assert slide_ids == ["_2", "_3", "_4", "_5"]
+                assert slide_ids == ["ID 2", "ID 3", "ID 4", "ID 5"]
             else:
-                assert slide_ids == ["_0", "_1"]
+                assert slide_ids == ["ID 0", "ID 1"]
 
 
 def test_dataset_from_folder_unique(tmp_path: Path) -> None:
