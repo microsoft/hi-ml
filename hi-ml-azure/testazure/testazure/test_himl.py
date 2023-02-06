@@ -950,7 +950,7 @@ def validate_v1_job_outputs(captured: str, run_path: Path, extra_options: Dict[s
         run_recovery_file=run_path / himl.RUN_RECOVERY_FILE,
         workspace=workspace,
     )
-    if run.status not in ["Failed", "Completed", "Cancelled"]:
+    if run.status not in [RunStatus.FAILED, RunStatus.COMPLETED, RunStatus.CANCELED]:
         run.wait_for_completion()
     assert run.status == "Completed"
     if "display_name" in extra_options:
