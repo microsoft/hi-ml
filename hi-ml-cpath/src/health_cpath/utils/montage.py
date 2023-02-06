@@ -9,7 +9,6 @@ import multiprocessing
 import shutil
 import sys
 import tempfile
-from argparse import ArgumentParser
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -21,7 +20,7 @@ from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
 from monai.data.image_reader import WSIReader
 
-from health_azure.utils import apply_overrides, create_argparser, parse_arguments
+from health_azure.utils import apply_overrides, parse_arguments
 from health_cpath.utils.naming import SlideKey
 from health_cpath.utils.montage_config import MontageConfig
 from health_cpath.datasets.base_dataset import SlidesDataset
@@ -504,14 +503,6 @@ class MontageCreation(MontageConfig):
             num_parallel=self.parallel,
             backend=self.backend,
         )
-
-
-def create_montage_argparser() -> ArgumentParser:
-    return create_argparser(
-        MontageConfig(),
-        usage="python create_montage.py --dataset <azureml_dataset> --cluster <cluster_name> --level <level> "
-        "--exclude_by_slide_id <path_to_file> --conda_env <path_to_conda_env_file>",
-        description="Create an overview image with thumbnails of all slides in a dataset.")
 
 
 def create_config_from_args() -> MontageConfig:

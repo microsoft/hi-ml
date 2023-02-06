@@ -2,10 +2,13 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from argparse import ArgumentParser
 from pathlib import Path
 from typing import Optional
 
 import param
+
+from health_azure.utils import create_argparser
 
 
 class MontageConfig(param.Parameterized):
@@ -57,3 +60,10 @@ class MontageConfig(param.Parameterized):
     backend: str = \
         param.String(default="openslide",
                      doc="The backend to use for reading the slides. Can be 'openslide' or 'cucim'")
+
+
+def create_montage_argparser() -> ArgumentParser:
+    return create_argparser(
+        MontageConfig(),
+        usage="python create_montage.py --dataset <dataset_folder> --image_glob_pattern '**/*.tiff' --width 1000",
+        description="Create an overview image with thumbnails of all slides in a dataset.")
