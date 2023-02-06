@@ -54,9 +54,9 @@ def _create_slides_images(tmp_path: Path, n_slides: int = 6) -> MockPandaSlidesG
     print(f"Generated images in {tmp_path}")
     # Create a CSV file with the 3 required columns for montage creation. Mask is optional.
     metadata = {
-        SlideKey.SLIDE_ID: list(range(n_slides)),
+        SlideKey.SLIDE_ID: [f"ID {i}" for i in range(n_slides)],
         SlideKey.IMAGE: wsi_generator.generated_files,
-        SlideKey.LABEL: [1 for _ in range(n_slides)],
+        SlideKey.LABEL: [f"Label {i}" for i in range(n_slides)],
     }
     df = pd.DataFrame(data=metadata)
     csv_filename = tmp_path / SlidesDataset.DEFAULT_CSV_FILENAME
