@@ -68,7 +68,7 @@ def assert_plot_func_called_if_among_plot_options(
     [
         {},
         {PlotOption.HISTOGRAM, PlotOption.PR_CURVE},
-        {PlotOption.HISTOGRAM, PlotOption.NORMALIZED_CONFUSION_MATRIX},
+        {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX},
         {PlotOption.HISTOGRAM, PlotOption.TOP_BOTTOM_TILES, PlotOption.ATTENTION_HEATMAP},
         {
             PlotOption.HISTOGRAM,
