@@ -689,7 +689,7 @@ def create_v2_inputs(ml_client: MLClient, input_datasets: List[DatasetConfig]) -
     # Data assets can be of type "uri_folder", "uri_file", "mltable", all of which are value types in Input
     return {
         f"{V2_INPUT_PATTERN}{i}": Input(  # type: ignore
-            type=data_asset.type,
+            type=data_asset.type,  # type: ignore
             path=data_asset.path,
             mode=InputOutputModes.MOUNT if input_datasets[i].use_mounting else InputOutputModes.DOWNLOAD
         ) for i, data_asset in enumerate(input_assets)
@@ -709,7 +709,7 @@ def create_v2_outputs(ml_client: MLClient, output_datasets: List[DatasetConfig])
     return {
         # Data assets can be of type "uri_folder", "uri_file", "mltable", all of which are value types in Input
         f"{V2_OUTPUT_PATTERN}{i}": Output(  # type: ignore
-            type=data_asset.type,
+            type=data_asset.type,  # type: ignore
             path=data_asset.path,
             mode=InputOutputModes.MOUNT,  # hard-coded to mount for now, as this is the only mode that doesn't break
         ) for i, data_asset in enumerate(output_assets)
