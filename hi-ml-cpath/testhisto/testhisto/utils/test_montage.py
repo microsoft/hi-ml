@@ -26,8 +26,9 @@ from testhisto.mocks.slides_generator import MockPandaSlidesGenerator
 from testhisto.utils.utils_testhisto import assert_binary_files_match, full_ml_test_data_path
 
 
-# Set this to True to update all stored images in the test_data folder
+# Set this to True to update all stored images in the test_data folder.
 UPDATE_STORED_RESULTS = False
+
 
 def expected_results_folder() -> Path:
     """Gets the path to the folder where the expected montage results are stored.
@@ -192,7 +193,7 @@ def test_montage_included_and_excluded1(tmp_path: Path, exclude_items: bool) -> 
     assert montage_file.is_file()
     if UPDATE_STORED_RESULTS:
         shutil.copyfile(montage_file, expected_file)
-    assert_binary_files_match(montage_file,  expected_file)
+    assert_binary_files_match(montage_file, expected_file)
 
 
 def test_montage_included_and_excluded2(tmp_path: Path) -> None:
