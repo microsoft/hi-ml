@@ -27,7 +27,7 @@ from testhisto.utils.utils_testhisto import assert_binary_files_match, full_ml_t
 
 
 # Set this to True to update all stored images in the test_data folder.
-UPDATE_STORED_RESULTS = True
+UPDATE_STORED_RESULTS = False
 
 
 def expected_results_folder() -> Path:
