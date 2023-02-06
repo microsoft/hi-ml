@@ -150,7 +150,7 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
             test_plot_options=self.get_test_plot_options(),
             loading_params=create_from_matching_params(self, LoadingParams),
             save_intermediate_outputs=self.save_intermediate_outputs,
-            stratify_by=self.stratify_plots_by
+            stratify_plots_by=self.stratify_plots_by
         )
         if self.num_top_slides > 0:
             outputs_handler.tiles_selector = TilesSelector(

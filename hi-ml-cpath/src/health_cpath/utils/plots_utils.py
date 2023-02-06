@@ -240,7 +240,7 @@ class DeepMILPlotsHandler:
         figsize: Tuple[int, int] = (10, 10),
         stage: str = '',
         class_names: Optional[Sequence[str]] = None,
-        stratify_by: str = None
+        stratify_plots_by: str = None
     ) -> None:
         """Class that handles the plotting of DeepMIL results.
 
@@ -251,7 +251,7 @@ class DeepMILPlotsHandler:
         :param figsize: The figure size of tiles attention plots, defaults to (10, 10)
         :param stage: Test or Validation, used to name the plots
         :param class_names: List of class names, defaults to None
-        :param stratify_by: Name of metadata field to stratify output plots (PR curve, ROC curve).
+        :param stratify_plots_by: Name of metadata field to stratify output plots (PR curve, ROC curve).
         `None` by default (no stratification).
         """
 
@@ -266,7 +266,7 @@ class DeepMILPlotsHandler:
         self.loading_params.set_roi_type_to_foreground()
         self.slides_dataset: Optional[SlidesDataset] = None
         self.extra_slides_dataset: Optional[SlidesDataset] = None
-        self.stratify_by = stratify_by
+        self.stratify_plots_by = stratify_plots_by
 
     def get_slide_dict(self, slide_node: SlideNode, slides_dataset: SlidesDataset) -> Optional[SlideDictType]:
         """Returns the slide dictionary for a given slide node from a slides dataset.
@@ -338,7 +338,7 @@ class DeepMILPlotsHandler:
                 for slide in output_slide_ids:
                     idx = all_slide_ids.index(slide)
                     sample = self.slides_dataset[idx]
-                    stratify_metadata.append(sample[SlideKey.METADATA][self.stratify_by])
+                    stratify_metadata.append(sample[SlideKey.METADATA][self.stratify_plots_by])
             else:
                 stratify_metadata = None
 
