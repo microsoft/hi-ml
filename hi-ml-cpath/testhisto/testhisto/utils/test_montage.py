@@ -10,7 +10,7 @@ from typing import List
 
 from health_cpath.utils.montage import (
     MONTAGE_FILE,
-    MontageConfig,
+    MontageCreation,
     dataset_from_folder,
     dataset_to_records,
     make_montage,
@@ -274,7 +274,7 @@ def test_montage_from_folder(tmp_path: Path) -> None:
 def test_montage_from_folder_full(tmp_path: Path) -> None:
     """Test if a montage can be created from files in a folder, using the commandline entrypoint."""
     _create_slides_images(tmp_path, n_slides=6)
-    config = MontageConfig()
+    config = MontageCreation()
     config.image_glob_pattern = "**/*.tiff"
     config.width = 1000
     config.output_path = tmp_path / "outputs"
@@ -291,7 +291,7 @@ def test_montage_fails(tmp_path: Path) -> None:
     # there is no thumbnails present.
     image_file = tmp_path / "image.tiff"
     image_file.touch()
-    config = MontageConfig()
+    config = MontageCreation()
     config.image_glob_pattern = "**/*.tiff"
     config.width = 1000
     config.input_folder = tmp_path
@@ -301,7 +301,7 @@ def test_montage_fails(tmp_path: Path) -> None:
 
 def test_montage_no_images(tmp_path: Path) -> None:
     """Test if montage creation fails if no files are present"""
-    config = MontageConfig()
+    config = MontageCreation()
     config.input_folder = tmp_path
     config.image_glob_pattern = "**/*.tiff"
     with pytest.raises(ValueError, match="No images found"):
@@ -310,7 +310,7 @@ def test_montage_no_images(tmp_path: Path) -> None:
 
 def test_exclusion_list(tmp_path: Path) -> None:
     """Test if exclusion lists are read correctly from a CSV file."""
-    config = MontageConfig()
+    config = MontageCreation()
     assert config.read_exclusion_list() == []
 
     ids = ["id1"]
@@ -331,14 +331,14 @@ def test_exclusion_list(tmp_path: Path) -> None:
 
 def test_raises_if_no_glob(tmp_path: Path) -> None:
     """Test for exception if no file pattern specified."""
-    config = MontageConfig()
+    config = MontageCreation()
     with pytest.raises(ValueError, match="No dataset file"):
         config.create_montage(input_folder=tmp_path)
 
 
 def test_raises_if_no_images(tmp_path: Path) -> None:
     """Test for exception if no file pattern specified."""
-    config = MontageConfig()
+    config = MontageCreation()
     config.image_glob_pattern = "*.png"
     with pytest.raises(ValueError, match="No images found in folder"):
         config.create_montage(input_folder=tmp_path)
@@ -347,7 +347,7 @@ def test_raises_if_no_images(tmp_path: Path) -> None:
 def test_read_dataset_if_csv_present(tmp_path: Path) -> None:
     """Test if a SlidesDataset can be read from a folder that contains a dataset.csv file."""
     _create_slides_dataset(tmp_path)
-    config = MontageConfig()
+    config = MontageCreation()
     dataset = config.read_dataset(tmp_path)
     assert isinstance(dataset, SlidesDataset)
     dataset_csv = tmp_path / SlidesDataset.DEFAULT_CSV_FILENAME
@@ -359,7 +359,7 @@ def test_read_dataset_if_csv_present(tmp_path: Path) -> None:
 def test_montage_from_slides_dataset(tmp_path: Path) -> None:
     """Test if a montage can be created via SlidesDataset, when the folder contains a dataset.csv file."""
     _create_slides_dataset(tmp_path)
-    config = MontageConfig()
+    config = MontageCreation()
     config.width = 200
     outputs = tmp_path / "outputs"
     config.output_path = outputs
