@@ -9,10 +9,11 @@ from typing import Any, Collection, Dict, List
 from unittest.mock import MagicMock, patch
 import pytest
 import torch
+import numpy as np
 from health_cpath.preprocessing.loading import LoadingParams, ROIType
 from health_cpath.utils.naming import PlotOption, ResultsKey
 from health_cpath.utils.plots_utils import (DeepMILPlotsHandler, save_confusion_matrix, save_pr_curve,
-                                            save_roc_curve, get_list_from_results_dict)
+                                            save_roc_curve, get_list_from_results_dict, get_stratified_outputs)
 from health_cpath.utils.tiles_selection_utils import SlideNode, TilesSelector
 from testhisto.mocks.container import MockDeepSMILETilesPanda
 
@@ -213,3 +214,17 @@ def test_get_list_from_results_dict() -> None:
     assert all(isinstance(x, float) for x in scores)
     assert all(isinstance(x, int) for x in pred_labels)
     assert len(true_labels) == len(pred_labels) == len(scores)
+
+
+def test_get_stratified_outputs() -> None:
+    results = {ResultsKey.TRUE_LABEL: [torch.tensor(0), torch.tensor(1), torch.tensor(0), torch.tensor(1)],
+               ResultsKey.PROB: [torch.tensor(0.9), torch.tensor(0.6), torch.tensor(0.8), torch.tensor(0.9)]}
+    stratify_metadata = ["A", "B", "A", "A"]
+    true_labels = get_list_from_results_dict(results=results, results_key=ResultsKey.TRUE_LABEL)
+    scores = get_list_from_results_dict(results=results, results_key=ResultsKey.PROB)
+    stratified_outputs = get_stratified_outputs(true_labels=true_labels, scores=scores,
+                                                stratify_metadata=stratify_metadata)
+    assert isinstance(stratified_outputs, dict)
+    assert len(stratified_outputs.keys()) == len(np.unique(stratify_metadata))
+    for key in stratified_outputs.keys():
+        assert len(stratified_outputs[key][0]) == len(stratified_outputs[key][1])
