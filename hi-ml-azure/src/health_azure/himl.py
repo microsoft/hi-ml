@@ -25,7 +25,9 @@ from azure.ai.ml.constants import AssetTypes, InputOutputModes
 from azure.ai.ml.entities import Data, Job, JobResourceConfiguration, Command, Sweep
 from azure.ai.ml.entities import Environment as EnvironmentV2
 from azure.ai.ml.entities._job.distribution import MpiDistribution, PyTorchDistribution
+from azure.ai.ml.entities._component.command_component import CommandComponent
 
+from azure.ai.ml.dsl import pipeline
 from azure.ai.ml.sweep import Choice
 from azureml._base_sdk_common import user_agent
 from azureml.core import ComputeTarget, Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
@@ -533,30 +535,6 @@ def submit_run_v2(workspace: Optional[Workspace],
         if pytorch_processes_per_node < 1:
             raise ValueError("pytorch_processes_per_node must be >= 1")
 
-    def create_command_job(cmd: str) -> Command:
-        if pytorch_processes_per_node is None:
-            # On AML managed compute, we can set distribution to None for single node jobs.
-            # However, on Kubernetes compute, single node jobs don't see any GPUs. GPUs are visible for MpiDistribution
-            # jobs, so we set MpiDistribution even for single node jobs.
-            distribution: Union[MpiDistribution, PyTorchDistribution] = MpiDistribution(process_count_per_instance=1)
-        else:
-            distribution = PyTorchDistribution(process_count_per_instance=pytorch_processes_per_node)
-        return command(
-            code=str(snapshot_root_directory),
-            command=cmd,
-            inputs=input_datasets_v2,
-            outputs=output_datasets_v2,
-            environment=environment.name + "@latest",
-            compute=compute_target,
-            experiment_name=experiment_name,
-            tags=tags or {},
-            shm_size=docker_shm_size,
-            display_name=display_name,
-            instance_count=num_nodes,
-            distribution=None,
-            # resources=JobResourceConfiguration(properties={"itp": itp_config})
-        )
-
     itp_config = ITPConfiguration(
         resource_configuration=ITPResourceConfiguration(
             gpu_count=8,
@@ -586,6 +564,30 @@ def submit_run_v2(workspace: Optional[Workspace],
             max_retry_count=1,
         ),
     )
+
+    def create_command_job(cmd: str) -> Command:
+        if pytorch_processes_per_node is None:
+            # On AML managed compute, we can set distribution to None for single node jobs.
+            # However, on Kubernetes compute, single node jobs don't see any GPUs. GPUs are visible for MpiDistribution
+            # jobs, so we set MpiDistribution even for single node jobs.
+            distribution: Union[MpiDistribution, PyTorchDistribution] = MpiDistribution(process_count_per_instance=1)
+        else:
+            distribution = PyTorchDistribution(process_count_per_instance=pytorch_processes_per_node)
+        return command(
+            code=str(snapshot_root_directory),
+            command=cmd,
+            inputs=input_datasets_v2,
+            outputs=output_datasets_v2,
+            environment=environment.name + "@latest",
+            compute=compute_target,
+            experiment_name=experiment_name,
+            tags=tags or {},
+            shm_size=docker_shm_size,
+            display_name=display_name,
+            instance_count=num_nodes,
+            distribution=None,
+            resources=JobResourceConfiguration(properties={"itp": itp_config})
+        )
     if hyperparam_args:
         param_sampling = hyperparam_args[PARAM_SAMPLING_ARG]
 
@@ -613,8 +615,18 @@ def submit_run_v2(workspace: Optional[Workspace],
 
     else:
         job_to_submit = create_command_job(cmd)
-    job_to_submit.resources.properties["itp"] = itp_config
-    returned_job = ml_client.jobs.create_or_update(job_to_submit)
+
+    @pipeline()
+    def pipeline_func() -> None:
+        job: Command = create_command_job(cmd)
+        job.resources.properties["itp"] = itp_config
+        job()
+
+    pipeline1 = pipeline_func()
+    print(pipeline1)
+    pipeline1.settings.default_compute = compute_target
+    job.resources.properties["itp"] = itp_config
+    returned_job = ml_client.jobs.create_or_update(pipeline1)
     logging.info(f"URL to job: {returned_job.services['Studio'].endpoint}")  # type: ignore
     if wait_for_completion:
         print("Waiting for the completion of the AzureML job.")

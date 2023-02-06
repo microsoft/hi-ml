@@ -22,9 +22,12 @@
             "program": "${workspaceFolder}/src/health_ml/runner.py",
             "args": [
                 "--model=HelloWorld",
-                "--cluster=lite-testing-ds2",
+                "--cluster=itplabrr1cl1",
+                "--conda_env=${workspaceFolder}/../hi-ml-cpath/environment.yml",
+                "--tag=my_display_name"
             ],
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "justMyCode": false
         },
         {
             "name": "Train HelloWorld model with cross-validation",
