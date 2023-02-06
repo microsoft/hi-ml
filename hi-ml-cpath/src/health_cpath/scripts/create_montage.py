@@ -30,7 +30,7 @@ from health_azure.logging import logging_to_stdout  # noqa
 from health_cpath.utils.montage import create_config_from_args  # noqa
 
 
-if __name__ == "__main__":
+def main():
     config = create_config_from_args()
     logging_to_stdout()
     submit_to_azureml = config.cluster != ""
@@ -58,3 +58,7 @@ if __name__ == "__main__":
 
     assert input_folder is not None
     config.create_montage(input_folder)
+
+
+if __name__ == "__main__":
+    main()

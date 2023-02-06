@@ -20,6 +20,7 @@ from health_cpath.utils.montage import (
 )
 from health_cpath.datasets.base_dataset import SlidesDataset
 from health_cpath.datasets.panda_dataset import PandaDataset
+from health_cpath.scripts.create_montage import main as script_main
 from health_cpath.utils.naming import SlideKey
 from testhisto.mocks.base_data_generator import MockHistoDataType
 from testhisto.mocks.slides_generator import MockPandaSlidesGenerator
@@ -365,3 +366,24 @@ def test_montage_from_slides_dataset(tmp_path: Path) -> None:
     config.create_montage(input_folder=tmp_path)
     montage = outputs / MONTAGE_FILE
     assert montage.is_file()
+
+
+def test_montage_via_args(tmp_path: Path) -> None:
+    """Test if montage creation can be invoked correctly via commandline args."""
+    _create_slides_dataset(tmp_path)
+    outputs = tmp_path / "outputs"
+    with mock.patch("sys.argv",
+                    [
+                        "",
+                        "--dataset", str(tmp_path),
+                        "--image_glob_pattern", "**/*.tiff",
+                        "--output_path", str(outputs),
+                        "--width", "200"
+                    ]):
+        script_main()
+        montage = outputs / MONTAGE_FILE
+        assert montage.is_file()
+        expected_file = expected_results_folder() / "montage_via_args.png"
+        if UPDATE_STORED_RESULTS:
+            shutil.copyfile(montage, expected_file)
+        assert_binary_files_match(montage, expected_file)
