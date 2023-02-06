@@ -68,7 +68,7 @@ def assert_plot_func_called_if_among_plot_options(
     [
         {},
         {PlotOption.HISTOGRAM, PlotOption.PR_CURVE},
-        {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX},
+        {PlotOption.HISTOGRAM, PlotOption.NORMALIZED_CONFUSION_MATRIX},
         {PlotOption.HISTOGRAM, PlotOption.TOP_BOTTOM_TILES, PlotOption.ATTENTION_HEATMAP},
         {
             PlotOption.HISTOGRAM,
@@ -126,6 +126,10 @@ def test_save_conf_matrix_integration(tmp_path: Path) -> None:
 
     save_confusion_matrix(results, class_names, tmp_path, stage='foo')
     file = Path(tmp_path) / "normalized_confusion_matrix_foo.png"
+    assert file.exists()
+
+    save_confusion_matrix(results, class_names, tmp_path, stage='foo', normalize=None)
+    file = Path(tmp_path) / "confusion_matrix_foo.png"
     assert file.exists()
 
     # check that an error is raised if true labels include indices greater than the expected number of classes

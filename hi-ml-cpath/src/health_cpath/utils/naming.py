@@ -97,6 +97,7 @@ class PlotOption(Enum):
     SLIDE_THUMBNAIL = "slide_thumbnail"
     ATTENTION_HEATMAP = "attention_heatmap"
     ATTENTION_HISTOGRAM = "attention_histogram"
+    NORMALIZED_CONFUSION_MATRIX = "normalized_confusion_matrix"
     CONFUSION_MATRIX = "confusion_matrix"
     HISTOGRAM = "histogram"
     PR_CURVE = "pr_curve"
