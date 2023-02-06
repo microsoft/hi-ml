@@ -54,6 +54,7 @@ The `hi-ml` toolbox provides
    tcga_model.md
    ssl_on_tile_dataset.md
    dsa.md
+   montage_creation.md
 
 .. toctree::
    :maxdepth: 1
