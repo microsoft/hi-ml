@@ -4,6 +4,7 @@ import multiprocessing
 import shutil
 import sys
 import tempfile
+from argparse import ArgumentParser
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -549,13 +550,21 @@ class MontageConfig(param.Parameterized):
         )
 
 
+def create_montage_argparser() -> ArgumentParser:
+    return create_argparser(
+        MontageConfig(),
+        usage="python create_montage.py --dataset <azureml_dataset> --cluster <cluster_name> --level <level> "
+        "--exclude_by_slide_id <path_to_file> --conda_env <path_to_conda_env_file>",
+        description="Create an overview image with thumbnails of all slides in a dataset.")
+
+
 def create_config_from_args() -> MontageConfig:
+    """Creates a configuration object for montage creation from the commandline arguments.
+
+    :return: An object that describes all options for the montage creation.
+    """
+    parser = create_montage_argparser()
     config = MontageConfig()
-    parser = create_argparser(config,
-                              usage="python azure_create_montage.py --dataset <azureml_dataset> "
-                                    "--cluster <cluster_name> --level <level> --exclude_by_slide_id <path_to_file> "
-                                    "--conda_env <path_to_conda_env_file>",
-                              description="Create an overview image with thumbnails of all slides in a dataset.")
     parser_results = parse_arguments(parser, args=sys.argv[1:], fail_on_unknown_args=True)
     _ = apply_overrides(config, parser_results.args)
     return config

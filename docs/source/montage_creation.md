@@ -14,15 +14,7 @@ creation code provided here can be run in AzureML very easily.
    `**/foo_*.tiff`.
 1. Montages can be created by first reading a file called `dataset.csv` located in a folder. `dataset.csv` is
    effectively a Pandas DataFrame, with each row corresponding to a single image.
-
-When working with a `dataset.csv` file, the following columns are handled:
-
-| Column name | Contents | Required? |
-|---|---|---|
-| `image` | The path of the image that should be loaded | Required |
-| `slide_id` | A unique identifier for the slide | Required |
-| `label` | An additional string that will be placed on the montage, This could be `0`, `1`, `tumour`, ... | Optional |
-| `mask` | The path of an additional image that will rendered next to the image given in `image` | Optional |
+   More details on the format of `dataset.csv` can be found below.
 
 ## Setup
 
@@ -37,7 +29,8 @@ make pip_local
 ```
 
 All the commands listed below assume that
-- you have activated the Conda environment
+
+- you have activated the Conda environment `HimlHisto`
 - your current working directory is `<repo root>/hi-ml-cpath`
 
 ## Creating Montages From a Folder With Files
@@ -67,6 +60,84 @@ it assumes that a file `dataset.csv` is present. A montage will be created from 
 listed in `dataset.csv`. In addition, an optional `label` column will be added to the text that is
 overlayed onto the images itself.
 
+The dataset file should be a CSV file, with each row corresponding to a single image.
+When working with a `dataset.csv` file, the following columns are handled:
+
+| Column name | Contents | Required? |
+|---|---|---|
+| `image` | The path of the image that should be loaded | Required |
+| `slide_id` | A unique identifier for the slide | Required |
+| `label` | An additional string that will be placed on the montage, This could be `0`, `1`, `tumour`, ... | Optional |
+| `mask` | The path of an additional image that will rendered next to the image given in `image` | Optional |
+
+Consider this example dataset file:
+
+```text
+image,slide_id,label
+2.tiff,ID 2,Label 2
+3.tiff,ID 3,Label 3
+4.tiff,ID 4,Label 4
+5.tiff,ID 5,Label 5
+```
+
+Run montage creation with the following command:
+
 ```shell
 python src/health_cpath/scripts/create_montage.py --dataset /data --level 2 --width 1000 --output_path montage1
 ```
+
+This would produce (assuming that the images `2.tiff`, `3.tiff`, `4.tiff`, and `5.tiff` are present in the folder
+`/data`) a montage similar to this one:
+
+![image](images/montage_from_dataset.png)
+
+### Using Inclusion or Exclusion Lists
+
+When creating montages from a `dataset.csv` file, it is possible to create montages from only a specific subset
+of rows, or all rows apart from those in a given list.
+
+- Use the `--exclude_by_slide_id exclude.txt` argument to point to a file with a list of slide IDs that should be
+   excluded from the montage.
+- Use the `--include_by_slide_id include.txt` argument to point to a file with a list of slide IDs for which
+   the montage should be created.
+
+The files `exclude.txt` and `include.txt` should contain one slide ID per line.
+
+## Other Commandline Options
+
+- Use `--width=1000` to set the width of the output image. The height of the output image is determined
+  automatically. Mind that the default value is 60_000, suitable for several hundreds of images. If you want to try
+  out montage creation on a small set of files, ensure that you set the width to a reasonably small value.
+- Use `--parallel=2` to specify the number of parallel processes that should be used for creating image thumbnails.
+  Thumbnails are created in a first step, using multiple processes, and then the thumbnails are stitched into the final
+  montage in the main process.
+- Use `--backend=cucim` to switch the image reader backend to `CuCIM`. The default backend is `openslide`.
+
+## Running in Azure
+
+The `create_montage.py` script can be run in AzureML by adding 3 commandline arguments.
+
+To set up Azure and AzureML:
+
+- Follow the steps in the [AzureML onboarding](azure_setup.md).
+- At the end of the onboarding you will download a file `config.json` from your AzureML workspace to your repository
+  root folder.
+- To understand datasets, please read through the [AzureML datasets](datasets.md) documentation. Then create an AzureML
+  datastore that points to your Azure Blob Storage account.
+- Upload your WSIs to a folder in Azure Blob Storage. This can be done most efficiently via
+  [azcopy](http://aka.ms/azcopy). `azcopy` can also copy directly across cloud providers, for example from AWS to Azure.
+
+The following command will create a run in AzureML that executes montage creation:
+
+```shell
+python src/health_cpath/scripts/create_montage.py --dataset <folder_in_azure> --level 2 --width 1000 --cluster <clustername> --conda_env environment.yml --datastore <datastorename>
+```
+
+In this command, replace the following:
+
+- Replace `folder_in_azure` with the name of the folder in blob storage where you uploaded your WSIs.
+- `clustername` is the name of a [compute
+cluster](https://learn.microsoft.com/en-us/azure/machine-learning/quickstart-create-resources#create-compute-clusters)
+where your job will execute)
+- `datastorename` is the name of an AzureML datastore, essential a pointer to your blob storage account plus the
+  credentials that are necessary to access it.
