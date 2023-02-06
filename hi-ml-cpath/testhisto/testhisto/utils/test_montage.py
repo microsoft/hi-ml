@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 from unittest import mock
 import numpy as np
@@ -24,6 +25,9 @@ from testhisto.mocks.base_data_generator import MockHistoDataType
 from testhisto.mocks.slides_generator import MockPandaSlidesGenerator
 from testhisto.utils.utils_testhisto import assert_binary_files_match, full_ml_test_data_path
 
+
+# Set this to True to update all stored images in the test_data folder
+UPDATE_STORED_RESULTS = False
 
 def expected_results_folder() -> Path:
     """Gets the path to the folder where the expected montage results are stored.
@@ -103,6 +107,8 @@ def test_montage_from_dir(tmp_path: Path) -> None:
     assert montage_path.is_file()
 
     expected_file = expected_results_folder() / file_name
+    if UPDATE_STORED_RESULTS:
+        shutil.copyfile(montage_path, expected_file)
     assert_binary_files_match(montage_path, expected_file)
 
 
@@ -115,6 +121,8 @@ def test_montage_from_dataset(tmp_path: Path) -> None:
     make_montage(dataset, out_path=montage_with_masks, width=1000)
     assert montage_with_masks.is_file()
     expected_file = expected_results_folder() / file_name1
+    if UPDATE_STORED_RESULTS:
+        shutil.copyfile(montage_with_masks, expected_file)
     assert_binary_files_match(montage_with_masks, expected_file)
     # Create a montage from the dataset, this time only including the slides
     file_name2 = "montage_without_masks.png"
@@ -123,6 +131,8 @@ def test_montage_from_dataset(tmp_path: Path) -> None:
     make_montage(dataset, out_path=montage_without_masks, width=1000, num_parallel=1, masks=False)
     assert montage_without_masks.is_file()
     expected_file = expected_results_folder() / file_name2
+    if UPDATE_STORED_RESULTS:
+        shutil.copyfile(montage_without_masks, expected_file)
     assert_binary_files_match(montage_without_masks, expected_file)
 
 
@@ -177,10 +187,12 @@ def test_montage_included_and_excluded1(tmp_path: Path, exclude_items: bool) -> 
         output_path=out_path,
         width=1000
     )
-    expected_file = "montage_excluded.png" if exclude_items else "montage_included.png"
+    expected_file = expected_results_folder() / ("montage_excluded.png" if exclude_items else "montage_included.png")
     montage_file = out_path / MONTAGE_FILE
     assert montage_file.is_file()
-    assert_binary_files_match(montage_file, expected_results_folder() / expected_file)
+    if UPDATE_STORED_RESULTS:
+        shutil.copyfile(montage_file, expected_file)
+    assert_binary_files_match(montage_file,  expected_file)
 
 
 def test_montage_included_and_excluded2(tmp_path: Path) -> None:
@@ -257,6 +269,8 @@ def test_montage_from_folder(tmp_path: Path) -> None:
     assert result_file is not None
     assert result_file.is_file()
     expected_file = expected_results_folder() / "montage_from_folder.png"
+    if UPDATE_STORED_RESULTS:
+        shutil.copyfile(result_file, expected_file)
     assert_binary_files_match(result_file, expected_file)
 
 

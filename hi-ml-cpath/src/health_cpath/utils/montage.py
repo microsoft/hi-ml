@@ -95,7 +95,7 @@ def _make_thumbnail(sample: DatasetRecord, reader: WSIReader, level: int, slide_
         text_to_add = str(slide_id)
         if SlideKey.LABEL in sample:
             label = str(sample[SlideKey.LABEL])
-            text_to_add += ", " + str(label)
+            text_to_add += ": " + str(label)
         if text_to_add:
             add_text(image_pil, text_to_add)
         if masks_dir is not None and SlideKey.MASK in sample:
