@@ -30,7 +30,7 @@ from health_azure.logging import logging_to_stdout  # noqa
 from health_cpath.utils.montage import create_config_from_args  # noqa
 
 
-def main():
+def main() -> None:
     config = create_config_from_args()
     logging_to_stdout()
     submit_to_azureml = config.cluster != ""

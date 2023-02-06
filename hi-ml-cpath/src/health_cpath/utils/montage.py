@@ -21,8 +21,8 @@ from tqdm import tqdm
 from monai.data.image_reader import WSIReader
 
 from health_azure.utils import apply_overrides, parse_arguments
+from health_cpath.utils.montage_config import MontageConfig, create_montage_argparser
 from health_cpath.utils.naming import SlideKey
-from health_cpath.utils.montage_config import MontageConfig
 from health_cpath.datasets.base_dataset import SlidesDataset
 from health_ml.utils.type_annotations import TupleInt3
 
