@@ -2063,7 +2063,7 @@ def test_extract_v2_data_asset_from_env_vars() -> None:
 
     with patch.dict(os.environ, valid_mock_environment):
         input_dataset_0 = himl._extract_v2_data_asset_from_env_vars(0, "INPUT_")
-        output_dataset_0 = himl._extract_v2_inputs_outputs_from_env_vars(0, "OUTPUT_")
+        output_dataset_0 = himl._extract_v2_data_asset_from_env_vars(0, "OUTPUT_")
         assert input_dataset_0 == Path("input_0")
         assert output_dataset_0 == Path("output_0")
 
