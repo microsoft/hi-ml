@@ -948,7 +948,7 @@ def submit_to_azure_if_needed(  # type: ignore
             registered_env = register_environment_v2(environment, ml_client)
             input_datasets_v2 = create_v2_inputs(ml_client, cleaned_input_datasets)
             output_datasets_v2 = create_v2_outputs(ml_client, cleaned_output_datasets)
-
+            print(f"Input datasets: {input_datasets_v2}")
             job = submit_run_v2(workspace=workspace,
                                 input_datasets_v2=input_datasets_v2,
                                 output_datasets_v2=output_datasets_v2,
@@ -1086,14 +1086,17 @@ def _extract_v2_inputs_outputs_from_env_vars() -> Tuple[List[Path], List[Path]]:
     returned_input_datasets: List[Path] = []
     returned_output_datasets: List[Path] = []
 
-    input_pattern_string = "AZURE_ML_INPUT_" + V2_INPUT_PATTERN + r"\d+"
+    input_pattern_string = "AZURE_ML_INPUT_" + V2_INPUT_PATTERN
     output_pattern_string = r"AZURE_ML_OUTPUT_" + V2_OUTPUT_PATTERN + r"\d+"
 
     for env_var in os.environ:  # input and output env vars set by V2 SDK on job submission
-        if re.match(input_pattern_string, env_var):
-            returned_input_datasets.append(Path(os.environ[env_var]))
-        elif re.match(output_pattern_string, env_var):
+        # if re.match(input_pattern_string, env_var):
+        #     returned_input_datasets.append(Path(os.environ[env_var]))
+        if re.match(output_pattern_string, env_var):
             returned_output_datasets.append(Path(os.environ[env_var]))
+
+    for i in range(3):
+        returned_input_datasets.append(Path(os.environ[f"{input_pattern_string}{i}"]))
 
     return returned_input_datasets, returned_output_datasets
 
