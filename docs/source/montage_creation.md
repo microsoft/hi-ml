@@ -141,3 +141,10 @@ cluster](https://learn.microsoft.com/en-us/azure/machine-learning/quickstart-cre
 where your job will execute)
 - `datastorename` is the name of an AzureML datastore, essential a pointer to your blob storage account plus the
   credentials that are necessary to access it.
+
+The command above will only run for a minute or less - it will mostly create a snapshot of the code and send that off to
+the cloud for execution. At the end you will see a link printed out that takes you to the AzureML portal, where you can
+monitor the progress of the run.
+
+Once the run is completed, you will find two files `montage.jpg` and `montage.png` in the tab "Outputs" of the run, and
+an option to download it to your machine.
