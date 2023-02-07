@@ -1084,7 +1084,7 @@ def render_and_run_test_script(path: Path,
         return captured
     else:
 
-        if extra_options["strictly_aml_v1"] == "True":  # extra options are all strings
+        if "strictly_aml_v1" not in extra_options or extra_options["strictly_aml_v1"] == "True":
             return validate_v1_job_outputs(captured, path, extra_options)
 
         else:
