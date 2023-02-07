@@ -1089,7 +1089,10 @@ def _extract_v2_data_asset_from_env_vars(asset_num: int, asset_type_identifier: 
 
     asset_environment_variable = f"AZURE_ML_{asset_type_identifier}{asset_type_identifier}{asset_num}"
     asset_path_str = os.environ.get(asset_environment_variable)
-    assert asset_path_str is not None, f"Expected {asset_environment_variable} to be set in environment variables."
+    if asset_path_str is None:
+        raise ValueError(
+            f"Cannot find {asset_environment_variable} in environment variables, cannot retrieve data asset path."
+        )
 
     return Path(asset_path_str)
 

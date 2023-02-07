@@ -2067,7 +2067,7 @@ def test_extract_v2_data_asset_from_env_vars() -> None:
         assert input_dataset_0 == Path("input_0")
         assert output_dataset_0 == Path("output_0")
 
-        with pytest.raises(AssertionError):
+        with pytest.raises(ValueError):
             himl._extract_v2_data_asset_from_env_vars(5, "OUTPUT_")
 
     valid_mock_environment = {
