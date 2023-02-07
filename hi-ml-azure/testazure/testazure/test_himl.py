@@ -2055,26 +2055,17 @@ def test_submit_to_azure_v2_distributed() -> None:
 
 
 @pytest.mark.fast
-def test_extract_v2_inputs_outputs_from_env_vars() -> None:
+def test_extract_v2_data_asset_from_env_vars() -> None:
     valid_mock_environment = {
         "AZURE_ML_INPUT_INPUT_0": "input_0",
-        "AZURE_ML_INPUT_INPUT_1": "input_1",
         "AZURE_ML_OUTPUT_OUTPUT_0": "output_0",
-        "AZURE_ML_OUTPUT_OUTPUT_1": "output_1",
     }
 
     with patch.dict(os.environ, valid_mock_environment):
-        input_datasets, output_datasets = himl._extract_v2_inputs_outputs_from_env_vars()
-        assert input_datasets == [Path("input_0"), Path("input_1")]
-        assert output_datasets == [Path("output_0"), Path("output_1")]
+        input_dataset_0 = himl._extract_v2_data_asset_from_env_vars(0, "INPUT_")
+        output_dataset_0 = himl._extract_v2_inputs_outputs_from_env_vars(0, "OUTPUT_")
+        assert input_dataset_0 == Path("input_0")
+        assert output_dataset_0 == Path("output_0")
 
-    invalid_mock_environment = {
-        "ML_INPUT_INPUT_0": "input_0",
-        "AZURE_ML_INPUT_INPUT__1": "input_1",
-        "AZURE_ML_OUTPUT_OUTPUT_test": "output_0",
-        "bad_string": "output_1",
-    }
-
-    with patch.dict(os.environ, invalid_mock_environment):
-        input_datasets, output_datasets = himl._extract_v2_inputs_outputs_from_env_vars()
-        assert input_datasets == output_datasets == []
+        with pytest.raises(AssertionError):
+            himl._extract_v2_data_asset_from_env_vars(5, "OUTPUT_")
