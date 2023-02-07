@@ -17,7 +17,7 @@ from argparse import ArgumentParser
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, Generator, List, Literal, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
 
 from azure.ai.ml import MLClient, Input, Output, command
 from azure.ai.ml.constants import InputOutputModes
@@ -71,7 +71,7 @@ GOAL_ARG = "goal"
 
 V2_INPUT_ASSET_IDENTIFIER = "INPUT_"
 V2_OUTPUT_ASSET_IDENTIFIER = "OUTPUT_"
-ASSET_IDENTIFIER_TYPE = Literal[V2_INPUT_ASSET_IDENTIFIER, V2_OUTPUT_ASSET_IDENTIFIER]
+# TODO: upgrade to python 3.8+ and create a Literal type for the combination of the above two vars
 
 
 @dataclass
@@ -1079,7 +1079,7 @@ def _get_dataset_names_from_string(sys_arg: str, pattern: str) -> Path:
     return dataset_path
 
 
-def _extract_v2_data_asset_from_env_vars(asset_num: int, asset_type_identifier: ASSET_IDENTIFIER_TYPE) -> Path:
+def _extract_v2_data_asset_from_env_vars(asset_num: int, asset_type_identifier: str) -> Path:
     """Provides path to the given data assets for v2 jobs by extracting it from the environment variables.
 
     :param asset_num: The id number of the data asset to extract
