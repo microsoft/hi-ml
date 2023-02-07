@@ -2069,3 +2069,17 @@ def test_extract_v2_data_asset_from_env_vars() -> None:
 
         with pytest.raises(AssertionError):
             himl._extract_v2_data_asset_from_env_vars(5, "OUTPUT_")
+
+    valid_mock_environment = {
+        "AZURE_ML_INPUT_INPUT_2": "input_2",
+        "AZURE_ML_INPUT_INPUT_1": "input_1",
+        "AZURE_ML_INPUT_INPUT_0": "input_0",
+        "AZURE_ML_INPUT_INPUT_3": "input_3",
+    }
+
+    with patch.dict(os.environ, valid_mock_environment):
+        input_datasets = [
+            himl._extract_v2_data_asset_from_env_vars(i, "INPUT_")
+            for i in range(len(valid_mock_environment))
+        ]
+        assert input_datasets == [Path("input_0"), Path("input_1"), Path("input_2"), Path("input_3")]
