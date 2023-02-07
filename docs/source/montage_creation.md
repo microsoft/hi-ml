@@ -1,4 +1,4 @@
-# Creating Montages from Whole Slide Images
+# Creating montages from whole slide images (WSIs)
 
 For working with large amounts of histology data, it is often useful to create montages of the data.
 Montages are a collection of images that are stitched together to form a single image.
@@ -8,13 +8,18 @@ The `hi-ml-cpath` toolbox contains scripts that help with the creation of montag
 Creating montages can be very time-consuming. It can hence be helpful to run the process in the cloud. The montage
 creation code provided here can be run in AzureML very easily.
 
-## Types of Data for Montage Creation
+## Types of data for montage creation
 
-1. Montages can be created from a folder of imagees, by specifying the name of the folder and a glob pattern, like
+1. Montages can be created from a folder of images, by specifying the name of the folder and a glob pattern, like
    `**/foo_*.tiff`.
 1. Montages can be created by first reading a file called `dataset.csv` located in a folder. `dataset.csv` is
    effectively a Pandas DataFrame, with each row corresponding to a single image.
    More details on the format of `dataset.csv` can be found below.
+
+Montage creation works for all WSI image formats that are supported by either of the two possible backends:
+
+- [`openslide`](https://openslide.org/api/python/) supports `.tif(f)`, `.ndpi`, `.scn` and others
+- [`cucim`](https://pypi.org/project/cucim/) supports `.svs`, `.tiff` and others
 
 ## Setup
 
@@ -33,9 +38,9 @@ All the commands listed below assume that
 - you have activated the Conda environment `HimlHisto`
 - your current working directory is `<repo root>/hi-ml-cpath`
 
-## Creating Montages From a Folder With Files
+## Creating montages from a folder with files
 
-The following command will create a montage from all files in the folder `/data` that match the glob pattern
+The following command will create a montage from all files in the folder `/data` that match the pattern
 `**/*.tiff`.
 
 ```shell
@@ -45,15 +50,17 @@ python src/health_cpath/scripts/create_montage.py --dataset /data --image_glob_p
 This will create a montage from all TIFF files in folder `/data`. Each TIFF file is read as a multi-level image, and
 level 2 is read for creating the montage.
 
-The `--width` argument determines the width in pixel of the output image. The height of the output image is
+The `--width` argument determines the width in pixel of the output image. The height of the output image is determined
+automatically. Note that the width given here, 1000, is suitable only for montages from a very small number of files
+(say, 10). See below for more details on this commandline option.
 
-This will output two images, `montage1/montage.jpg` and `montage1/montage.png`.
+This will create two images in the folder specified by the `--output_path montage1` argument, hence outputting the files `montage1/montage.jpg` and `montage1/montage.png`.
 
 Here's an example how this could look like for a folder with 6 images, `0.tiff` through `5.tiff`:
 
 ![image](images/montage_from_folder.png)
 
-## Creating Montages From a `dataset.csv` File
+## Creating montages from a `dataset.csv` file
 
 If the montage creation script is only pointed to a folder, without providing a glob pattern,
 it assumes that a file `dataset.csv` is present. A montage will be created from only the images
@@ -63,12 +70,12 @@ overlayed onto the images itself.
 The dataset file should be a CSV file, with each row corresponding to a single image.
 When working with a `dataset.csv` file, the following columns are handled:
 
-| Column name | Contents | Required? |
-|---|---|---|
-| `image` | The path of the image that should be loaded | Required |
-| `slide_id` | A unique identifier for the slide | Required |
-| `label` | An additional string that will be placed on the montage, This could be `0`, `1`, `tumour`, ... | Optional |
-| `mask` | The path of an additional image that will rendered next to the image given in `image` | Optional |
+| Column name | Contents                                                                                       | Required? |
+| ----------- | ---------------------------------------------------------------------------------------------- | --------- |
+| `image`     | The path of the image that should be loaded                                                    | Required  |
+| `slide_id`  | A unique identifier for the slide                                                              | Required  |
+| `label`     | An additional string that will be placed on the montage, This could be `0`, `1`, `tumour`, ... | Optional  |
+| `mask`      | The path of an additional image that will rendered next to the image given in `image`          | Optional  |
 
 Consider this example dataset file:
 
@@ -91,7 +98,7 @@ This would produce (assuming that the images `2.tiff`, `3.tiff`, `4.tiff`, and `
 
 ![image](images/montage_from_dataset.png)
 
-### Using Inclusion or Exclusion Lists
+### Using inclusion or exclusion lists
 
 When creating montages from a `dataset.csv` file, it is possible to create montages from only a specific subset
 of rows, or all rows apart from those in a given list.
@@ -103,11 +110,12 @@ of rows, or all rows apart from those in a given list.
 
 The files `exclude.txt` and `include.txt` should contain one slide ID per line.
 
-## Other Commandline Options
+## Other commandline options
 
-- Use `--width=1000` to set the width of the output image. The height of the output image is determined
-  automatically. Mind that the default value is 60_000, suitable for several hundreds of images. If you want to try
-  out montage creation on a small set of files, ensure that you set the width to a reasonably small value.
+- Use `--width=20000` to set the width of the output montage image. The height of the output image is determined
+  automatically. Mind that the default value is 60_000, suitable for several hundreds of input images. If you want to try
+  out montage creation on a small set of files (say, 10), ensure that you set the width to a reasonably small value,
+  like `--width=1000`
 - Use `--parallel=2` to specify the number of parallel processes that should be used for creating image thumbnails.
   Thumbnails are created in a first step, using multiple processes, and then the thumbnails are stitched into the final
   montage in the main process.

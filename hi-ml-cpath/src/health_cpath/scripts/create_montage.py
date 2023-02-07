@@ -1,11 +1,11 @@
+#  -------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  -------------------------------------------------------------------------------------------
 """
-This script is used to create a montage of slides, given a slides dataset (e.g. TCGA-PRAD, TCGA-BRCA).
+This script can be used to create a montage of slides, given a slides dataset or a folder with images.
 
-To submit to Azure ML, run the following:
-`python azure_create_montage.py --azureml`
-
-A json configuration file containing the credentials to the Azure workspace and an environment.yml file are expected
-in input.
+For a full documentation of the parameters, run `python create_montage.py --help`
 """
 import logging
 from pathlib import Path
@@ -13,17 +13,14 @@ import sys
 from typing import Optional
 
 
-current_file = Path(__file__)
-repository_root = current_file.absolute().parent.parent.parent.parent.parent
-sys.path.append(str(repository_root))
-
-himl_root = repository_root / "hi-ml"
-folders_to_add = [himl_root / "hi-ml" / "src",
-                  himl_root / "hi-ml-azure" / "src",
-                  himl_root / "hi-ml-cpath" / "src"]
+current_file = Path(__file__).absolute()
+repository_root = current_file.parent.parent.parent.parent.parent
+folders_to_add = [repository_root / "hi-ml" / "src",
+                  repository_root / "hi-ml-azure" / "src",
+                  repository_root / "hi-ml-cpath" / "src"]
 for folder in folders_to_add:
-    if folder.is_dir():
-        sys.path.insert(0, str(folder))
+    assert folder.is_dir()
+    sys.path.insert(0, str(folder))
 
 from health_azure.himl import submit_to_azure_if_needed, DatasetConfig  # noqa
 from health_azure.logging import logging_to_stdout  # noqa
