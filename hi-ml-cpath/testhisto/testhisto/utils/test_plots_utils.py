@@ -10,6 +10,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 import torch
 import numpy as np
+
+from health_cpath.datasets.panda_dataset import PandaDataset
 from health_cpath.preprocessing.loading import LoadingParams, ROIType
 from health_cpath.utils.naming import PlotOption, ResultsKey
 from health_cpath.utils.plots_utils import (DeepMILPlotsHandler, save_confusion_matrix, save_pr_curve,
@@ -230,3 +232,21 @@ def test_get_stratified_outputs() -> None:
     assert len(stratified_outputs.keys()) == len(np.unique(stratify_metadata))
     for key in stratified_outputs.keys():
         assert len(stratified_outputs[key][0]) == len(stratified_outputs[key][1])
+
+
+@pytest.mark.parametrize("stratify_plots_by", ['data_provider', None])
+def test_plots_handler_get_metadata(mock_panda_slides_root_dir: Path, stratify_plots_by: str) -> None:
+    results = {ResultsKey.TRUE_LABEL: [torch.tensor(0), torch.tensor(1), torch.tensor(0)],
+               ResultsKey.PRED_LABEL: [torch.tensor(1), torch.tensor(0), torch.tensor(0)],
+               ResultsKey.PROB: [torch.tensor(0.9), torch.tensor(0.6), torch.tensor(0.8)],
+               ResultsKey.SLIDE_ID: [['_0', '_0'], ['_1', '_1'], ['_2', '_2']]}
+
+    plot_options = {PlotOption.PR_CURVE, PlotOption.ROC_CURVE}
+    plots_handler = DeepMILPlotsHandler(plot_options=plot_options, class_names=[], loading_params=LoadingParams(),
+                                        stratify_plots_by=stratify_plots_by)
+    plots_handler.slides_dataset = PandaDataset(root=mock_panda_slides_root_dir)
+    metadata = plots_handler.get_metadata(results=results)    # type: ignore
+    if stratify_plots_by is None:
+        assert metadata is None
+    else:
+        assert len(metadata) == len(results[ResultsKey.PRED_LABEL])         # type: ignore
