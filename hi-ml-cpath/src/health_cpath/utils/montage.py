@@ -41,7 +41,7 @@ def add_text(image: Image, text: str, y: float = 0.9, color: TupleInt3 = (27, 77
     :param color: A 3-tuple indicating the fill color of the text (default = (27, 77, 40)).
     :param fontsize_step: Steps of font size to reduce if the text size is more than image size (default=2).
     """
-    # This fond is usually found in a path like /usr/share/fonts/truetype/dejavu
+    # This font is usually found in a path like /usr/share/fonts/truetype/dejavu
     font_path = Path('DejaVuSans.ttf')
     fontsize = 48
     draw = ImageDraw.Draw(image)
@@ -455,9 +455,9 @@ class MontageCreation(MontageConfig):
             return []
 
     def read_dataset(self, input_folder: Path) -> DatasetOrDataframe:
-        """Read the dataset that should be used for creating the montage. If the dataset is recognized as either
-        TCGA-PRAD or TCGA-BRCA, the dataset will be read from the predefined dataset. Otherwise, all image files in the
-        input folder will be used.
+        """Read the dataset that should be used for creating the montage. If a glob pattern has been provided, then
+        all the image files specified by that pattern will be used for the montage. Otherwise, a file `dataset.csv`
+        is expected in the input folder. The `dataset.csv` will be used to create an instance of `SlidesDataset`.
 
         :param input_folder: The folder where the dataset is located.
         :return: A SlidesDataset or dataframe object that contains the dataset."""
