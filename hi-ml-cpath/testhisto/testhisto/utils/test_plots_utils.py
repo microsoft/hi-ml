@@ -164,9 +164,10 @@ def test_pr_curve_integration(tmp_path: Path, caplog: pytest.LogCaptureFixture) 
         ResultsKey.TRUE_LABEL: [0, 1, 0, 1, 0, 1],
         ResultsKey.PROB: [0.1, 0.8, 0.6, 0.3, 0.5, 0.4]
     }
+    stratify_metadata = ["A", "B", "A", "A", "B", "B"]
 
     # check plot is produced and it has right filename
-    save_pr_curve(results, tmp_path, stage='foo')  # type: ignore
+    save_pr_curve(results, tmp_path, stage='foo', stratify_metadata=stratify_metadata)  # type: ignore
     file = Path(tmp_path) / "pr_curve_foo.png"
     assert file.exists()
     os.remove(file)
@@ -186,9 +187,10 @@ def test_roc_curve_integration(tmp_path: Path, caplog: pytest.LogCaptureFixture)
         ResultsKey.TRUE_LABEL: [0, 1, 0, 1, 0, 1],
         ResultsKey.PROB: [0.1, 0.8, 0.6, 0.3, 0.5, 0.4]
     }
+    stratify_metadata = ["A", "B", "A", "A", "B", "B"]
 
     # check plot is produced and it has right filename
-    save_roc_curve(results, tmp_path, stage='foo')  # type: ignore
+    save_roc_curve(results, tmp_path, stage='foo', stratify_metadata=stratify_metadata)  # type: ignore
     file = Path(tmp_path) / "roc_curve_foo.png"
     assert file.exists()
     os.remove(file)
