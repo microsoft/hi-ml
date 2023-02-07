@@ -345,7 +345,7 @@ class DeepMILPlotsHandler:
         """
         Get metadata of outputs (validation or test) from slides dataset to stratify plots (e.g PR curve, ROC curve).
         """
-        if self.slides_dataset is not None:
+        if self.slides_dataset is not None and self.stratify_plots_by is not None:
             slides_df = self.slides_dataset.dataset_df
             all_slide_ids = slides_df.index.to_list()
             output_slide_ids = [x[0] for x in results[ResultsKey.SLIDE_ID]]   # get unique ID from bag
