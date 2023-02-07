@@ -1945,7 +1945,7 @@ def aggregate_hyperdrive_metrics(
         run = get_aml_run_from_run_id(run_id, aml_workspace=workspace)
     # assert isinstance(run, HyperDriveRun)
     metrics: DefaultDict = defaultdict()
-    for child_run in run.get_children():  # type: ignore
+    for child_run in run.get_children(status="Completed"):  # type: ignore
         child_run_metrics = child_run.get_metrics()
         keep_metrics = keep_metrics or child_run_metrics.keys()
 
