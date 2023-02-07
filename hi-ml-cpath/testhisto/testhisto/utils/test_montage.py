@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 from PIL import Image
 from pandas.testing import assert_frame_equal
-from typing import List
+from typing import Generator, List
 
 from health_cpath.utils.montage import (
     MONTAGE_FILE,
@@ -30,6 +30,8 @@ from testhisto.utils.utils_testhisto import assert_binary_files_match, full_ml_t
 # Set this to True to update all stored images in the test_data folder.
 UPDATE_STORED_RESULTS = False
 
+NUM_SLIDES = 6
+
 
 def expected_results_folder() -> Path:
     """Gets the path to the folder where the expected montage results are stored.
@@ -39,13 +41,13 @@ def expected_results_folder() -> Path:
     return full_ml_test_data_path("montages")
 
 
-def _create_slides_images(tmp_path: Path, n_slides: int = 6) -> MockPandaSlidesGenerator:
+def _create_slides_images(tmp_path: Path) -> MockPandaSlidesGenerator:
     print(f"Result folder: {tmp_path}")
     wsi_generator = MockPandaSlidesGenerator(
         dest_data_path=tmp_path,
         mock_type=MockHistoDataType.FAKE,
         n_tiles=4,
-        n_slides=n_slides,
+        n_slides=NUM_SLIDES,
         n_channels=3,
         n_levels=3,
         tile_size=28,
@@ -56,26 +58,35 @@ def _create_slides_images(tmp_path: Path, n_slides: int = 6) -> MockPandaSlidesG
     return wsi_generator
 
 
-def _create_panda_dataset(tmp_path: Path, n_slides: int = 6) -> SlidesDataset:
-    _create_slides_images(tmp_path, n_slides)
+@pytest.fixture(scope="module")
+def temp_panda_dataset(tmp_path_factory: pytest.TempPathFactory) -> Generator:
+    tmp_path = tmp_path_factory.mktemp("mock_panda")
+    _create_slides_images(tmp_path)
     usecols = [PandaDataset.SLIDE_ID_COLUMN, PandaDataset.MASK_COLUMN]
-    dataset = PandaDataset(root=tmp_path, dataframe_kwargs={"usecols": usecols + list(PandaDataset.METADATA_COLUMNS)})
-    return dataset
+    yield PandaDataset(root=tmp_path, dataframe_kwargs={"usecols": usecols + list(PandaDataset.METADATA_COLUMNS)})
 
 
-def _create_slides_dataset(tmp_path: Path, n_slides: int = 6) -> SlidesDataset:
-    wsi_generator = _create_slides_images(tmp_path, n_slides)
+@pytest.fixture(scope="module")
+def temp_slides(tmp_path_factory: pytest.TempPathFactory) -> Generator:
+    tmp_path = tmp_path_factory.mktemp("mock_wsi")
+    _create_slides_images(tmp_path)
+    yield tmp_path
+
+
+@pytest.fixture(scope="module")
+def temp_slides_dataset(tmp_path_factory: pytest.TempPathFactory) -> Generator:
+    tmp_path = tmp_path_factory.mktemp("mock_slides")
+    wsi_generator = _create_slides_images(tmp_path)
     # Create a CSV file with the 3 required columns for montage creation. Mask is optional.
     metadata = {
-        SlideKey.SLIDE_ID: [f"ID {i}" for i in range(n_slides)],
+        SlideKey.SLIDE_ID: [f"ID {i}" for i in range(NUM_SLIDES)],
         SlideKey.IMAGE: wsi_generator.generated_files,
-        SlideKey.LABEL: [f"Label {i}" for i in range(n_slides)],
+        SlideKey.LABEL: [f"Label {i}" for i in range(NUM_SLIDES)],
     }
     df = pd.DataFrame(data=metadata)
     csv_filename = tmp_path / SlidesDataset.DEFAULT_CSV_FILENAME
     df.to_csv(csv_filename, index=False)
-    dataset = SlidesDataset(root=tmp_path)
-    return dataset
+    yield SlidesDataset(root=tmp_path)
 
 
 def _create_folder_with_images(tmp_path: Path, num_images: int = 4, image_size: int = 20) -> None:
@@ -121,9 +132,9 @@ def test_montage_from_dir(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("use_masks", [True, False])
-def test_montage_from_dataset(tmp_path: Path, use_masks: bool) -> None:
-    """Test if a montage can be generated from a slides dataset."""
-    dataset = dataset_to_records(_create_panda_dataset(tmp_path))
+def test_montage_from_dataset(tmp_path: Path, temp_panda_dataset: PandaDataset, use_masks: bool) -> None:
+    """Test if a montage can be generated from a slides dataset that uses masks."""
+    dataset = dataset_to_records(temp_panda_dataset)
     montage = tmp_path / "montage.png"
     make_montage(dataset, out_path=montage, width=1000, num_parallel=1, masks=use_masks)
     assert montage.is_file()
@@ -172,13 +183,15 @@ def test_restrict_dataset_with_index() -> None:
 
 
 @pytest.mark.parametrize("exclude_items", [True, False])
-def test_montage_included_and_excluded1(tmp_path: Path, exclude_items: bool) -> None:
+def test_montage_included_and_excluded1(
+        tmp_path: Path,
+        temp_slides_dataset: SlidesDataset,
+        exclude_items: bool) -> None:
     """Check that a montage with exclusion list is handled correctly."""
-    dataset = _create_slides_dataset(tmp_path)
     out_path = tmp_path / "montage"
     out_path.mkdir(exist_ok=True)
     montage_from_included_and_excluded_slides(
-        dataset,
+        temp_slides_dataset,
         items=["ID 0", "ID 1"],
         exclude_items=exclude_items,
         output_path=out_path,
@@ -192,15 +205,14 @@ def test_montage_included_and_excluded1(tmp_path: Path, exclude_items: bool) -> 
     assert_binary_files_match(montage_file, expected_file)
 
 
-def test_montage_included_and_excluded2(tmp_path: Path) -> None:
+def test_montage_included_and_excluded2(tmp_path: Path, temp_slides_dataset: SlidesDataset) -> None:
     """Check that a montage with exclusion list supplies the correct set of images."""
-    dataset = _create_slides_dataset(tmp_path)
     out_path = tmp_path / "montage"
     out_path.mkdir(exist_ok=True)
     for exclude_items in [True, False]:
         with mock.patch("health_cpath.utils.montage.make_montage") as mock_montage:
             montage_file = montage_from_included_and_excluded_slides(
-                dataset,
+                temp_slides_dataset,
                 items=["ID 0", "ID 1"],
                 exclude_items=exclude_items,
                 output_path=out_path,
@@ -255,13 +267,11 @@ def test_dataset_from_folder_fails(tmp_path: Path) -> None:
         dataset_from_folder(tmp_path / "file.txt")
 
 
-def test_montage_from_folder(tmp_path: Path) -> None:
+def test_montage_from_folder(tmp_path: Path, temp_slides: Path) -> None:
     """Test if a montage can be created from files in a folder."""
 
-    num_slides = 6
-    _create_slides_images(tmp_path, n_slides=num_slides)
-    dataset = dataset_from_folder(tmp_path, glob_pattern="**/*.tiff")
-    assert len(dataset) == num_slides
+    dataset = dataset_from_folder(temp_slides, glob_pattern="**/*.tiff")
+    assert len(dataset) == NUM_SLIDES
     result_file = montage_from_included_and_excluded_slides(dataset, output_path=tmp_path, width=1000)
     assert result_file is not None
     assert result_file.is_file()
@@ -271,16 +281,15 @@ def test_montage_from_folder(tmp_path: Path) -> None:
     assert_binary_files_match(result_file, expected_file)
 
 
-def test_montage_from_folder_full(tmp_path: Path) -> None:
+def test_montage_from_folder_full(tmp_path: Path, temp_slides: Path) -> None:
     """Test if a montage can be created from files in a folder, using the commandline entrypoint."""
-    _create_slides_images(tmp_path, n_slides=6)
     config = MontageCreation()
     config.image_glob_pattern = "**/*.tiff"
     config.width = 1000
     config.output_path = tmp_path / "outputs"
     # Cucim is the only backend that supports TIFF files as created in the test images, openslide fails.
     config.backend = "cucim"
-    config.create_montage(input_folder=tmp_path)
+    config.create_montage(input_folder=temp_slides)
     assert (config.output_path / "montage.png").is_file()
 
 
@@ -344,38 +353,37 @@ def test_raises_if_no_images(tmp_path: Path) -> None:
         config.create_montage(input_folder=tmp_path)
 
 
-def test_read_dataset_if_csv_present(tmp_path: Path) -> None:
+def test_read_dataset_if_csv_present(temp_slides_dataset: SlidesDataset) -> None:
     """Test if a SlidesDataset can be read from a folder that contains a dataset.csv file."""
-    _create_slides_dataset(tmp_path)
+    dataset_path = temp_slides_dataset.root_dir
     config = MontageCreation()
-    dataset = config.read_dataset(tmp_path)
+    dataset = config.read_dataset(dataset_path)
     assert isinstance(dataset, SlidesDataset)
-    dataset_csv = tmp_path / SlidesDataset.DEFAULT_CSV_FILENAME
+    dataset_csv = dataset_path / SlidesDataset.DEFAULT_CSV_FILENAME
     dataset_csv.unlink()
     with pytest.raises(ValueError, match="No dataset file"):
-        config.read_dataset(tmp_path)
+        config.read_dataset(dataset_path)
 
 
-def test_montage_from_slides_dataset(tmp_path: Path) -> None:
+def test_montage_from_slides_dataset(tmp_path: Path, temp_slides_dataset: SlidesDataset) -> None:
     """Test if a montage can be created via SlidesDataset, when the folder contains a dataset.csv file."""
-    _create_slides_dataset(tmp_path)
+    dataset_path = temp_slides_dataset.root_dir
     config = MontageCreation()
     config.width = 200
     outputs = tmp_path / "outputs"
     config.output_path = outputs
-    config.create_montage(input_folder=tmp_path)
+    config.create_montage(input_folder=dataset_path)
     montage = outputs / MONTAGE_FILE
     assert montage.is_file()
 
 
-def test_montage_via_args(tmp_path: Path) -> None:
+def test_montage_via_args(tmp_path: Path, temp_slides: Path) -> None:
     """Test if montage creation can be invoked correctly via commandline args."""
-    _create_slides_dataset(tmp_path)
     outputs = tmp_path / "outputs"
     with mock.patch("sys.argv",
                     [
                         "",
-                        "--dataset", str(tmp_path),
+                        "--dataset", str(temp_slides),
                         "--image_glob_pattern", "**/*.tiff",
                         "--output_path", str(outputs),
                         "--width", "200"

@@ -11,27 +11,30 @@ import param
 from health_azure.utils import create_argparser
 
 
-class MontageConfig(param.Parameterized):
+class AzureRunConfig(param.Parameterized):
+    cluster: str = \
+        param.String(default="", allow_None=False,
+                     doc="The name of the GPU or CPU cluster inside the AzureML workspace"
+                         "that should execute the job. To run on your local machine, omit this argument.")
+    datastore = \
+        param.String(default="",
+                     doc="The name of the AzureML datastore where the dataset is defined.")
     dataset = \
         param.String(default="",
                      doc="The name of the AzureML dataset to use for creating the montage. The dataset will be "
                          "mounted automatically. Use an absolute path to a folder on the local machine to bypass "
                          "mounting.")
-    datastore = \
-        param.String(default="",
-                     doc="The name of the AzureML datastore where the dataset is defined.")
     conda_env: Optional[Path] = \
         param.ClassSelector(class_=Path, default=Path("hi-ml/hi-ml-cpath/environment.yml"), allow_None=True,
                             doc="The Conda environment file that should be used when submitting the present run to "
                                 "AzureML. If not specified, the hi-ml-cpath environment file will be used.")
+
+
+class MontageConfig(AzureRunConfig):
     level: int = \
         param.Integer(default=1,
                       doc="Resolution downsample level, e.g. if lowest resolution is 40x and the available "
                           "downsample levels are [1.0, 4.0, 16.0] then level = 1 corresponds to 10x magnification")
-    cluster: str = \
-        param.String(default="", allow_None=False,
-                     doc="The name of the GPU or CPU cluster inside the AzureML workspace"
-                         "that should execute the job. To run on your local machine, omit this argument.")
     exclude_by_slide_id: Optional[Path] = \
         param.ClassSelector(class_=Path, default=None, allow_None=True,
                             doc="Provide a file that contains slide IDs that should be excluded. File format is "
