@@ -285,14 +285,13 @@ class DeepMILOutputsHandler:
                                             maximise=maximise)
         self.save_intermediate_outputs = save_intermediate_outputs
         self.tiles_selector: Optional[TilesSelector] = None
-        self.stratify_plots_by = stratify_plots_by
         self.val_plots_handler = DeepMILPlotsHandler(
             plot_options=val_plot_options,
             tile_size=tile_size,
             class_names=self.class_names,
             stage=ModelKey.VAL,
             loading_params=deepcopy(loading_params),
-            stratify_plots_by=self.stratify_plots_by
+            stratify_plots_by=stratify_plots_by
         )
         self.test_plots_handler = DeepMILPlotsHandler(
             plot_options=test_plot_options,
@@ -300,7 +299,7 @@ class DeepMILOutputsHandler:
             class_names=self.class_names,
             stage=ModelKey.TEST,
             loading_params=deepcopy(loading_params),
-            stratify_plots_by=self.stratify_plots_by
+            stratify_plots_by=stratify_plots_by
         )
 
     @property
