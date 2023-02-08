@@ -1167,7 +1167,7 @@ def test_invoking_hello_world_using_azureml_flag(tmp_path: Path) -> None:
     """
     Test that invoking hello_world.py with the --azureml flag will submit to AzureML and not run locally.
 
-    :param tmp_path: Py_ test fixture for temporary path.
+    :param tmp_path: Pytest fixture for temporary path.
     """
 
     message_guid = uuid4().hex

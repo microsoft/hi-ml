@@ -49,7 +49,7 @@ class ExperimentConfig(param.Parameterized):
     identity_based_auth: bool = param.Boolean(
         default=False,
         doc="If True, use identity based authentication to access blob storage data via datastores. If False (default),"
-            " then use SAS tokens / account keys if available."
+            " then use SAS tokens / account keys if available. Only supported when using v2 sdk."
     )
     workspace_config_path: Optional[Path] = \
         param.ClassSelector(class_=Path, default=None, allow_None=True,
