@@ -59,6 +59,8 @@ def _create_slides_images(tmp_path: Path) -> MockPandaSlidesGenerator:
 
 @pytest.fixture(scope="module")
 def temp_panda_dataset(tmp_path_factory: pytest.TempPathFactory) -> Generator:
+    """A fixture that creates a PandaDataset object with randomly created slides.
+    """
     tmp_path = tmp_path_factory.mktemp("mock_panda")
     _create_slides_images(tmp_path)
     usecols = [PandaDataset.SLIDE_ID_COLUMN, PandaDataset.MASK_COLUMN]
@@ -67,6 +69,8 @@ def temp_panda_dataset(tmp_path_factory: pytest.TempPathFactory) -> Generator:
 
 @pytest.fixture(scope="module")
 def temp_slides(tmp_path_factory: pytest.TempPathFactory) -> Generator:
+    """A fixture that creates a folder (Path object) with randomly created slides.
+    """
     tmp_path = tmp_path_factory.mktemp("mock_wsi")
     _create_slides_images(tmp_path)
     yield tmp_path
@@ -74,6 +78,8 @@ def temp_slides(tmp_path_factory: pytest.TempPathFactory) -> Generator:
 
 @pytest.fixture(scope="module")
 def temp_slides_dataset(tmp_path_factory: pytest.TempPathFactory) -> Generator:
+    """A fixture that creates a SlidesDataset object with randomly created slides.
+    """
     tmp_path = tmp_path_factory.mktemp("mock_slides")
     wsi_generator = _create_slides_images(tmp_path)
     # Create a CSV file with the 3 required columns for montage creation. Mask is optional.
