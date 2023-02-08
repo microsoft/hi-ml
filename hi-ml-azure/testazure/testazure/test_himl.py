@@ -25,7 +25,7 @@ import pytest
 from _pytest.capture import CaptureFixture
 from azure.ai.ml import Input, Output, MLClient
 from azure.ai.ml.constants import AssetTypes, InputOutputModes
-from azure.ai.ml.entities import Data, Job, UserIdentityConfiguration
+from azure.ai.ml.entities import Data, Job
 from azure.ai.ml.entities._job.distribution import MpiDistribution, PyTorchDistribution
 from azure.ai.ml.sweep import Choice
 from azure.core.exceptions import ResourceNotFoundError
