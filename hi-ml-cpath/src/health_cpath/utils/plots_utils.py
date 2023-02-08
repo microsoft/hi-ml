@@ -228,6 +228,7 @@ def make_figure_dirs(subfolder: str, parent_dir: Path) -> Path:
 def get_list_from_results_dict(results: ResultsType, results_key: ResultsKey) -> List[Any]:
     """ Get a specific results list from the slide_level results dictionary, we extract items from tensors
     here so that it's compatible with inputs formats of scikit learn functions.
+
     :param results: Dict of lists that contains slide_level results
     :param results_key: ResultsKey key for the list to be retrieved
     """
@@ -239,6 +240,7 @@ def get_stratified_outputs(true_labels: List[Any], scores: List[Any],
     """
     Get stratified true labels and predictions given metadata, from all true and prediction labels
     to plot stratified curves.
+
     :param true_labels: list of true labels.
     :param scores: list of prediction scores.
     :param stratify_metadata: list containing the corresponding metadata values on which to stratify results.

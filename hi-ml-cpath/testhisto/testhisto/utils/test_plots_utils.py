@@ -11,6 +11,8 @@ import pytest
 import torch
 import numpy as np
 
+from health_ml.utils.common_utils import is_windows
+from health_ml.utils.fixed_paths import OutputFolderForTests
 from health_cpath.datasets.panda_dataset import PandaDataset
 from health_cpath.preprocessing.loading import LoadingParams, ROIType
 from health_cpath.utils.naming import PlotOption, ResultsKey
@@ -18,6 +20,7 @@ from health_cpath.utils.plots_utils import (DeepMILPlotsHandler, save_confusion_
                                             save_roc_curve, get_list_from_results_dict, get_stratified_outputs)
 from health_cpath.utils.tiles_selection_utils import SlideNode, TilesSelector
 from testhisto.mocks.container import MockDeepSMILETilesPanda
+from testhisto.utils.utils_testhisto import assert_binary_files_match, full_ml_test_data_path
 
 
 def test_plots_handler_wrong_class_names() -> None:
@@ -250,3 +253,21 @@ def test_plots_handler_get_metadata(mock_panda_slides_root_dir: Path, stratify_p
         assert metadata is None
     else:
         assert len(metadata) == len(results[ResultsKey.PRED_LABEL])         # type: ignore
+
+
+@pytest.mark.skipif(is_windows(), reason="Rendering is different on Windows")
+def test_save_roc_curve_stratification(test_output_dirs: OutputFolderForTests) -> None:
+    results = {
+        ResultsKey.TRUE_LABEL: [0, 1, 0, 1, 0, 1],
+        ResultsKey.PROB: [0.1, 0.8, 0.6, 0.3, 0.5, 0.4]
+    }
+    stratify_metadata = ["A", "B", "A", "A", "B", "B"]
+    target_dir = Path(test_output_dirs.root_dir)
+    save_roc_curve(results, target_dir, stage='stratify', stratify_metadata=stratify_metadata)         # type: ignore
+    file = target_dir / "roc_curve_stratify.png"
+    assert file.exists()
+
+    expected = full_ml_test_data_path("histo_heatmaps") / "plot_roc_curve_stratify.png"
+    # To update the stored results, uncomment this line:
+    # expected.write_bytes(file.read_bytes())
+    assert_binary_files_match(file, expected)
