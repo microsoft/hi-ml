@@ -300,6 +300,7 @@ def test_montage_from_folder_full(tmp_path: Path, temp_slides: Path) -> None:
     config = MontageCreation()
     config.image_glob_pattern = "**/*.tiff"
     config.width = 1000
+    config.parallel = 1
     config.output_path = tmp_path / "outputs"
     # Cucim is the only backend that supports TIFF files as created in the test images, openslide fails.
     config.backend = "cucim"
