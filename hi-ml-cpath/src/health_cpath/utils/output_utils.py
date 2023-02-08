@@ -261,7 +261,7 @@ class DeepMILOutputsHandler:
                  maximise: bool, val_plot_options: Collection[PlotOption],
                  test_plot_options: Collection[PlotOption],
                  save_intermediate_outputs: bool = True,
-                 stratify_plots_by: str = None) -> None:
+                 stratify_plots_by: Optional[str] = None) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).

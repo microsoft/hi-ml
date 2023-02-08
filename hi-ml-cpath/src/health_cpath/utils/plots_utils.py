@@ -55,7 +55,7 @@ def save_scores_histogram(results: ResultsType, figures_dir: Path, stage: str = 
 
 
 def save_pr_curve(results: ResultsType, figures_dir: Path, stage: str = '',
-                  stratify_metadata: List[Any] = None) -> None:
+                  stratify_metadata: Optional[List[Any]] = None) -> None:
     """Plots and saves PR curve figure in its dedicated directory. This implementation
     only works for binary classification.
 ''
@@ -83,7 +83,7 @@ def save_pr_curve(results: ResultsType, figures_dir: Path, stage: str = '',
 
 
 def save_roc_curve(results: ResultsType, figures_dir: Path, stage: str = '',
-                   stratify_metadata: List[Any] = None) -> None:
+                   stratify_metadata: Optional[List[Any]] = None) -> None:
     """Plots and saves ROC curve figure in its dedicated directory. This implementation
     only works for binary classification.
 
@@ -244,12 +244,12 @@ def get_stratified_outputs(true_labels: List[Any], scores: List[Any],
     :param true_labels: list of true labels.
     :param scores: list of prediction scores.
     :param stratify_metadata: list containing the corresponding metadata values on which to stratify results.
+    :return: A dictionary of stratified outputs, where a key is a unique value from the metadata,
+    and value contains a list of two lists - true labels in first list, predicted labels in second list.
     """
     unique_vals, unique_counts = np.unique(stratify_metadata, return_counts=True)   # metadata should not contain nans
     stratified_outputs = {}
-    for i in range(len(unique_vals)):
-        val = unique_vals[i]
-        count = unique_counts[i]
+    for val, count in zip(unique_vals, unique_counts):
         idxs = [i for i, x in enumerate(stratify_metadata) if x == val]
         assert len(idxs) == count
         true_stratified = [true_labels[i] for i in idxs]
@@ -268,7 +268,7 @@ class DeepMILPlotsHandler:
         figsize: Tuple[int, int] = (10, 10),
         stage: str = '',
         class_names: Optional[Sequence[str]] = None,
-        stratify_plots_by: str = None
+        stratify_plots_by: Optional[str] = None
     ) -> None:
         """Class that handles the plotting of DeepMIL results.
 

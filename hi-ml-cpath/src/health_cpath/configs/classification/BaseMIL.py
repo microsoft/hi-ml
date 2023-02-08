@@ -74,8 +74,9 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
     save_intermediate_outputs: bool = param.Boolean(
         True, doc="Whether to save intermediate validation outputs during training."
     )
-    stratify_plots_by: str = param.String(None,
-                                          doc="Name of metadata field to stratify output plots (PR curve, ROC curve).")
+    stratify_plots_by: Optional[str] = param.String(None,
+                                                    doc="Name of metadata field to stratify output plots"
+                                                    "(PR curve, ROC curve).")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)

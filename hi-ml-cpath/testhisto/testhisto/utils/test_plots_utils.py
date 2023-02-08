@@ -5,7 +5,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Any, Collection, Dict, List
+from typing import Any, Collection, Dict, List, Optional
 from unittest.mock import MagicMock, patch
 import pytest
 import torch
@@ -238,7 +238,7 @@ def test_get_stratified_outputs() -> None:
 
 
 @pytest.mark.parametrize("stratify_plots_by", ['data_provider', None])
-def test_plots_handler_get_metadata(mock_panda_slides_root_dir: Path, stratify_plots_by: str) -> None:
+def test_plots_handler_get_metadata(mock_panda_slides_root_dir: Path, stratify_plots_by: Optional[str]) -> None:
     results = {ResultsKey.TRUE_LABEL: [torch.tensor(0), torch.tensor(1), torch.tensor(0)],
                ResultsKey.PRED_LABEL: [torch.tensor(1), torch.tensor(0), torch.tensor(0)],
                ResultsKey.PROB: [torch.tensor(0.9), torch.tensor(0.6), torch.tensor(0.8)],
