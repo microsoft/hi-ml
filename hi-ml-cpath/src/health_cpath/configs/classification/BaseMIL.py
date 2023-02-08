@@ -74,6 +74,9 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
     save_intermediate_outputs: bool = param.Boolean(
         True, doc="Whether to save intermediate validation outputs during training."
     )
+    stratify_plots_by: Optional[str] = param.String(None,
+                                                    doc="Name of metadata field to stratify output plots"
+                                                    "(PR curve, ROC curve).")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -148,6 +151,7 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
             test_plot_options=self.get_test_plot_options(),
             loading_params=create_from_matching_params(self, LoadingParams),
             save_intermediate_outputs=self.save_intermediate_outputs,
+            stratify_plots_by=self.stratify_plots_by
         )
         if self.num_top_slides > 0:
             outputs_handler.tiles_selector = TilesSelector(
