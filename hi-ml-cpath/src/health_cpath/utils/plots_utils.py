@@ -363,7 +363,10 @@ class DeepMILPlotsHandler:
             for slide in output_slide_ids:
                 idx = all_slide_ids.index(slide)
                 sample = self.slides_dataset[idx]
-                assert self.stratify_plots_by in sample[SlideKey.METADATA]
+                if self.stratify_plots_by not in sample[SlideKey.METADATA]:
+                    logging.warning(f"{self.stratify_plots_by} not available in the slides dataset metadata, \
+                        make sure the dataset includes stratify_plots_by, so stratified plots will be skipped.")
+                    return None
                 stratify_metadata.append(sample[SlideKey.METADATA][self.stratify_plots_by])
         return stratify_metadata
 
