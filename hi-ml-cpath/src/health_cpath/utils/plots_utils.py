@@ -374,10 +374,7 @@ class DeepMILPlotsHandler:
             )
             figures_dir = make_figure_dirs(subfolder="fig", parent_dir=outputs_dir)
 
-            if self.stratify_plots_by is not None:
-                stratify_metadata = self.get_metadata(results=results)
-            else:
-                stratify_metadata = None
+            stratify_metadata = self.get_metadata(results=results)
 
             if PlotOption.PR_CURVE in self.plot_options:
                 save_pr_curve(results=results, figures_dir=figures_dir,
