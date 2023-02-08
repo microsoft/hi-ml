@@ -93,7 +93,7 @@ def temp_slides_dataset(tmp_path_factory: pytest.TempPathFactory) -> Generator:
     csv_filename = tmp_path / SlidesDataset.DEFAULT_CSV_FILENAME
     df.to_csv(csv_filename, index=False)
     # Tests fail non-deterministically, saying that the dataset file does not exist (yet)
-    time.sleep(0.1)
+    time.sleep(0.5)
     yield SlidesDataset(root=tmp_path)
 
 
@@ -201,6 +201,7 @@ def test_montage_included_and_excluded1(
     out_path.mkdir(exist_ok=True)
     config.output_path = out_path
     config.width = 1000
+    config.parallel = 1
     config.montage_from_included_and_excluded_slides(
         temp_slides_dataset,
         items=["ID 0", "ID 1"],
@@ -220,6 +221,7 @@ def test_montage_included_and_excluded2(tmp_path: Path, temp_slides_dataset: Sli
     out_path.mkdir(exist_ok=True)
     config = MontageCreation()
     config.output_path = out_path
+    config.parallel = 1
     config.width = 1000
     for exclude_items in [True, False]:
         with mock.patch("health_cpath.utils.montage.make_montage") as mock_montage:
@@ -283,6 +285,7 @@ def test_montage_from_folder(tmp_path: Path, temp_slides: Path) -> None:
     config = MontageCreation()
     config.output_path = tmp_path
     config.width = 1000
+    config.parallel = 2
     result_file = config.montage_from_included_and_excluded_slides(dataset)
     assert result_file is not None
     assert result_file.is_file()
@@ -314,6 +317,7 @@ def test_montage_fails(tmp_path: Path) -> None:
     config = MontageCreation()
     config.image_glob_pattern = "**/*.tiff"
     config.width = 1000
+    config.parallel = 1
     config.input_folder = tmp_path
     with pytest.raises(ValueError, match="Failed to create montage"):
         config.create_montage(input_folder=tmp_path)
@@ -381,6 +385,7 @@ def test_montage_from_slides_dataset(tmp_path: Path, temp_slides_dataset: Slides
     dataset_path = temp_slides_dataset.root_dir
     config = MontageCreation()
     config.width = 200
+    config.parallel = 1
     outputs = tmp_path / "outputs"
     config.output_path = outputs
     config.create_montage(input_folder=dataset_path)

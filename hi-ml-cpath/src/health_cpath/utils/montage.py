@@ -329,7 +329,7 @@ def make_montage(records: List[DatasetRecord],
     if image_thumbnail_dir.is_dir():
         logging.info(f"Skipping thumbnail creation because folder already exists: {image_thumbnail_dir}")
     else:
-        logging.info("Starting thumbnail creation")
+        logging.info(f"Starting thumbnail creation with thumbnail size {slide_size}")
         make_thumbnails(records=records, slide_size=slide_size, images_dir=image_thumbnail_dir, level=level,
                         masks_dir=mask_thumbnail_dir, image_suffix=image_suffix, num_parallel=num_parallel,
                         backend=backend)
