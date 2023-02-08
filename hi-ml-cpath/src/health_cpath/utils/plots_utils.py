@@ -363,7 +363,7 @@ class DeepMILPlotsHandler:
             for slide in output_slide_ids:
                 idx = all_slide_ids.index(slide)
                 sample = self.slides_dataset[idx]
-                assert self.stratify_plots_by in sample[SlideKey.METADATA].keys()
+                assert self.stratify_plots_by in sample[SlideKey.METADATA]
                 stratify_metadata.append(sample[SlideKey.METADATA][self.stratify_plots_by])
         return stratify_metadata
 
