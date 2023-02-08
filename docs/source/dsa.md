@@ -43,6 +43,22 @@ These three strings will be used to configure authentication in the OAuth2 Login
 
 User [permissions][18] can be set to different data collections in an assetstore, to maximize protection of sensitive data.
 
+### Creating API Keys
+
+You can create an API key for a user in DSA by using the web-based interactive API. Visit
+`https://my-deployed-dsa.azure.com/api/v1#!/api95key/api_key_createKey`, where you replace `my-deployed-dsa.azure.com`
+with the URL of your DSA instance.
+
+- Give the API key a name, such as `Upload API Key`.
+- Leave the `scope` field blank (some of the API calls that our upload script `girder.py` uses do NOT work if a scope is
+  set!)
+- Provide a token duration like 365 to make the token last for a year.
+- Press "Try it out!"
+- This will return a JSON object with a `key` field. Copy the value of this field and provide it on the commandline or
+  set as an environment variable `DSA_API_KEY` (in `bash`, this would be `export DSA_API_KEY=<the key>`)
+- In addition, you can also set the URL for your DSA instance as an environment variable `DSA_URL` (in `bash`, this would be
+  `export DSA_URL=<the url>`)
+
 ## Visualizing Azure Machine Learning results
 
 The [Girder RESTful API][19] may be used to upload annotations to DSA items programmatically.
@@ -58,10 +74,9 @@ python $SCRIPT \
     --dsa-url "https://my-deployed-dsa.azure.com/" \
     --dsa-key "AHKZ42Ks24kSH5Fxt3354ryKzCxamjqM" \
     --workspace-config "config.json" \
-    --rescale
 ```
 
-The DSA URL and API key may be specified in environment variables `DSA_URL` and `DSA_API_KEY` instead.
+The DSA URL and API key may be specified in environment variables `DSA_URL` and `DSA_API_KEY` instead, see above.
 The workspace configuration file contains information related to the [Azure Machine Learning workspace][22]:
 
 ```json
