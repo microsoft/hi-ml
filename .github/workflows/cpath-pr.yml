@@ -303,6 +303,22 @@ jobs:
           cd ${{ env.folder }}
           make smoke_test_tiles_panda_no_ddp_sampler_aml
 
+  smoke_test_montage_creation:
+    runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Prepare Conda environment
+        uses: ./.github/actions/prepare_cpath_environment
+
+      - name: smoke test
+        run: |
+          cd ${{ env.folder }}
+          make smoke_test_montage_creation
+
   cpath-publish-pypi-package:
     runs-on: ubuntu-20.04
     needs: [
@@ -321,6 +337,7 @@ jobs:
       smoke_test_slides_panda_loss_analysis,
       smoke_test_slides_panda_no_ddp_sampler,
       smoke_test_tiles_panda_no_ddp_sampler,
+      smoke_test_montage_creation,
       ]
     steps:
       - uses: actions/checkout@v3

@@ -135,20 +135,28 @@ To set up Azure and AzureML:
 - Upload your WSIs to a folder in Azure Blob Storage. This can be done most efficiently via
   [azcopy](http://aka.ms/azcopy). `azcopy` can also copy directly across cloud providers, for example from AWS to Azure.
 
-The following command will create a run in AzureML that executes montage creation:
+The following command will upload all files in the folder `my_test_slides` to a container `datasets` in your Azure Blob
+Storage account called `mystorage`, creating a folder `my_test_slides` in the storage account in the process:
 
 ```shell
-python src/health_cpath/scripts/create_montage.py --dataset <folder_in_azure> --level 2 --width 1000 --cluster <clustername> --conda_env environment.yml --datastore <datastorename>
+azcopy copy my_test_slides https://mystorage.blob.core.windows.net/datasets/ --recursive
+```
+
+The following command will then create a run in AzureML that executes montage creation from that folder:
+
+```shell
+python src/health_cpath/scripts/create_montage.py --dataset my_test_slides --level 2 --width 1000 --cluster <clustername> --conda_env environment.yml --datastore <datastorename>
 ```
 
 In this command, replace the following:
 
-- Replace `folder_in_azure` with the name of the folder in blob storage where you uploaded your WSIs.
+- Replace `my_test_slides` with the name of the folder in blob storage where you uploaded your WSIs.
 - `clustername` is the name of a [compute
 cluster](https://learn.microsoft.com/en-us/azure/machine-learning/quickstart-create-resources#create-compute-clusters)
 where your job will execute)
 - `datastorename` is the name of an AzureML datastore, essential a pointer to your blob storage account plus the
-  credentials that are necessary to access it.
+  credentials that are necessary to access it. For the above example, the data store needs to point to storage account
+  `mystorage` and container `datasets`.
 
 The command above will only run for a minute or less - it will mostly create a snapshot of the code and send that off to
 the cloud for execution. At the end you will see a link printed out that takes you to the AzureML portal, where you can
