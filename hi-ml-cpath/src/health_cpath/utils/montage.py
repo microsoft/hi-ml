@@ -74,7 +74,7 @@ def load_slide_as_pil(reader: WSIReader, slide_file: Path, level: int = 0) -> Im
         image_array, _ = reader.get_data(image, level=level)
     except ValueError:
         logger.warning(f"Level {level} not available for {slide_file}, using level 0 instead.")
-        image_array, _ = reader.get_data(image, level=0)    # For some TCGA WSIs, higher levels are not available
+        image_array, _ = reader.get_data(image, level=0)
     array = image_array.numpy().transpose(1, 2, 0)
     to_pil = torchvision.transforms.ToPILImage()
     array_pil = to_pil(array)
