@@ -366,7 +366,7 @@ class MontageCreation(MontageConfig):
             slides_to_exclude = self.read_list(self.exclude_by_slide_id)
             logger.info(f"Excluding {len(slides_to_exclude)} slides from montage. First 3: {slides_to_exclude[:3]}")
             logger.info("Exclusion list will be matched against the Slide ID column (for predefined datasets) or the "
-                  "filename.")
+                        "filename.")
             return slides_to_exclude
         else:
             return []
@@ -377,7 +377,7 @@ class MontageCreation(MontageConfig):
             slides_to_include = self.read_list(self.include_by_slide_id)
             logger.info(f"Restricting montage to {len(slides_to_include)} slides. First 3: {slides_to_include[:3]}")
             logger.info("Inclusion list will be matched against the Slide ID column (for predefined datasets) or the "
-                  "filename.")
+                        "filename.")
             return slides_to_include
         else:
             return []
