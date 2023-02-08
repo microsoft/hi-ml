@@ -399,14 +399,12 @@ class MontageCreation(MontageConfig):
                 raise ValueError(f"No images found in folder {input_folder} with pattern {self.image_glob_pattern}")
             return dataset
         else:
-            csv_file = input_folder / SlidesDataset.DEFAULT_CSV_FILENAME
-            logger.info(f"Trying to load the dataset as a SlidesDataset from {SlidesDataset.DEFAULT_CSV_FILENAME}")
-            if csv_file.is_file():
-                return SlidesDataset(root=input_folder)
-            raise ValueError(
-                f"No dataset file '{SlidesDataset.DEFAULT_CSV_FILENAME}' found in the input folder. Please add "
-                "this file, or provide a glob pattern to find the slides for the montage via --image_glob_pattern"
-            )
+            logger.info(f"Trying to load the dataset as a SlidesDataset from folder {input_folder}")
+            try:
+                dataset = SlidesDataset(root=input_folder)
+            except Exception as ex:
+                raise ValueError(f"Unable to load dataset: {ex}")
+            return dataset
 
     def create_montage(self, input_folder: Path) -> None:
         """Creates a montage from the dataset in the input folder. The method reads the dataset, creates an output

@@ -1,4 +1,5 @@
 import shutil
+import time
 from pathlib import Path
 from unittest import mock
 import numpy as np
@@ -91,6 +92,8 @@ def temp_slides_dataset(tmp_path_factory: pytest.TempPathFactory) -> Generator:
     df = pd.DataFrame(data=metadata)
     csv_filename = tmp_path / SlidesDataset.DEFAULT_CSV_FILENAME
     df.to_csv(csv_filename, index=False)
+    # Tests fail non-deterministically, saying that the dataset file does not exist (yet)
+    time.sleep(0.1)
     yield SlidesDataset(root=tmp_path)
 
 
@@ -351,7 +354,7 @@ def test_exclusion_list(tmp_path: Path) -> None:
 def test_raises_if_no_glob(tmp_path: Path) -> None:
     """Test for exception if no file pattern specified."""
     config = MontageCreation()
-    with pytest.raises(ValueError, match="No dataset file"):
+    with pytest.raises(ValueError, match="Unable to load dataset"):
         config.create_montage(input_folder=tmp_path)
 
 
@@ -371,7 +374,7 @@ def test_read_dataset_if_csv_present(temp_slides_dataset: SlidesDataset) -> None
     assert isinstance(dataset, SlidesDataset)
     dataset_csv = dataset_path / SlidesDataset.DEFAULT_CSV_FILENAME
     dataset_csv.unlink()
-    with pytest.raises(ValueError, match="No dataset file"):
+    with pytest.raises(ValueError, match="Unable to load dataset"):
         config.read_dataset(dataset_path)
 
 
