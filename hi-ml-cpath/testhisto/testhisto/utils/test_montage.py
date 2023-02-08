@@ -272,14 +272,12 @@ def test_dataset_from_folder_duplicate_files(tmp_path: Path) -> None:
 
 def test_dataset_from_folder_fails(tmp_path: Path) -> None:
     """Test if dataframe creation fails if the argument is not a folder."""
-
     with pytest.raises(ValueError, match="does not exist or is not a directory"):
         dataset_from_folder(tmp_path / "file.txt")
 
 
 def test_montage_from_folder(tmp_path: Path, temp_slides: Path) -> None:
     """Test if a montage can be created from files in a folder."""
-
     dataset = dataset_from_folder(temp_slides, glob_pattern="**/*.tiff")
     assert len(dataset) == NUM_SLIDES
     config = MontageCreation()
