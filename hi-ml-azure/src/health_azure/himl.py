@@ -425,6 +425,7 @@ def submit_run_v2(workspace: Optional[Workspace],
                   tags: Optional[Dict[str, str]] = None,
                   docker_shm_size: str = "",
                   wait_for_completion: bool = False,
+                  identity_based_auth: bool = False,
                   workspace_config_path: Optional[PathOrString] = None,
                   ml_client: Optional[MLClient] = None,
                   hyperparam_args: Optional[Dict[str, Any]] = None,
@@ -516,7 +517,7 @@ def submit_run_v2(workspace: Optional[Workspace],
             display_name=display_name,
             instance_count=num_nodes,
             distribution=distribution,
-            identity=UserIdentityConfiguration(),
+            identity=UserIdentityConfiguration() if identity_based_auth else None,
         )
 
     if hyperparam_args:
@@ -748,6 +749,7 @@ def submit_to_azure_if_needed(  # type: ignore
         hyperdrive_config: Optional[HyperDriveConfig] = None,
         hyperparam_args: Optional[Dict[str, Any]] = None,
         strictly_aml_v1: bool = False,
+        identity_based_auth: bool = False,
         pytorch_processes_per_node_v2: Optional[int] = None,
         display_name: Optional[str] = None,
 ) -> AzureRunInfo:  # pragma: no cover
@@ -963,6 +965,7 @@ def submit_to_azure_if_needed(  # type: ignore
                                 display_name=display_name,
                                 docker_shm_size=docker_shm_size,
                                 wait_for_completion=wait_for_completion,
+                                identity_based_auth=identity_based_auth,
                                 hyperparam_args=hyperparam_args,
                                 num_nodes=num_nodes,
                                 pytorch_processes_per_node=pytorch_processes_per_node_v2,

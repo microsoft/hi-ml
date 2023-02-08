@@ -257,6 +257,7 @@ class Runner:
                 display_name=self.lightning_container.tag,
                 tags=self.additional_run_tags(script_params),
                 strictly_aml_v1=self.experiment_config.strictly_aml_v1,
+                identity_based_auth=self.experiment_config.identity_based_auth,
             )
         else:
             azure_run_info = submit_to_azure_if_needed(

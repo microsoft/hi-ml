@@ -1511,6 +1511,7 @@ import os
         'input_datasets': f"['{USER_IDENTITY_TEST_ASSET}']",
         'output_datasets': f"['{USER_IDENTITY_TEST_ASSET_OUTPUT}']",
         'strictly_aml_v1': str(False),
+        'identity_based_auth': str(True),
         'body': f"""
 
     input_folder = run_info.input_datasets[0]
