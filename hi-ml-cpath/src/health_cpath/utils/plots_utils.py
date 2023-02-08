@@ -346,18 +346,22 @@ class DeepMILPlotsHandler:
     def get_metadata(self, results: ResultsType) -> Optional[List[Any]]:
         """
         Get metadata of outputs (validation or test) from slides dataset to stratify plots (e.g PR curve, ROC curve).
+        Returns metadata values of the results slides specified in `stratify_plots by` from slides dataset.
+        Returns `None` if slides dataset is `None` or if `stratify_plots_by` is set to `None` (no stratification).
+
+        :param results: Dict containing ResultsKey keys (e.g. slide id) and values as lists of output slides.
         """
-        if self.slides_dataset is not None and self.stratify_plots_by is not None:
+        if self.slides_dataset is None or self.stratify_plots_by is None:
+            stratify_metadata = None
+        else:
             slides_df = self.slides_dataset.dataset_df
             all_slide_ids = slides_df.index.to_list()
-            output_slide_ids = [x[0] for x in results[ResultsKey.SLIDE_ID]]   # get unique ID from bag
+            output_slide_ids = [x[0] for x in results[ResultsKey.SLIDE_ID]]    # get unique slide ID from bags
             stratify_metadata = []
             for slide in output_slide_ids:
                 idx = all_slide_ids.index(slide)
                 sample = self.slides_dataset[idx]
                 stratify_metadata.append(sample[SlideKey.METADATA][self.stratify_plots_by])
-        else:
-            stratify_metadata = None
         return stratify_metadata
 
     def save_plots(self, outputs_dir: Path, tiles_selector: Optional[TilesSelector], results: ResultsType) -> None:

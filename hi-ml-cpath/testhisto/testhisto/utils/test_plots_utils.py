@@ -247,12 +247,21 @@ def test_plots_handler_get_metadata(mock_panda_slides_root_dir: Path, stratify_p
     plot_options = {PlotOption.PR_CURVE, PlotOption.ROC_CURVE}
     plots_handler = DeepMILPlotsHandler(plot_options=plot_options, class_names=[], loading_params=LoadingParams(),
                                         stratify_plots_by=stratify_plots_by)
-    plots_handler.slides_dataset = PandaDataset(root=mock_panda_slides_root_dir)
+    slides_dataset = PandaDataset(root=mock_panda_slides_root_dir)
+    plots_handler.slides_dataset = slides_dataset
     metadata = plots_handler.get_metadata(results=results)    # type: ignore
     if stratify_plots_by is None:
         assert metadata is None
     else:
         assert len(metadata) == len(results[ResultsKey.PRED_LABEL])         # type: ignore
+    # check if the metadata corresponds to the correct slides
+    if metadata is not None:
+        result_ids = [x[0] for x in results[ResultsKey.SLIDE_ID]]           # type: ignore
+        for i in range(len(result_ids)):
+            df = slides_dataset.dataset_df
+            slide_row = df.iloc[np.where(df.index == result_ids[i])]
+            metadata_val = slide_row[stratify_plots_by].values[0]
+            assert metadata_val == metadata[i]
 
 
 @pytest.mark.skipif(is_windows(), reason="Rendering is different on Windows")
