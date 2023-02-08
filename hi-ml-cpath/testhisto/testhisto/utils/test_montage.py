@@ -15,7 +15,6 @@ from health_cpath.utils.montage import (
     dataset_to_records,
     make_montage,
     make_montage_from_dir,
-    montage_from_included_and_excluded_slides,
     restrict_dataset,
 )
 from health_cpath.datasets.base_dataset import SlidesDataset
@@ -188,14 +187,15 @@ def test_montage_included_and_excluded1(
         temp_slides_dataset: SlidesDataset,
         exclude_items: bool) -> None:
     """Check that a montage with exclusion list is handled correctly."""
+    config = MontageCreation()
     out_path = tmp_path / "montage"
     out_path.mkdir(exist_ok=True)
-    montage_from_included_and_excluded_slides(
+    config.output_path = out_path
+    config.width = 1000
+    config.montage_from_included_and_excluded_slides(
         temp_slides_dataset,
         items=["ID 0", "ID 1"],
         exclude_items=exclude_items,
-        output_path=out_path,
-        width=1000
     )
     expected_file = expected_results_folder() / ("montage_excluded.png" if exclude_items else "montage_included.png")
     montage_file = out_path / MONTAGE_FILE
@@ -209,14 +209,15 @@ def test_montage_included_and_excluded2(tmp_path: Path, temp_slides_dataset: Sli
     """Check that a montage with exclusion list supplies the correct set of images."""
     out_path = tmp_path / "montage"
     out_path.mkdir(exist_ok=True)
+    config = MontageCreation()
+    config.output_path = out_path
+    config.width = 1000
     for exclude_items in [True, False]:
         with mock.patch("health_cpath.utils.montage.make_montage") as mock_montage:
-            montage_file = montage_from_included_and_excluded_slides(
+            montage_file = config.montage_from_included_and_excluded_slides(
                 temp_slides_dataset,
                 items=["ID 0", "ID 1"],
                 exclude_items=exclude_items,
-                output_path=out_path,
-                width=1000
             )
             assert montage_file is not None
             assert mock_montage.call_count == 1
@@ -272,7 +273,10 @@ def test_montage_from_folder(tmp_path: Path, temp_slides: Path) -> None:
 
     dataset = dataset_from_folder(temp_slides, glob_pattern="**/*.tiff")
     assert len(dataset) == NUM_SLIDES
-    result_file = montage_from_included_and_excluded_slides(dataset, output_path=tmp_path, width=1000)
+    config = MontageCreation()
+    config.output_path = tmp_path
+    config.width = 1000
+    result_file = config.montage_from_included_and_excluded_slides(dataset)
     assert result_file is not None
     assert result_file.is_file()
     expected_file = expected_results_folder() / "montage_from_folder.png"
@@ -318,7 +322,7 @@ def test_montage_no_images(tmp_path: Path) -> None:
 
 
 def test_exclusion_list(tmp_path: Path) -> None:
-    """Test if exclusion lists are read correctly from a CSV file."""
+    """Test if exclusion lists are read correctly from a CSV file and passed to the montage creation function."""
     config = MontageCreation()
     assert config.read_exclusion_list() == []
 
@@ -327,11 +331,11 @@ def test_exclusion_list(tmp_path: Path) -> None:
     exclusion_df = pd.DataFrame({"col1": ids, "col2": ["something else"]})
     exclusion_df.to_csv(exclusion_csv, index=False)
     config.exclude_by_slide_id = exclusion_csv
-    config.read_exclusion_list() == ids
+    assert config.read_exclusion_list() == ids
 
     config.image_glob_pattern = "*.png"
     (tmp_path / "image.png").touch()
-    with mock.patch("health_cpath.utils.montage.montage_from_included_and_excluded_slides") as mock_mont:
+    with mock.patch.object(config, "montage_from_included_and_excluded_slides") as mock_mont:
         config.create_montage(input_folder=tmp_path)
         assert mock_mont.call_count == 1
         assert mock_mont.call_args[1]["items"] == ids

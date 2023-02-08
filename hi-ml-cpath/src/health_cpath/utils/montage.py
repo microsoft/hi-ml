@@ -21,6 +21,7 @@ from tqdm import tqdm
 from monai.data.image_reader import WSIReader
 
 from health_azure.utils import apply_overrides, parse_arguments
+from health_cpath.preprocessing.loading import WSIBackend
 from health_cpath.utils.montage_config import MontageConfig, create_montage_argparser
 from health_cpath.utils.naming import SlideKey
 from health_cpath.datasets.base_dataset import SlidesDataset
@@ -30,6 +31,8 @@ from health_ml.utils.type_annotations import TupleInt3
 MONTAGE_FILE = "montage.png"
 DatasetOrDataframe = Union[SlidesDataset, pd.DataFrame]
 DatasetRecord = Dict[SlideKey, Any]
+
+logger = logging.getLogger(__name__)
 
 
 def add_text(image: Image, text: str, y: float = 0.9, color: TupleInt3 = (27, 77, 40), fontsize_step: int = 2) -> None:
@@ -70,6 +73,7 @@ def load_slide_as_pil(reader: WSIReader, slide_file: Path, level: int = 0) -> Im
     try:
         image_array, _ = reader.get_data(image, level=level)
     except ValueError:
+        logger.warning(f"Level {level} not available for {slide_file}, using level 0 instead.")
         image_array, _ = reader.get_data(image, level=0)    # For some TCGA WSIs, higher levels are not available
     array = image_array.numpy().transpose(1, 2, 0)
     to_pil = torchvision.transforms.ToPILImage()
@@ -128,7 +132,7 @@ def make_thumbnails(records: List[DatasetRecord],
                     masks_dir: Optional[Path] = None,
                     num_parallel: int = 0,
                     image_suffix: str = '.png',
-                    backend: str = "cucim") -> None:
+                    backend: str = WSIBackend.CUCIM) -> None:
     """Make thumbnails of the slides in slides dataset.
 
     :param records: A list of dataframe records. The records must contain at least the columns `slide_id` and `image`.
@@ -335,89 +339,13 @@ def make_montage(records: List[DatasetRecord],
                                             image_suffix=image_suffix)
     except Exception as ex:
         raise ValueError(f"Failed to create montage from {image_thumbnail_dir}: {ex}")
-    print(f"Saving montage to {out_path}")
+    logger.info(f"Saving montage to {out_path}")
     montage_pil.save(out_path)
     if out_path.suffix != '.jpg':
         jpeg_out = out_path.with_suffix('.jpg')
         montage_pil.save(jpeg_out, format='JPEG', quality=90)
     if cleanup:
         shutil.rmtree(temp_dir)
-
-
-def montage_from_included_and_excluded_slides(dataset: DatasetOrDataframe,
-                                              items: Optional[List[str]] = None,
-                                              exclude_items: bool = True,
-                                              restrict_by_column: str = "",
-                                              output_path: Path = Path("outputs"),
-                                              width: int = 60_000,
-                                              num_parallel: int = 0,
-                                              backend: str = "cucim",
-                                              level: int = 1) -> Optional[Path]:
-    """Creates a montage of included and excluded slides from the dataset.
-
-    :param dataset: Slides dataset or a plain dataframe.
-    :param items: A list values for SlideID that should be included/excluded from the montage.
-    :param exclude_items: If True, exclude the list in `items` from the montage. If False, include
-        only those in the montage.
-    :param restrict_by_column: The column name that should be used for inclusion/exclusion lists
-        (default=dataset.SLIDE_ID_COLUMN).
-    :param output_path: The folder where the montage images will be stored.
-    :param width: The width of the montage (default=60_000). Reduce this for small datasets.
-    :param parallel: Flag to allow multiprocessing (default=True).
-    :param backend: The backend to use for reading the WSI (default=`cucim`).
-    :param level: Resolution downsampling level (default=1).
-    :return: A path to the created montage, or None if no images were available for creating the montage.
-    """
-    if isinstance(dataset, pd.DataFrame):
-        df_original = dataset
-    else:
-        df_original = dataset.dataset_df
-    logging.info(f"Input dataset contains {len(df_original)} records.")
-
-    if restrict_by_column == "":
-        if isinstance(dataset, pd.DataFrame):
-            restrict_by_column = SlideKey.SLIDE_ID.value
-        else:
-            restrict_by_column = dataset.SLIDE_ID_COLUMN
-    if items:
-        if exclude_items:
-            logging.info(f"Using dataset column '{restrict_by_column}' to exclude slides")
-            include = False
-        else:
-            logging.info(f"Using dataset column '{restrict_by_column}' to restrict the set of slides")
-            include = True
-        df_restricted = restrict_dataset(
-            df_original,
-            column=restrict_by_column,
-            items=items,
-            include=include)
-        logging.info(f"Updated dataset contains {len(df_restricted)} records")
-    else:
-        df_restricted = df_original
-
-    montage_restricted = output_path / MONTAGE_FILE
-    logging.info(f"Creating montage in {montage_restricted}")
-    if isinstance(dataset, pd.DataFrame):
-        records_restricted = dataset_to_records(df_restricted)
-    else:
-        dataset.dataset_df = df_restricted
-        records_restricted = dataset_to_records(dataset)
-        # We had to modify the dataset in place, hence restore the original dataset to avoid odd side-effects.
-        dataset.dataset_df = df_original
-
-    if len(records_restricted) > 0:
-        make_montage(records=records_restricted,
-                     out_path=montage_restricted,
-                     width=width,
-                     level=level,
-                     masks=False,
-                     cleanup=True,
-                     num_parallel=num_parallel,
-                     backend=backend)
-        return montage_restricted
-    else:
-        logging.info("No slides to include in montage, skipping.")
-        return None
 
 
 class MontageCreation(MontageConfig):
@@ -427,7 +355,7 @@ class MontageCreation(MontageConfig):
             df = pd.read_csv(csv_file_path)
             column_to_read = df.columns[0]
             if len(df.columns) > 1:
-                print(f"WARNING: More than one column in file, using first column: {column_to_read}")
+                logger.warning(f"More than one column in file, using first column: {column_to_read}")
             return df[column_to_read].tolist()
         else:
             return []
@@ -436,8 +364,8 @@ class MontageCreation(MontageConfig):
         """Read the list of slide IDs that should be excluded from the montage."""
         if self.exclude_by_slide_id:
             slides_to_exclude = self.read_list(self.exclude_by_slide_id)
-            print(f"Excluding {len(slides_to_exclude)} slides from montage. First 3: {slides_to_exclude[:3]}")
-            print("Exclusion list will be matched against the Slide ID column (for predefined datasets) or the "
+            logger.info(f"Excluding {len(slides_to_exclude)} slides from montage. First 3: {slides_to_exclude[:3]}")
+            logger.info("Exclusion list will be matched against the Slide ID column (for predefined datasets) or the "
                   "filename.")
             return slides_to_exclude
         else:
@@ -447,8 +375,8 @@ class MontageCreation(MontageConfig):
         """Read the list of slide IDs that should be included in the montage."""
         if self.include_by_slide_id:
             slides_to_include = self.read_list(self.include_by_slide_id)
-            print(f"Restricting montage to {len(slides_to_include)} slides. First 3: {slides_to_include[:3]}")
-            print("Inclusion list will be matched against the Slide ID column (for predefined datasets) or the "
+            logger.info(f"Restricting montage to {len(slides_to_include)} slides. First 3: {slides_to_include[:3]}")
+            logger.info("Inclusion list will be matched against the Slide ID column (for predefined datasets) or the "
                   "filename.")
             return slides_to_include
         else:
@@ -462,7 +390,7 @@ class MontageCreation(MontageConfig):
         :param input_folder: The folder where the dataset is located.
         :return: A SlidesDataset or dataframe object that contains the dataset."""
         if self.image_glob_pattern:
-            print(f"Trying to create a dataset from files in the input folder that match: {self.image_glob_pattern}")
+            logger.info(f"Trying to create a dataset from files that match: {self.image_glob_pattern}")
             try:
                 dataset = dataset_from_folder(input_folder, glob_pattern=self.image_glob_pattern)
             except Exception as ex:
@@ -472,7 +400,7 @@ class MontageCreation(MontageConfig):
             return dataset
         else:
             csv_file = input_folder / SlidesDataset.DEFAULT_CSV_FILENAME
-            print(f"Trying to load the dataset as a SlidesDataset object from {SlidesDataset.DEFAULT_CSV_FILENAME}")
+            logger.info(f"Trying to load the dataset as a SlidesDataset from {SlidesDataset.DEFAULT_CSV_FILENAME}")
             if csv_file.is_file():
                 return SlidesDataset(root=input_folder)
             raise ValueError(
@@ -494,15 +422,78 @@ class MontageCreation(MontageConfig):
         else:
             items = []
             exclude_items = True
-        montage_from_included_and_excluded_slides(
+        self.montage_from_included_and_excluded_slides(
             dataset=dataset,
             items=items,
             exclude_items=exclude_items,
-            output_path=self.output_path,
-            width=self.width,
-            num_parallel=self.parallel,
-            backend=self.backend,
         )
+
+    def montage_from_included_and_excluded_slides(self,
+                                                  dataset: DatasetOrDataframe,
+                                                  items: Optional[List[str]] = None,
+                                                  exclude_items: bool = True,
+                                                  restrict_by_column: str = "") -> Optional[Path]:
+        """Creates a montage of included and excluded slides from the dataset.
+
+        :param dataset: Slides dataset or a plain dataframe.
+        :param items: A list values for SlideID that should be included/excluded from the montage.
+        :param exclude_items: If True, exclude the list in `items` from the montage. If False, include
+            only those in the montage.
+        :param restrict_by_column: The column name that should be used for inclusion/exclusion lists
+            (default=dataset.SLIDE_ID_COLUMN).
+        :return: A path to the created montage, or None if no images were available for creating the montage.
+        """
+        if isinstance(dataset, pd.DataFrame):
+            df_original = dataset
+        else:
+            df_original = dataset.dataset_df
+        logging.info(f"Input dataset contains {len(df_original)} records.")
+
+        if restrict_by_column == "":
+            if isinstance(dataset, pd.DataFrame):
+                restrict_by_column = SlideKey.SLIDE_ID.value
+            else:
+                restrict_by_column = dataset.SLIDE_ID_COLUMN
+        if items:
+            if exclude_items:
+                logging.info(f"Using dataset column '{restrict_by_column}' to exclude slides")
+                include = False
+            else:
+                logging.info(f"Using dataset column '{restrict_by_column}' to restrict the set of slides")
+                include = True
+            df_restricted = restrict_dataset(
+                df_original,
+                column=restrict_by_column,
+                items=items,
+                include=include)
+            logging.info(f"Updated dataset contains {len(df_restricted)} records")
+        else:
+            df_restricted = df_original
+
+        montage_result = self.output_path / MONTAGE_FILE
+        logging.info(f"Creating montage in {montage_result}")
+        if isinstance(dataset, pd.DataFrame):
+            records_restricted = dataset_to_records(df_restricted)
+        else:
+            dataset.dataset_df = df_restricted
+            records_restricted = dataset_to_records(dataset)
+            # We had to modify the dataset in place, hence restore the original dataset to avoid odd side-effects.
+            dataset.dataset_df = df_original
+
+        if len(records_restricted) > 0:
+            make_montage(
+                records=records_restricted,
+                out_path=montage_result,
+                width=self.width,
+                level=self.level,
+                masks=False,
+                cleanup=True,
+                num_parallel=self.parallel,
+                backend=self.backend)
+            return montage_result
+        else:
+            logging.info("No slides to include in montage, skipping.")
+            return None
 
 
 def create_config_from_args() -> MontageConfig:
