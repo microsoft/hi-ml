@@ -409,6 +409,12 @@ class MontageCreation(MontageConfig):
             )
 
     def create_montage(self, input_folder: Path) -> None:
+        """Creates a montage from the dataset in the input folder. The method reads the dataset, creates an output
+        folder, handles the inclusion and exclusion lists, and then calls the method that creates the montage.
+
+        :param input_folder: The folder where the dataset is located.
+        :raises ValueError: If both an inclusion and exclusion list have been provided.
+        """
         dataset = self.read_dataset(input_folder)
         self.output_path.mkdir(parents=True, exist_ok=True)
         if self.include_by_slide_id and self.exclude_by_slide_id:
