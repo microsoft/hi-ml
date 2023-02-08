@@ -69,8 +69,9 @@ PRIMARY_METRIC_ARG = "primary_metric"
 SAMPLING_ALGORITHM_ARG = "sampling_algorithm"
 GOAL_ARG = "goal"
 
-V2_INPUT_PATTERN = "INPUT_"
-V2_OUTPUT_PATTERN = "OUTPUT_"
+V2_INPUT_ASSET_IDENTIFIER = "INPUT_"
+V2_OUTPUT_ASSET_IDENTIFIER = "OUTPUT_"
+# TODO: upgrade to python 3.8+ and create a Literal type for the combination of the above two vars
 
 
 @dataclass
@@ -689,7 +690,7 @@ def create_v2_inputs(ml_client: MLClient, input_datasets: List[DatasetConfig]) -
     input_assets = [get_data_asset_from_config(ml_client, input_dataset) for input_dataset in input_datasets]
     # Data assets can be of type "uri_folder", "uri_file", "mltable", all of which are value types in Input
     return {
-        f"{V2_INPUT_PATTERN}{i}": Input(  # type: ignore
+        f"{V2_INPUT_ASSET_IDENTIFIER}{i}": Input(  # type: ignore
             type=data_asset.type,  # type: ignore
             path=data_asset.path,
             mode=InputOutputModes.MOUNT if input_datasets[i].use_mounting else InputOutputModes.DOWNLOAD
@@ -709,7 +710,7 @@ def create_v2_outputs(ml_client: MLClient, output_datasets: List[DatasetConfig])
     output_assets = [get_data_asset_from_config(ml_client, output_dataset) for output_dataset in output_datasets]
     return {
         # Data assets can be of type "uri_folder", "uri_file", "mltable", all of which are value types in Input
-        f"{V2_OUTPUT_PATTERN}{i}": Output(  # type: ignore
+        f"{V2_OUTPUT_ASSET_IDENTIFIER}{i}": Output(  # type: ignore
             type=data_asset.type,  # type: ignore
             path=data_asset.path,
             mode=InputOutputModes.MOUNT,  # hard-coded to mount for now, as this is the only mode that doesn't break
@@ -1078,24 +1079,22 @@ def _get_dataset_names_from_string(sys_arg: str, pattern: str) -> Path:
     return dataset_path
 
 
-def _extract_v2_inputs_outputs_from_env_vars() -> Tuple[List[Path], List[Path]]:
-    """Provides paths to the input and output datasets for v2 jobs by extracting them from the environment variables.
+def _extract_v2_data_asset_from_env_vars(asset_num: int, asset_type_identifier: str) -> Path:
+    """Provides path to the given data assets for v2 jobs by extracting it from the environment variables.
 
-    :return: A list of Input paths and a list of Output paths
+    :param asset_num: The id number of the data asset to extract
+    :param asset_type_identifier: The pattern to match the environment variables against, must be "INPUT_" or "OUTPUT_"
+    :return: The path to the data asset
     """
-    returned_input_datasets: List[Path] = []
-    returned_output_datasets: List[Path] = []
 
-    input_pattern_string = "AZURE_ML_INPUT_" + V2_INPUT_PATTERN + r"\d+"
-    output_pattern_string = r"AZURE_ML_OUTPUT_" + V2_OUTPUT_PATTERN + r"\d+"
+    asset_environment_variable = f"AZURE_ML_{asset_type_identifier}{asset_type_identifier}{asset_num}"
+    asset_path_str = os.environ.get(asset_environment_variable)
+    if asset_path_str is None:
+        raise ValueError(
+            f"Cannot find {asset_environment_variable} in environment variables, cannot retrieve data asset path."
+        )
 
-    for env_var in os.environ:  # input and output env vars set by V2 SDK on job submission
-        if re.match(input_pattern_string, env_var):
-            returned_input_datasets.append(Path(os.environ[env_var]))
-        elif re.match(output_pattern_string, env_var):
-            returned_output_datasets.append(Path(os.environ[env_var]))
-
-    return returned_input_datasets, returned_output_datasets
+    return Path(asset_path_str)
 
 
 def _generate_v2_azure_datasets(cleaned_input_datasets: List[DatasetConfig],
@@ -1108,7 +1107,14 @@ def _generate_v2_azure_datasets(cleaned_input_datasets: List[DatasetConfig],
     :param cleaned_output_datasets: The list of output dataset configs
     :return: The AzureRunInfo containing the AzureML input and output dataset lists etc.
     """
-    returned_input_datasets, returned_output_datasets = _extract_v2_inputs_outputs_from_env_vars()
+    returned_input_datasets = [
+        _extract_v2_data_asset_from_env_vars(i, V2_INPUT_ASSET_IDENTIFIER)
+        for i in range(len(cleaned_input_datasets))
+    ]
+    returned_output_datasets = [
+        _extract_v2_data_asset_from_env_vars(i, V2_OUTPUT_ASSET_IDENTIFIER)
+        for i in range(len(cleaned_output_datasets))
+    ]
 
     return AzureRunInfo(
         input_datasets=returned_input_datasets,  # type: ignore
