@@ -353,6 +353,8 @@ class DeepMILPlotsHandler:
         """
         if self.slides_dataset is None or self.stratify_plots_by is None:
             stratify_metadata = None
+            if self.stratify_plots_by is not None:
+                logging.warning("Slides dataset is missing so stratified plots will be skipped.")
         else:
             slides_df = self.slides_dataset.dataset_df
             all_slide_ids = slides_df.index.to_list()
@@ -361,6 +363,7 @@ class DeepMILPlotsHandler:
             for slide in output_slide_ids:
                 idx = all_slide_ids.index(slide)
                 sample = self.slides_dataset[idx]
+                assert self.stratify_plots_by in sample[SlideKey.METADATA].keys()
                 stratify_metadata.append(sample[SlideKey.METADATA][self.stratify_plots_by])
         return stratify_metadata
 
