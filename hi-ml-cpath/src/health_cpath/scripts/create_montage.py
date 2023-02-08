@@ -50,6 +50,7 @@ def main() -> None:
             input_datasets=[input_dataset],
             strictly_aml_v1=True,
             docker_shm_size="100g",
+            wait_for_completion=config.wait_for_completion,
         )
         input_folder = run_info.input_datasets[0]
 

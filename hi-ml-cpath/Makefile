@@ -302,7 +302,7 @@ smoke_test_tiles_panda_no_ddp_sampler_aml:
 	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS} ${DDP_SAMPLER_ARGS} ${AML_MULTIPLE_DEVICE_ARGS} --tag smoke_test_tiles_panda_no_ddp_sampler_aml;}
 
 smoke_test_montage_creation:
-	python src/health_cpath/scripts/create_montage.py --dataset test_montage --width 1000 --cluster lite-testing-ds2 --datastore himldatasets --conda_env environment.yml
+	python src/health_cpath/scripts/create_montage.py --dataset test_montage --width 1000 --cluster lite-testing-ds2 --datastore himldatasets --conda_env environment.yml --wait_for_completion
 
 smoke tests local: smoke_test_cucim_slidespandaimagenetmil_local smoke_test_openslide_slidespandaimagenetmil_local smoke_test_tilespandaimagenetmil_local smoke_test_tcgacrcksslmil_local smoke_test_crck_simclr_local smoke_test_crck_flexible_finetuning_local smoke_test_tcgacrckimagenetmil_local smoke_test_crck_loss_analysis_local smoke_test_slides_panda_loss_analysis_local smoke_test_slides_panda_no_ddp_sampler_local smoke_test_tiles_panda_no_ddp_sampler_local
 

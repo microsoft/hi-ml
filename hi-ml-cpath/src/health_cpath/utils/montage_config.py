@@ -28,6 +28,9 @@ class AzureRunConfig(param.Parameterized):
         param.ClassSelector(class_=Path, default=Path("hi-ml/hi-ml-cpath/environment.yml"), allow_None=True,
                             doc="The Conda environment file that should be used when submitting the present run to "
                                 "AzureML. If not specified, the hi-ml-cpath environment file will be used.")
+    wait_for_completion: bool = param.Boolean(default=False,
+                                              doc="If True, wait for AML Run to complete before proceeding. "
+                                                  "If False, submit the run to AML and exit")
 
 
 class MontageConfig(AzureRunConfig):
