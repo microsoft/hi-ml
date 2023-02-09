@@ -494,7 +494,7 @@ class RunOutputs:
         max_slides: Optional[int] = None,
         id_filter: Optional[str] = "",
         search_mode: str = "full",
-        folder: str = "",
+        folder_path: str = "",
         **annotation_kwargs: Any,
     ) -> List[Dict]:
         """Create annotations from a data frame and upload them to DSA.
@@ -504,7 +504,7 @@ class RunOutputs:
         :param max_slides: Maximum number of slides to upload, useful for debugging.
         :param id_filter: Filter to only process slides matching this string, according to ``search_mode``.
         :param search_mode: See :meth:`DigitalSlideArchive.search_item`.
-        :param folder: The folder in DSA where results should be uploaded to.
+        :param folder_path: The path of the folder in DSA where results should be uploaded to.
         :param annotation_kwargs: Additional kwargs to :meth:`get_annotation_from_slide_data_frame`.
         """
         unique_slide_ids = sorted(self.df[ResultsKey.SLIDE_ID].unique())
@@ -669,5 +669,5 @@ if __name__ == "__main__":
         search_mode=args.search_mode,
         colormap_name=args.colormap,
         rescale=args.no_rescale,
-        folder=args.folder,
+        folder_path=args.folder,
     )
