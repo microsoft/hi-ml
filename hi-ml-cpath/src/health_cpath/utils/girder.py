@@ -520,15 +520,19 @@ class RunOutputs:
         # I think "full" is more descriptive than "text" for our API
         search_mode = "text" if search_mode == "full" else search_mode
         progress = tqdm(unique_slide_ids)
+        annotation_name = f"{self.run.id} ({self.run.display_name})"
         responses = []
         if folder_path:
             folder_id = dsa.get_folder_id(folder_path)
             items = dsa.get_items_in_folder(folder_id)
             print(f"Found a total of {len(items)} items in folder {folder_path}")
-            for slide_id in progress:
-                progress.set_description(slide_id)
-                if id_filter not in slide_id:
-                    continue
+        else:
+            items = []
+        for slide_id in progress:
+            progress.set_description(slide_id)
+            if id_filter not in slide_id:
+                continue
+            if folder_path:
                 matching_items = [item for item in items if slide_id in item.name]
                 if not matching_items:
                     print(f"No items in DSA for slide ID {slide_id}")
@@ -537,32 +541,18 @@ class RunOutputs:
                     print(f"Multiple items in DSA for slide ID {slide_id}. Skipping this slide.")
                     continue
                 item = matching_items[0]
-                tqdm.write(f"Processing slide {slide_id} - {item.url}")
-                annotation_name = f"{self.run.id} ({self.run.display_name})"
-                annotation = self.get_slide_annotation_from_df(
-                    self.df,
-                    slide_id,
-                    annotation_name,
-                    **annotation_kwargs,
-                )
-                if not dry_run:
-                    responses.append(item.add_annotation(annotation))
-        else:
-            for slide_id in progress:
-                progress.set_description(slide_id)
-                if id_filter not in slide_id:
-                    continue
+            else:
                 item = dsa.search_item(slide_id, search_mode=search_mode)
-                tqdm.write(f"Processing slide {slide_id} - {item.url}")
-                annotation_name = self.run.id
-                annotation = self.get_slide_annotation_from_df(
-                    self.df,
-                    slide_id,
-                    annotation_name,
-                    **annotation_kwargs,
-                )
-                if not dry_run:
-                    responses.append(item.add_annotation(annotation))
+
+            tqdm.write(f"Processing slide {slide_id} - {item.url}")
+            annotation = self.get_slide_annotation_from_df(
+                self.df,
+                slide_id,
+                annotation_name,
+                **annotation_kwargs,
+            )
+            if not dry_run:
+                responses.append(item.add_annotation(annotation))
         return responses
 
 
