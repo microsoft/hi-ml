@@ -94,15 +94,32 @@ It can be downloaded from the workspace website:
 The script uses the [Azure SDK][20] and the [Python client for the Girder API][21] to:
 
 1. Log into Azure ML
-2. Download training results
-3. Generate JSON annotations for each slide
-4. Upload the annotations to the deployed DSA
+1. Download training results
+1. Generate JSON annotations for each slide
+1. Search for the slide by slide ID in DSA by using full text search
+1. Upload the annotations to the deployed DSA
 
 For a full description of all the options, add `--help` to the arguments.
 
 Below is an example of an attention map overlaid on a slide from the [PANDA][22] dataset:
 
 ![Attention map on slide from PANDA](./images/dsa_heatmap.png)
+
+### Upload into a folder
+
+The `girder.py` script can also upload the annotations into a folder in DSA. This is helpful if there are multiple
+variants of the same slide in DSA, but located in different folders. Simple text search would then return multiple
+results.
+
+To use the folder functionality, you need to supply the name of the folder via `--folder`. For example, to upload the
+annotations to folder `foo` in collection `Collection`, add ``--folder Collection1/foo`.
+
+When supplying a folder argument, searching for the slide where annotations will be added works differently:
+
+1. Firstly, all slides in the folder are retrieved.
+1. Then, the script tries to identify which of the slides in the folder contains the value from the `slide_id` field.
+1. If there is exactly one matching slide, the annotations are added to that slide. Annotations that match zero or more than
+   one slide are ignored.
 
 [1]: https://digitalslidearchive.github.io/digital_slide_archive/
 [2]: https://azure.microsoft.com/
