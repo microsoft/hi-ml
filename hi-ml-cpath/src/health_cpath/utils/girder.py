@@ -530,7 +530,7 @@ class RunOutputs:
                 if id_filter not in slide_id:
                     continue
                 matching_items = [item for item in items if slide_id in item.name]
-                if len(matching_items) == 0:
+                if not matching_items:
                     print(f"No items in DSA for slide ID {slide_id}")
                     continue
                 elif len(matching_items) > 1:
