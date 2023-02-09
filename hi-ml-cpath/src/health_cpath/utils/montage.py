@@ -408,7 +408,7 @@ class MontageCreation(MontageConfig):
                 logging.error("Unable to load dataset.")
                 file = input_folder / SlidesDataset.DEFAULT_CSV_FILENAME
                 # Print the whole directory tree to check where the problem is.
-                while file != file.root:
+                while str(file) != str(file.root):
                     logging.debug(f"File: {file}, exists: {file.exists()}")
                     file = file.parent
                 raise ValueError(f"Unable to load dataset. Check if the file {SlidesDataset.DEFAULT_CSV_FILENAME} "
