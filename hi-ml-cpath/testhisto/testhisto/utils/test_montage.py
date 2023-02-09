@@ -374,10 +374,13 @@ def test_read_dataset_if_csv_present(temp_slides_dataset: SlidesDataset) -> None
     config = MontageCreation()
     dataset = config.read_dataset(dataset_path)
     assert isinstance(dataset, SlidesDataset)
-    dataset_csv = dataset_path / SlidesDataset.DEFAULT_CSV_FILENAME
-    dataset_csv.unlink()
+
+
+def test_read_dataset_fails_if_no_csv_present(tmp_path: Path) -> None:
+    """Test behaviour for reading SlidesDataset if not dataset.csv file is present."""
+    config = MontageCreation()
     with pytest.raises(ValueError, match="Unable to load dataset"):
-        config.read_dataset(dataset_path)
+        config.read_dataset(tmp_path)
 
 
 def test_montage_from_slides_dataset(tmp_path: Path, temp_slides_dataset: SlidesDataset) -> None:
