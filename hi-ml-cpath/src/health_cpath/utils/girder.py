@@ -301,7 +301,7 @@ class DigitalSlideArchive:
             raise RuntimeError(f"More than one item found for query \"{text}\":\n{items_jsons}")
         return Item(self, json=items_jsons[0])
 
-    def get_folder_by_path(self, folder_path: str) -> str:
+    def get_folder_id(self, folder_path: str) -> str:
         """Retrieves the ID of a folder, when given a folder path.
 
         :param folder_path: The path of the folder to retrieve (for example, "Coll1/folder2" for `folder2` in
