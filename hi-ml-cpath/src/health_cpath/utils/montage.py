@@ -405,6 +405,11 @@ class MontageCreation(MontageConfig):
             try:
                 dataset = SlidesDataset(root=input_folder)
             except Exception as ex:
+                logging.error("Unable to load dataset.")
+                file = input_folder / SlidesDataset.DEFAULT_CSV_FILENAME
+                while file != Path.root:
+                    logging.info(f"file: {file}, exists: {file.exists()}")
+                    file = file.parent
                 raise ValueError(f"Unable to load dataset: {ex}")
             return dataset
 
