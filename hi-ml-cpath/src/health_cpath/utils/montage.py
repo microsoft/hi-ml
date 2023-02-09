@@ -407,10 +407,12 @@ class MontageCreation(MontageConfig):
             except Exception as ex:
                 logging.error("Unable to load dataset.")
                 file = input_folder / SlidesDataset.DEFAULT_CSV_FILENAME
-                while file != Path.root:
-                    logging.info(f"file: {file}, exists: {file.exists()}")
+                # Print the whole directory tree to check where the problem is.
+                while file != file.root:
+                    logging.debug(f"File: {file}, exists: {file.exists()}")
                     file = file.parent
-                raise ValueError(f"Unable to load dataset: {ex}")
+                raise ValueError(f"Unable to load dataset. Check if the file {SlidesDataset.DEFAULT_CSV_FILENAME} "
+                                 f"exists, or provide a file name pattern via --image_glob_pattern. Error: {ex}")
             return dataset
 
     def create_montage(self, input_folder: Path) -> None:
