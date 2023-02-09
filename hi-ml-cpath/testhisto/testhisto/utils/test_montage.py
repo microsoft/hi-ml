@@ -1,5 +1,4 @@
 import shutil
-import time
 from pathlib import Path
 from unittest import mock
 import numpy as np
@@ -24,7 +23,7 @@ from health_cpath.scripts.create_montage import main as script_main
 from health_cpath.utils.naming import SlideKey
 from testhisto.mocks.base_data_generator import MockHistoDataType
 from testhisto.mocks.slides_generator import MockPandaSlidesGenerator
-from testhisto.utils.utils_testhisto import assert_binary_files_match, full_ml_test_data_path
+from testhisto.utils.utils_testhisto import assert_binary_files_match, full_ml_test_data_path, wait_until_file_exists
 
 
 # Set this to True to update all stored images in the test_data folder.
@@ -92,8 +91,8 @@ def temp_slides_dataset(tmp_path_factory: pytest.TempPathFactory) -> Generator:
     df = pd.DataFrame(data=metadata)
     csv_filename = tmp_path / SlidesDataset.DEFAULT_CSV_FILENAME
     df.to_csv(csv_filename, index=False)
-    # Tests fail non-deterministically, saying that the dataset file does not exist (yet)
-    time.sleep(0.5)
+    # Tests fail non-deterministically, saying that the dataset file does not exist (yet). Hence, wait.
+    wait_until_file_exists(csv_filename)
     yield SlidesDataset(root=tmp_path)
 
 
