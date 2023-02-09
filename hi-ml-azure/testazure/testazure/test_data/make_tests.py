@@ -106,6 +106,7 @@ def render_test_script(entry_script_path: Path, extra_options: Dict[str, str],
     default_options['input_datasets'] = 'None'
     default_options['output_datasets'] = 'None'
     default_options['wait_for_completion'] = 'True'
+    default_options['identity_based_auth'] = 'False'
     default_options['wait_for_completion_show_output'] = 'True'
     default_options['args'] = ''
     default_options['body'] = ''
