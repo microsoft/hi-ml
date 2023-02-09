@@ -621,7 +621,7 @@ if __name__ == "__main__":
         "--no-rescale",
         action="store_false",
         default=True,
-        help="Do not rescale attention values. By default, attention values are scaled to such that the range "
+        help="Do not rescale attention values. By default, attention values are scaled such that the range "
              "between min and max fills the colormap.",
     )
     parser.add_argument(
