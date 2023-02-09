@@ -522,7 +522,7 @@ class RunOutputs:
         progress = tqdm(unique_slide_ids)
         responses = []
         if folder:
-            folder_id = dsa.get_folder_by_path(folder)
+            folder_id = dsa.get_folder_id(folder)
             items = dsa.get_items_in_folder(folder_id)
             print(f"Found a total of {len(items)} items in folder {folder}")
             for slide_id in progress:
