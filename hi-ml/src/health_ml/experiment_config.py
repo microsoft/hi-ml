@@ -46,6 +46,11 @@ class ExperimentConfig(param.Parameterized):
                                                          "should only be used when debugging issues")
     strictly_aml_v1: bool = param.Boolean(default=False, doc="If True, use AzureML v1 SDK. If False (default), use "
                                                              "the v2 of the SDK")
+    identity_based_auth: bool = param.Boolean(
+        default=False,
+        doc="If True, use identity based authentication to access blob storage data via datastores. If False (default),"
+            " then use SAS tokens / account keys if available. Only supported when using v2 sdk."
+    )
     workspace_config_path: Optional[Path] = \
         param.ClassSelector(class_=Path, default=None, allow_None=True,
                             doc="The path to the AzureML workspace configuration file. If not specified, the "

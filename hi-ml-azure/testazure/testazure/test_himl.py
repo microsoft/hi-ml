@@ -25,7 +25,7 @@ import pytest
 from _pytest.capture import CaptureFixture
 from azure.ai.ml import Input, Output, MLClient
 from azure.ai.ml.constants import AssetTypes, InputOutputModes
-from azure.ai.ml.entities import Data, Job, UserIdentityConfiguration
+from azure.ai.ml.entities import Data, Job
 from azure.ai.ml.entities._job.distribution import MpiDistribution, PyTorchDistribution
 from azure.ai.ml.sweep import Choice
 from azure.core.exceptions import ResourceNotFoundError
@@ -817,7 +817,7 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 display_name=dummy_display_name,
                 distribution=MpiDistribution(process_count_per_instance=1),
                 instance_count=1,
-                identity=UserIdentityConfiguration(),
+                identity=None,
             )
 
             # job with hyperparameter sampling:
@@ -879,7 +879,7 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 display_name=dummy_display_name,
                 distribution=MpiDistribution(process_count_per_instance=1),
                 instance_count=1,
-                identity=UserIdentityConfiguration(),
+                identity=None,
             )
 
             mock_command.assert_any_call(**param_sampling)
@@ -1167,7 +1167,7 @@ def test_invoking_hello_world_using_azureml_flag(tmp_path: Path) -> None:
     """
     Test that invoking hello_world.py with the --azureml flag will submit to AzureML and not run locally.
 
-    :param tmp_path: PyTest test fixture for temporary path.
+    :param tmp_path: Pytest fixture for temporary path.
     """
 
     message_guid = uuid4().hex
@@ -1511,6 +1511,7 @@ import os
         'input_datasets': f"['{USER_IDENTITY_TEST_ASSET}']",
         'output_datasets': f"['{USER_IDENTITY_TEST_ASSET_OUTPUT}']",
         'strictly_aml_v1': str(False),
+        'identity_based_auth': str(True),
         'body': f"""
 
     input_folder = run_info.input_datasets[0]

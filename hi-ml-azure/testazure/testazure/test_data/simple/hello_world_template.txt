@@ -50,6 +50,7 @@ def main() -> None:
         input_datasets={{ input_datasets }},
         output_datasets={{ output_datasets }},
         wait_for_completion={{ wait_for_completion }},
+        identity_based_auth={{ identity_based_auth }},
         wait_for_completion_show_output={{ wait_for_completion_show_output }},
         tags={{ tags }},
         display_name='{{ display_name }}',
