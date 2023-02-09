@@ -294,7 +294,7 @@ class DigitalSlideArchive:
         :raises RuntimeError: If no items are found for the query or if more than one item is found.
         """
         parameters = dict(q=text, types="[\"item\"]", mode=search_mode)
-        items_jsons = self.make_api_call("/resource/search", parameters=parameters, result_field="item")
+        items_jsons = self.make_api_call("resource/search", parameters=parameters, result_field="item")
         if not items_jsons:
             raise RuntimeError(f"No items found for query \"{text}\"")
         elif len(items_jsons) > 1:
@@ -521,10 +521,10 @@ class RunOutputs:
         search_mode = "text" if search_mode == "full" else search_mode
         progress = tqdm(unique_slide_ids)
         responses = []
-        if folder:
-            folder_id = dsa.get_folder_id(folder)
+        if folder_path:
+            folder_id = dsa.get_folder_id(folder_path)
             items = dsa.get_items_in_folder(folder_id)
-            print(f"Found a total of {len(items)} items in folder {folder}")
+            print(f"Found a total of {len(items)} items in folder {folder_path}")
             for slide_id in progress:
                 progress.set_description(slide_id)
                 if id_filter not in slide_id:
