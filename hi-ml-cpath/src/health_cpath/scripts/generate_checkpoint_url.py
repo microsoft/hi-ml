@@ -46,13 +46,13 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--run_id', type=str, help='The run id of the model checkpoint')
-    parser.add_argument('--workspace_config_path', type=str, help='The path to the workspace config file.')
+    parser.add_argument('--workspace_config', type=str, help='The path to the workspace config file.')
     parser.add_argument('--checkpoint_filename', type=str, default='last.ckpt',
                         help='The filename of the model checkpoint. Default: last.ckpt')
     parser.add_argument('--expiry_days', type=int, default=30,
                         help='The number of hours for which the SAS token is valid. Default: 30 for 1 month')
     args = parser.parse_args()
-    workspace_config_path = Path(args.workspace_config_path) if args.workspace_config_path else None
+    workspace_config_path = Path(args.workspace_config) if args.workspace_config else None
     url = get_checkpoint_url_from_aml_run(
         run_id=args.run_id,
         checkpoint_filename=args.checkpoint_filename,
