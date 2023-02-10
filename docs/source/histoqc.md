@@ -35,13 +35,13 @@ sudo apt-get install blobfuse
 Create a file `blobfuse.cfg` with
 
 ```text
-accountName innereye4data1
+accountName <yourstorageaccount>
 accontKey <redacted>
 containerName datasets
 ```
 
-```
-blobfuse ~/innereye4data1 \
+```shell
+blobfuse /<yourstorageaccount> \
             --tmp-path=/tmp/blobfusetmp \
             --config-file=blobfuse.cfg \
             -o attr_timeout=240 \
@@ -53,5 +53,5 @@ blobfuse ~/innereye4data1 \
 Run as follows (on only a small set of images to start with)
 
 ```shell
-python -m histoqc innereye4data1/TCGA-PRAD_20220712/00*/**.svs --nprocesses 8
+python -m histoqc /<yourstorageaccount>/TCGA-PRAD_20220712/00*/**.svs --nprocesses 8
 ```
