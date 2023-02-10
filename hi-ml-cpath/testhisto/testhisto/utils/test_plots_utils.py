@@ -15,6 +15,7 @@ from health_cpath.utils.plots_utils import (DeepMILPlotsHandler, save_confusion_
                                             save_roc_curve, get_list_from_results_dict)
 from health_cpath.utils.tiles_selection_utils import SlideNode, TilesSelector
 from testhisto.mocks.container import MockDeepSMILETilesPanda
+from testhisto.utils.utils_testhisto import assert_binary_files_match, full_ml_test_data_path
 
 
 def test_plots_handler_wrong_class_names() -> None:
@@ -124,13 +125,23 @@ def test_save_conf_matrix_integration(tmp_path: Path) -> None:
     }
     class_names = ["foo", "bar"]
 
-    save_confusion_matrix(results, class_names, tmp_path, stage='foo')
+    # normalized confusion matrix
+    save_confusion_matrix(results, class_names, tmp_path, stage='foo', normlize='true')
     file = Path(tmp_path) / "normalized_confusion_matrix_foo.png"
     assert file.exists()
+    expected = full_ml_test_data_path("histo_heatmaps") / f"normalized_confusion_matrix_foo.png"
+    # To update the stored results, uncomment this line:
+    # expected.write_bytes(file.read_bytes())
+    assert_binary_files_match(file, expected)
 
+    # unnormalized confusion matrix
     save_confusion_matrix(results, class_names, tmp_path, stage='foo', normalize=None)
     file = Path(tmp_path) / "confusion_matrix_foo.png"
     assert file.exists()
+    expected = full_ml_test_data_path("histo_heatmaps") / f"confusion_matrix_foo.png"
+    # To update the stored results, uncomment this line:
+    # expected.write_bytes(file.read_bytes())
+    assert_binary_files_match(file, expected)
 
     # check that an error is raised if true labels include indices greater than the expected number of classes
     invalid_results_1 = {

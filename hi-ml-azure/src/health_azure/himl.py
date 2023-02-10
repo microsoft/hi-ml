@@ -578,6 +578,7 @@ def submit_run_v2(workspace: Optional[Workspace],
         # AML docs state to reset certain properties here which aren't picked up from the
         # underlying command such as experiment name and max_total_trials
         job_to_submit.experiment_name = experiment_name
+        job_to_submit.trial.resources.shm_size = docker_shm_size
         job_to_submit.set_limits(max_total_trials=hyperparam_args.get(MAX_TOTAL_TRIALS_ARG, None))
 
     else:
