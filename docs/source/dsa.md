@@ -45,19 +45,20 @@ User [permissions][18] can be set to different data collections in an assetstore
 
 ### Creating API Keys
 
-You can create an API key for a user in DSA by using the web-based interactive API. Visit
-`https://my-deployed-dsa.azure.com/api/v1#!/api95key/api_key_createKey`, where you replace `my-deployed-dsa.azure.com`
-with the URL of your DSA instance.
+You can create an API key for a user in DSA directly on the web.
 
-- Give the API key a name, such as `Upload API Key`.
-- Leave the `scope` field blank (some of the API calls that our upload script `girder.py` uses do NOT work if a scope is
-  set!)
-- Provide a token duration like 365 to make the token last for a year.
-- Press "Try it out!"
-- This will return a JSON object with a `key` field. Copy the value of this field and provide it on the commandline or
-  set as an environment variable `DSA_API_KEY` (in `bash`, this would be `export DSA_API_KEY=<the key>`)
+- Navigate to your DSA and log in
+- Click on "Users" in the navigation bar
+- Click on the user you want to create an API key for
+- On the top right, there is a menu "Actions", choose "Edit user"
+- You will see 4 tabs with user information, click on "API Keys"
+- Choose a name for the key, a duration in days. It is important to choose "Allow all actions on behalf of this user"!
+- Click "Create". You will see the list of keys, press "show" to reveal the actual key value. Copy it.
+- Set the key as an environment variable `DSA_API_KEY` (in `bash`, this would be `export DSA_API_KEY=<the key>`)
 - In addition, you can also set the URL for your DSA instance as an environment variable `DSA_URL` (in `bash`, this would be
   `export DSA_URL=<the url>`)
+
+![DSA API Key](images/dsa_api_key.png)
 
 ## Visualizing Azure Machine Learning results
 

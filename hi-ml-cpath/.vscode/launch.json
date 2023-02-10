@@ -113,5 +113,20 @@
             "console": "integratedTerminal",
             "justMyCode": false,
         },
+        {
+            "name": "Montage creation in AzureML",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/health_cpath/scripts/create_montage.py",
+            "args": [
+                "--dataset=test_montage",
+                "--width=1000",
+                "--cluster=lite-testing-ds2",
+                "--datastore=himldatasets",
+                "--conda_env=environment.yml"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
     ]
 }

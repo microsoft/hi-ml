@@ -294,7 +294,7 @@ class DigitalSlideArchive:
         :raises RuntimeError: If no items are found for the query or if more than one item is found.
         """
         parameters = dict(q=text, types="[\"item\"]", mode=search_mode)
-        items_jsons = self.make_api_call("/resource/search", parameters=parameters, result_field="item")
+        items_jsons = self.make_api_call("resource/search", parameters=parameters, result_field="item")
         if not items_jsons:
             raise RuntimeError(f"No items found for query \"{text}\"")
         elif len(items_jsons) > 1:
@@ -494,7 +494,7 @@ class RunOutputs:
         max_slides: Optional[int] = None,
         id_filter: Optional[str] = "",
         search_mode: str = "full",
-        folder: str = "",
+        folder_path: str = "",
         **annotation_kwargs: Any,
     ) -> List[Dict]:
         """Create annotations from a data frame and upload them to DSA.
@@ -504,7 +504,7 @@ class RunOutputs:
         :param max_slides: Maximum number of slides to upload, useful for debugging.
         :param id_filter: Filter to only process slides matching this string, according to ``search_mode``.
         :param search_mode: See :meth:`DigitalSlideArchive.search_item`.
-        :param folder: The folder in DSA where results should be uploaded to.
+        :param folder_path: The path of the folder in DSA where results should be uploaded to.
         :param annotation_kwargs: Additional kwargs to :meth:`get_annotation_from_slide_data_frame`.
         """
         unique_slide_ids = sorted(self.df[ResultsKey.SLIDE_ID].unique())
@@ -520,15 +520,19 @@ class RunOutputs:
         # I think "full" is more descriptive than "text" for our API
         search_mode = "text" if search_mode == "full" else search_mode
         progress = tqdm(unique_slide_ids)
+        annotation_name = f"{self.run.id} ({self.run.display_name})"
         responses = []
-        if folder:
-            folder_id = dsa.get_folder_id(folder)
+        if folder_path:
+            folder_id = dsa.get_folder_id(folder_path)
             items = dsa.get_items_in_folder(folder_id)
-            print(f"Found a total of {len(items)} items in folder {folder}")
-            for slide_id in progress:
-                progress.set_description(slide_id)
-                if id_filter not in slide_id:
-                    continue
+            print(f"Found a total of {len(items)} items in folder {folder_path}")
+        else:
+            items = []
+        for slide_id in progress:
+            progress.set_description(slide_id)
+            if id_filter not in slide_id:
+                continue
+            if folder_path:
                 matching_items = [item for item in items if slide_id in item.name]
                 if not matching_items:
                     print(f"No items in DSA for slide ID {slide_id}")
@@ -537,32 +541,18 @@ class RunOutputs:
                     print(f"Multiple items in DSA for slide ID {slide_id}. Skipping this slide.")
                     continue
                 item = matching_items[0]
-                tqdm.write(f"Processing slide {slide_id} - {item.url}")
-                annotation_name = f"{self.run.id} ({self.run.display_name})"
-                annotation = self.get_slide_annotation_from_df(
-                    self.df,
-                    slide_id,
-                    annotation_name,
-                    **annotation_kwargs,
-                )
-                if not dry_run:
-                    responses.append(item.add_annotation(annotation))
-        else:
-            for slide_id in progress:
-                progress.set_description(slide_id)
-                if id_filter not in slide_id:
-                    continue
+            else:
                 item = dsa.search_item(slide_id, search_mode=search_mode)
-                tqdm.write(f"Processing slide {slide_id} - {item.url}")
-                annotation_name = self.run.id
-                annotation = self.get_slide_annotation_from_df(
-                    self.df,
-                    slide_id,
-                    annotation_name,
-                    **annotation_kwargs,
-                )
-                if not dry_run:
-                    responses.append(item.add_annotation(annotation))
+
+            tqdm.write(f"Processing slide {slide_id} - {item.url}")
+            annotation = self.get_slide_annotation_from_df(
+                self.df,
+                slide_id,
+                annotation_name,
+                **annotation_kwargs,
+            )
+            if not dry_run:
+                responses.append(item.add_annotation(annotation))
         return responses
 
 
@@ -669,5 +659,5 @@ if __name__ == "__main__":
         search_mode=args.search_mode,
         colormap_name=args.colormap,
         rescale=args.no_rescale,
-        folder=args.folder,
+        folder_path=args.folder,
     )
