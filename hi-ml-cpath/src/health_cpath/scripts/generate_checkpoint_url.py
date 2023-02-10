@@ -20,6 +20,7 @@ def get_checkpoint_url_from_aml_run(
     :param run_id: The run ID of the checkpoint.
     :param checkpoint_filename: The filename of the checkpoint.
     :param expiry_days: The number of days the SAS URL is valid for, defaults to 30.
+    :param workspace_config_path: The path to the workspace config file, defaults to None.
     :param aml_workspace: The Azure ML workspace to use, defaults to the default workspace.
     :param sas_token: The SAS token to use, defaults to None.
     :return: The SAS URL for the checkpoint.
