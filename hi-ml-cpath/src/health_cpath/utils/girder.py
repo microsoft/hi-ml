@@ -410,7 +410,7 @@ class RunOutputs:
         csv_name = f"{csv_stem}-{self.workspace.name}-{self.run.id}.csv"
         cached_csv_path = Path(tempfile.gettempdir()) / csv_name
         if cached_csv_path.is_file() and not overwrite_csv:
-            logging.info("Found cached CSV file")
+            logging.info(f"Found cached CSV file {cached_csv_path}")
         else:
             logging.info("Downloading outputs CSV...")
             aml_exceptions = (
