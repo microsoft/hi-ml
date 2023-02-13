@@ -36,7 +36,8 @@ from health_azure.logging import logging_to_stdout
 from health_azure.utils import get_aml_run_from_run_id
 
 from health_cpath.utils.naming import ResultsKey
-from health_cpath.utils.output_utils import AML_TEST_OUTPUTS_CSV
+from health_cpath.utils.output_utils import (AML_OUTPUTS_DIR, EXTRA_VAL_OUTPUTS_SUBDIR,
+                                             OUTPUTS_CSV_FILENAME, TEST_OUTPUTS_SUBDIR, VAL_OUTPUTS_SUBDIR)
 
 
 TypeRectangleJSON = Dict[str, Union[str, float, Dict[str, str]]]
@@ -386,6 +387,7 @@ class RunOutputs:
         run_id: str,
         workspace_config_path: Optional[Path] = None,
         overwrite_csv: bool = False,
+        split: str = "test"
     ):
         logging.info("Getting run \"%s\"...", run_id)
         run = get_aml_run_from_run_id(run_id, workspace_config_path=workspace_config_path)
@@ -397,6 +399,7 @@ class RunOutputs:
         self.workspace = workspace
         self.df = self.get_df(overwrite_csv)
         self.tile_size = None
+        self.split = split
 
     def get_df(self, overwrite_csv: bool) -> pd.DataFrame:
         """Download outputs CSV from Azure ML and read the data frame.
@@ -405,12 +408,12 @@ class RunOutputs:
 
         :param overwrite_csv: Force download of the output CSV even when it is found locally.
         """
-        csv_filename = AML_TEST_OUTPUTS_CSV
+        csv_filename = "/".join([AML_OUTPUTS_DIR, self.split, OUTPUTS_CSV_FILENAME])
         csv_stem = Path(csv_filename).stem
         csv_name = f"{csv_stem}-{self.workspace.name}-{self.run.id}.csv"
         cached_csv_path = Path(tempfile.gettempdir()) / csv_name
         if cached_csv_path.is_file() and not overwrite_csv:
-            logging.info("Found cached CSV file")
+            logging.info(f"Found cached CSV file {cached_csv_path}")
         else:
             logging.info("Downloading outputs CSV...")
             aml_exceptions = (
@@ -418,6 +421,7 @@ class RunOutputs:
                 azureml._restclient.models.error_response.ErrorResponseException,
             )
             try:
+                logging.info(f"Downloading file {csv_filename}")
                 self.run.download_file(csv_filename, cached_csv_path)
             except aml_exceptions as e:
                 raise FileNotFoundError("Error downloading outputs file from run") from e
@@ -629,6 +633,13 @@ if __name__ == "__main__":
              "in DSA. The folder name must contain the collection, like `Collection1/foo`",
     )
     parser.add_argument(
+        "--split",
+        type=str,
+        choices=[TEST_OUTPUTS_SUBDIR, EXTRA_VAL_OUTPUTS_SUBDIR, VAL_OUTPUTS_SUBDIR],
+        default=TEST_OUTPUTS_SUBDIR,
+        help="The results subfolder in the AzureML run where the results are downloaded from. Default: 'test'",
+    )
+    parser.add_argument(
         "--search-mode",
         type=str,
         choices=("full", "prefix"),
@@ -650,6 +661,7 @@ if __name__ == "__main__":
         run_id=args.run_id,
         workspace_config_path=args.workspace_config,
         overwrite_csv=args.overwrite_csv,
+        split=args.split,
     )
     outputs.upload(
         dsa,
