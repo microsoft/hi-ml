@@ -36,7 +36,8 @@ from health_azure.logging import logging_to_stdout
 from health_azure.utils import get_aml_run_from_run_id
 
 from health_cpath.utils.naming import ResultsKey
-from health_cpath.utils.output_utils import AML_OUTPUTS_DIR, AML_TEST_OUTPUTS_CSV, EXTRA_VAL_OUTPUTS_SUBDIR, OUTPUTS_CSV_FILENAME, TEST_OUTPUTS_SUBDIR, VAL_OUTPUTS_SUBDIR
+from health_cpath.utils.output_utils import (AML_OUTPUTS_DIR, EXTRA_VAL_OUTPUTS_SUBDIR,
+                                             OUTPUTS_CSV_FILENAME, TEST_OUTPUTS_SUBDIR, VAL_OUTPUTS_SUBDIR)
 
 
 TypeRectangleJSON = Dict[str, Union[str, float, Dict[str, str]]]
