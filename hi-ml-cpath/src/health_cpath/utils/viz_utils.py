@@ -7,6 +7,7 @@ import logging
 import sys
 import math
 import cv2
+from matplotlib.colors import LogNorm
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -68,7 +69,7 @@ def plot_panda_data_sample(
         print(f">>> Slide {slide_id}")
         loading_params = LoadingParams(level=level, margin=margin, backend=WSIBackend.CUCIM, roi_type=ROIType.MASK)
         img = load_image_dict(dict_images, loading_params)
-        ax.imshow(img[SlideKey.IMAGE].transpose(1, 2, 0))
+        ax.imshow(img[SlideKey.IMAGE].transpose(1, 2, 0), interpolation="nearest")
         ax.set_title(title)
     fig.tight_layout()
 
@@ -130,7 +131,7 @@ def plot_attention_tiles(
     fig, axs = plt.subplots(nrows=num_rows, ncols=num_columns, figsize=figsize)
     fig.suptitle(_get_histo_plot_title(case, slide_node))
     for ax, tile_node in zip(axs.flat, tile_nodes):
-        ax.imshow(np.transpose(tile_node.data.numpy(), (1, 2, 0)), clim=(0, 255), cmap="gray")
+        ax.imshow(np.transpose(tile_node.data.numpy(), (1, 2, 0)), clim=(0, 255), cmap="gray", interpolation="nearest")
         ax.set_title("%.6f" % tile_node.attn)
 
     for ax in axs.flat:
@@ -148,7 +149,7 @@ def plot_slide(case: str, slide_node: SlideNode, slide_image: np.ndarray, scale:
     """
     fig, ax = plt.subplots()
     slide_image = slide_image.transpose(1, 2, 0)
-    ax.imshow(slide_image)
+    ax.imshow(slide_image, interpolation="nearest")
     fig.suptitle(_get_histo_plot_title(case, slide_node))
     ax.set_axis_off()
     original_size = fig.get_size_inches()
@@ -197,15 +198,15 @@ def plot_heatmap_overlay(
 
     slide_image = _get_slide_image_from_slide_dict(slide_dict)
 
-    ax0.imshow(slide_image)
-    ax1.imshow(slide_image, alpha=0.5)
+    ax0.imshow(slide_image, interpolation="nearest")
+    ax1.imshow(slide_image, alpha=0.5, interpolation="nearest")
     if extra_slide_dict:
         extra_image = _get_slide_image_from_slide_dict(extra_slide_dict)
         if extra_image.shape != slide_image.shape:
             extra_image = cv2.resize(
                 extra_image, (slide_image.shape[1], slide_image.shape[0]), interpolation=cv2.INTER_AREA
             )
-        ax2.imshow(extra_image)
+        ax2.imshow(extra_image, interpolation="nearest")
         ax2.tick_params('x', labelbottom=False)
     for ax in axes:
         ax.set_xlim(0, slide_image.shape[1])
@@ -229,7 +230,8 @@ def plot_heatmap_overlay(
     rects = [patches.Rectangle(xy, tile_size, tile_size) for xy in zip(tile_xs, tile_ys)]
 
     # line width is set to 0 to avoid the black border around the tiles as the tiles are already colored
-    pc = collection.PatchCollection(rects, match_original=True, cmap=cmap, alpha=0.5, linewidth=0)
+    pc = collection.PatchCollection(rects, match_original=True, cmap=cmap, alpha=0.5, linewidth=0,
+                                    norm=LogNorm(), lw=0)
     pc.set_array(np.array(attentions))
     ax1.add_collection(pc)
     cb = plt.colorbar(pc, cax=cax)  # add colorbar to the right of the plot (cax)
