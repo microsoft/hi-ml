@@ -62,4 +62,11 @@ Run a test run as follows (on only a small set of images to start with).
 python -m histoqc /<your_storage_account>/<slides_dataset_folder>/00*/**.svs -n 8 -c <path_to_config_file> -o <target_folder>
 ```
 
-Argument `slides_dataset_folder` refes to the folder where the slides are stored. Argument `-n` specifies the number of parallel processes. Argument `path_to config_file` refers to the `histoqc` config file used for pre-processing the slides; for H&E slides, `hi-ml-cpath/src/health_cpath/preprocessing/histoqc/config_v2.1_modified.ini` can be used, this is a modified version of the original `histoqc` H&E config `config_v2.1.ini`. The argument `-o` specifies the output folder where `histoqc` results will be stored (`results.tsv`, `error.log`, and intermediate result folders).
+Argument `slides_dataset_folder` refes to the folder where the slides are stored. Argument `-n` specifies the number of parallel processes. The argument `-o` specifies the output folder where `histoqc` results will be stored (`results.tsv`, `error.log`, and intermediate result folders). The argument `path_to config_file` refers to the `histoqc` config file used for pre-processing the slides. The original configs in `histoqc/configs` can be used, such as `config_v2.1.ini` for H&E slides and  `config_ihc.ini` for IHC slides.
+
+For best results with H&E images, we commented out lines 4 and 16 in `config_v2.1.ini` as shown below (pen marking and blur detection modules respectively).
+
+```shell
+; ClassificationModule.byExampleWithFeatures:pen_markings
+; BlurDetectionModule.identifyBlurryRegions
+```
