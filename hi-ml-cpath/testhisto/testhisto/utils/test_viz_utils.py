@@ -21,12 +21,12 @@ from health_ml.utils.common_utils import is_gpu_available, is_windows
 from health_ml.utils.fixed_paths import OutputFolderForTests
 from health_cpath.utils.viz_utils import (
     plot_attention_histogram, plot_attention_tiles, plot_scores_hist, resize_and_save, plot_slide,
-    plot_heatmap_overlay, plot_normalized_confusion_matrix
+    plot_heatmap_overlay, plot_normalized_confusion_matrix, save_figure
 )
 from health_cpath.utils.naming import ResultsKey, SlideKey
 from health_cpath.utils.heatmap_utils import location_selected_tiles
 from health_cpath.utils.tiles_selection_utils import SlideNode, TileNode
-from health_cpath.utils.viz_utils import save_figure
+from health_cpath.utils.analysis_plot_utils import plot_pr_curve, plot_roc_curve
 from testhisto.utils.utils_testhisto import assert_binary_files_match, full_ml_test_data_path
 
 
@@ -74,6 +74,7 @@ test_dict = {ResultsKey.SLIDE_ID: [[1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3], [4,
              ResultsKey.CLASS_PROBS: [Tensor([0.6, 0.4]), Tensor([0.3, 0.7]), Tensor([0.6, 0.4]), Tensor([0.0, 1.0]),
                                       Tensor([0.7, 0.3]), Tensor([0.8, 0.2]), Tensor([0.1, 0.9]), Tensor([0.01, 0.99])],
              ResultsKey.TRUE_LABEL: [0, 1, 1, 1, 1, 0, 0, 0],
+             ResultsKey.PROB: [0.6, 0.7, 0.6, 1.0, 0.7, 0.8, 0.9, 0.99],
              ResultsKey.BAG_ATTN:
                  [Tensor([[0.10, 0.00, 0.20, 0.15]]),
                   Tensor([[0.10, 0.18, 0.15, 0.13]]),
@@ -114,6 +115,36 @@ def test_plot_scores_hist(test_output_dirs: OutputFolderForTests) -> None:
     resize_and_save(5, 5, file)
     assert file.exists()
     expected = full_ml_test_data_path("histo_heatmaps") / "score_hist.png"
+    # To update the stored results, uncomment this line:
+    # expected.write_bytes(file.read_bytes())
+    assert_binary_files_match(file, expected)
+
+
+@pytest.mark.skipif(is_windows(), reason="Rendering is different on Windows")
+def test_plot_pr_curve(test_output_dirs: OutputFolderForTests) -> None:
+    _, ax = plt.subplots()
+    true_labels = test_dict[ResultsKey.TRUE_LABEL]
+    scores = test_dict[ResultsKey.PROB]
+    plot_pr_curve(labels=true_labels, scores=scores, legend_label='', ax=ax)            # type: ignore
+    file = Path(test_output_dirs.root_dir) / "plot_pr_curve.png"
+    resize_and_save(5, 5, file)
+    assert file.exists()
+    expected = full_ml_test_data_path("histo_heatmaps") / "pr_curve.png"
+    # To update the stored results, uncomment this line:
+    # expected.write_bytes(file.read_bytes())
+    assert_binary_files_match(file, expected)
+
+
+@pytest.mark.skipif(is_windows(), reason="Rendering is different on Windows")
+def test_plot_roc_curve(test_output_dirs: OutputFolderForTests) -> None:
+    _, ax = plt.subplots()
+    true_labels = test_dict[ResultsKey.TRUE_LABEL]
+    scores = test_dict[ResultsKey.PROB]
+    plot_roc_curve(labels=true_labels, scores=scores, legend_label='', ax=ax)           # type: ignore
+    file = Path(test_output_dirs.root_dir) / "plot_roc_curve.png"
+    resize_and_save(5, 5, file)
+    assert file.exists()
+    expected = full_ml_test_data_path("histo_heatmaps") / "roc_curve.png"
     # To update the stored results, uncomment this line:
     # expected.write_bytes(file.read_bytes())
     assert_binary_files_match(file, expected)
@@ -231,26 +262,31 @@ def test_plot_slide(
 
 
 @pytest.mark.skipif(is_windows(), reason="Rendering is different on Windows")
-def test_plot_heatmap_overlay(test_output_dirs: OutputFolderForTests) -> None:
+@pytest.mark.parametrize("add_extra_slide_plot", [True, False])
+def test_plot_heatmap_overlay(add_extra_slide_plot: bool, test_output_dirs: OutputFolderForTests) -> None:
     set_random_seed(0)
     slide_image = np.random.rand(3, 1000, 2000)
+    extra_image = np.random.rand(3, 950, 1952)
     slide_node = SlideNode(
         slide_id=1, gt_prob_score=0.04, pred_prob_score=0.96, true_label=1, pred_label=0  # type: ignore
     )
     location_bbox = [100, 100]
     slide_dict = {SlideKey.IMAGE: slide_image, SlideKey.ORIGIN: location_bbox, SlideKey.SCALE: 1}
+    extra_slide_dict = {SlideKey.IMAGE: extra_image, SlideKey.ORIGIN: location_bbox, SlideKey.SCALE: 1}
     tile_size = 224
     fig = plot_heatmap_overlay(case="FN",
                                slide_node=slide_node,
                                slide_dict=slide_dict,
                                results=test_dict,  # type: ignore
                                tile_size=tile_size,
-                               should_upscale_coords=False)
+                               should_upscale_coords=False,
+                               extra_slide_dict=extra_slide_dict if add_extra_slide_plot else None)
     assert isinstance(fig, matplotlib.figure.Figure)
+    filename = "heatmap_overlay_extra.png" if add_extra_slide_plot else "heatmap_overlay.png"
     file = Path(test_output_dirs.root_dir) / "plot_heatmap_overlay.png"
     resize_and_save(5, 5, file)
     assert file.exists()
-    expected = full_ml_test_data_path("histo_heatmaps") / "heatmap_overlay.png"
+    expected = full_ml_test_data_path("histo_heatmaps") / filename
     # To update the stored results, uncomment this line:
     # expected.write_bytes(file.read_bytes())
     assert_binary_files_match(file, expected)

@@ -153,9 +153,12 @@ class WorkflowParams(param.Parameterized):
     crossval_count: int = param.Integer(default=1, bounds=(0, None),
                                         doc="The number of splits to use when doing cross-validation. "
                                             "Use 1 to disable cross-validation")
-    crossval_index: int = param.Integer(default=0, bounds=(0, None),
-                                        doc="When doing cross validation, this is the index of the current "
-                                            "split. Valid values: 0 .. (crossval_count -1)")
+    crossval_index: Optional[int] = param.Integer(default=None, bounds=(0, None), allow_None=True,
+                                                  doc="When doing cross validation, this is the index of the current "
+                                                      "split. Valid values: 0 .. (crossval_count -1). Default: None"
+                                                      "when launching a cross-validation run, this will be set by "
+                                                      "the hyperdrive config. To submit a single cross-validation fold,"
+                                                      "set this to the fold index along with --crossval_count > 1.")
     hyperdrive: bool = param.Boolean(False,
                                      doc="If True, use the Hyperdrive configuration specified in the "
                                          "LightningContainer to run hyperparameter tuning. If False, just "
@@ -175,7 +178,8 @@ class WorkflowParams(param.Parameterized):
     regression_metrics: str = param.String(default=None, doc="A list of names of metrics to compare")
     run_inference_only: bool = param.Boolean(False, doc="If True, run only inference and skip training after loading"
                                                         "model weights from the specified checkpoint in "
-                                                        "`src_checkpoint` flag. If False, run training and inference.")
+                                                        "`src_checkpoint` flag. Inference is run on both validation "
+                                                        "and test sets. If False, run training and inference.")
     resume_training: bool = param.Boolean(False, doc="If True, resume training from the src_checkpoint.")
     tag: str = param.String(doc="A string that will be used as the display name of the run in AzureML.")
     experiment: str = param.String(default="", doc="The name of the AzureML experiment to use for this run. If not "
@@ -195,7 +199,7 @@ class WorkflowParams(param.Parameterized):
     RANDOM_SEED_ARG_NAME = "random_seed"
 
     def validate(self) -> None:
-        if self.crossval_count > 1:
+        if self.crossval_count > 1 and self.crossval_index is not None:
             if not (0 <= self.crossval_index < self.crossval_count):
                 raise ValueError(f"Attribute crossval_index out of bounds (crossval_count = {self.crossval_count})")
 
@@ -221,19 +225,28 @@ class WorkflowParams(param.Parameterized):
         :return:
         """
         seed = self.random_seed
-        if self.is_crossvalidation_enabled:
+        if self.is_crossvalidation_child_run:
             # Offset the random seed based on the cross validation split index so each
             # fold has a different initial random state. Cross validation index 0 will have
             # a different seed from a non cross validation run.
+            assert self.crossval_index is not None, "crossval_index must be set for cross validation child runs"
             seed += self.crossval_index + 1
         return seed
 
     @property
-    def is_crossvalidation_enabled(self) -> bool:
+    def is_crossvalidation_parent_run(self) -> bool:
         """
-        Returns True if the present parameters indicate that cross-validation should be used.
+        Returns True if the present parameters indicate that this is cross-validation parent run that should trigger
+        a hyperdrive run.
         """
-        return self.crossval_count > 1
+        return self.crossval_count > 1 and self.crossval_index is None
+
+    @property
+    def is_crossvalidation_child_run(self) -> bool:
+        """
+        Returns True if the present parameters indicate that this is a cross-validation child run.
+        """
+        return self.crossval_count > 1 and self.crossval_index is not None
 
     def get_crossval_hyperdrive_config(self) -> HyperDriveConfig:
         # For crossvalidation, the name of the metric to monitor does not matter because no early termination or such
@@ -446,6 +459,13 @@ class TrainerParams(param.Parameterized):
                                       doc="The maximum number of GPUS to use. If set to a value < 0, use"
                                           "all available GPUs. In distributed training, this is the "
                                           "maximum number of GPUs per node.")
+    max_num_gpus_inference: int = param.Integer(default=1,
+                                                doc="The maximum number of GPUS to use for inference. Default is 1 for "
+                                                    "single device inference. This guarantees reproducibility of "
+                                                    "results without any duplication of data. However, if you use "
+                                                    "pl_replace_sampler_ddp=False, you can set this to a higher value "
+                                                    "to speed up inference. Use a negative value to use all available "
+                                                    "GPUs in the system.")
     pl_progress_bar_refresh_rate: Optional[int] = \
         param.Integer(default=None,
                       doc="PyTorch Lightning trainer flag 'progress_bar_refresh_rate': How often to refresh "
@@ -518,6 +538,14 @@ class TrainerParams(param.Parameterized):
                                                  "sets the sampler for distributed training with shuffle=True during "
                                                  "training and shuffle=False during validation. Default to True. Set to"
                                                  "False to set your own sampler.")
+
+    def validate(self) -> None:
+        if self.max_num_gpus_inference > 1 and self.pl_replace_sampler_ddp:
+            logging.warning("The 'pl_replace_sampler_ddp' flag is set to True, but the 'max_num_gpus_inference' > 1. "
+                            "This might bias the inference results due to duplicate samples. Consider setting "
+                            "--pl_replace_sampler_ddp=False if you want to use multiple GPUs for inference."
+                            "pytorch_lightning.overrides.distributed.UnrepeatedDistributedSampler can be used instead "
+                            "of DistributedSampler.")
 
     @property
     def use_gpu(self) -> bool:

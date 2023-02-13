@@ -31,11 +31,12 @@ pip: pip_build pip_test call_pip_local
 
 # clean build artifacts
 clean:
-	rm -vrf `find . -type d -name __pycache__`
-	rm -vrf `find . -type d -name logs`
-	rm -vrf `find . -type d -name outputs`
-	rm -vrf ./.mypy_cache ./.pytest_cache ./build ./dist ./htmlcov ./src/*.egg-info
-	rm -vf ./coverage ./coverage.txt ./coverage.xml ./latest_version.txt ./most_recent_run.txt ./package_name.txt
+	for folder in .mypy_cache __pycache__ logs outputs; do \
+		rm -rf `find . -type d -name $$folder`; \
+	done
+	rm -rf ./.pytest_cache ./build ./dist ./htmlcov ./src/*.egg-info
+	rm -rf Lightning checkpoints lightning_logs
+	rm -f ./coverage ./coverage.txt ./coverage.xml ./latest_version.txt ./most_recent_run.txt ./package_name.txt
 
 # build package, assuming build requirements already installed
 call_build:
@@ -45,47 +46,56 @@ call_build:
 build: pip_build call_build
 
 # run flake8, assuming test requirements already installed
-call_flake8:
+flake8:
 	flake8 --count --statistics
 
-# pip install test requirements and run flake8
-flake8: pip_test call_flake8
-
 # run mypy, assuming test requirements already installed
-call_mypy:
+mypy:
 	mypy --install-types --show-error-codes --non-interactive setup.py
 	mypy --install-types --show-error-codes --non-interactive --package health_ml
 	mypy --install-types --show-error-codes --non-interactive --package testhiml
 
-# pip install test requirements and run mypy
-mypy: pip_test call_mypy
-
-# run basic checks
-call_check: call_flake8 call_mypy
-
-# install test requirements and run basic checks
-check: pip_test call_check
+# run basic checks, assuming test requirements already installed
+check: flake8 mypy
 
 # run pytest on package, assuming test requirements already installed
-call_pytest:
+pytest:
 	pytest testhiml
 
-# install test requirements and run tests
-pytest: pip_test call_pytest
-
 # run pytest fast subset on package, assuming test requirements already installed
-call_pytest_fast:
+pytest_fast:
 	pytest -m fast testhiml
 
-# install test requirements and run pytest fast subset
-pytest_fast: pip_test call_pytest_fast
-
-# run pytest with coverage on package
+# Run pytest with coverage on package.
+# Output the slowest tests via the --durations flag.
 call_pytest_and_coverage:
-	pytest --cov=health_ml --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc testhiml
+	pytest --durations=20 --cov=health_ml --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc testhiml
 
 # install test requirements and run pytest coverage
 pytest_and_coverage: pip_test call_pytest_and_coverage
 
 # install test requirements and run all tests
-test_all: pip_test call_flake8 call_mypy call_pytest_and_coverage
+test_all: pip_test flake8 mypy call_pytest_and_coverage
+
+# Smoke tests should all wait for completion and run for 15 minutes maximum.
+# Tests run with the cpath Conda environment because of some odd problems with the hi-ml environment on GPU machines.
+# Some of that can be fixed by pinning torch==1.10.0, but then that triggers problems with distutils.
+define SHARED_ARGS
+--conda_env ../hi-ml-cpath/environment.yml --cluster=pr-gpu --max_run_duration=15m --wait_for_completion
+endef
+
+# HelloWorld model training on a single node, submitted using the v1 SDK
+smoke_helloworld_v1:
+	python src/health_ml/runner.py --model=health_ml.HelloWorld --strictly_aml_v1=True --tag smoke_helloworld_v1 ${SHARED_ARGS}
+
+# HelloWorld model training on a single node, submitted using the v2 SDK
+smoke_helloworld_v2:
+	python src/health_ml/runner.py --model=health_ml.HelloWorld --strictly_aml_v1=False --tag smoke_helloworld_v2 ${SHARED_ARGS}
+
+# HelloWorld model training on 2 nodes, submitted using the v1 SDK
+smoke_helloworld_v1_2nodes:
+	python src/health_ml/runner.py --model=health_ml.HelloWorld --strictly_aml_v1=True --num_nodes=2 --tag smoke_helloworld_v1_2nodes ${SHARED_ARGS}
+
+# HelloWorld model training on 2 nodes, submitted using the v2 SDK
+smoke_helloworld_v2_2nodes:
+	python src/health_ml/runner.py --model=health_ml.HelloWorld --strictly_aml_v1=False --num_nodes=2 --tag smoke_helloworld_v2_2nodes ${SHARED_ARGS}

@@ -10,14 +10,25 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, Generator, Optional
 
+from azure.ai.ml import MLClient
 from azureml.core import Run
-
 from health_azure.utils import (ENV_EXPERIMENT_NAME, WORKSPACE_CONFIG_JSON, UnitTestWorkspaceWrapper,
                                 to_azure_friendly_string)
 from health_azure import create_aml_run_object
 from health_azure.himl import effective_experiment_name
+from health_azure.utils import get_ml_client, get_workspace
 
 DEFAULT_DATASTORE = "himldatasets"
+
+TEST_DATASET_NAME = "test_dataset"
+TEST_DATA_ASSET_NAME = "test_dataset"
+TEST_INVALID_DATA_ASSET_NAME = "non_existent_dataset"
+TEST_DATASTORE_NAME = "test_datastore"
+
+USER_IDENTITY_TEST_DATASTORE = "test_identity_based_datastore"
+USER_IDENTITY_TEST_ASSET = "test_identity_based_data_asset"
+USER_IDENTITY_TEST_ASSET_OUTPUT = "test_identity_based_data_asset_output"
+USER_IDENTITY_TEST_FILE = "test_identity_based_file.txt"
 FALLBACK_SINGLE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538212_d2b07afd"
 
 # List of root folders to add to .amlignore
@@ -83,3 +94,22 @@ def create_unittest_run_object(snapshot_directory: Optional[Path] = None) -> Run
     return create_aml_run_object(experiment_name=effective_experiment_name("himl-tests"),
                                  workspace=DEFAULT_WORKSPACE.workspace,
                                  snapshot_directory=snapshot_directory)
+
+
+def get_test_ml_client() -> MLClient:
+    """Generates an MLClient object for use in tests.
+
+    :return: MLClient object
+    """
+
+    workspace = get_workspace()
+    return get_ml_client(aml_workspace=workspace)
+
+
+def current_test_name() -> str:
+    """Get the name of the currently executed test. This is read off an environment variable. If that
+    is not found, the function returns an empty string."""
+    current_test = os.environ.get("PYTEST_CURRENT_TEST", "")
+    if current_test:
+        return current_test.split(':')[-1].split(' ')[0]
+    return ""

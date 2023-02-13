@@ -238,10 +238,36 @@ def test_subsample(include_non_indexable: bool, allow_missing_keys: bool) -> Non
         for idx, elem in zip(sub_data['indices'], sub_data[key]):
             assert np.array_equal(elem, data[key][idx])  # type: ignore
 
+    # Check that the subsampled elements are not repeated
+    for key in ['array_1d', 'array_2d', 'tensor_1d', 'tensor_2d']:
+        assert sub_data[key].shape == np.unique(sub_data[key], axis=0).shape
+    for key in ['list']:
+        assert len(sub_data[key]) == len(set(sub_data[key]))
+
     # Check that subsampling is random, i.e. subsequent calls shouldn't give identical results
     sub_data2 = subsampling(data)
     for key in ['tensor_1d', 'tensor_2d', 'array_1d', 'array_2d', 'list']:
         assert not np.array_equal(sub_data[key], sub_data2[key])  # type: ignore
+
+
+@pytest.mark.parametrize('max_size', [2, 5])
+def test_shuffle(max_size: int) -> None:
+    batch_size = 5
+    data = {
+        'array_1d': np.random.randn(batch_size),
+        'array_2d': np.random.randn(batch_size, 4),
+        'tensor_1d': torch.randn(batch_size),
+        'tensor_2d': torch.randn(batch_size, 4),
+        'list': torch.randn(batch_size).tolist(),
+        'indices': list(range(batch_size)),
+        'non-indexable': 42,
+    }
+    keys_to_subsample = list(data.keys())
+    shuffling = Subsampled(keys_to_subsample, max_size=max_size, allow_missing_keys=True)
+    shuffling.randomize(total_size=max_size)
+    indices = shuffling._indices
+    assert len(indices) <= len(data['indices'])
+    assert len(indices) == len(set(indices))
 
 
 def test_transform_dict_adaptor() -> None:

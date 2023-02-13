@@ -53,6 +53,7 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         :param n_tiles_list: A list to use different n_tiles per slide for randomly positioned tiles.
         :param kwargs: Same params passed to MockHistoDataGenerator.
         """
+        self.generated_files: List[str] = []
         super().__init__(**kwargs)
 
         self.n_levels = n_levels
@@ -120,13 +121,14 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
                         else tiles[i % self.n_tiles].numpy()
                     )
                     # fill the square diagonal with tile repeated n_repeat_tile times along X and Y axis.
-                    fill_square = np.tile(tile, (self.n_repeat_tile, self.n_repeat_tile))
+                    fill_square: Union[np.ndarray, float] = np.tile(tile, (self.n_repeat_tile, self.n_repeat_tile))
                     dump_tiles.append(tile)
 
             elif self.mock_type == MockHistoDataType.FAKE:
                 if i == 0 or self.n_tiles > 1:
                     # pick a random fake value to fill in the square diagonal.
-                    fill_square = np.random.uniform(0, self.background_val / (self.n_repeat_diag + 1) * (i + 1))
+                    upper = self.background_val / (self.n_repeat_diag + 1) * (i + 1)
+                    fill_square = np.random.uniform(0, upper)
                     dump_tiles.append(
                         np.full(
                             shape=(self.n_channels, self.tile_size, self.tile_size),
@@ -222,6 +224,7 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
 
             slide_tiff_filename = self.dest_data_path / "train_images" / f"_{slide_counter}.tiff"
             self._save_mock_wsi_as_tiff_file(slide_tiff_filename, wsi_levels)
+            self.generated_files.append(str(slide_tiff_filename))
 
             if dump_tiles is not None:
                 dump_tiles_filename = self.dest_data_path / "dump_tiles" / f"_{slide_counter}.npy"

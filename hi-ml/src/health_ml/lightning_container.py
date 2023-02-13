@@ -43,6 +43,7 @@ class LightningContainer(WorkflowParams,
     def validate(self) -> None:
         WorkflowParams.validate(self)
         OptimizerParams.validate(self)
+        TrainerParams.validate(self)
 
     def setup(self) -> None:
         """
@@ -187,7 +188,7 @@ class LightningContainer(WorkflowParams,
         """
         if self.hyperdrive:
             return self.get_parameter_tuning_config(ScriptRunConfig(source_directory=""))
-        if self.is_crossvalidation_enabled:
+        if self.is_crossvalidation_parent_run:
             return self.get_crossval_hyperdrive_config()
         if self.different_seeds > 0:
             return self.get_different_seeds_hyperdrive_config()
@@ -202,7 +203,7 @@ class LightningContainer(WorkflowParams,
         """
         if self.hyperdrive:
             return self.get_parameter_tuning_args()
-        if self.is_crossvalidation_enabled:
+        if self.is_crossvalidation_parent_run:
             return self.get_crossval_hyperparam_args_v2()
         if self.different_seeds > 0:
             return self.get_grid_hyperparam_args_v2()

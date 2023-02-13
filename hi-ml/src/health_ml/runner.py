@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from azureml.core import Workspace, Run
+from azureml.core import Workspace
 
 # Add hi-ml packages to sys.path so that AML can find them if we are using the runner directly from the git repo
 himl_root = Path(__file__).resolve().parent.parent.parent.parent
@@ -23,10 +23,11 @@ for folder in folders_to_add:
         sys.path.insert(0, str(folder))
 
 from health_azure import AzureRunInfo, submit_to_azure_if_needed  # noqa: E402
+from health_azure.amulet import prepare_amulet_job, is_amulet_job  # noqa: E402
 from health_azure.datasets import create_dataset_configs  # noqa: E402
+from health_azure.himl import DEFAULT_DOCKER_BASE_IMAGE  # noqa: E402
 from health_azure.logging import logging_to_stdout   # noqa: E402
 from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
-from health_azure.amulet import prepare_amulet_job, is_amulet_job  # noqa: E402
 from health_azure.utils import (get_workspace, get_ml_client, is_local_rank_zero,  # noqa: E402
                                 is_running_in_azure_ml, set_environment_variables_for_multi_node,
                                 create_argparser, parse_arguments, ParserResult, apply_overrides,
@@ -36,7 +37,7 @@ from health_ml.experiment_config import DEBUG_DDP_ENV_VAR, ExperimentConfig  # n
 from health_ml.lightning_container import LightningContainer  # noqa: E402
 from health_ml.run_ml import MLRunner  # noqa: E402
 from health_ml.utils import fixed_paths  # noqa: E402
-from health_ml.utils.common_utils import (DEFAULT_DOCKER_BASE_IMAGE, check_conda_environment,  # noqa: E402
+from health_ml.utils.common_utils import (check_conda_environment,  # noqa: E402
                                           choose_conda_env_file, is_linux)
 from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
 from health_ml.utils import health_ml_package_setup  # noqa: E402
@@ -135,7 +136,7 @@ class Runner:
             if self.lightning_container.hyperdrive:
                 raise ValueError("HyperDrive for hyperparameters tuning is only supported when submitting the job to "
                                  "AzureML. You need to specify a compute cluster with the argument --cluster.")
-            if self.lightning_container.is_crossvalidation_enabled and not is_amulet_job():
+            if self.lightning_container.is_crossvalidation_parent_run and not is_amulet_job():
                 raise ValueError("Cross-validation is only supported when submitting the job to AzureML."
                                  "You need to specify a compute cluster with the argument --cluster.")
 
@@ -184,16 +185,6 @@ class Runner:
             specified, the attribute 'run' will None, but the object still contains helpful information
             about datasets etc
         """
-
-        def after_submission_hook(azure_run: Run) -> None:
-            """
-            A function that will be called right after job submission.
-            """
-            # Set the default display name to what was provided as the "tag". This will affect single runs
-            # and Hyperdrive parent runs
-            if self.lightning_container.tag:
-                azure_run.display_name = self.lightning_container.tag
-
         root_folder = self.project_root
         entry_script = Path(sys.argv[0]).resolve()
         script_params = sys.argv[1:]
@@ -236,7 +227,7 @@ class Runner:
             else:
                 hyperparam_args = self.lightning_container.get_hyperparam_args()
                 hyperdrive_config = None
-            ml_client = get_ml_client() if not self.experiment_config.strictly_aml_v1 else None
+            ml_client = get_ml_client(aml_workspace=workspace) if not self.experiment_config.strictly_aml_v1 else None
 
             env_file = choose_conda_env_file(env_file=self.experiment_config.conda_env)
             logging.info(f"Using this Conda environment definition: {env_file}")
@@ -263,10 +254,10 @@ class Runner:
                 docker_shm_size=self.experiment_config.docker_shm_size,
                 hyperdrive_config=hyperdrive_config,
                 hyperparam_args=hyperparam_args,
-                create_output_folders=False,
-                after_submission=after_submission_hook,
+                display_name=self.lightning_container.tag,
                 tags=self.additional_run_tags(script_params),
                 strictly_aml_v1=self.experiment_config.strictly_aml_v1,
+                identity_based_auth=self.experiment_config.identity_based_auth,
             )
         else:
             azure_run_info = submit_to_azure_if_needed(
@@ -280,7 +271,7 @@ class Runner:
             # This code is only reached inside Azure. Set display name again - this will now affect
             # Hypdrive child runs (for other jobs, this has already been done after submission)
             suffix = None
-            if self.lightning_container.is_crossvalidation_enabled:
+            if self.lightning_container.is_crossvalidation_child_run:
                 suffix = f"crossval {self.lightning_container.crossval_index}"
             elif self.lightning_container.different_seeds > 0:
                 suffix = f"seed {self.lightning_container.random_seed}"

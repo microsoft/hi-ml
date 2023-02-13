@@ -74,6 +74,9 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
     save_intermediate_outputs: bool = param.Boolean(
         True, doc="Whether to save intermediate validation outputs during training."
     )
+    stratify_plots_by: Optional[str] = param.String(None,
+                                                    doc="Name of metadata field to stratify output plots"
+                                                    "(PR curve, ROC curve).")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -147,8 +150,8 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
             val_plot_options=self.get_val_plot_options(),
             test_plot_options=self.get_test_plot_options(),
             loading_params=create_from_matching_params(self, LoadingParams),
-            val_set_is_dist=self.pl_replace_sampler_ddp and self.max_num_gpus > 1,
             save_intermediate_outputs=self.save_intermediate_outputs,
+            stratify_plots_by=self.stratify_plots_by
         )
         if self.num_top_slides > 0:
             outputs_handler.tiles_selector = TilesSelector(
@@ -172,8 +175,6 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
                                                   num_slides_heatmap=self.num_slides_heatmap,
                                                   save_tile_ids=self.save_tile_ids,
                                                   log_exceptions=self.log_exceptions,
-                                                  val_set_is_dist=(
-                                                      self.pl_replace_sampler_ddp and self.max_num_gpus > 1),
                                                   )
                              )
         return callbacks
@@ -223,12 +224,16 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
                                        analyse_loss=self.analyse_loss)
         deepmil_module.transfer_weights(self.trained_weights_path)
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
+        outputs_handler.set_extra_slides_dataset_for_plots_handlers(self.get_extra_slides_dataset_for_plotting())
         return deepmil_module
 
     def get_data_module(self) -> HistoDataModule:
         raise NotImplementedError
 
     def get_slides_dataset(self) -> Optional[SlidesDataset]:
+        return None
+
+    def get_extra_slides_dataset_for_plotting(self) -> Optional[SlidesDataset]:
         return None
 
     def ignore_pl_warnings(self) -> None:

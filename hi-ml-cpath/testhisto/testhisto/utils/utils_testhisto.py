@@ -2,7 +2,9 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import logging
 import os
+import time
 from pathlib import Path
 from typing import Any, Callable, Collection, Mapping, Sequence
 
@@ -118,3 +120,18 @@ def run_distributed(fn: Callable[..., None], args: Sequence[Any] = (), world_siz
     :param world_size: Total number of distributed subprocesses to spawn.
     """
     torch.multiprocessing.spawn(_run_distributed_process, args=(world_size, fn, args), nprocs=world_size)
+
+
+def wait_until_file_exists(filename: Path, timeout_sec: float = 10.0, sleep_sec: float = 0.1) -> None:
+    """Wait until the given file exists. If the file does not exist after the given timeout, an exception is raised.
+
+    :param filename: The file to wait for.
+    :param timeout_sec: The maximum time to wait until the file exists.
+    :param sleep_sec: The time to sleep between repeated checks if the file exists already.
+    :raises TimeoutError: If the file does not exist after the given timeout."""
+    current_time = time.time()
+    while not filename.exists():
+        logging.info(f"Waiting for file {filename}. Total wait time so far: {time.time() - current_time} seconds.")
+        time.sleep(sleep_sec)
+        if time.time() - current_time > timeout_sec:
+            raise TimeoutError(f"File {filename} still does not exist after waiting for {timeout_sec} seconds")

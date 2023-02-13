@@ -3,11 +3,13 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  -------------------------------------------------------------------------------------------
 
-from typing import Any, List, Type, Union
+from typing import Any, List, Tuple, Type, Union
 
 import torch
 from torch.hub import load_state_dict_from_url
 from torchvision.models.resnet import model_urls, ResNet, BasicBlock, Bottleneck
+
+TypeSkipConnections = Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
 
 
 class ResNetHIML(ResNet):
@@ -20,7 +22,15 @@ class ResNetHIML(ResNet):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor,
+                return_intermediate_layers: bool = False) -> Union[torch.Tensor, TypeSkipConnections]:
+        """ResNetHIML forward pass. Optionally returns intermediate layers using the
+        ``return_intermediate_layers`` argument.
+
+        :param return_intermediate_layers: If ``True``, return layers x0-x4 as a tuple,
+            otherwise return x4 only.
+        """
+
         x0 = self.conv1(x)
         x0 = self.bn1(x0)
         x0 = self.relu(x0)
@@ -31,7 +41,10 @@ class ResNetHIML(ResNet):
         x3 = self.layer3(x2)
         x4 = self.layer4(x3)
 
-        return x4
+        if return_intermediate_layers:
+            return x0, x1, x2, x3, x4
+        else:
+            return x4
 
 
 def _resnet(arch: str, block: Type[Union[BasicBlock, Bottleneck]], layers: List[int],

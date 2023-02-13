@@ -31,12 +31,12 @@ pip: pip_build pip_test call_pip_local
 
 # clean build artifacts
 clean:
-	rm -vrf `find . -type d -name __pycache__`
-	rm -vrf `find . -type d -name logs`
-	rm -vrf `find . -type d -name outputs`
-	rm -vrf ./.mypy_cache ./.pytest_cache ./build ./dist ./htmlcov ./src/*.egg-info
-	rm -vrf ./testazure/testazure/test_data/test_make_tests
-	rm -vf ./coverage ./coverage.txt ./coverage.xml ./latest_version.txt ./most_recent_run.txt ./package_name.txt
+	for folder in .mypy_cache __pycache__ logs outputs; do \
+		rm -rf `find . -type d -name $$folder`; \
+	done
+	rm -rf ./.pytest_cache ./build ./dist ./htmlcov ./src/*.egg-info
+	rm -rf ./testazure/testazure/test_data/test_make_tests
+	rm -f ./coverage ./coverage.txt ./coverage.xml ./latest_version.txt ./most_recent_run.txt ./package_name.txt
 
 # build package, assuming build requirements already installed
 call_build:
@@ -46,44 +46,31 @@ call_build:
 build: pip_build call_build
 
 # run flake8, assuming test requirements already installed
-call_flake8:
+flake8:
 	flake8 --count --statistics .
 
-# pip install test requirements and run flake8
-flake8: pip_test call_flake8
-
 # run mypy, assuming test requirements already installed
-call_mypy:
+mypy:
 	mypy --install-types --show-error-codes --non-interactive setup.py
 	mypy --install-types --show-error-codes --non-interactive --package health_azure
 	mypy --install-types --show-error-codes --non-interactive --package testazure
 
-# pip install test requirements and run mypy
-mypy: pip_test call_mypy
-
-# run basic checks
-call_check: call_flake8 call_mypy
-
-# install test requirements and run basic checks
-check: pip_test call_check
+# run basic checks, assuming test requirements already installed
+check: flake8 mypy
 
 # run pytest on package, assuming test requirements already installed
-call_pytest:
+pytest:
 	pytest testazure
 
-# install test requirements and run tests
-pytest: pip_test call_pytest
-
 # run pytest fast subset on package, assuming test requirements already installed
-call_pytest_fast:
+pytest_fast:
 	pytest -m fast testazure
 
-# install test requirements and run pytest fast subset
-pytest_fast: pip_test call_pytest_fast
-
 # run pytest with coverage on package
+# Output the slowest tests via the --durations flag.
+
 call_pytest_and_coverage:
-	pytest --cov=health_azure  --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc testazure
+	pytest --durations=50 --cov=health_azure  --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc testazure
 
 # install test requirements and run pytest coverage
 pytest_and_coverage: pip_test call_pytest_and_coverage
