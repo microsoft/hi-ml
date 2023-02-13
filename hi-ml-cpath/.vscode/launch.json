@@ -96,6 +96,7 @@
                 "--login-only",
                 "--max-slides=1",
             ],
+            "env": { "REQUESTS_CA_BUNDLE": "${userHome}/cacert_with_dsa_2.pem"},
             "console": "integratedTerminal",
             "justMyCode": false,
         },
@@ -109,7 +110,10 @@
                 "--workspace-config=${workspaceFolder}/../config.json.Cyted",
                 "--folder=Cyted/crop_and_convert_he_10x_to_tiff_no_hardcoded_bckd_2023_01_17",
                 "--max-slides=1",
+                "--split=test",
+                "--dry-run"
             ],
+            "env": { "REQUESTS_CA_BUNDLE": "${userHome}/cacert_with_dsa_2.pem"},
             "console": "integratedTerminal",
             "justMyCode": false,
         },
