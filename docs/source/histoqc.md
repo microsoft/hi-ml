@@ -1,12 +1,5 @@
 # Instructions to setup and run HistoQC on H&E slides datasets
 
-## Install Openslide
-
-```shell
-sudo apt-get install openslide-tools
-sudo apt-get install python3-openslide
-```
-
 ## Clone HistoQC
 
 ```shell
