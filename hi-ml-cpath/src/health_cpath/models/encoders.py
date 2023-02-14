@@ -110,6 +110,10 @@ class SwinTransformer_NoPreproc(ImageNetEncoder):
     def __init__(self, tile_size: int, n_channels: int = 3) -> None:
         super().__init__(swin_tiny_patch4_window7_224, tile_size, n_channels, apply_imagenet_preprocessing=False)
 
+    def _get_encoder(self) -> Tuple[torch.nn.Module, int]:
+        pretrained_model = self.create_feature_extractor_fn(pretrained=True, num_classes=0)
+        return pretrained_model, pretrained_model.num_features  # type: ignore
+
 
 class ImageNetSimCLREncoder(TileEncoder):
     """SimCLR encoder pretrained on ImageNet"""
