@@ -116,8 +116,8 @@
             "env": { "REQUESTS_CA_BUNDLE": "${userHome}/cacert_with_dsa_2.pem"},
             "console": "integratedTerminal",
             "justMyCode": false,
-          },
-          {
+        },
+        {
             "name": "Montage creation in AzureML",
             "type": "python",
             "request": "launch",
