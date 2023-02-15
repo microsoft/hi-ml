@@ -112,7 +112,7 @@ class EncoderParams(param.Parameterized):
         set_module_gradients_enabled(encoder, tuning_flag=self.tune_encoder)
         return encoder
 
-    def get_projection_layer(self, num_encoding: int) -> Optional[nn.Module]:
+    def get_projection_layer(self, num_encoding: int) -> nn.Module:
         """If projection_dim > 0, returns a projection layer to project the encoded tiles to the projection_dim.
 
         :param num_encoding: The number of encoding dimensions.
