@@ -89,7 +89,7 @@ class DeepMILModule(LightningModule):
 
         # Model components
         self.encoder = encoder_params.get_encoder(outputs_folder)
-        self.projector = encoder_params.get_projection_layer()
+        self.projector = encoder_params.get_projection_layer(self.encoder.num_encoding)
         self.aggregation_fn, self.num_pooling = pooling_params.get_pooling_layer(self.encoder.num_encoding)
         self.classifier_fn = classifier_params.get_classifier(self.num_pooling, self.n_classes)
         self.activation_fn = self.get_activation()
