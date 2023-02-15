@@ -62,6 +62,7 @@ class EncoderParams(param.Parameterized):
     )
     ssl_checkpoint: CheckpointParser = param.ClassSelector(class_=CheckpointParser, default=None,
                                                            instantiate=False, doc=CheckpointParser.DOC)
+    projection_dim: int = param.Integer(default=0, doc="If > 0, project the encoded tiles to this dimension.")
 
     def validate(self) -> None:
         """Validate the encoder parameters."""
@@ -110,6 +111,16 @@ class EncoderParams(param.Parameterized):
             raise ValueError(f"Unsupported encoder type: {self.encoder_type}")
         set_module_gradients_enabled(encoder, tuning_flag=self.tune_encoder)
         return encoder
+
+    def get_projection_layer(self, num_encoding: int) -> Optional[nn.Module]:
+        """If projection_dim > 0, returns a projection layer to project the encoded tiles to the projection_dim.
+
+        :param num_encoding: The number of encoding dimensions.
+        :return: A projection layer if projection_dim > 0, else Identity.
+        """
+        if self.projection_dim > 0:
+            return nn.Linear(num_encoding, self.projection_dim)
+        return nn.Identity()
 
 
 class PoolingParams(param.Parameterized):
