@@ -13,6 +13,7 @@ from torch import Tensor as T, nn
 from torchvision.models import resnet18, resnet50
 from timm.models import swin_tiny_patch4_window7_224
 from monai.transforms import Compose
+from health_cpath.models.ctranspath import get_ctranspath_and_feature_dim
 
 from health_cpath.utils.layer_utils import (get_imagenet_preprocessing,
                                             load_weights_to_model,
@@ -113,6 +114,20 @@ class SwinTransformer_NoPreproc(ImageNetEncoder):
     def _get_encoder(self) -> Tuple[torch.nn.Module, int]:
         pretrained_model = self.create_feature_extractor_fn(pretrained=True, num_classes=0)
         return pretrained_model, pretrained_model.num_features  # type: ignore
+
+
+class SwinTransformer_Pretrained(TileEncoder):
+    def __init__(self, pl_checkpoint_path: Path, tile_size: int, n_channels: int = 3) -> None:
+        """
+        :param pl_checkpoint_path: The path of the downloaded checkpoint file.
+        :param tile_size: Tile width/height, in pixels.
+        :param n_channels: Number of channels in the tile (default=3).
+        """
+        self.pl_checkpoint_path = pl_checkpoint_path
+        super().__init__(tile_size=tile_size, n_channels=n_channels)
+
+    def _get_encoder(self) -> Tuple[torch.nn.Module, int]:
+        return get_ctranspath_and_feature_dim(str(self.pl_checkpoint_path))
 
 
 class ImageNetSimCLREncoder(TileEncoder):
