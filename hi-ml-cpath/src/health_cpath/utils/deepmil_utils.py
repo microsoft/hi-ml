@@ -13,6 +13,7 @@ from health_cpath.models.encoders import (
     ImageNetSimCLREncoder,
     SSLEncoder,
     SwinTransformer_NoPreproc,
+    SwinTransformer_Pretrained,
     TileEncoder,
     Resnet18,
     Resnet50,
@@ -93,6 +94,13 @@ class EncoderParams(param.Parameterized):
 
         elif self.encoder_type == SwinTransformer_NoPreproc.__name__:
             encoder = SwinTransformer_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
+
+        elif self.encoder_type == SwinTransformer_Pretrained.__name__:
+            encoder = SwinTransformer_Pretrained(
+                pl_checkpoint_path=self.ssl_checkpoint.get_or_download_checkpoint(outputs_folder),
+                tile_size=self.tile_size,
+                n_channels=self.n_channels,
+            )
 
         elif self.encoder_type == ImageNetSimCLREncoder.__name__:
             encoder = ImageNetSimCLREncoder(tile_size=self.tile_size, n_channels=self.n_channels)
