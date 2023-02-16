@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List
 from timm.models.layers.helpers import to_2tuple
 import timm
 from torch import Tensor
@@ -52,8 +52,12 @@ class ConvStem(nn.Module):
         return x
 
 
-def get_ctranspath_and_feature_dim(checkpoint_path: str) -> Tuple[nn.Module, int]:
-    model = timm.create_model('swin_tiny_patch4_window7_224', embed_layer=ConvStem, pretrained=False, num_classes=0)
+def get_ctranspath() -> nn.Module:
+    return timm.create_model('swin_tiny_patch4_window7_224', embed_layer=ConvStem, pretrained=True, num_classes=0)
+
+
+def get_pretrained_ctranspath(checkpoint_path: str) -> nn.Module:
+    model = get_ctranspath()
     td = torch.load(checkpoint_path)
     model.load_state_dict(td['model'], strict=True)
-    return model, model.num_features
+    return model

@@ -96,6 +96,7 @@ class EncoderParams(param.Parameterized):
             encoder = SwinTransformer_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
 
         elif self.encoder_type == SwinTransformer_Pretrained.__name__:
+            assert outputs_folder is not None, "outputs_folder cannot be None for SwinTransformer_Pretrained Encoder"
             encoder = SwinTransformer_Pretrained(
                 pl_checkpoint_path=self.ssl_checkpoint.get_or_download_checkpoint(outputs_folder),
                 tile_size=self.tile_size,
