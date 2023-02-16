@@ -119,7 +119,7 @@ class EncoderParams(param.Parameterized):
         :return: A projection layer if projection_dim > 0, else Identity.
         """
         if self.projection_dim > 0:
-            return nn.Linear(num_encoding, self.projection_dim)
+            return nn.Sequential(nn.Linear(num_encoding, self.projection_dim), nn.ReLU())
         return nn.Identity()
 
 
