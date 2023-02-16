@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Optional, Tuple
 from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_cpath.models.encoders import (
+    CTransPath_Imagenet,
+    CTransPath_SSL,
     HistoSSLEncoder,
     ImageNetSimCLREncoder,
     SSLEncoder,
@@ -95,9 +97,12 @@ class EncoderParams(param.Parameterized):
         elif self.encoder_type == SwinTransformer_NoPreproc.__name__:
             encoder = SwinTransformer_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
 
-        elif self.encoder_type == SwinTransformer_Pretrained.__name__:
+        elif self.encoder_type == CTransPath_Imagenet.__name__:
+            encoder = CTransPath_Imagenet(tile_size=self.tile_size, n_channels=self.n_channels)
+
+        elif self.encoder_type == CTransPath_SSL.__name__:
             assert outputs_folder is not None, "outputs_folder cannot be None for SwinTransformer_Pretrained Encoder"
-            encoder = SwinTransformer_Pretrained(
+            encoder = CTransPath_SSL(
                 pl_checkpoint_path=self.ssl_checkpoint.get_or_download_checkpoint(outputs_folder),
                 tile_size=self.tile_size,
                 n_channels=self.n_channels,
