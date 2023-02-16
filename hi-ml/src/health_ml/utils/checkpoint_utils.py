@@ -31,6 +31,8 @@ from health_ml.utils.common_utils import (
     CHECKPOINT_SUFFIX,
     DEFAULT_AML_UPLOAD_DIR)
 from health_ml.utils.type_annotations import PathOrString
+from torchvision.datasets.utils import download_file_from_google_drive
+
 
 # This is a constant that must match a filename defined in pytorch_lightning.ModelCheckpoint, but we don't want
 # to import that here.
@@ -372,7 +374,7 @@ class CheckpointParser:
 
     def __init__(self, checkpoint: str = "") -> None:
         self.checkpoint = checkpoint
-        self.validate()
+        # self.validate()
 
     @property
     def is_url(self) -> bool:
@@ -455,3 +457,9 @@ class CheckpointParser:
         if checkpoint_path is None or not checkpoint_path.is_file():
             raise FileNotFoundError(f"Could not find the file at {checkpoint_path}")
         return checkpoint_path
+
+    def download_checkpoint_from_gdrive(self, download_dir: Path, filename: str) -> Path:
+        download_folder = download_dir / MODEL_WEIGHTS_DIR_NAME
+        download_folder.mkdir(exist_ok=True, parents=True)
+        download_file_from_google_drive(file_id=self.checkpoint, root=str(download_folder), filename=filename)
+        return download_folder / filename

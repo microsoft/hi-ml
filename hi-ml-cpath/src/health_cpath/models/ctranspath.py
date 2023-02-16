@@ -1,6 +1,6 @@
-from typing import List
+from typing import Callable, List, Optional
 from timm.models.layers.helpers import to_2tuple
-import timm
+from timm.models import swin_tiny_patch4_window7_224
 from torch import Tensor
 import torch
 import torch.nn as nn
@@ -14,7 +14,7 @@ class ConvStem(nn.Module):
         patch_size: int = 4,
         in_chans: int = 3,
         embed_dim: int = 768,
-        norm_layer: nn.Module = None,
+        norm_layer: Optional[Callable] = None,
         flatten: bool = True,
     ) -> None:
         super().__init__()
@@ -52,12 +52,14 @@ class ConvStem(nn.Module):
         return x
 
 
-def get_ctranspath() -> nn.Module:
-    return timm.create_model('swin_tiny_patch4_window7_224', embed_layer=ConvStem, pretrained=True, num_classes=0)
+def get_ctranspath(tile_size: int = 224) -> nn.Module:
+    model = swin_tiny_patch4_window7_224(pretrained=True, num_classes=0)
+    model.patch_embed = ConvStem(img_size=tile_size, patch_size=4, in_chans=3, embed_dim=96, norm_layer=nn.LayerNorm)
+    return model
 
 
-def get_pretrained_ctranspath(checkpoint_path: str) -> nn.Module:
-    model = get_ctranspath()
+def get_pretrained_ctranspath(tile_size: int, checkpoint_path: str) -> nn.Module:
+    model = get_ctranspath(tile_size)
     td = torch.load(checkpoint_path)
     model.load_state_dict(td['model'], strict=True)
     return model

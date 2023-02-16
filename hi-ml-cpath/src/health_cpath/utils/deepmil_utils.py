@@ -15,7 +15,6 @@ from health_cpath.models.encoders import (
     ImageNetSimCLREncoder,
     SSLEncoder,
     SwinTransformer_NoPreproc,
-    SwinTransformer_Pretrained,
     TileEncoder,
     Resnet18,
     Resnet50,

@@ -118,18 +118,23 @@ class SwinTransformer_NoPreproc(ImageNetEncoder):
 
 class CTransPath_Imagenet(TileEncoder):
 
+    def __init__(self, tile_size: int, n_channels: int = 3) -> None:
+        self.tile_size = tile_size
+        super().__init__(tile_size=tile_size, n_channels=n_channels)
+
     def _get_encoder(self) -> Tuple[torch.nn.Module, int]:
-        ctranspath = get_ctranspath()
+        ctranspath = get_ctranspath(self.tile_size)
         return ctranspath, ctranspath.num_features  # type: ignore
 
 
 class CTransPath_SSL(TileEncoder):
     def __init__(self, pl_checkpoint_path: Path, tile_size: int, n_channels: int = 3) -> None:
         self.pl_checkpoint_path = pl_checkpoint_path
+        self.tile_size = tile_size
         super().__init__(tile_size=tile_size, n_channels=n_channels)
 
     def _get_encoder(self) -> Tuple[torch.nn.Module, int]:
-        ctranspath = get_pretrained_ctranspath(str(self.pl_checkpoint_path))
+        ctranspath = get_pretrained_ctranspath(self.tile_size, str(self.pl_checkpoint_path))
         return ctranspath, ctranspath.num_features  # type: ignore
 
 
