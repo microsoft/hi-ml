@@ -317,6 +317,7 @@ class TimerWrapper(Transform):
 class NormalizeBackgroundd(MapTransform):
     """Normalize the background of an image by deviding the image by the background intensity. The background
     intensities are either defined by the user or are computed as the q-th percentile of the image."""
+
     def __init__(
         self, image_key: str, background_keys: Optional[List[str]] = None, q_percentile: Optional[int] = None
     ) -> None:
