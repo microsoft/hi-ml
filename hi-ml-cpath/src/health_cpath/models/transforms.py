@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Mapping, Sequence, Tuple, Union, Callable, Dict
+from typing import List, Mapping, Optional, Sequence, Tuple, Union, Callable, Dict
 
 import torch
 import numpy as np
@@ -312,3 +312,55 @@ class TimerWrapper(Transform):
         with elapsed_timer(message):
             out_data = self.transform(data)
         return out_data
+
+
+class NormalizeBackgroundd(MapTransform):
+    """Normalize the background of an image by deviding the image by the background intensity. The background
+    intensities are either defined by the user or are computed as the q-th percentile of the image."""
+    def __init__(
+        self, image_key: str, background_keys: Optional[List[str]] = None, q_percentile: Optional[int] = None
+    ) -> None:
+        """
+        :param image_key: The key of the image to normalize.
+        :param background_keys: The keys of the precomputed background intensities that should be part of the batch
+        metadata. If None, the background intensities are computed using the q-th percentile of the image.
+        :param q_percentile: The q-th percentile to use to compute the background intensities. Only used if
+        background_keys are None. Use 50 for median, 0 for min, 100 for max.
+        """
+        self.image_key = image_key
+        assert q_percentile or background_keys, "Either background_keys or q_percentile must be set."
+        if background_keys:
+            assert len(background_keys) == 3, "Number of background keys must be 3 (for RGB images)."
+
+        self.background_keys = background_keys
+        self.q_percentile = q_percentile
+
+    def __call__(self, data: Dict) -> Dict:
+        if self.background_keys:
+            assert SlideKey.METADATA in data, (
+                "Background keys are expected to be in `SlideKey.METADATA` field. But `SlideKey.METADATA` is not "
+                "present in the data dictionary."
+            )
+            assert all(key in data[SlideKey.METADATA] for key in self.background_keys), (
+                f"Not all background keys present in data dictionary. background_keys: {self.background_keys}, "
+                f"data keys: {list(data[SlideKey.METADATA].keys())}"  # background keys are in the metadata dict
+            )
+            background_vals = torch.tensor(
+                [data[SlideKey.METADATA][key] for key in self.background_keys]
+            )[:, None, None]
+        else:
+            assert self.q_percentile is not None
+            background_vals = torch.tensor(
+                np.percentile(data[self.image_key], q=self.q_percentile, axis=(1, 2)).astype(np.uint8)[:, None, None]
+            )
+        # Data are in uint8, so we need to convert to int32 to avoid overflow when multiplying by 255
+        data[self.image_key] = data[self.image_key].to(torch.int32)
+        # We first multiply by 255 to avoid rounding errors when dividing by the background values
+        torch.multiply(data[self.image_key], torch.tensor(255), out=data[self.image_key])
+        # We use floor division which is equivalent to integer division in Python 3 //
+        # This is necessary when applying in place operations to keep the same dtype
+        torch.div(data[self.image_key], background_vals, out=data[self.image_key], rounding_mode="floor")
+        # Finally, we clip the values to [0, 255] and convert back to uint8
+        torch.clip(data[self.image_key], 0, 255, out=data[self.image_key])
+        data[self.image_key] = data[self.image_key].to(torch.uint8)
+        return data

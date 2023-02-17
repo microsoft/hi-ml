@@ -72,10 +72,20 @@ class HEDJitter(object):
         return img
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
-        if img.shape[1] != 3:
-            raise ValueError("HED jitter can only be applied to images with 3 channels (RGB).")
-
-        return self.adjust_hed(img)
+        original_shape = img.shape
+        if len(original_shape) == 3:
+            img = img.unsqueeze(0)  # add batch dimension if missing
+        # if the input is a bag of images, stain normalization needs to run on each image separately
+        if img.shape[0] > 1:
+            for i in range(img.shape[0]):
+                img_tile = img[i]
+                img[i] = self.adjust_hed(img_tile.unsqueeze(0))
+            return img
+        else:
+            img = self.adjust_hed(img)
+            if len(original_shape) == 3:
+                return img.squeeze(0)
+            return img
 
 
 class StainNormalization(object):
