@@ -75,7 +75,7 @@ class HEDJitter(object):
         original_shape = img.shape
         if len(original_shape) == 3:
             img = img.unsqueeze(0)  # add batch dimension if missing
-        # if the input is a bag of images, stain normalization needs to run on each image separately
+        # if the input is a bag of images, hed jitter needs to run on each image separately
         if img.shape[0] > 1:
             for i in range(img.shape[0]):
                 img_tile = img[i]
@@ -144,7 +144,7 @@ class StainNormalization(object):
         original_shape = img.shape
         if len(original_shape) == 3:
             img = img.unsqueeze(0)  # add batch dimension if missing
-        # if the input is a bag of images, hed jitter needs to run on each image separately
+        # if the input is a bag of images, stain normalization needs to run on each image separately
         if img.shape[0] > 1:
             for i in range(img.shape[0]):
                 img_tile = img[i]
