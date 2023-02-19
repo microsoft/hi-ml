@@ -60,6 +60,7 @@ class ConvertToTiffd(MapTransform):
         :param target_magnification: the target magnification e.g. 10x
         """
         base_objective_power = int(wsi_obj.properties['openslide.objective-power'])
+        # TODO add objective-power to the properties of the wsi object in monai
         for level_idx, level_downsample in enumerate(wsi_obj.level_downsamples):
             objective_power = base_objective_power / level_downsample
             if math.isclose(objective_power, target_magnification, rel_tol=1e-3):
@@ -114,7 +115,7 @@ class ConvertToTiffd(MapTransform):
             logging.warning(f"Skipping {src_path} because {e}")
             return
 
-        resolution_unit = wsi_obj.properties['tiff.ResolutionUnit']
+        resolution_unit = wsi_obj.properties['#.ResolutionUnit']
         assert resolution_unit == 'centimeter', f"Resolution unit is not in centimeters: {resolution_unit}"
         um_per_cm = 10000.
         options = dict(

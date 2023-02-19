@@ -89,7 +89,7 @@ def create_tiff_conversion_argparser(dataset: SlidesDataset) -> ArgumentParser:
 
 def create_tiff_conversion_config_from_args(dataset: SlidesDataset) -> TiffConversionConfig:
     parser = create_tiff_conversion_argparser(dataset)
-    config = TiffConversionConfig()
+    config = TiffConversionConfig(dataset)
     parser_results = parse_arguments(parser, args=sys.argv[1:], fail_on_unknown_args=True)
     _ = apply_overrides(config, parser_results.args)
     return config
