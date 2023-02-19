@@ -17,6 +17,7 @@ from math import ceil
 from pathlib import Path
 from typing import Sequence, List, Any, Dict, Optional, Union, Tuple
 
+from matplotlib.colors import LogNorm
 from monai.data.dataset import Dataset
 from torch.utils.data import DataLoader
 from health_cpath.datasets.panda_dataset import PandaDataset
@@ -229,7 +230,8 @@ def plot_heatmap_overlay(
     rects = [patches.Rectangle(xy, tile_size, tile_size) for xy in zip(tile_xs, tile_ys)]
 
     # line width is set to 0 to avoid the black border around the tiles as the tiles are already colored
-    pc = collection.PatchCollection(rects, match_original=True, cmap=cmap, alpha=0.5, linewidth=0)
+    pc = collection.PatchCollection(rects, match_original=True, cmap=cmap, alpha=0.5, linewidth=0,
+                                    norm=LogNorm())
     pc.set_array(np.array(attentions))
     ax1.add_collection(pc)
     cb = plt.colorbar(pc, cax=cax)  # add colorbar to the right of the plot (cax)
