@@ -48,23 +48,38 @@ the weights and model cards are hosted on [Hugging Face 🤗][6].
 
 ## Credit
 
-If you use our code or models in your research, please cite [the manuscript][7] (accepted to be presented at the [**European Conference on Computer Vision (ECCV) 2022**][8]).
+If you use our code or models in your research, please cite [our paper][7] (presented at the [**European Conference on Computer Vision (ECCV) 2022**][8]).
 
-### APA
-
-> Boecking, B., Usuyama, N., Bannur, S., Castro, D., Schwaighofer, A., Hyland, S., Wetscherek, M., Naumann, T., Nori, A., Alvarez-Valle, J., Poon, H., & Oktay, O. (2022). *Making the Most of Text Semantics to Improve Biomedical Vision–Language Processing* ([preprint][7])
+> Boecking, B. et al. (2022). Making the Most of Text Semantics to Improve Biomedical Vision–Language Processing. In: Avidan, S., Brostow, G., Cissé, M., Farinella, G.M., Hassner, T. (eds) Computer Vision – ECCV 2022. ECCV 2022. Lecture Notes in Computer Science, vol 13696. Springer, Cham. [https://doi.org/10.1007/978-3-031-20059-5_1](https://doi.org/10.1007/978-3-031-20059-5_1)
 
 ### BibTeX
 
 ```bibtex
-@misc{https://doi.org/10.48550/arxiv.2204.09817,
-  doi = {10.48550/ARXIV.2204.09817},
-  url = {https://arxiv.org/abs/2204.09817},
-  author = {Boecking, Benedikt and Usuyama, Naoto and Bannur, Shruthi and Castro, Daniel C. and Schwaighofer, Anton and Hyland, Stephanie and Wetscherek, Maria and Naumann, Tristan and Nori, Aditya and Alvarez-Valle, Javier and Poon, Hoifung and Oktay, Ozan},
-  keywords = {Computer Vision and Pattern Recognition (cs.CV), Computation and Language (cs.CL), FOS: Computer and information sciences, FOS: Computer and information sciences},
-  title = {Making the Most of Text Semantics to Improve Biomedical Vision-Language Processing},
-  publisher = {arXiv},
-  year = {2022},
+@InProceedings{10.1007/978-3-031-20059-5_1,
+    author="Boecking, Benedikt
+        and Usuyama, Naoto
+        and Bannur, Shruthi
+        and Castro, Daniel C.
+        and Schwaighofer, Anton
+        and Hyland, Stephanie
+        and Wetscherek, Maria
+        and Naumann, Tristan
+        and Nori, Aditya
+        and Alvarez-Valle, Javier
+        and Poon, Hoifung
+        and Oktay, Ozan",
+    editor="Avidan, Shai
+        and Brostow, Gabriel
+        and Ciss{\'e}, Moustapha
+        and Farinella, Giovanni Maria
+        and Hassner, Tal",
+    title="Making the Most of Text Semantics to Improve Biomedical Vision--Language Processing",
+    booktitle="Computer Vision -- ECCV 2022",
+    year="2022",
+    publisher="Springer Nature Switzerland",
+    address="Cham",
+    pages="1--21",
+    isbn="978-3-031-20059-5"
 }
 ```
 
@@ -74,7 +89,7 @@ If you use our code or models in your research, please cite [the manuscript][7] 
 [4]: https://mybinder.org/v2/gh/microsoft/hi-ml/HEAD?labpath=hi-ml-multimodal%2Fnotebooks%2Fphrase_grounding.ipynb
 [5]: https://docs.conda.io/en/latest/miniconda.html
 [6]: https://aka.ms/biovil-models
-[7]: https://arxiv.org/abs/2204.09817
+[7]: https://link.springer.com/chapter/10.1007/978-3-031-20059-5_1
 [8]: https://eccv2022.ecva.net/
 [9]: https://hi-ml.readthedocs.io/en/latest/api/multimodal.html
 [10]: https://openi.nlm.nih.gov/faq
