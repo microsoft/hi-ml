@@ -77,6 +77,7 @@ class ImageModelOutput():
 
 class MinimalImageModel(nn.Module):
     """ An abstract class defining methods required by the ImageInferenceEngine """
+
     def __init__(self, **kwargs: Any):
         super().__init__()
         assert hasattr(self, "training")
@@ -88,6 +89,7 @@ class MinimalImageModel(nn.Module):
     @abstractmethod
     def get_patchwise_projected_embeddings(self, input_img: torch.Tensor, normalize: bool) -> torch.Tensor:
         pass
+
 
 class ImageModel(MinimalImageModel):
     """Image encoder module"""
