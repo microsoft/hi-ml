@@ -6,7 +6,9 @@
 import logging
 import sys
 import math
+import cv2
 import numpy as np
+import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.collections as collection
@@ -161,6 +163,7 @@ def plot_heatmap_overlay(
     results: Dict[ResultsKey, List[Any]],
     tile_size: int = 224,
     should_upscale_coords: bool = True,
+    extra_slide_dict: Optional[Dict[SlideKey, Any]] = None,
 ) -> plt.Figure:
     """Plots heatmap of selected tiles (e.g. tiles in a bag) overlay on the corresponding slide.
 
@@ -172,18 +175,42 @@ def plot_heatmap_overlay(
     :param results: Dict containing ResultsKey keys (e.g. slide id) and values as lists of output slides.
     :param tile_size: Size of each tile. Default 224.
     :param should_upscale_coords: If True, upscales the heatmap coordinates to the slide level. Default True.
+    :param extra_slide_dict: An optional dictionary containing an extra slide image and metadata. Default None.
     :return: matplotlib figure of the heatmap of the given tiles on slide.
     """
-    fig, ax = plt.subplots()
+    fig = plt.figure(constrained_layout=True)
+    gs = fig.add_gridspec(2 if not extra_slide_dict else 3, 1)
+    ax0 = fig.add_subplot(gs[0, 0])
+    ax1 = fig.add_subplot(gs[1, 0], sharex=ax0, sharey=ax0)
+    cax = ax1.inset_axes([1.02, 0, 0.03, 1], transform=ax1.transAxes)  # add colorbar axis
+    axes = [ax0, ax1]
+    if extra_slide_dict:
+        ax2 = fig.add_subplot(gs[2, 0], sharex=ax0, sharey=ax0)
+        axes.append(ax2)
+    fig.execute_constrained_layout()
     fig.suptitle(_get_histo_plot_title(case, slide_node))
-    slide_image = slide_dict[SlideKey.IMAGE]
-    assert isinstance(slide_image, np.ndarray), f"slide image must be a numpy array, got {type(slide_image)}"
-    slide_image = slide_image.transpose(1, 2, 0)
 
-    ax.imshow(slide_image)
-    ax.set_xlim(0, slide_image.shape[1])
-    ax.set_ylim(slide_image.shape[0], 0)
+    def _get_slide_image_from_slide_dict(slide_dict: Dict[SlideKey, Any]) -> np.ndarray:
+        slide_image = slide_dict[SlideKey.IMAGE]
+        assert isinstance(slide_image, np.ndarray), f"slide image must be a numpy array, got {type(slide_image)}"
+        return slide_image.transpose(1, 2, 0)
 
+    slide_image = _get_slide_image_from_slide_dict(slide_dict)
+
+    ax0.imshow(slide_image)
+    ax1.imshow(slide_image, alpha=0.5)
+    if extra_slide_dict:
+        extra_image = _get_slide_image_from_slide_dict(extra_slide_dict)
+        if extra_image.shape != slide_image.shape:
+            extra_image = cv2.resize(
+                extra_image, (slide_image.shape[1], slide_image.shape[0]), interpolation=cv2.INTER_AREA
+            )
+        ax2.imshow(extra_image)
+        ax2.tick_params('x', labelbottom=False)
+    for ax in axes:
+        ax.set_xlim(0, slide_image.shape[1])
+        ax.set_ylim(slide_image.shape[0], 0)
+    ax0.tick_params('x', labelbottom=False)
     slide_ids = [item[0] for item in results[ResultsKey.SLIDE_ID]]
     slide_idx = slide_ids.index(slide_node.slide_id)
     attentions = results[ResultsKey.BAG_ATTN][slide_idx]
@@ -196,16 +223,36 @@ def plot_heatmap_overlay(
                                          location_bbox=slide_dict[SlideKey.ORIGIN],
                                          scale_factor=slide_dict[SlideKey.SCALE],
                                          should_upscale_coords=should_upscale_coords)
-    cmap = plt.cm.get_cmap("Reds")
+    cmap = plt.cm.get_cmap("Spectral_r")  # _r reverse the color map so that the highest attention is red
 
     tile_xs, tile_ys = sel_coords.T
     rects = [patches.Rectangle(xy, tile_size, tile_size) for xy in zip(tile_xs, tile_ys)]
 
-    pc = collection.PatchCollection(rects, match_original=True, cmap=cmap, alpha=0.5, edgecolor="black")
+    # line width is set to 0 to avoid the black border around the tiles as the tiles are already colored
+    pc = collection.PatchCollection(rects, match_original=True, cmap=cmap, alpha=0.5, linewidth=0)
     pc.set_array(np.array(attentions))
-    pc.set_clim([0, 1])
-    ax.add_collection(pc)
-    plt.colorbar(pc, ax=ax)
+    ax1.add_collection(pc)
+    cb = plt.colorbar(pc, cax=cax)  # add colorbar to the right of the plot (cax)
+    mean_loc = attentions.mean()  # add a horizontal line at the mean attention value
+    cb.ax.hlines(mean_loc, attentions.min(), attentions.max(), color="k", linewidth=2)
+    return fig
+
+
+def plot_attention_histogram(case: str, slide_node: SlideNode, results: Dict[ResultsKey, List[Any]]) -> plt.Figure:
+    """Plots a histogram of the attention values of the tiles in a bag.
+
+    :param case: The report case (e.g., TP, FN, ...)
+    :param slide_node: The slide node that encapsulates the slide metadata.
+    :param results: Dict containing ResultsKey keys (e.g. slide id) and values as lists of output slides.
+    :return: matplotlib figure of the histogram of the attention values of the tiles in a bag.
+    """
+    slide_ids = [item[0] for item in results[ResultsKey.SLIDE_ID]]
+    slide_idx = slide_ids.index(slide_node.slide_id)
+    attentions = results[ResultsKey.BAG_ATTN][slide_idx]
+    fig, ax = plt.subplots()
+    ax = sns.distplot(attentions.cpu().numpy().reshape(-1), kde=False)
+    ax.set_xlabel("Attention scores")
+    fig.suptitle(_get_histo_plot_title(case, slide_node))
     return fig
 
 
@@ -214,8 +261,6 @@ def plot_normalized_confusion_matrix(cm: np.ndarray, class_names: Sequence[str])
     param cm: Normalized confusion matrix to be plotted.
     param class_names: List of class names.
     """
-    import seaborn as sns
-
     fig, ax = plt.subplots()
     ax = sns.heatmap(cm, annot=True, cmap="Blues", fmt=".2%")
     ax.set_xlabel("Predicted")

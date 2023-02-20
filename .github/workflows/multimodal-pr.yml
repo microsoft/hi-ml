@@ -8,7 +8,9 @@ on:
     branches: [ main ]
     paths:
       - "hi-ml-multimodal/**"
-      - ".github/workflows/multimodal-pr.yml"
+      - ".github/workflows/multimodal-*.yml"
+  schedule:
+    - cron: "0 4 * * *"  # every day at 4 AM UTC
 
 env:
   pythonVersion: 3.7
@@ -23,7 +25,7 @@ env:
 
 jobs:
 
-  flake8:
+  multimodal-flake8:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -41,7 +43,7 @@ jobs:
           make pip_test
           make flake8
 
-  mypy:
+  multimodal-mypy:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -59,7 +61,7 @@ jobs:
           make pip
           make mypy
 
-  pytest:
+  multimodal-pytest:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -84,7 +86,7 @@ jobs:
         with:
           flags: ${{ env.folder }}
 
-  notebooks:
+  multimodal-notebooks:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -115,3 +117,12 @@ jobs:
             --parameters pip_source $PIP_SOURCE \
             $IN_NB_PATH \
             $OUT_NB_PATH
+
+  multimodal-pr-completed:
+    runs-on: ubuntu-20.04
+    if: "!startsWith(github.ref, 'refs/tags/v')"
+    needs: [multimodal-flake8, multimodal-mypy, multimodal-pytest, multimodal-notebooks]
+    steps:
+      - name: Final PR Job
+        run: |
+          echo "All multimodal PR jobs have passed"

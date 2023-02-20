@@ -19,11 +19,9 @@ from health_cpath.preprocessing.loading import LoadingParams
 from health_cpath.utils.callbacks import LossAnalysisCallback, LossCallbackParams
 from health_cpath.utils.wsi_utils import TilingParams
 
-from health_ml.utils import fixed_paths
 from health_ml.deep_learning_config import OptimizerParams
 from health_ml.lightning_container import LightningContainer
-from health_ml.utils.checkpoint_utils import get_best_checkpoint_path, CheckpointParser
-from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
+from health_ml.utils.checkpoint_utils import CheckpointParser
 
 from health_cpath.datamodules.base_module import CacheLocation, CacheMode, HistoDataModule
 from health_cpath.datasets.base_dataset import SlidesDataset
@@ -76,6 +74,9 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
     save_intermediate_outputs: bool = param.Boolean(
         True, doc="Whether to save intermediate validation outputs during training."
     )
+    stratify_plots_by: Optional[str] = param.String(None,
+                                                    doc="Name of metadata field to stratify output plots"
+                                                    "(PR curve, ROC curve).")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -128,7 +129,7 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
     def get_test_plot_options(self) -> Set[PlotOption]:
         options = {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX}
         if self.num_top_slides > 0:
-            options.add(PlotOption.TOP_BOTTOM_TILES)
+            options.update([PlotOption.TOP_BOTTOM_TILES, PlotOption.ATTENTION_HISTOGRAM])
         return options
 
     def get_val_plot_options(self) -> Set[PlotOption]:
@@ -149,8 +150,8 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
             val_plot_options=self.get_val_plot_options(),
             test_plot_options=self.get_test_plot_options(),
             loading_params=create_from_matching_params(self, LoadingParams),
-            val_set_is_dist=self.pl_replace_sampler_ddp and self.max_num_gpus > 1,
             save_intermediate_outputs=self.save_intermediate_outputs,
+            stratify_plots_by=self.stratify_plots_by
         )
         if self.num_top_slides > 0:
             outputs_handler.tiles_selector = TilesSelector(
@@ -174,8 +175,6 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
                                                   num_slides_heatmap=self.num_slides_heatmap,
                                                   save_tile_ids=self.save_tile_ids,
                                                   log_exceptions=self.log_exceptions,
-                                                  val_set_is_dist=(
-                                                      self.pl_replace_sampler_ddp and self.max_num_gpus > 1),
                                                   )
                              )
         return callbacks
@@ -183,31 +182,11 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
     def get_checkpoint_to_test(self) -> Path:
         """
         Returns the full path to a checkpoint file that was found to be best during training, whatever criterion
-        was applied there. This is necessary since for some models the checkpoint is in a subfolder of the checkpoint
-        folder.
+        was applied there. Note that the checkpoint file might not (yet) exist, for example in the case of
+        preempted jobs.
         """
-        # absolute path is required for registering the model.
-        absolute_checkpoint_path = Path(fixed_paths.repository_root_directory(),
-                                        DEFAULT_AML_CHECKPOINT_DIR,
-                                        self.best_checkpoint_filename_with_suffix)
-        if absolute_checkpoint_path.is_file():
-            return absolute_checkpoint_path
-
-        absolute_checkpoint_path_parent = Path(fixed_paths.repository_root_directory().parent,
-                                               DEFAULT_AML_CHECKPOINT_DIR,
-                                               self.best_checkpoint_filename_with_suffix)
-        if absolute_checkpoint_path_parent.is_file():
-            return absolute_checkpoint_path_parent
-
         checkpoint_path = Path(self.checkpoint_folder, self.best_checkpoint_filename_with_suffix)
-        if checkpoint_path.is_file():
-            return checkpoint_path
-
-        checkpoint_path = get_best_checkpoint_path(self.checkpoint_folder)
-        if checkpoint_path.is_file():
-            return checkpoint_path
-
-        raise ValueError("Path to best checkpoint not found")
+        return checkpoint_path
 
     def get_dataloader_kwargs(self) -> dict:
         num_cpus = os.cpu_count()
@@ -245,12 +224,16 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
                                        analyse_loss=self.analyse_loss)
         deepmil_module.transfer_weights(self.trained_weights_path)
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
+        outputs_handler.set_extra_slides_dataset_for_plots_handlers(self.get_extra_slides_dataset_for_plotting())
         return deepmil_module
 
     def get_data_module(self) -> HistoDataModule:
         raise NotImplementedError
 
     def get_slides_dataset(self) -> Optional[SlidesDataset]:
+        return None
+
+    def get_extra_slides_dataset_for_plotting(self) -> Optional[SlidesDataset]:
         return None
 
     def ignore_pl_warnings(self) -> None:

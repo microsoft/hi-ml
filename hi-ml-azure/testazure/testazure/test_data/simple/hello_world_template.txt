@@ -50,9 +50,11 @@ def main() -> None:
         input_datasets={{ input_datasets }},
         output_datasets={{ output_datasets }},
         wait_for_completion={{ wait_for_completion }},
+        identity_based_auth={{ identity_based_auth }},
         wait_for_completion_show_output={{ wait_for_completion_show_output }},
         tags={{ tags }},
-        submit_to_azureml={{ submit_to_azureml}},
+        display_name='{{ display_name }}',
+        submit_to_azureml={{ submit_to_azureml }},
         strictly_aml_v1={{ strictly_aml_v1 }})
 
     parser = ArgumentParser()

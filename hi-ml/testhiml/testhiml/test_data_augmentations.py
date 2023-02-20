@@ -23,7 +23,8 @@ def _test_data_augmentation(data_augmentation: Callable[[Tensor], Tensor],
                             input_img: torch.Tensor,
                             expected_output_img: torch.Tensor,
                             stochastic: bool,
-                            seed: int = 0) -> None:
+                            seed: int = 0,
+                            atol: float = 1e-04) -> None:
     if stochastic:
         torch.manual_seed(seed)
         np.random.seed(seed)
@@ -43,12 +44,12 @@ def _test_data_augmentation(data_augmentation: Callable[[Tensor], Tensor],
     assert augmented_img.min() >= 0.0
 
     # Check if the transformation still produces the same output
-    assert torch.allclose(augmented_img, expected_output_img, atol=1e-04)
+    assert torch.allclose(augmented_img, expected_output_img, atol=atol)
 
     # After applying a stochastic augmentation a second time it should have a different output
     if stochastic:
         augmented_img = data_augmentation(input_img)  # type: ignore
-        assert not torch.allclose(augmented_img, expected_output_img, atol=1e-04)
+        assert not torch.allclose(augmented_img, expected_output_img, atol=atol)
 
 
 def test_stain_normalization() -> None:
@@ -97,14 +98,18 @@ def test_hed_jitter() -> None:
 def test_gaussian_blur() -> None:
     data_augmentation = GaussianBlur(3, p=1.0)
     expected_output_img = torch.Tensor(
-        [[[[0.8302, 0.7639],
-          [0.8149, 0.6943]],
-         [[0.7423, 0.6225],
-          [0.6815, 0.6094]],
-         [[0.7821, 0.6929],
-          [0.7393, 0.7463]]]])
+        [[[[0.5953, 0.6321],
+          [0.4528, 0.5125]],
+         [[0.9126, 0.9138],
+          [0.9229, 0.9299]],
+         [[0.4343, 0.4848],
+          [0.4601, 0.4448]]]])
 
-    _test_data_augmentation(data_augmentation, dummy_img, expected_output_img, stochastic=True)
+    _test_data_augmentation(data_augmentation, dummy_img, expected_output_img, stochastic=True, seed=1, atol=1e-3)
+
+    # Test tiling on the fly (i.e. when the input image does not have a batch dimension)
+    _test_data_augmentation(data_augmentation, dummy_img.squeeze(0), expected_output_img.squeeze(0),
+                            stochastic=True, seed=1, atol=1e-3)
 
 
 def test_random_rotation() -> None:

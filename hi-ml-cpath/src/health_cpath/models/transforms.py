@@ -221,7 +221,7 @@ class Subsampled(MapTransform, Randomizable):
 
     def randomize(self, total_size: int) -> None:
         subsample_size = min(self.max_size, total_size)
-        self._indices = self.R.choice(total_size, size=subsample_size)
+        self._indices = self.R.choice(total_size, size=subsample_size, replace=False)
 
     def __call__(self, data: Mapping) -> Mapping:
         out_data = dict(data)  # create shallow copy

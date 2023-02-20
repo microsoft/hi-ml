@@ -259,8 +259,9 @@ class DeepMILOutputsHandler:
     def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, loading_params: LoadingParams,
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
                  maximise: bool, val_plot_options: Collection[PlotOption],
-                 test_plot_options: Collection[PlotOption], val_set_is_dist: bool = True,
-                 save_intermediate_outputs: bool = True) -> None:
+                 test_plot_options: Collection[PlotOption],
+                 save_intermediate_outputs: bool = True,
+                 stratify_plots_by: Optional[str] = None) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
@@ -272,11 +273,9 @@ class DeepMILOutputsHandler:
         :param maximise: Whether higher is better for `primary_val_metric`.
         :param val_plot_options: The desired plot options for validation time.
         :param test_plot_options: The desired plot options for test time.
-        :param val_set_is_dist: If True, the validation set is distributed across processes. Otherwise, the validation
-            set is replicated on each process. This shouldn't affect the results, as we take the mean of the validation
-            set metrics across processes. This is only relevant for the outputs_handler, which needs to know whether to
-            gather the validation set outputs across processes or not before saving them.
         :param save_intermediate_outputs: Whether to save intermediate outputs (e.g. after each epoch).
+        :param stratify_plots_by: Name of metadata field to stratify output plots (PR curve, ROC curve).
+        `None` by default (no stratification).
         """
         self.outputs_root = outputs_root
         self.n_classes = n_classes
@@ -292,6 +291,7 @@ class DeepMILOutputsHandler:
             class_names=self.class_names,
             stage=ModelKey.VAL,
             loading_params=deepcopy(loading_params),
+            stratify_plots_by=stratify_plots_by
         )
         self.test_plots_handler = DeepMILPlotsHandler(
             plot_options=test_plot_options,
@@ -299,8 +299,8 @@ class DeepMILOutputsHandler:
             class_names=self.class_names,
             stage=ModelKey.TEST,
             loading_params=deepcopy(loading_params),
+            stratify_plots_by=stratify_plots_by
         )
-        self.val_set_is_dist = val_set_is_dist
 
     @property
     def validation_outputs_dir(self) -> Path:
@@ -323,6 +323,10 @@ class DeepMILOutputsHandler:
         validate_slide_datasets_for_plot_options(self.val_plots_handler.plot_options, slides_dataset)
         self.test_plots_handler.slides_dataset = slides_dataset
         self.val_plots_handler.slides_dataset = slides_dataset
+
+    def set_extra_slides_dataset_for_plots_handlers(self, extra_slides_dataset: Optional[SlidesDataset]) -> None:
+        self.test_plots_handler.extra_slides_dataset = extra_slides_dataset
+        self.val_plots_handler.extra_slides_dataset = extra_slides_dataset
 
     def should_gather_tiles(self, plots_handler: DeepMILPlotsHandler) -> bool:
         return PlotOption.TOP_BOTTOM_TILES in plots_handler.plot_options and self.tiles_selector is not None
@@ -360,15 +364,13 @@ class DeepMILOutputsHandler:
         :param epoch: Current epoch number.
         :param on_extra_val: Whether this is an extra validation epoch (e.g. after training).
         """
-        # All DDP processes must reach this point to allow synchronising epoch results if val_set_is_dist is True
-        if self.val_set_is_dist:
+        if self.save_intermediate_outputs or on_extra_val:
             epoch_results = gather_results(epoch_results)
 
             if self.should_gather_tiles(self.val_plots_handler):
                 self.tiles_selector.gather_selected_tiles_across_devices()  # type: ignore
 
         # Only global rank-0 process should actually render and save the outputs
-        # We also want to save the plots of the extra validation epoch
         if self.save_intermediate_outputs and self.outputs_policy.should_save_validation_outputs(
             metrics_dict, epoch, is_global_rank_zero, on_extra_val
         ):
@@ -383,6 +385,7 @@ class DeepMILOutputsHandler:
             # Writing completed successfully; delete temporary back-up
             if self.previous_validation_outputs_dir.exists():
                 shutil.rmtree(self.previous_validation_outputs_dir, ignore_errors=True)
+        # We also want to save the plots of the extra validation epoch
         elif on_extra_val and is_global_rank_zero:
             self._save_outputs(epoch_results, self.extra_validation_outputs_dir, ModelKey.VAL)
 

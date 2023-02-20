@@ -43,6 +43,23 @@ These three strings will be used to configure authentication in the OAuth2 Login
 
 User [permissions][18] can be set to different data collections in an assetstore, to maximize protection of sensitive data.
 
+### Creating API Keys
+
+You can create an API key for a user in DSA directly on the web.
+
+- Navigate to your DSA and log in
+- Click on "Users" in the navigation bar
+- Click on the user you want to create an API key for
+- On the top right, there is a menu "Actions", choose "Edit user"
+- You will see 4 tabs with user information, click on "API Keys"
+- Choose a name for the key, a duration in days. It is important to choose "Allow all actions on behalf of this user"!
+- Click "Create". You will see the list of keys, press "show" to reveal the actual key value. Copy it.
+- Set the key as an environment variable `DSA_API_KEY` (in `bash`, this would be `export DSA_API_KEY=<the key>`)
+- In addition, you can also set the URL for your DSA instance as an environment variable `DSA_URL` (in `bash`, this would be
+  `export DSA_URL=<the url>`)
+
+![DSA API Key](images/dsa_api_key.png)
+
 ## Visualizing Azure Machine Learning results
 
 The [Girder RESTful API][19] may be used to upload annotations to DSA items programmatically.
@@ -58,10 +75,9 @@ python $SCRIPT \
     --dsa-url "https://my-deployed-dsa.azure.com/" \
     --dsa-key "AHKZ42Ks24kSH5Fxt3354ryKzCxamjqM" \
     --workspace-config "config.json" \
-    --rescale
 ```
 
-The DSA URL and API key may be specified in environment variables `DSA_URL` and `DSA_API_KEY` instead.
+The DSA URL and API key may be specified in environment variables `DSA_URL` and `DSA_API_KEY` instead, see above.
 The workspace configuration file contains information related to the [Azure Machine Learning workspace][22]:
 
 ```json
@@ -79,15 +95,32 @@ It can be downloaded from the workspace website:
 The script uses the [Azure SDK][20] and the [Python client for the Girder API][21] to:
 
 1. Log into Azure ML
-2. Download training results
-3. Generate JSON annotations for each slide
-4. Upload the annotations to the deployed DSA
+1. Download training results
+1. Generate JSON annotations for each slide
+1. Search for the slide by slide ID in DSA by using full text search
+1. Upload the annotations to the deployed DSA
 
 For a full description of all the options, add `--help` to the arguments.
 
 Below is an example of an attention map overlaid on a slide from the [PANDA][22] dataset:
 
 ![Attention map on slide from PANDA](./images/dsa_heatmap.png)
+
+### Upload into a folder
+
+The `girder.py` script can also upload the annotations into a folder in DSA. This is helpful if there are multiple
+variants of the same slide in DSA, but located in different folders. Simple text search would then return multiple
+results.
+
+To use the folder functionality, you need to supply the name of the folder via `--folder`. For example, to upload the
+annotations to folder `foo` in collection `Collection`, add ``--folder Collection1/foo`.
+
+When supplying a folder argument, searching for the slide where annotations will be added works differently:
+
+1. Firstly, all slides in the folder are retrieved.
+1. Then, the script tries to identify which of the slides in the folder contains the value from the `slide_id` field.
+1. If there is exactly one matching slide, the annotations are added to that slide. Annotations that match zero or more than
+   one slide are ignored.
 
 [1]: https://digitalslidearchive.github.io/digital_slide_archive/
 [2]: https://azure.microsoft.com/

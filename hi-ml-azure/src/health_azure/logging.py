@@ -111,9 +111,13 @@ def logging_section(gerund: str) -> Generator:
     logging.info("")
 
 
-def print_message_with_rank_pid(message: str = '') -> None:
-    """Prints a message with the rank and PID of the current process."""
-    print(f"{datetime.datetime.utcnow()} DEBUG    Rank {os.getenv(ENV_LOCAL_RANK)} - PID {os.getpid()} - {message}")
+def print_message_with_rank_pid(message: str = '', level: str = 'DEBUG') -> None:
+    """Prints a message with the rank and PID of the current process.
+
+    :param message: message to print.
+    :param level: logging level to use.
+    """
+    print(f"{datetime.datetime.utcnow()} {level}    Rank {os.getenv(ENV_LOCAL_RANK)} - PID {os.getpid()} - {message}")
 
 
 @contextmanager

@@ -140,3 +140,27 @@ or in your repository that uses the `hi-ml` package.
 - In the top right section, there will be a dropdown menu showing the name of your AzureML workspace. Expand that.
 - In the panel, there is a link "Download config file". Click that.
 - This will download a file `config.json`. Copy that file to the root folder of your repository.
+
+The file `config.json` should look like this:
+
+```json
+{
+  "subscription_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "resource_group": "myresourcegroup",
+  "workspace_name": "myworkspace"
+}
+```
+
+As an alternative to keeping the `config.json` file in your repository, you can specify the
+necessary information in environment variables. The environment variables are:
+
+- `HIML_SUBSCRIPTION_ID`: The subscription ID of the AzureML workspace, taken from the `subscription_id` field in the
+  `config.json` file.
+- `HIML_RESOURCE_GROUP`: The resource group of the AzureML workspace, taken from the `resource_group` field in the
+  `config.json` file.
+- `HIML_WORKSPACE_NAME`: The name of the AzureML workspace, taken from the `workspace_name` field in the `config.json`
+  file.
+
+When accessing the workspace, the `hi-ml` toolbox will first look for the `config.json` file. If it is not found, it
+will fall back to the environment variables. For details, see the documentation of the `get_workspace` function in
+[readthedocs](https://hi-ml.readthedocs.io/en/latest/api/health_azure.get_workspace.html).

@@ -31,12 +31,13 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-from girder_client import GirderClient
+from girder_client import GirderClient, HttpError
 from health_azure.logging import logging_to_stdout
 from health_azure.utils import get_aml_run_from_run_id
 
 from health_cpath.utils.naming import ResultsKey
-from health_cpath.utils.output_utils import AML_TEST_OUTPUTS_CSV
+from health_cpath.utils.output_utils import (AML_OUTPUTS_DIR, EXTRA_VAL_OUTPUTS_SUBDIR,
+                                             OUTPUTS_CSV_FILENAME, TEST_OUTPUTS_SUBDIR, VAL_OUTPUTS_SUBDIR)
 
 
 TypeRectangleJSON = Dict[str, Union[str, float, Dict[str, str]]]
@@ -263,6 +264,28 @@ class DigitalSlideArchive:
         )
         return response
 
+    def make_api_call(self, api_path: str, parameters: Dict, result_field: str = "") -> Any:
+        """Issues a GET call to the DSA API on the given API path. If that raises a HttpError, a ValueError is raised
+        with more details.
+
+        :param api_path: The API path (for example, "resource/lookup")
+        :param parameters: A parameter dictionary with parameters for the API call.
+        :param result_field: If given, return only the specific item from the result dictionary.
+        :raises ValueError: If a HttpError is raised during the call.
+        :raises KeyError: If a specific field from the result was requested, but it was not found.
+        :return: The result of the API call, or only a given field thereof if `result_field` was provided.
+        """
+        try:
+            result = self.get(api_path, parameters=parameters)
+        except HttpError as ex:
+            raise ValueError(f"API '{api_path}' does not exist or cannot be accessed. Please check "
+                             f"the path and the access permissions of your API key. Exception: {ex}")
+        if result_field:
+            if result_field in result:
+                return result[result_field]
+            raise KeyError(f"Item '{result_field}' is not present in result: {result}")
+        return result
+
     def search_item(self, text: str, search_mode: str = "text") -> Item:
         """Search a file in the DSA collections and return its parent item.
 
@@ -272,13 +295,32 @@ class DigitalSlideArchive:
         :raises RuntimeError: If no items are found for the query or if more than one item is found.
         """
         parameters = dict(q=text, types="[\"item\"]", mode=search_mode)
-        result = self.get("/resource/search", parameters=parameters)
-        items_jsons = result["item"]
+        items_jsons = self.make_api_call("resource/search", parameters=parameters, result_field="item")
         if not items_jsons:
             raise RuntimeError(f"No items found for query \"{text}\"")
         elif len(items_jsons) > 1:
             raise RuntimeError(f"More than one item found for query \"{text}\":\n{items_jsons}")
         return Item(self, json=items_jsons[0])
+
+    def get_folder_id(self, folder_path: str) -> str:
+        """Retrieves the ID of a folder, when given a folder path.
+
+        :param folder_path: The path of the folder to retrieve (for example, "Coll1/folder2" for `folder2` in
+            collection `Coll1`)
+        :return: The ID of the folder in DSA.
+        """
+        parameters = dict(path=f"/collection/{folder_path.strip('/')}")
+        return self.make_api_call("resource/lookup", parameters=parameters, result_field="_id")
+
+    def get_items_in_folder(self, folder_id: str) -> List[Item]:
+        """Retrieves all items in the given folder.
+
+        :param folder_id: The ID of the folder to read from.
+        :return: A list of item JSON objects.
+        """
+        parameters = dict(type="folder", limit=5000)
+        result = self.make_api_call(f"resource/{folder_id}/items", parameters=parameters)
+        return [Item(self, json=item_json) for item_json in result]
 
 
 class Item:
@@ -304,6 +346,17 @@ class Item:
             id = json["_id"]  # type: ignore
         self.id = id
         self._json = json
+
+    @property
+    def name(self) -> str:
+        """Gets the name of the item as stored in the "name" field in the JSON representation.
+        If the "name" field is not present, return an empty string.
+
+        :return: The "name" field of the JSON representation, or "" if that field is not present.
+        """
+        if self._json is None:
+            return ""
+        return self._json.get("name", "")
 
     @property
     def url(self) -> str:
@@ -334,6 +387,7 @@ class RunOutputs:
         run_id: str,
         workspace_config_path: Optional[Path] = None,
         overwrite_csv: bool = False,
+        split: str = "test"
     ):
         logging.info("Getting run \"%s\"...", run_id)
         run = get_aml_run_from_run_id(run_id, workspace_config_path=workspace_config_path)
@@ -345,6 +399,7 @@ class RunOutputs:
         self.workspace = workspace
         self.df = self.get_df(overwrite_csv)
         self.tile_size = None
+        self.split = split
 
     def get_df(self, overwrite_csv: bool) -> pd.DataFrame:
         """Download outputs CSV from Azure ML and read the data frame.
@@ -353,12 +408,12 @@ class RunOutputs:
 
         :param overwrite_csv: Force download of the output CSV even when it is found locally.
         """
-        csv_filename = AML_TEST_OUTPUTS_CSV
+        csv_filename = "/".join([AML_OUTPUTS_DIR, self.split, OUTPUTS_CSV_FILENAME])
         csv_stem = Path(csv_filename).stem
         csv_name = f"{csv_stem}-{self.workspace.name}-{self.run.id}.csv"
         cached_csv_path = Path(tempfile.gettempdir()) / csv_name
         if cached_csv_path.is_file() and not overwrite_csv:
-            logging.info("Found cached CSV file")
+            logging.info(f"Found cached CSV file {cached_csv_path}")
         else:
             logging.info("Downloading outputs CSV...")
             aml_exceptions = (
@@ -366,6 +421,7 @@ class RunOutputs:
                 azureml._restclient.models.error_response.ErrorResponseException,
             )
             try:
+                logging.info(f"Downloading file {csv_filename}")
                 self.run.download_file(csv_filename, cached_csv_path)
             except aml_exceptions as e:
                 raise FileNotFoundError("Error downloading outputs file from run") from e
@@ -442,6 +498,7 @@ class RunOutputs:
         max_slides: Optional[int] = None,
         id_filter: Optional[str] = "",
         search_mode: str = "full",
+        folder_path: str = "",
         **annotation_kwargs: Any,
     ) -> List[Dict]:
         """Create annotations from a data frame and upload them to DSA.
@@ -451,6 +508,7 @@ class RunOutputs:
         :param max_slides: Maximum number of slides to upload, useful for debugging.
         :param id_filter: Filter to only process slides matching this string, according to ``search_mode``.
         :param search_mode: See :meth:`DigitalSlideArchive.search_item`.
+        :param folder_path: The path of the folder in DSA where results should be uploaded to.
         :param annotation_kwargs: Additional kwargs to :meth:`get_annotation_from_slide_data_frame`.
         """
         unique_slide_ids = sorted(self.df[ResultsKey.SLIDE_ID].unique())
@@ -466,14 +524,31 @@ class RunOutputs:
         # I think "full" is more descriptive than "text" for our API
         search_mode = "text" if search_mode == "full" else search_mode
         progress = tqdm(unique_slide_ids)
+        annotation_name = f"{self.run.id} ({self.run.display_name})"
         responses = []
+        if folder_path:
+            folder_id = dsa.get_folder_id(folder_path)
+            items = dsa.get_items_in_folder(folder_id)
+            print(f"Found a total of {len(items)} items in folder {folder_path}")
+        else:
+            items = []
         for slide_id in progress:
             progress.set_description(slide_id)
             if id_filter not in slide_id:
                 continue
-            item = dsa.search_item(slide_id, search_mode=search_mode)
+            if folder_path:
+                matching_items = [item for item in items if slide_id in item.name]
+                if not matching_items:
+                    print(f"No items in DSA for slide ID {slide_id}")
+                    continue
+                elif len(matching_items) > 1:
+                    print(f"Multiple items in DSA for slide ID {slide_id}. Skipping this slide.")
+                    continue
+                item = matching_items[0]
+            else:
+                item = dsa.search_item(slide_id, search_mode=search_mode)
+
             tqdm.write(f"Processing slide {slide_id} - {item.url}")
-            annotation_name = self.run.id
             annotation = self.get_slide_annotation_from_df(
                 self.df,
                 slide_id,
@@ -537,16 +612,32 @@ if __name__ == "__main__":
         help="Just log into the DSA and exit. Useful to ensure connection to the DSA from current host",
     )
     parser.add_argument(
-        "--rescale",
-        action="store_true",
-        help="Rescale attention values between 0 and 1 to maximize heatmaps contrast",
+        "--no-rescale",
+        action="store_false",
+        default=True,
+        help="Do not rescale attention values. By default, attention values are scaled such that the range "
+             "between min and max fills the colormap.",
     )
     parser.add_argument(
         "--colormap",
         type=str,
         choices=plt.colormaps(),
-        default="Greens",
+        default="Spectral_r",
         help="Matplotlib colormap used for the heatmaps",
+    )
+    parser.add_argument(
+        "--folder",
+        type=str,
+        default="",
+        help="The folder in DSA where uploads should go to. Use this if there are multiple slides with the same ID"
+             "in DSA. The folder name must contain the collection, like `Collection1/foo`",
+    )
+    parser.add_argument(
+        "--split",
+        type=str,
+        choices=[TEST_OUTPUTS_SUBDIR, EXTRA_VAL_OUTPUTS_SUBDIR, VAL_OUTPUTS_SUBDIR],
+        default=TEST_OUTPUTS_SUBDIR,
+        help="The results subfolder in the AzureML run where the results are downloaded from. Default: 'test'",
     )
     parser.add_argument(
         "--search-mode",
@@ -570,6 +661,7 @@ if __name__ == "__main__":
         run_id=args.run_id,
         workspace_config_path=args.workspace_config,
         overwrite_csv=args.overwrite_csv,
+        split=args.split,
     )
     outputs.upload(
         dsa,
@@ -578,5 +670,6 @@ if __name__ == "__main__":
         id_filter=args.id_filter,
         search_mode=args.search_mode,
         colormap_name=args.colormap,
-        rescale=args.rescale,
+        rescale=args.no_rescale,
+        folder_path=args.folder,
     )

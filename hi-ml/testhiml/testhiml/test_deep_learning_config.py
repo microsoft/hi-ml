@@ -55,8 +55,14 @@ def test_workflow_params_get_effective_random_seed() -> None:
     params = WorkflowParams(random_seed=seed0)
     assert params.get_effective_random_seed() == seed0
     params.crossval_count = 5
+    params.crossval_index = None
+    assert params.is_crossvalidation_parent_run
+    assert not params.is_crossvalidation_child_run
+    assert params.get_effective_random_seed() == seed0
+    params.crossval_count = 5
     params.crossval_index = 0
-    assert params.is_crossvalidation_enabled
+    assert not params.is_crossvalidation_parent_run
+    assert params.is_crossvalidation_child_run
     assert params.get_effective_random_seed() != seed0
 
 
@@ -202,6 +208,14 @@ def test_trainer_params_use_gpu() -> None:
         with patch("health_ml.utils.common_utils.is_gpu_available") as mock_gpu_available:
             mock_gpu_available.return_value = patch_gpu
             assert config.use_gpu is patch_gpu
+
+
+def test_trainer_params_max_num_gpus_inference(caplog: LogCaptureFixture) -> None:
+    config = TrainerParams(max_num_gpus_inference=2, pl_replce_sampler_ddp=True)
+    config.validate()
+    assert config.max_num_gpus_inference == 2
+    assert config.pl_replace_sampler_ddp is True
+    assert "The 'pl_replace_sampler_ddp' flag is set to True, but the 'max_num_gpus_inference'" in caplog.messages[-1]
 
 
 @patch("health_ml.utils.common_utils.is_gpu_available")

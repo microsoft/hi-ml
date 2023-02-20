@@ -96,9 +96,11 @@ class PlotOption(Enum):
     TOP_BOTTOM_TILES = "top_bottom_tiles"
     SLIDE_THUMBNAIL = "slide_thumbnail"
     ATTENTION_HEATMAP = "attention_heatmap"
+    ATTENTION_HISTOGRAM = "attention_histogram"
     CONFUSION_MATRIX = "confusion_matrix"
     HISTOGRAM = "histogram"
     PR_CURVE = "pr_curve"
+    ROC_CURVE = "roc_curve"
 
 
 class DeepMILSubmodules(str, Enum):

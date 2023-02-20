@@ -4,7 +4,6 @@ Global PyTest configuration -- used to define global fixtures for the entire tes
 DO NOT RENAME THIS FILE: (https://docs.pytest.org/en/latest/fixture.html#sharing-a-fixture-across-tests-in-a-module
 -or-class-session)
 """
-import logging
 import shutil
 import sys
 import uuid
@@ -19,20 +18,20 @@ print(f"Adding {testSSL_root_dir} to sys path")
 sys.path.insert(0, str(testSSL_root_dir))
 
 himl_root = testSSL_root_dir.parent.parent
-himl_package_root = himl_root / "hi-ml" / "src"
-logging.info(f"Adding {str(himl_package_root)} to path")
-sys.path.insert(0, str(himl_package_root))
-himl_azure_package_root = himl_root / "hi-ml-azure" / "src"
-logging.info(f"Adding {str(himl_azure_package_root)} to path")
-sys.path.insert(0, str(himl_azure_package_root))
+packages = {"hi-ml": ["src", "testhiml"], "hi-ml-azure": ["src", "testazure"], "hi-ml-cpath": ["src"]}
+for package, subpackages in packages.items():
+    for subpackage in subpackages:
+        print(f"Adding {himl_root / package / subpackage} to sys path")
+        sys.path.insert(0, str(himl_root / package / subpackage))
+from health_cpath.utils import health_cpath_package_setup  # noqa: E402
 from health_ml.utils.fixed_paths import OutputFolderForTests  # noqa: E402
-from health_ml.utils.logging import package_setup_and_hacks  # noqa: E402
 from testSSL.test_ssl_containers import create_cxr_test_dataset  # noqa: E402
 
-# Reduce logging noise in DEBUG mode
-package_setup_and_hacks()
 
 TEST_OUTPUTS_PATH = testSSL_root_dir / "test_outputs"
+
+# Reduce logging noise in DEBUG mode
+health_cpath_package_setup()
 
 
 def remove_and_create_folder(folder: Path) -> None:

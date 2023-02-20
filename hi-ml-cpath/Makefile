@@ -35,13 +35,13 @@ lock_env:
 
 # clean build artifacts
 clean:
-	rm -rf `find . -type d -name __pycache__`
-	rm -rf `find . -type d -name .mypy_cache`
-	rm -rf `find . -type d -name logs`
-	rm -rf `find . -type d -name outputs`
+	for folder in .mypy_cache __pycache__ logs outputs; do \
+		rm -rf `find . -type d -name $$folder`; \
+	done
 	rm -rf ./.pytest_cache
 	rm -rf ./testhisto/test_outputs ./testSSL/test_outputs
 	rm -f ./coverage ./coverage.txt ./coverage.xml
+	rm -rf Lightning checkpoints lightning_logs
 	rm -f ./latest_version.txt ./package_name.txt
 	rm -rf build dist hi_ml_cpath.egg-info
 	rm cifar-10-python.tar.gz
@@ -77,9 +77,10 @@ check: flake8 mypy
 pytest:
 	pytest
 
-# run pytest with coverage on package
+# Run pytest with coverage on package
+# Output the slowest tests via the --durations flag.
 pytest_coverage:
-	pytest --cov=health_cpath --cov SSL --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc
+	pytest --durations=20 --cov=health_cpath --cov SSL --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc
 
 # run pytest using GPUs via an AzureML job
 pytest_gpu:
@@ -299,6 +300,9 @@ smoke_test_tiles_panda_no_ddp_sampler_local:
 smoke_test_tiles_panda_no_ddp_sampler_aml:
 	{ ${BASE_CPATH_RUNNER_COMMAND} ${DEEPSMILEPANDATILES_ARGS} ${DEFAULT_SMOKE_TEST_ARGS} \
 	${DEEPSMILEDEFAULT_SMOKE_TEST_ARGS} ${DDP_SAMPLER_ARGS} ${AML_MULTIPLE_DEVICE_ARGS} --tag smoke_test_tiles_panda_no_ddp_sampler_aml;}
+
+smoke_test_montage_creation:
+	python src/health_cpath/scripts/create_montage.py --dataset test_montage --width 1000 --cluster lite-testing-ds2 --datastore himldatasets --conda_env environment.yml --wait_for_completion
 
 smoke tests local: smoke_test_cucim_slidespandaimagenetmil_local smoke_test_openslide_slidespandaimagenetmil_local smoke_test_tilespandaimagenetmil_local smoke_test_tcgacrcksslmil_local smoke_test_crck_simclr_local smoke_test_crck_flexible_finetuning_local smoke_test_tcgacrckimagenetmil_local smoke_test_crck_loss_analysis_local smoke_test_slides_panda_loss_analysis_local smoke_test_slides_panda_no_ddp_sampler_local smoke_test_tiles_panda_no_ddp_sampler_local
 
