@@ -10,6 +10,7 @@ from .model import CXR_BERT_COMMIT_TAG
 from .model import BIOMED_VLP_CXR_BERT_SPECIALIZED
 
 __all__ = [
+    "MinimalImageModel",
     "ImageModel",
     "ResnetType",
     "get_biovil_resnet",
