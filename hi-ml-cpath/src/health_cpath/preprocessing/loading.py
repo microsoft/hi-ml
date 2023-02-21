@@ -10,8 +10,9 @@ from enum import Enum
 from health_ml.utils import box_utils
 from health_cpath.utils.naming import SlideKey
 from monai.data.wsi_reader import WSIReader
-from monai.transforms import MapTransform, LoadImaged
-from typing import Any, Callable, Dict, Optional, Tuple
+from monai.transforms import MapTransform, LoadImaged, RandomizableTransform
+from PIL import Image
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 from health_azure.logging import print_message_with_rank_pid
 
 
@@ -44,6 +45,7 @@ class ROIType(str, Enum):
     FOREGROUND = 'foreground'
     MASK = 'segmentation_mask'
     WHOLE = 'whole_slide'
+    RANDOMSUBROI = 'random_sub_roi'
 
 
 class WSIBackend(str, Enum):
@@ -81,7 +83,7 @@ class BaseLoadROId:
         h, w = self.reader.get_size(slide_obj, level=level)
         return box_utils.Box(0, 0, w, h)
 
-    def _get_bounding_box(self, slide_obj: Any, slide_id: int) -> box_utils.Box:
+    def _get_bounding_box(self, slide_obj: Any, slide_id: Union[str, int]) -> box_utils.Box:
         """Estimate bounding box at the lowest resolution (i.e. highest level) of the slide."""
         highest_level = self.reader.get_level_count(slide_obj) - 1
         scale = self.reader.get_downsample_ratio(slide_obj, highest_level)
@@ -204,6 +206,70 @@ class LoadMaskROId(MapTransform, BaseLoadROId):
         return data
 
 
+class LoadRandomSubROId(RandomizableTransform, MapTransform, BaseLoadROId):
+    """Transform that loads a pathology slide and mask, cropped to a random sub-region of the mask bounding box (ROI).
+    The masks are supposed to be in png format, with the background in black (0) and tissue sections in categorical
+    values. The sub ROI is sampled from the foreground by randomly selecting a label from unique values in the mask.
+    """
+    def __init__(
+        self,
+        image_key: str = SlideKey.IMAGE,
+        mask_key: str = SlideKey.MASK,
+        wsi_mag_at_level0: float = 10.,
+        wsi_mag_at_level: float = 10.,
+        mask_mag: float = 1.25,
+        **kwargs: Any
+    ) -> None:
+        """
+        :param image_key: Image key in the input and output dictionaries. Default: 'image'.
+        :param mask_key: Mask key in the input and output dictionaries. Default: 'mask'.
+        :param wsi_mag_at_level0: WSI magnification at level 0. Default: 10x.
+        :param wsi_mag_at_level: WSI magnification at the chosen level. Default: 10x.
+        :param mask_mag: Mask magnification. Default: 1.25x.
+        :param kwargs: Additional arguments for `BaseLoadROId`.
+        """
+        MapTransform.__init__(self, [image_key, mask_key], allow_missing_keys=False)
+        BaseLoadROId.__init__(self, image_key=image_key, **kwargs)
+        self.mask_key = mask_key
+        self.scale_level0 = wsi_mag_at_level0 / mask_mag
+        self.scale_level = wsi_mag_at_level / mask_mag
+
+    def _get_foreground_mask(self, mask_path: str, level: int = 0) -> np.ndarray:
+        mask = Image.open(mask_path)  # loaded as RGB PIL image
+        section = np.random.choice(np.unique(mask)[1:])
+        foreground_mask = mask[0] > section
+        return foreground_mask
+
+    def _get_bounding_box(self, foreground_mask: np.ndarray, slide_id: Union[str, int] = '') -> box_utils.Box:
+        """Estimate bounding box at the lowest resolution (i.e. highest level) of the slide."""
+        bbox = box_utils.get_bounding_box(foreground_mask)
+        return self.scale_level0 * bbox.add_margin(self.margin)
+
+    def __call__(self, data: Dict) -> Dict:
+        try:
+            foreground_mask = self._get_foreground_mask(data[self.mask_key])
+            image_obj = self.reader.read(data[self.image_key])
+            level0_bbox = self._get_bounding_box(data[self.mask_key])
+
+            # cuCIM/OpenSlide take absolute location coordinates in the level 0 reference frame,
+            # but relative region size in pixels at the chosen level
+            scaled_bbox = level0_bbox / self.scale_level
+            origin = (level0_bbox.y, level0_bbox.x)
+            get_data_kwargs = dict(
+                location=origin,
+                size=(scaled_bbox.h, scaled_bbox.w),
+                level=self.level,
+            )
+            data[self.mask_key] = foreground_mask
+            data[self.image_key], _ = self.reader.get_data(image_obj, **get_data_kwargs)  # type: ignore
+            data.update(get_data_kwargs)
+            data[SlideKey.SCALE] = self.scale_level
+            data[SlideKey.ORIGIN] = origin
+        finally:
+            image_obj.close()
+        return data
+
+
 class LoadingParams(param.Parameterized):
     """Parameters for loading a whole slide image."""
 
@@ -232,6 +298,15 @@ class LoadingParams(param.Parameterized):
         allow_None=True,
         doc="Threshold for foreground mask. If None, the threshold is selected automatically with otsu thresholding."
         "This only applies to `LoadROId`.")
+    wsi_mag_at_level0: float = param.Number(
+        default=10.,
+        doc="WSI magnification at level 0. Default: 10x.")
+    wsi_mag_at_level: float = param.Number(
+        default=10.,
+        doc="WSI magnification at the chosen level. Default: 10x.")
+    mask_mag: float = param.Number(
+        default=1.25,
+        doc="Mask magnification. Default: 1.25x.")
 
     def set_roi_type_to_foreground(self) -> None:
         """Set the ROI type to foreground. This is useful for plotting even if we load whole slides during
@@ -239,6 +314,14 @@ class LoadingParams(param.Parameterized):
         foreground in the WHOLE case. Otherwise, keep it as is if a mask is available."""
         if self.roi_type == ROIType.WHOLE:
             self.roi_type = ROIType.FOREGROUND
+
+    def get_random_sub_roid_transform(self) -> Callable:
+        return LoadRandomSubROId(backend=self.backend, image_key=self.image_key,
+                                     mask_key=self.mask_key, level=self.level, margin=self.margin,
+                                     wsi_mag_at_level0=self.wsi_mag_at_level0,
+                                     wsi_mag_at_level=self.wsi_mag_at_level,
+                                     mask_mag=self.mask_mag,
+                                     backend_args=self.get_additionl_backend_args())
 
     def get_load_roid_transform(self) -> Callable:
         """Returns a transform to load a slide and mask, cropped to the mask bounding box (ROI) defined by either the
@@ -254,6 +337,8 @@ class LoadingParams(param.Parameterized):
             return LoadMaskROId(backend=self.backend, image_key=self.image_key,
                                 mask_key=self.mask_key, level=self.level, margin=self.margin,
                                 backend_args=self.get_additionl_backend_args())
+        elif self.roi_type == ROIType.RANDOMSUBROI:
+            return self.get_random_sub_roid_transform()
         else:
             raise ValueError(f"Unknown ROI type: {self.roi_type}. Choose from {list(ROIType)}.")
 
