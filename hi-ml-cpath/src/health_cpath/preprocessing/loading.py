@@ -235,9 +235,9 @@ class LoadRandomSubROId(RandomizableTransform, MapTransform, BaseLoadROId):
         self.scale_level = wsi_mag_at_level / mask_mag
 
     def _get_foreground_mask(self, mask_path: str, level: int = 0) -> np.ndarray:
-        mask = Image.open(mask_path)  # loaded as RGB PIL image
-        section = np.random.choice(np.unique(mask)[1:])
-        foreground_mask = mask[0] > section
+        mask = np.asarray(Image.open(mask_path))[..., 0]
+        section = np.random.choice(np.unique(mask)[1:])  # exclude 0 (background)
+        foreground_mask = mask == section
         return foreground_mask
 
     def _get_bounding_box(self, foreground_mask: np.ndarray, slide_id: Union[str, int] = '') -> box_utils.Box:
@@ -249,7 +249,7 @@ class LoadRandomSubROId(RandomizableTransform, MapTransform, BaseLoadROId):
         try:
             foreground_mask = self._get_foreground_mask(data[self.mask_key])
             image_obj = self.reader.read(data[self.image_key])
-            level0_bbox = self._get_bounding_box(data[self.mask_key])
+            level0_bbox = self._get_bounding_box(foreground_mask)
 
             # cuCIM/OpenSlide take absolute location coordinates in the level 0 reference frame,
             # but relative region size in pixels at the chosen level
