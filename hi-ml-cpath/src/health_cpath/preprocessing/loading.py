@@ -317,11 +317,10 @@ class LoadingParams(param.Parameterized):
 
     def get_random_sub_roid_transform(self) -> Callable:
         return LoadRandomSubROId(backend=self.backend, image_key=self.image_key,
-                                     mask_key=self.mask_key, level=self.level, margin=self.margin,
-                                     wsi_mag_at_level0=self.wsi_mag_at_level0,
-                                     wsi_mag_at_level=self.wsi_mag_at_level,
-                                     mask_mag=self.mask_mag,
-                                     backend_args=self.get_additionl_backend_args())
+                                 mask_key=self.mask_key, level=self.level, margin=self.margin,
+                                 wsi_mag_at_level=self.wsi_mag_at_level, mask_mag=self.mask_mag,
+                                 wsi_mag_at_level0=self.wsi_mag_at_level0,
+                                 backend_args=self.get_additionl_backend_args())
 
     def get_load_roid_transform(self) -> Callable:
         """Returns a transform to load a slide and mask, cropped to the mask bounding box (ROI) defined by either the
