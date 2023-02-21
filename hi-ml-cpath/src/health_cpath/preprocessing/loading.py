@@ -310,7 +310,7 @@ class LoadingParams(param.Parameterized):
 
     def set_roi_type_to_foreground(self) -> None:
         """Set the ROI type to foreground. This is useful for plotting even if we load whole slides during
-        training. This help us reduce the size of thrumbnails to only meaningful tissue. We only hardcode it to
+        training. This help us reduce the size of thumbnails to only meaningful tissue. We only hardcode it to
         foreground in the WHOLE case. Otherwise, keep it as is if a mask is available."""
         if self.roi_type == ROIType.WHOLE:
             self.roi_type = ROIType.FOREGROUND
