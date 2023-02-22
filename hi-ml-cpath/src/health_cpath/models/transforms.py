@@ -332,23 +332,24 @@ class NormalizeBackgroundd(MapTransform):
         background_keys are None. Use 50 for median, 0 for min, 100 for max.
         """
         self.image_key = image_key
-        assert q_percentile or background_keys, "Either background_keys or q_percentile must be set."
+        if not q_percentile and not background_keys:
+            raise AssertionError("Either background_keys or q_percentile must be set.")
         if background_keys:
-            assert len(background_keys) == 3, "Number of background keys must be 3 (for RGB images)."
+            if len(background_keys) != 3:
+                raise AssertionError("Number of background keys must be 3 (for RGB images).")
 
         self.background_keys = background_keys
         self.q_percentile = q_percentile
 
     def __call__(self, data: Dict) -> Dict:
         if self.background_keys:
-            assert SlideKey.METADATA in data, (
-                "Background keys are expected to be in `SlideKey.METADATA` field. But `SlideKey.METADATA` is not "
-                "present in the data dictionary."
-            )
-            assert all(key in data[SlideKey.METADATA] for key in self.background_keys), (
-                f"Not all background keys present in data dictionary. background_keys: {self.background_keys}, "
-                f"data keys: {list(data[SlideKey.METADATA].keys())}"  # background keys are in the metadata dict
-            )
+            if SlideKey.METADATA not in data:
+                # background keys are in the metadata dict
+                raise AssertionError("Background keys are expected to be in `SlideKey.METADATA` field. \
+                    But `SlideKey.METADATA` is not present in the data dictionary.")
+            if not all(key in data[SlideKey.METADATA] for key in self.background_keys):
+                raise AssertionError(f"Not all background keys present in data dictionary. \
+                    background_keys: {self.background_keys}, data keys: {list(data[SlideKey.METADATA].keys())}")
             background_vals = torch.tensor(
                 [data[SlideKey.METADATA][key] for key in self.background_keys]
             )[:, None, None]
