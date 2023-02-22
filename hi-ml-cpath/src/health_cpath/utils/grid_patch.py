@@ -114,7 +114,7 @@ class GridPatch(Transform):
         # Filter patches
         if self.num_patches:
             patched_image, locations = self.filter_count(patched_image, locations)
-        elif self.threshold:
+        if self.threshold:
             patched_image, locations = self.filter_threshold(patched_image, locations)
 
         # Pad the patch list to have the requested number of patches
