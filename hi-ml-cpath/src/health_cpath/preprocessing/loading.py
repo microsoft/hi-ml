@@ -232,7 +232,7 @@ class LoadRandomSubROId(RandomizableTransform, MapTransform, BaseLoadROId):
         BaseLoadROId.__init__(self, image_key=image_key, **kwargs)
         self.mask_key = mask_key
         self.scale_level0 = wsi_mag_at_level0 / mask_mag
-        self.scale_level = wsi_mag_at_level / mask_mag
+        self.scale_level = wsi_mag_at_level / (mask_mag * self.scale_level0)
 
     def _get_foreground_mask(self, mask_path: str, level: int = 0) -> np.ndarray:
         mask = np.asarray(Image.open(mask_path))[..., 0]
