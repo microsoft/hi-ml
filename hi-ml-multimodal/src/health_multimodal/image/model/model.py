@@ -10,8 +10,9 @@ from abc import ABC
 import enum
 import tempfile
 from pathlib import Path
+from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Optional, Tuple, Union, Sequence
+from typing import Any, Generator, Optional, Tuple, Union, Sequence
 
 import torch
 import torch.nn as nn
@@ -230,5 +231,18 @@ def get_encoder_output_dim(module: torch.nn.Module) -> int:
     x = torch.rand((1, 3, 448, 448)).to(device)
 
     # Extract the number of output feature dimensions
-    representations = module(x)
+    with restore_training_mode(module):
+        module.eval()
+        representations = module(x)
     return representations.shape[1]
+
+
+@contextmanager
+def restore_training_mode(module: nn.Module) -> Generator[None, None, None]:
+    """Restore the training mode of a module after some operation.
+
+    :param module: PyTorch module.
+    """
+    training_mode = module.training
+    yield
+    module.train(mode=training_mode)
