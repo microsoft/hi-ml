@@ -6,7 +6,6 @@ DO NOT RENAME THIS FILE: (https://docs.pytest.org/en/latest/fixture.html#sharing
 """
 import logging
 import shutil
-import sys
 import uuid
 import pytest
 from pathlib import Path

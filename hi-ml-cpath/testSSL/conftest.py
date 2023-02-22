@@ -5,7 +5,6 @@ DO NOT RENAME THIS FILE: (https://docs.pytest.org/en/latest/fixture.html#sharing
 -or-class-session)
 """
 import shutil
-import sys
 import uuid
 from pathlib import Path
 from typing import Generator
