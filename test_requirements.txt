@@ -1,6 +1,6 @@
 black==23.1.0
 coverage==7.1.0
-flake8==6.0.0
+flake8==5.0.4
 mypy==1.0.1
 pre-commit==3.0.4
 pylint==2.16.2
