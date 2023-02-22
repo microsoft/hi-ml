@@ -12,27 +12,15 @@ import pytest
 from pathlib import Path
 from typing import Generator
 
-# temporary workaround until these hi-ml package release
-testhisto_root_dir = Path(__file__).parent
-print(f"Adding {testhisto_root_dir} to sys path")
-sys.path.insert(0, str(testhisto_root_dir))
-
-TEST_OUTPUTS_PATH = testhisto_root_dir / "test_outputs"
-
-# temporary workaround until these hi-ml package release
-himl_root = testhisto_root_dir.parent.parent
-packages = {"hi-ml": ["src", "testhiml"], "hi-ml-azure": ["src", "testazure"], "hi-ml-cpath": ["src"]}
-for package, subpackages in packages.items():
-    for subpackage in subpackages:
-        print(f"Adding {himl_root / package / subpackage} to sys path")
-        sys.path.insert(0, str(himl_root / package / subpackage))
-
 from health_cpath.utils import health_cpath_package_setup  # noqa: E402
 from health_ml.utils.fixed_paths import OutputFolderForTests  # noqa: E402
 from testhisto.mocks.base_data_generator import MockHistoDataType  # noqa: E402
 from testhisto.mocks.tiles_generator import MockPandaTilesGenerator  # noqa: E402
 from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPositioningType  # noqa: E402
 
+
+testhisto_root_dir = Path(__file__).parent
+TEST_OUTPUTS_PATH = testhisto_root_dir / "test_outputs"
 
 # Reduce logging noise in DEBUG mode
 health_cpath_package_setup()
