@@ -80,22 +80,6 @@ def test_hed_jitter() -> None:
          [[0.0877, 0.1219],
           [0.6196, 0.0418]]]])
 
-    expected_output_bag = torch.Tensor(
-        [[[[0.5779, 0.0023],
-          [1.0000, 0.5569]],
-         [[0.3341, 0.0000],
-          [1.0000, 0.2492]],
-         [[0.1233, 0.1693],
-          [0.8468, 0.0581]]],
-         [[[0.4271, 0.0016],
-          [0.8476, 0.4079]],
-         [[0.2417, 0.0000],
-          [1.0000, 0.1764]],
-         [[0.1404, 0.2052],
-          [0.9751, 0.0686]]]])
-
-   #  _test_data_augmentation(data_augmentation, dummy_bag, expected_output_bag, stochastic=True)
-
     _test_data_augmentation(data_augmentation, dummy_img, expected_output_img, stochastic=True, seed=1, atol=1e-3)
 
     # Test tiling on the fly (i.e. when the input image does not have a batch dimension)
