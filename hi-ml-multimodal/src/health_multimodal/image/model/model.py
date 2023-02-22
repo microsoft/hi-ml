@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from abc import ABC
 import enum
 import tempfile
 from pathlib import Path
@@ -75,7 +76,7 @@ class ImageModelOutput():
     projected_patch_embeddings: torch.Tensor
 
 
-class MinimalImageModel(nn.Module):
+class BaseImageModel(nn.Module, ABC):
     """ An abstract class defining methods required by the ImageInferenceEngine """
 
     def __init__(self, **kwargs: Any):
@@ -84,14 +85,14 @@ class MinimalImageModel(nn.Module):
 
     @abstractmethod
     def forward(self, x: torch.Tensor) -> ImageModelOutput:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_patchwise_projected_embeddings(self, input_img: torch.Tensor, normalize: bool) -> torch.Tensor:
-        pass
+        raise NotImplementedError
 
 
-class ImageModel(MinimalImageModel):
+class ImageModel(BaseImageModel):
     """Image encoder module"""
 
     def __init__(self,
