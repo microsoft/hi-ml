@@ -2,7 +2,7 @@ black==23.1.0
 coverage==7.1.0
 flake8==5.0.4
 mypy==1.0.1
-pre-commit==3.0.4
+pre-commit==2.21.0
 pylint==2.16.2
 pycobertura==3.0.0
 pytest==7.2.1
