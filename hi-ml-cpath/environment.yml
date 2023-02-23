@@ -21,7 +21,7 @@ dependencies:
   - freetype=2.12.1=h4a9f257_0
   - gdk-pixbuf=2.42.6=h04a7f16_0
   - gettext=0.21.0=hf68c758_0
-  - giflib=5.2.1=h5eee18b_1
+  - giflib=5.2.1=h5eee18b_3
   - glib=2.68.2=h36276a3_0
   - gmp=6.2.1=h295c915_3
   - gnutls=3.6.15=he1e5248_0
@@ -46,10 +46,10 @@ dependencies:
   - libtiff=4.4.0=hecacb30_2
   - libunistring=0.9.10=h27cfd23_0
   - libuuid=1.41.5=h5eee18b_0
-  - libuv=1.40.0=h7b6447c_0
+  - libuv=1.44.2=h5eee18b_0
   - libvpx=1.7.0=h439df22_0
-  - libwebp=1.2.4=h11a3e52_0
-  - libwebp-base=1.2.4=h5eee18b_0
+  - libwebp=1.2.4=h11a3e52_1
+  - libwebp-base=1.2.4=h5eee18b_1
   - libxcb=1.15=h7f8727e_0
   - libxml2=2.9.14=h74e7548_0
   - lz4-c=1.9.4=h6a678d5_0
@@ -92,7 +92,7 @@ dependencies:
       - alembic==1.9.4
       - applicationinsights==0.11.10
       - argcomplete==2.0.0
-      - astroid==2.13.5
+      - astroid==2.14.2
       - async-timeout==4.0.2
       - attrs==21.4.0
       - azure-ai-ml==1.4.0
@@ -123,7 +123,7 @@ dependencies:
       - backports-tempfile==1.0
       - backports-weakref==1.0.post1
       - bcrypt==4.0.1
-      - black==22.1.0
+      - black==23.1.0
       - bleach==6.0.0
       - cachetools==4.2.4
       - cffi==1.15.1
@@ -135,7 +135,7 @@ dependencies:
       - coloredlogs==15.0.1
       - conda-merge==0.1.5
       - contextlib2==21.6.0
-      - coverage==6.3.2
+      - coverage==7.1.0
       - cryptography==39.0.1
       - cucim==22.10.0
       - cycler==0.11.0
@@ -148,8 +148,10 @@ dependencies:
       - docker==6.0.1
       - docutils==0.16
       - dotnetcore2==3.1.23
+      - entrypoints==0.4
+      - exceptiongroup==1.1.0
       - filelock==3.9.0
-      - flake8==4.0.1
+      - flake8==6.0.0
       - flask==2.2.3
       - frozenlist==1.3.3
       - fsspec==2023.1.0
@@ -160,7 +162,7 @@ dependencies:
       - google-auth==1.35.0
       - google-auth-oauthlib==0.4.6
       - greenlet==2.0.2
-      - grpcio==1.51.1
+      - grpcio==1.51.3
       - gunicorn==20.1.0
       - hi-ml==0.2.18
       - hi-ml-azure==0.2.18
@@ -196,7 +198,7 @@ dependencies:
       - marshmallow==3.19.0
       - marshmallow-enum==1.5.1
       - matplotlib==3.4.3
-      - mccabe==0.6.1
+      - mccabe==0.7.0
       - mdit-py-plugins==0.2.8
       - mlflow==2.1.1
       - mlflow-skinny==2.1.1
@@ -207,8 +209,8 @@ dependencies:
       - msrest==0.7.1
       - msrestazure==0.6.4
       - multidict==6.0.4
-      - mypy==0.961
-      - mypy-extensions==0.4.3
+      - mypy==1.0.1
+      - mypy-extensions==1.0.0
       - myst-parser==0.15.2
       - ndg-httpsclient==0.5.1
       - networkx==3.0
@@ -217,39 +219,42 @@ dependencies:
       - numpy==1.22.0
       - oauthlib==3.2.2
       - opencv-python-headless==4.5.1.48
+      - packaging==23.0
       - pandas==1.3.4
       - param==1.12.0
       - paramiko==2.12.0
       - pathspec==0.11.0
-      - pipdeptree==2.2.1
+      - pipdeptree==2.5.0
       - pkginfo==1.9.6
-      - pluggy==0.13.1
+      - platformdirs==3.0.0
+      - pluggy==1.0.0
       - portalocker==2.7.0
-      - pre-commit==2.19.0
+      - pre-commit==3.0.4
       - protobuf==3.20.1
-      - py==1.11.0
       - pyarrow==9.0.0
       - pyasn1==0.4.8
       - pyasn1-modules==0.2.8
-      - pycobertura==2.0.1
-      - pycodestyle==2.8.0
+      - pycobertura==3.0.0
+      - pycodestyle==2.10.0
       - pycparser==2.21
       - pydash==5.1.2
       - pydeprecate==0.3.2
       - pydicom==2.3.0
-      - pyflakes==2.4.0
+      - pyflakes==3.0.1
+      - pygments==2.14.0
       - pyjwt==2.6.0
-      - pylint==2.15.0
+      - pylint==2.16.2
       - pynacl==1.5.0
       - pynndescent==0.5.8
       - pyopenssl==22.1.0
       - pyparsing==3.0.9
       - pyrsistent==0.19.3
       - pysocks==1.7.1
-      - pytest==6.2.2
-      - pytest-cov==2.11.1
-      - pytest-rerunfailures==10.2
-      - pytest-timeout==2.0.1
+      - pytest==7.2.1
+      - pytest-cov==4.0.0
+      - pytest-rerunfailures==11.1.1
+      - pytest-timeout==2.1.0
+      - python-dateutil==2.8.2
       - pytorch-lightning==1.6.5
       - pytz==2022.7.1
       - pywavelets==1.4.1
@@ -295,7 +300,6 @@ dependencies:
       - threadpoolctl==3.1.0
       - tifffile==2022.10.10
       - timm==0.6.12
-      - toml==0.10.2
       - tomli==2.0.1
       - tomlkit==0.11.6
       - torchmetrics==0.10.2

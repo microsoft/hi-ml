@@ -1,12 +1,12 @@
-black==22.1.0
-coverage==6.3.2
-flake8==5.0.2
-mypy==0.931
-pre-commit==2.19.0
-pylint==2.15.0
-pycobertura==2.0.1
-pytest==6.2.2
-pytest-cov==2.11.1
-pytest-rerunfailures==10.2
-pytest-timeout==2.0.1
+black==23.1.0
+coverage==7.1.0
+flake8==5.0.4
+mypy==1.0.1
+pre-commit==2.21.0
+pylint==2.16.2
+pycobertura==3.0.0
+pytest==7.2.1
+pytest-cov==4.0.0
+pytest-rerunfailures==11.1.1
+pytest-timeout==2.1.0
 scikit-learn  # This is needed to make pyright pass on the docs folder
