@@ -12,6 +12,7 @@ from health_multimodal.image.model.model import ImageModel
 from health_multimodal.image.model.model import ImageEncoder
 from health_multimodal.image.model.model import ImageModelOutput
 from health_multimodal.image.model.model import get_biovil_resnet
+from health_multimodal.image.model.model import restore_training_mode
 from health_multimodal.image.model.modules import MultiTaskModel
 from health_multimodal.image.model.resnet import resnet50
 
@@ -156,3 +157,22 @@ def test_hubconf() -> None:
         if value_hub is None and value_himl is None:  # for example, class_logits
             continue
         assert torch.allclose(value_hub, value_himl)
+
+
+def test_restore_training_mode() -> None:
+    model = torch.nn.Conv2d(3, 2, 3)
+    assert model.training
+
+    with restore_training_mode(model):
+        assert model.training
+        model.eval()
+        assert not model.training
+    assert model.training
+
+    model.eval()
+    assert not model.training
+    with restore_training_mode(model):
+        assert not model.training
+        model.train()
+        assert model.training
+    assert not model.training

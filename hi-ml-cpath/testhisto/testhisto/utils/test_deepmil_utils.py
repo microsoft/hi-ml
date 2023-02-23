@@ -5,7 +5,7 @@
 import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-
+from torch import nn
 from health_cpath.models.encoders import SSLEncoder
 from health_cpath.scripts.generate_checkpoint_url import get_checkpoint_url_from_aml_run
 from health_cpath.utils.deepmil_utils import EncoderParams
@@ -64,3 +64,18 @@ def test_load_ssl_checkpoint_from_run_id(tmp_path: Path) -> None:
     assert ssl_checkpoint_path == tmp_path / TEST_SSL_RUN_ID / LAST_CHECKPOINT
     encoder = encoder_params.get_encoder(tmp_path)
     assert isinstance(encoder, SSLEncoder)
+
+
+def test_projection_dim() -> None:
+    num_encoding = 50
+    encoder_params = EncoderParams(projection_dim=0)
+    projection_layer = encoder_params.get_projection_layer(num_encoding=num_encoding)
+    assert isinstance(projection_layer, nn.Identity)
+    projection_dim = 20
+    encoder_params = EncoderParams(projection_dim=projection_dim)
+    projection_layer = encoder_params.get_projection_layer(num_encoding=num_encoding)
+    assert isinstance(projection_layer, nn.Sequential)
+    assert isinstance(projection_layer[0], nn.Linear)
+    assert isinstance(projection_layer[1], nn.ReLU)
+    assert projection_layer[0].in_features == num_encoding
+    assert projection_layer[0].out_features == projection_dim
