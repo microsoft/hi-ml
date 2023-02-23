@@ -16,24 +16,25 @@ class GridPatch(Transform):
     """
     Extract all the patches sweeping the entire image in a row-major sliding-window manner with possible overlaps.
     It can sort the patches and return all or a subset of them.
-
     Args:
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         offset: offset of starting position in the array, default is 0 for each dimension.
-        num_patches: number of patches to return. Defaults to None, which returns all the available patches.
-            If the required patches are more than the available patches, padding will be applied.
+        num_patches: number of patches (or maximum number of patches) to return.
+            If the requested number of patches is greater than the number of available patches,
+            padding will be applied to provide exactly `num_patches` patches unless `threshold` is set.
+            Defaults to None, which returns all the available patches.
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         sort_fn: when `num_patches` is provided, it determines if keep patches with highest values (`"max"`),
             lowest values (`"min"`), or in their default order (`None`). Default to None.
         threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
+        threshold_first: whether to apply threshold filtering before limiting the number of patches to `num_patches`.
+            Defaults to True.
         pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to `constant`
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
-
     Returns:
         MetaTensor: A MetaTensor consisting of a batch of all the patches with associated metadata
-
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -47,6 +48,7 @@ class GridPatch(Transform):
         sort_fn: Optional[str] = None,
         threshold: Optional[float] = None,
         pad_mode: str = PytorchPadMode.CONSTANT,
+        threshold_first: bool = False,
         **pad_kwargs,
     ):
         self.patch_size = ensure_tuple(patch_size)
@@ -57,26 +59,27 @@ class GridPatch(Transform):
         self.num_patches = num_patches
         self.sort_fn = sort_fn.lower() if sort_fn else None
         self.threshold = threshold
+        self.threshold_first = threshold_first
 
     def filter_threshold(self, image_np: np.ndarray, locations: np.ndarray):
         """
-        Filter the patches and their locations according to a threshold
+        Filter the patches and their locations according to a threshold.
         Args:
-            image_np: a numpy.ndarray representing a stack of patches
-            locations: a numpy.ndarray representing the stack of location of each patch
+            image_np: a numpy.ndarray representing a stack of patches.
+            locations: a numpy.ndarray representing the stack of location of each patch.
+        Returns:
+            tuple[numpy.ndarray, numpy.ndarray]:  tuple of filtered patches and locations.
         """
         n_dims = len(image_np.shape)
         idx = np.argwhere(image_np.sum(axis=tuple(range(1, n_dims))) < self.threshold).reshape(-1)
-        image_np = image_np[idx]
-        locations = locations[idx]
-        return image_np, locations
+        return image_np[idx], locations[idx]
 
     def filter_count(self, image_np: np.ndarray, locations: np.ndarray):
         """
         Sort the patches based on the sum of their intensity, and just keep `self.num_patches` of them.
         Args:
-            image_np: a numpy.ndarray representing a stack of patches
-            locations: a numpy.ndarray representing the stack of location of each patch
+            image_np: a numpy.ndarray representing a stack of patches.
+            locations: a numpy.ndarray representing the stack of location of each patch.
         """
         if self.sort_fn is None:
             image_np = image_np[: self.num_patches]
@@ -94,7 +97,15 @@ class GridPatch(Transform):
             locations = locations[idx]
         return image_np, locations
 
-    def __call__(self, array: NdarrayOrTensor):
+    def __call__(self, array: NdarrayOrTensor) -> MetaTensor:
+        """
+        Extract the patches (sweeping the entire image in a row-major sliding-window manner with possible overlaps).
+        Args:
+            array: a input image as `numpy.ndarray` or `torch.Tensor`
+        Return:
+            MetaTensor: the extracted patches as a single tensor (with patch dimension as the first dimension),
+                with defined `PatchKeys.LOCATION` and `PatchKeys.COUNT` metadata.
+        """
         # create the patch iterator which sweeps the image row-by-row
         array_np, *_ = convert_data_type(array, np.ndarray)
         patch_iterator = iter_patch(
@@ -108,16 +119,19 @@ class GridPatch(Transform):
         )
         patches = list(zip(*patch_iterator))
         patched_image = np.array(patches[0])
-        locations = np.array(patches[1])[:, 1:, 0]  # only keep the starting location
+        del patches[0]
+        locations = np.array(patches[0])[:, 1:, 0]  # only keep the starting location
+        del patches[0]
 
-        if self.threshold is not None:
+        # Apply threshold filter before filtering by count (if threshold_first is set)
+        if self.threshold_first and self.threshold is not None:
             patched_image, locations = self.filter_threshold(patched_image, locations)
 
         if self.num_patches:
             # Limit number of patches
             patched_image, locations = self.filter_count(patched_image, locations)
+            # Pad the patch list to have the requested number of patches
             if self.threshold is None:
-                # Pad the patch list to have the requested number of patches
                 padding = self.num_patches - len(patched_image)
                 if padding > 0:
                     patched_image = np.pad(
@@ -126,6 +140,10 @@ class GridPatch(Transform):
                         constant_values=self.pad_kwargs.get("constant_values", 0),
                     )
                     locations = np.pad(locations, [[0, padding], [0, 0]], constant_values=0)
+
+        # Apply threshold filter after filtering by count (if threshold_first is not set)
+        if not self.threshold_first and self.threshold is not None:
+            patched_image, locations = self.filter_threshold(patched_image, locations)
 
         # Convert to MetaTensor
         metadata = array.meta if isinstance(array, MetaTensor) else MetaTensor.get_default_meta()
@@ -180,6 +198,7 @@ class GridPatchd(MapTransform):
         sort_fn: Optional[str] = None,
         threshold: Optional[float] = None,
         pad_mode: str = PytorchPadMode.CONSTANT,
+        threshold_first: bool = False,
         allow_missing_keys: bool = False,
         **pad_kwargs,
     ):
@@ -192,6 +211,7 @@ class GridPatchd(MapTransform):
             sort_fn=sort_fn,
             threshold=threshold,
             pad_mode=pad_mode,
+            threshold_first=threshold_first,
             **pad_kwargs,
         )
 
@@ -240,6 +260,7 @@ class RandGridPatch(GridPatch, RandomizableTransform):
         sort_fn: Optional[str] = None,
         threshold: Optional[float] = None,
         pad_mode: str = PytorchPadMode.CONSTANT,
+        threshold_first: bool = False,
         **pad_kwargs,
     ):
         super().__init__(
@@ -250,6 +271,7 @@ class RandGridPatch(GridPatch, RandomizableTransform):
             sort_fn=sort_fn,
             threshold=threshold,
             pad_mode=pad_mode,
+            threshold_first=threshold_first,
             **pad_kwargs,
         )
         self.min_offset = min_offset
@@ -320,6 +342,7 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
         sort_fn: Optional[str] = None,
         threshold: Optional[float] = None,
         pad_mode: str = PytorchPadMode.CONSTANT,
+        threshold_first: bool = False,
         allow_missing_keys: bool = False,
         **pad_kwargs,
     ):
@@ -333,6 +356,7 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
             sort_fn=sort_fn,
             threshold=threshold,
             pad_mode=pad_mode,
+            threshold_first=threshold_first,
             **pad_kwargs,
         )
 
