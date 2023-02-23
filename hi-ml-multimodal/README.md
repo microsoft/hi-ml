@@ -50,7 +50,7 @@ the weights and model cards are hosted on [Hugging Face 🤗][6].
 
 If you use our code or models in your research, please cite [our paper][7] (presented at the [**European Conference on Computer Vision (ECCV) 2022**][8]).
 
-> Boecking, B. et al. (2022). Making the Most of Text Semantics to Improve Biomedical Vision–Language Processing. In: Avidan, S., Brostow, G., Cissé, M., Farinella, G.M., Hassner, T. (eds) Computer Vision – ECCV 2022. ECCV 2022. Lecture Notes in Computer Science, vol 13696. Springer, Cham. [https://doi.org/10.1007/978-3-031-20059-5_1](https://doi.org/10.1007/978-3-031-20059-5_1)
+> Boecking, B. and Usuyama, N. et al. (2022). Making the Most of Text Semantics to Improve Biomedical Vision–Language Processing. In: Avidan, S., Brostow, G., Cissé, M., Farinella, G.M., Hassner, T. (eds) Computer Vision – ECCV 2022. ECCV 2022. Lecture Notes in Computer Science, vol 13696. Springer, Cham. [https://doi.org/10.1007/978-3-031-20059-5_1](https://doi.org/10.1007/978-3-031-20059-5_1)
 
 ### BibTeX
 
