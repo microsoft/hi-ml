@@ -108,6 +108,9 @@ class Resnet50_NoPreproc(ImageNetEncoder):
 
 
 class SwinTransformer_NoPreproc(ImageNetEncoder):
+    """Swin Transformer encoder pretrained on ImageNet. This uses the `swin_tiny_patch4_window7_224` model which is a
+    tiny version of the Swin Transformer model with a patch size of 4, a window size of 7 and input image size 224."""
+
     def __init__(self, tile_size: int, n_channels: int = 3) -> None:
         super().__init__(swin_tiny_patch4_window7_224, tile_size, n_channels, apply_imagenet_preprocessing=False)
 

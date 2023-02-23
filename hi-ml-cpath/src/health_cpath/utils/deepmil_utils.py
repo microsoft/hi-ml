@@ -64,7 +64,9 @@ class EncoderParams(param.Parameterized):
     )
     ssl_checkpoint: CheckpointParser = param.ClassSelector(class_=CheckpointParser, default=None,
                                                            instantiate=False, doc=CheckpointParser.DOC)
-    projection_dim: int = param.Integer(default=0, doc="If > 0, project the encoded tiles to this dimension.")
+    projection_dim: int = param.Integer(
+        default=0, doc="If > 0, project the encoded tiles to this dimension. Otherwise, use identity projection."
+    )
 
     def validate(self) -> None:
         """Validate the encoder parameters."""
@@ -126,7 +128,8 @@ class EncoderParams(param.Parameterized):
         return encoder
 
     def get_projection_layer(self, num_encoding: int) -> nn.Module:
-        """If projection_dim > 0, returns a projection layer to project the encoded tiles to the projection_dim.
+        """If projection_dim > 0, returns a linear layer to project the encoded tiles to the projection_dim followed by
+        relu activation. Else, returns an identity layer.
 
         :param num_encoding: The number of encoding dimensions.
         :return: A projection layer if projection_dim > 0, else Identity.

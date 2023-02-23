@@ -89,7 +89,7 @@ dependencies:
       - aiohttp==3.8.4
       - aiosignal==1.3.1
       - alabaster==0.7.13
-      - alembic==1.9.3
+      - alembic==1.9.4
       - applicationinsights==0.11.10
       - argcomplete==2.0.0
       - astroid==2.13.5
@@ -101,7 +101,7 @@ dependencies:
       - azure-graphrbac==0.61.1
       - azure-identity==1.7.0
       - azure-mgmt-authorization==2.0.0
-      - azure-mgmt-containerregistry==10.0.0
+      - azure-mgmt-containerregistry==10.1.0
       - azure-mgmt-core==1.3.2
       - azure-mgmt-keyvault==10.1.0
       - azure-mgmt-resource==21.2.1
@@ -150,21 +150,21 @@ dependencies:
       - dotnetcore2==3.1.23
       - filelock==3.9.0
       - flake8==4.0.1
-      - flask==2.2.2
+      - flask==2.2.3
       - frozenlist==1.3.3
       - fsspec==2023.1.0
       - fusepy==3.0.1
       - girder-client==3.1.14
       - gitdb==4.0.10
-      - gitpython==3.1.30
+      - gitpython==3.1.31
       - google-auth==1.35.0
       - google-auth-oauthlib==0.4.6
       - greenlet==2.0.2
       - grpcio==1.51.1
       - gunicorn==20.1.0
-      - hi-ml==0.2.16
-      - hi-ml-azure==0.2.16
-      - huggingface-hub==0.12.0
+      - hi-ml==0.2.18
+      - hi-ml-azure==0.2.18
+      - huggingface-hub==0.12.1
       - humanfriendly==10.0
       - identify==2.5.18
       - idna==3.4
@@ -307,9 +307,9 @@ dependencies:
       - virtualenv==20.19.0
       - webencodings==0.5.1
       - websocket-client==1.5.1
-      - werkzeug==2.2.2
+      - werkzeug==2.2.3
       - wheel==0.38.1
       - wrapt==1.14.1
       - yacs==0.1.8
       - yarl==1.8.2
-      - zipp==3.13.0
+      - zipp==3.14.0
