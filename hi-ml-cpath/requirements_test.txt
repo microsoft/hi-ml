@@ -1,6 +1,7 @@
 black==23.1.0
 coverage==7.1.0
 flake8==6.0.0
+ipykernel==6.21.2
 mypy==1.0.1
 mypy-extensions==1.0.0
 pipdeptree==2.5.0
