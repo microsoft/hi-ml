@@ -65,11 +65,10 @@ class GridPatch(Transform):
             image_np: a numpy.ndarray representing a stack of patches
             locations: a numpy.ndarray representing the stack of location of each patch
         """
-        if self.threshold is not None:
-            n_dims = len(image_np.shape)
-            idx = np.argwhere(image_np.sum(axis=tuple(range(1, n_dims))) < self.threshold).reshape(-1)
-            image_np = image_np[idx]
-            locations = locations[idx]
+        n_dims = len(image_np.shape)
+        idx = np.argwhere(image_np.sum(axis=tuple(range(1, n_dims))) < self.threshold).reshape(-1)
+        image_np = image_np[idx]
+        locations = locations[idx]
         return image_np, locations
 
     def filter_count(self, image_np: np.ndarray, locations: np.ndarray):
@@ -111,22 +110,22 @@ class GridPatch(Transform):
         patched_image = np.array(patches[0])
         locations = np.array(patches[1])[:, 1:, 0]  # only keep the starting location
 
-        # Filter patches
-        if self.num_patches:
-            patched_image, locations = self.filter_count(patched_image, locations)
-        if self.threshold:
+        if self.threshold is not None:
             patched_image, locations = self.filter_threshold(patched_image, locations)
 
-        # Pad the patch list to have the requested number of patches
         if self.num_patches:
-            padding = self.num_patches - len(patched_image)
-            if padding > 0:
-                patched_image = np.pad(
-                    patched_image,
-                    [[0, padding], [0, 0]] + [[0, 0]] * len(self.patch_size),
-                    constant_values=self.pad_kwargs.get("constant_values", 0),
-                )
-                locations = np.pad(locations, [[0, padding], [0, 0]], constant_values=0)
+            # Limit number of patches
+            patched_image, locations = self.filter_count(patched_image, locations)
+            if self.threshold is None:
+                # Pad the patch list to have the requested number of patches
+                padding = self.num_patches - len(patched_image)
+                if padding > 0:
+                    patched_image = np.pad(
+                        patched_image,
+                        [[0, padding], [0, 0]] + [[0, 0]] * len(self.patch_size),
+                        constant_values=self.pad_kwargs.get("constant_values", 0),
+                    )
+                    locations = np.pad(locations, [[0, padding], [0, 0]], constant_values=0)
 
         # Convert to MetaTensor
         metadata = array.meta if isinstance(array, MetaTensor) else MetaTensor.get_default_meta()
