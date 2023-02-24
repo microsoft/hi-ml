@@ -83,3 +83,9 @@ bump_version_dry:
 # $ make bump_version part=patch
 bump_version:
 	bump2version $(part) --verbose
+
+# publish package to PyPI
+publish:
+	pip install build twine
+	python -m build
+	python -m twine upload dist/*
