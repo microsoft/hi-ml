@@ -18,6 +18,9 @@ pip_build: pip_upgrade
 pip_test: pip_upgrade
 	pip install -r requirements_test.txt
 
+pip_publish: pip_upgrade
+	pip install --upgrade build twine
+
 # pip install local package in editable mode for development and testing
 pip_local:
 	pip install -e .
@@ -84,8 +87,14 @@ bump_version_dry:
 bump_version:
 	bump2version $(part) --verbose
 
+# publish package to TestPyPI
+publish_test: pip_publish
+	pip install build twine
+	python -m build
+	python -m twine upload --repository testpypi dist/*
+
 # publish package to PyPI
-publish:
+publish: pip_publish
 	pip install build twine
 	python -m build
 	python -m twine upload dist/*
