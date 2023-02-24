@@ -12,6 +12,7 @@ from torchmetrics.classification import (MulticlassAUROC, MulticlassAccuracy, Mu
                                          MulticlassCohenKappa, MulticlassAveragePrecision, BinaryConfusionMatrix,
                                          BinaryAccuracy, BinaryPrecision, BinaryRecall, BinaryF1Score, BinaryCohenKappa,
                                          BinaryAUROC, BinarySpecificity, BinaryAveragePrecision)
+from health_azure.logging import print_message_with_rank_pid
 from health_ml.utils import log_on_epoch
 from health_ml.deep_learning_config import OptimizerParams
 from health_cpath.models.encoders import IdentityEncoder
@@ -261,6 +262,7 @@ class DeepMILModule(LightningModule):
         return bag_logit
 
     def forward(self, instances: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
+        print_message_with_rank_pid(f"instances.shape: {instances.shape}")
         instance_features = self.get_instance_features(instances)
         attentions, bag_features = self.get_attentions_and_bag_features(instance_features)
         bag_logit = self.get_bag_logit(bag_features)

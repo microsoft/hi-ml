@@ -85,6 +85,7 @@ class TilingParams(param.Parameterized):
                 threshold=self.scaled_threshold,
                 pad_mode=self.tile_pad_mode,  # type: ignore
                 constant_values=self.background_val,  # this arg is passed to np.pad or torch.pad
+                threshold_first=False,
             )
         else:
             return GridPatchd(
