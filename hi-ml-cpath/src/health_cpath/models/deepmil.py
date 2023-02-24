@@ -262,7 +262,8 @@ class DeepMILModule(LightningModule):
         return bag_logit
 
     def forward(self, instances: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
-        print_message_with_rank_pid(f"instances.shape: {instances.shape}")
+        # if instances.shape[0] < 1700:
+        #     print_message_with_rank_pid(f"instances.shape: {instances.shape}")
         instance_features = self.get_instance_features(instances)
         attentions, bag_features = self.get_attentions_and_bag_features(instance_features)
         bag_logit = self.get_bag_logit(bag_features)
