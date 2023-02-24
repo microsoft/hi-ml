@@ -12,6 +12,7 @@ from health_cpath.models.encoders import (
     HistoSSLEncoder,
     ImageNetSimCLREncoder,
     SSLEncoder,
+    SwinTransformer_NoPreproc,
     TileEncoder,
     Resnet18,
     Resnet50,
@@ -61,6 +62,9 @@ class EncoderParams(param.Parameterized):
     )
     ssl_checkpoint: CheckpointParser = param.ClassSelector(class_=CheckpointParser, default=None,
                                                            instantiate=False, doc=CheckpointParser.DOC)
+    projection_dim: int = param.Integer(
+        default=0, doc="If > 0, project the encoded tiles to this dimension. Otherwise, use identity projection."
+    )
 
     def validate(self) -> None:
         """Validate the encoder parameters."""
@@ -89,6 +93,9 @@ class EncoderParams(param.Parameterized):
         elif self.encoder_type == Resnet50_NoPreproc.__name__:
             encoder = Resnet50_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
 
+        elif self.encoder_type == SwinTransformer_NoPreproc.__name__:
+            encoder = SwinTransformer_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
+
         elif self.encoder_type == ImageNetSimCLREncoder.__name__:
             encoder = ImageNetSimCLREncoder(tile_size=self.tile_size, n_channels=self.n_channels)
 
@@ -106,6 +113,17 @@ class EncoderParams(param.Parameterized):
             raise ValueError(f"Unsupported encoder type: {self.encoder_type}")
         set_module_gradients_enabled(encoder, tuning_flag=self.tune_encoder)
         return encoder
+
+    def get_projection_layer(self, num_encoding: int) -> nn.Module:
+        """If projection_dim > 0, returns a linear layer to project the encoded tiles to the projection_dim followed by
+        relu activation. Else, returns an identity layer.
+
+        :param num_encoding: The number of encoding dimensions.
+        :return: A projection layer if projection_dim > 0, else Identity.
+        """
+        if self.projection_dim > 0:
+            return nn.Sequential(nn.Linear(num_encoding, self.projection_dim), nn.ReLU())
+        return nn.Identity()
 
 
 class PoolingParams(param.Parameterized):
