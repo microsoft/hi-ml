@@ -2,6 +2,7 @@ coloredlogs==15.0.1
 cucim==22.10.00
 girder-client==3.1.14
 hi-ml
+ipykernel==6.21.2
 lightning-bolts==0.4.0
 monai==1.0.1
 more-itertools==8.10.0

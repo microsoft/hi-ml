@@ -21,7 +21,7 @@ if __name__ == '__main__':
     # Script needs to be started in the parent folder of the dataset folder
     current_dir = Path.cwd()
     expected_datasetdir = TCGA_CRCK_DATASET_ID
-    if not (current_dir / expected_datasetdir).is_dir:
+    if not (current_dir / expected_datasetdir).is_dir():
         raise ValueError(f"The current folder must contain the actual dataset folder {expected_datasetdir}")
     dataset_dir = current_dir / expected_datasetdir
     expected_subdirs = ["CRC_DX_TEST", "CRC_DX_TRAIN"]
