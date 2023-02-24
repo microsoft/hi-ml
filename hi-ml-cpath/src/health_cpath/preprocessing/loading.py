@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from git import Sequence
 import param
 import numpy as np
 import skimage.filters
@@ -12,7 +13,7 @@ from health_cpath.utils.naming import SlideKey
 from monai.data.wsi_reader import WSIReader
 from monai.transforms import MapTransform, LoadImaged, RandomizableTransform
 from PIL import Image
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from health_azure.logging import print_message_with_rank_pid
 
 
@@ -46,6 +47,7 @@ class ROIType(str, Enum):
     MASK = 'segmentation_mask'
     WHOLE = 'whole_slide'
     RANDOMSUBROI = 'random_sub_roi'
+    FIXEDSUBROI = 'fixed_sub_roi'
 
 
 class WSIBackend(str, Enum):
@@ -206,8 +208,8 @@ class LoadMaskROId(MapTransform, BaseLoadROId):
         return data
 
 
-class LoadRandomSubROId(RandomizableTransform, MapTransform, BaseLoadROId):
-    """Transform that loads a pathology slide and mask, cropped to a random sub-region of the mask bounding box (ROI).
+class LoadMaskSubROId(MapTransform, BaseLoadROId):
+    """Transform that loads a pathology slide and mask, cropped to a sub-region of the mask bounding box (ROI).
     The masks are supposed to be in png format, with the background in black (0) and tissue sections in categorical
     values. The sub ROI is sampled from the foreground by randomly selecting a label from unique values in the mask.
     """
@@ -218,6 +220,7 @@ class LoadRandomSubROId(RandomizableTransform, MapTransform, BaseLoadROId):
         wsi_mag_at_level0: float = 10.,
         wsi_mag_at_level: float = 10.,
         mask_mag: float = 1.25,
+        sub_roi_labels: Optional[Sequence[int]] = None,
         **kwargs: Any
     ) -> None:
         """
@@ -226,6 +229,7 @@ class LoadRandomSubROId(RandomizableTransform, MapTransform, BaseLoadROId):
         :param wsi_mag_at_level0: WSI magnification at level 0. Default: 10x.
         :param wsi_mag_at_level: WSI magnification at the chosen level. Default: 10x.
         :param mask_mag: Mask magnification. Default: 1.25x.
+        :param sub_roi_labels: List of labels to sample from. If None, all labels in the mask are used.
         :param kwargs: Additional arguments for `BaseLoadROId`.
         """
         MapTransform.__init__(self, [image_key, mask_key], allow_missing_keys=False)
@@ -233,10 +237,19 @@ class LoadRandomSubROId(RandomizableTransform, MapTransform, BaseLoadROId):
         self.mask_key = mask_key
         self.scale_level0 = wsi_mag_at_level0 / mask_mag
         self.scale_level = wsi_mag_at_level / (mask_mag * self.scale_level0)
+        self.sub_roi_labels = sub_roi_labels
+
+    def _get_sub_roi_section(self) -> int:
+        raise NotImplementedError
+
+    def _set_sub_roi_labels_from_mask(self, mask: np.ndarray) -> None:
+        if self.sub_roi_labels is None:
+            self.sub_roi_labels = np.unique(mask).tolist()
 
     def _get_foreground_mask(self, mask_path: str, level: int = 0) -> np.ndarray:
         mask = np.asarray(Image.open(mask_path))[..., 0]
-        section = np.random.choice(np.unique(mask)[1:])  # exclude 0 (background)
+        self._set_sub_roi_labels_from_mask(mask)
+        section = self._get_sub_roi_section()
         foreground_mask = mask == section
         return foreground_mask
 
@@ -268,6 +281,21 @@ class LoadRandomSubROId(RandomizableTransform, MapTransform, BaseLoadROId):
         finally:
             image_obj.close()
         return data
+
+
+class LoadMaskRandomSubROId(RandomizableTransform, LoadMaskSubROId):
+    """A randomizable version of `LoadMaskSubROId` that samples a sub-region of the mask bounding box (ROI) randomly."""
+    def _get_sub_roi_section(self) -> int:
+        assert self.sub_roi_labels is not None, "sub_roi_labels must be set."
+        return self.R.choice(self.sub_roi_labels)
+
+
+class LaodMaskFixedSubROId(LoadMaskSubROId):
+
+    def _get_sub_roi_section(self) -> int:
+        assert self.sub_roi_labels is not None, "sub_roi_labels must be set."
+        assert len(self.sub_roi_labels) == 1, "Only one label is allowed for LaodMaskFixedSubROId."
+        return self.sub_roi_labels[0]
 
 
 class LoadingParams(param.Parameterized):
@@ -307,6 +335,9 @@ class LoadingParams(param.Parameterized):
     mask_mag: float = param.Number(
         default=1.25,
         doc="Mask magnification. Default: 1.25x.")
+    sub_roi_labels: Optional[List[int]] = param.List(
+        default=[128, 255],
+        doc="List of labels to use for sub-ROIs. This only applies to roi_type in (RANDOMSUBROI, FIXEDSUBROI).")
 
     def set_roi_type_to_foreground(self) -> None:
         """Set the ROI type to foreground. This is useful for plotting even if we load whole slides during
@@ -316,11 +347,18 @@ class LoadingParams(param.Parameterized):
             self.roi_type = ROIType.FOREGROUND
 
     def get_random_sub_roid_transform(self) -> Callable:
-        return LoadRandomSubROId(backend=self.backend, image_key=self.image_key,
-                                 mask_key=self.mask_key, level=self.level, margin=self.margin,
-                                 wsi_mag_at_level=self.wsi_mag_at_level, mask_mag=self.mask_mag,
-                                 wsi_mag_at_level0=self.wsi_mag_at_level0,
-                                 backend_args=self.get_additionl_backend_args())
+        return LoadMaskRandomSubROId(backend=self.backend, image_key=self.image_key,
+                                     mask_key=self.mask_key, level=self.level, margin=self.margin,
+                                     wsi_mag_at_level=self.wsi_mag_at_level, mask_mag=self.mask_mag,
+                                     wsi_mag_at_level0=self.wsi_mag_at_level0, sub_roi_labels=self.sub_roi_labels,
+                                     backend_args=self.get_additionl_backend_args())
+
+    def get_fixed_sub_roid_transform(self) -> Callable:
+        return LaodMaskFixedSubROId(backend=self.backend, image_key=self.image_key,
+                                    mask_key=self.mask_key, level=self.level, margin=self.margin,
+                                    wsi_mag_at_level=self.wsi_mag_at_level, mask_mag=self.mask_mag,
+                                    wsi_mag_at_level0=self.wsi_mag_at_level0, sub_roi_labels=self.sub_roi_labels,
+                                    backend_args=self.get_additionl_backend_args())
 
     def get_load_roid_transform(self) -> Callable:
         """Returns a transform to load a slide and mask, cropped to the mask bounding box (ROI) defined by either the
