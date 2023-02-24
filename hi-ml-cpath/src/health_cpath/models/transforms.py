@@ -68,7 +68,9 @@ def load_image_stack_as_tensor(image_paths: Sequence[PathOrString],
     return torch.stack(image_tensors, dim=0)
 
 
-def transform_dict_adaptor(function: Callable, k_input: str = None, k_output: str = None) -> Callable:
+def transform_dict_adaptor(function: Callable,
+                           k_input: Optional[str] = None,
+                           k_output: Optional[str] = None) -> Callable:
     """Adapt transformations to work with an input dictionary (rather than a tensor).
        We can't reuse monai.transforms.adaptors because it is only compatible with transformations that accept
        a dict as input.
