@@ -72,27 +72,19 @@ def test_stain_normalization() -> None:
 
 def test_hed_jitter() -> None:
     data_augmentation = HEDJitter(0.05)
-    expected_output_img1 = torch.Tensor(
-        [[[[0.9639, 0.4130],
-          [0.9134, 1.0000]],
-         [[0.3125, 0.0000],
-          [0.4474, 0.1820]],
-         [[0.9195, 0.5265],
-          [0.9118, 0.8291]]]])
-    expected_output_img2 = torch.Tensor(
-        [[[[0.8411, 0.2361],
-          [0.7857, 0.8766]],
-         [[0.7075, 0.0000],
-          [1.0000, 0.4138]],
-         [[0.9694, 0.4674],
-          [0.9577, 0.8476]]]])
-    expected_output_bag = torch.vstack([expected_output_img1,
-                                        expected_output_img2])
+    expected_output_img = torch.Tensor(
+        [[[[0.3375, 0.0000],
+          [0.6677, 0.3245]],
+         [[0.2473, 0.0031],
+          [1.0000, 0.1836]],
+         [[0.0877, 0.1219],
+          [0.6196, 0.0418]]]])
 
-    _test_data_augmentation(data_augmentation,
-                            dummy_bag,
-                            expected_output_bag,
-                            stochastic=True)
+    _test_data_augmentation(data_augmentation, dummy_img, expected_output_img, stochastic=True, seed=1, atol=1e-3)
+
+    # Test tiling on the fly (i.e. when the input image does not have a batch dimension)
+    _test_data_augmentation(data_augmentation, dummy_img.squeeze(0), expected_output_img.squeeze(0),
+                            stochastic=True, seed=1, atol=1e-3)
 
 
 def test_gaussian_blur() -> None:

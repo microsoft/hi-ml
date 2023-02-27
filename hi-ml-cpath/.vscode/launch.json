@@ -91,8 +91,8 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/health_cpath/utils/girder.py",
             "args": [
-                "--run-id=TFF3_HECytedMIL_1673543721958",
-                "--workspace-config=${workspaceFolder}/../config.json.Cyted",
+                "--run-id=TFF3_1673543721958",
+                "--workspace-config=${workspaceFolder}/../config.json",
                 "--login-only",
                 "--max-slides=1",
             ],
@@ -106,9 +106,9 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/health_cpath/utils/girder.py",
             "args": [
-                "--run-id=TFF3_HECytedMIL_1675338172_24c5ca6b",
-                "--workspace-config=${workspaceFolder}/../config.json.Cyted",
-                "--folder=Cyted/crop_and_convert_he_10x_to_tiff_no_hardcoded_bckd_2023_01_17",
+                "--run-id=TFF3_1675338172_24c5ca6b",
+                "--workspace-config=${workspaceFolder}/../config.json",
+                "--folder=Main/crop_and_convert_he_10x_to_tiff_no_hardcoded_bckd_2023_01_17",
                 "--max-slides=1",
                 "--split=test",
                 "--dry-run"
