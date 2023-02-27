@@ -196,8 +196,6 @@ class LoadMaskROId(MapTransform, BaseLoadROId):
                 size=(scaled_bbox.h, scaled_bbox.w),
                 level=self.level,
             )
-            mask, _ = self.reader.get_data(mask_obj, **get_data_kwargs)  # type: ignore
-            data[self.mask_key] = mask[:1]  # PANDA segmentation mask is in 'R' channel
             data[self.image_key], _ = self.reader.get_data(image_obj, **get_data_kwargs)  # type: ignore
             data.update(get_data_kwargs)
             data[SlideKey.SCALE] = scale
@@ -273,7 +271,6 @@ class LoadMaskSubROId(MapTransform, BaseLoadROId):
                 size=(scaled_bbox.h, scaled_bbox.w),
                 level=self.level,
             )
-            data[self.mask_key] = foreground_mask
             data[self.image_key], _ = self.reader.get_data(image_obj, **get_data_kwargs)  # type: ignore
             data.update(get_data_kwargs)
             data[SlideKey.SCALE] = self.scale_level
