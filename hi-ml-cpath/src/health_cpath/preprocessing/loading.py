@@ -283,7 +283,7 @@ class LoadMaskSubROId(MapTransform, BaseLoadROId):
         return data
 
 
-class LoadMaskRandomSubROId(RandomizableTransform, LoadMaskSubROId):
+class LoadMaskRandomSubROId(LoadMaskSubROId, RandomizableTransform):
     """A randomizable version of `LoadMaskSubROId` that samples a sub-region of the mask bounding box (ROI) randomly."""
     def _get_sub_roi_section(self) -> int:
         assert self.sub_roi_labels is not None, "sub_roi_labels must be set."
@@ -376,6 +376,8 @@ class LoadingParams(param.Parameterized):
                                 backend_args=self.get_additionl_backend_args())
         elif self.roi_type == ROIType.RANDOMSUBROI:
             return self.get_random_sub_roid_transform()
+        elif self.roi_type == ROIType.FIXEDSUBROI:
+            return self.get_fixed_sub_roid_transform()
         else:
             raise ValueError(f"Unknown ROI type: {self.roi_type}. Choose from {list(ROIType)}.")
 
