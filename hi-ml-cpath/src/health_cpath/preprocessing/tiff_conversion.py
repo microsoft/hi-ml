@@ -17,6 +17,7 @@ AMPERSAND = "&"
 UNDERSCORE = "_"
 OBJ_POW = "objective-power"
 
+
 class WSIFormat(str, Enum):
     """The format of the wsi file."""
     NDPI = "ndpi"
@@ -26,7 +27,11 @@ class WSIFormat(str, Enum):
 
 
 class ConvertWSIToTiffd(MapTransform):
-    """Converts a wsi file to a tiff file. The tiff file is saved in the dest_dir with the same name as the src file but with the tiff extension. Ampersands are replaced by the replace_ampersand_by string. The tiff file contains the image data at the target magnifications. If target_magnifications is None, the tiff file contains the image data at all magnifications. If add_lowest_magnification is True, the tiff file also contains the image data at the lowest magnification. The tiff file is saved with the compression specified by the compression parameter.
+    """Converts a wsi file to a tiff file. The tiff file is saved in the dest_dir with the same name as the src file
+    but with the tiff extension. Ampersands are replaced by the replace_ampersand_by string. The tiff file contains the
+    image data at the target magnifications. If target_magnifications is None, the tiff file contains the image data at
+    all magnifications. If add_lowest_magnification is True, the tiff file also contains the image data at the lowest
+    magnification. The tiff file is saved with the compression specified by the compression parameter.
     """
     def __init__(
         self,
@@ -38,29 +43,42 @@ class ConvertWSIToTiffd(MapTransform):
         base_objective_power: Optional[float] = None,
         replace_ampersand_by: str = UNDERSCORE,
         compression: COMPRESSION = COMPRESSION.ADOBE_DEFLATE,
+        tile_size: int = 512,
     ) -> None:
         """
         :param dest_dir: The directory where the tiff file will be saved.
         :param image_key: The key of the image in the data dictionary, defaults to SlideKey.IMAGE
         :param src_format: The format of the src file, defaults to WSIFormat.NDPI
-        :param target_magnifications: The target magnifications e.g. [10., 20.], defaults to [10.]. If target_magnifications is None, the tiff file will contain the image data at all magnifications.
-        :param add_lowest_magnification: A flag indicating whether the tiff file should also contain the image data at the lowest magnification, defaults to False. This is useful if the lowest magnification of the wsi is not part of the target magnifications and one wants to use the lowest magnification for faster processing.
-        :param base_objective_power: The base objective power of the wsi. This is used to calculate the magnification of the wsi. If the objective power is not found in the wsi properties, the base_objective_power is used instead. If the objective power is not found in the wsi properties and base_objective_power is None, an error is raised., defaults to None
-        :param replace_ampersand_by: A string that is used to replace ampersands in the src file name, defaults to UNDERSCORE. This is useful because ampersands in file names can cause problems in cloud storage.
+        :param target_magnifications: The target magnifications e.g. [10., 20.], defaults to [10.]. If
+        target_magnifications is None, the tiff file will contain the image data at all magnifications.
+        :param add_lowest_magnification: A flag indicating whether the tiff file should also contain the image data at
+        the lowest magnification, defaults to False. This is useful if the lowest magnification of the wsi is not part
+        of the target magnifications and one wants to use the lowest magnification for faster processing.
+        :param base_objective_power: The base objective power of the wsi. This is used to calculate the magnification
+        of the wsi. If the objective power is not found in the wsi properties, the base_objective_power is used
+        instead. If the objective power is not found in the wsi properties and base_objective_power is None, an error
+        is raised., defaults to None
+        :param replace_ampersand_by: A string that is used to replace ampersands in the src file name, defaults to
+        UNDERSCORE. This is useful because ampersands in file names can cause problems in cloud storage.
         :param compression: The compression that is used to save the tiff file, defaults to COMPRESSION.ADOBE_DEFLATE
+        aka ZLIB that is lossless compression.
+        :param tile_size: The size of the tiles that are used to write the tiff file, defaults to 512.
         """
         self.dest_dir = dest_dir
         self.image_key = image_key
         self.src_format = src_format
-        self.target_magnifications = target_magnifications.sort(reverse=True)
+        self.target_magnifications = target_magnifications.sort(reverse=True) if target_magnifications else None
         self.add_lowest_magnification = add_lowest_magnification
         self.replace_ampersand_by = replace_ampersand_by
         self.base_objective_power = base_objective_power
         self.wsi_reader = WSIReader(WSIBackend.OPENSLIDE)
         self.compression = compression
+        self.tile_size = tile_size
 
     def _get_tiff_path(self, src_path: Path) -> Path:
-        """Returns the path to the tiff file that will be created from the src file. The tiff file is saved in the dest_dir with the same name as the src file but with the tiff extension. Ampersands are replaced by the replace_ampersand_by string.
+        """Returns the path to the tiff file that will be created from the src file. The tiff file is saved in the
+        dest_dir with the same name as the src file but with the tiff extension. Ampersands are replaced by the
+        replace_ampersand_by string.
 
         :param src_path: The path to the src file.
         :return: The path to the tiff file that will be created from the src file.
@@ -70,10 +88,12 @@ class ConvertWSIToTiffd(MapTransform):
         return self.dest_dir / tiff_filename
 
     def _get_base_objective_power(self, wsi_obj: OpenSlide) -> float:
-        """Returns the objective power of the wsi. The objective power is extracted from the wsi properties. If the objective power is not found in the wsi properties, the base_objective_power is used instead.
+        """Returns the objective power of the wsi. The objective power is extracted from the wsi properties. If the
+        objective power is not found in the wsi properties, the base_objective_power is used instead.
 
         :param wsi_obj: The wsi object in openslide format
-        :raises ValueError: Raises an error if the objective power is not found in the wsi properties and base_objective_power is None
+        :raises ValueError: Raises an error if the objective power is not found in the wsi properties and
+        base_objective_power is None
         :return: The base objective power of the wsi
         """
         objective_power_tag = f"openslide.{OBJ_POW}" if self.src_format != WSIFormat.TIFF else f"tiff.{OBJ_POW}"
@@ -140,17 +160,32 @@ class ConvertWSIToTiffd(MapTransform):
         return [level for level in range(len(wsi_obj.level_downsamples))]
 
     def _get_options(self, wsi_obj: OpenSlide) -> Dict[str, Any]:
+        """Returns the options that will be passed to the tiffwriter. The options are extracted from the wsi properties
+        and will be written as tags in the tiff file.
+
+        :param wsi_obj: The wsi object in openslide format
+        :raises ValueError: Raises an error if the resolution unit is not in centimeters
+        :return: A dictionary of options that will be passed to the tiffwriter
+        """
         resolution_unit = wsi_obj.properties['tiff.ResolutionUnit']
-        assert resolution_unit == 'centimeter', f"Resolution unit is not in centimeters: {resolution_unit}"
+
+        if resolution_unit != 'centimeter':
+            raise ValueError(f"Resolution unit is not in centimeters: {resolution_unit}")
+
+        if self.target_magnifications:
+            base_obj_pow = self.target_magnifications[0]
+        else:
+            base_obj_pow = self._get_base_objective_power(wsi_obj)
+
         options = dict(
             software='tifffile',
             metadata={'axes': 'YXC'},
             photometric=PHOTOMETRIC.RGB,
             resolutionunit=resolution_unit,
             compression=COMPRESSION.ADOBE_DEFLATE,  # ADOBE_DEFLATE aka ZLIB lossless compression
-            tile=(512, 512),  # 512x512 tiles
+            tile=(self.tile_size, self.tile_size),  # 512x512 tiles
             # extratags are written as a list of tuples (tag, type, count, value, writeonce)
-            extratags=[(OBJ_POW, DATATYPE.FLOAT, 1, self.target_magnifications[0], False)],
+            extratags=[(OBJ_POW, DATATYPE.FLOAT, 1, base_obj_pow, False)],
         )
         return options
 
