@@ -11,7 +11,7 @@ from copy import deepcopy
 from health_azure.logging import logging_section
 from health_azure.utils import apply_overrides, create_argparser, parse_arguments
 from health_cpath.datasets.base_dataset import SlidesDataset
-from health_cpath.preprocessing.crop_and_conversion import AMPERSAND, UNDERSCORE, ConvertToTiffd, WSIFormat
+from health_cpath.preprocessing.conversion import AMPERSAND, UNDERSCORE, ConvertToTiffd, WSIFormat
 from health_cpath.utils.montage_config import AzureRunConfig
 from health_cpath.utils.naming import SlideKey
 from monai.data.dataset import Dataset
