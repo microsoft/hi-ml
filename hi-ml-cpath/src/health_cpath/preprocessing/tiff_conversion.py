@@ -44,7 +44,7 @@ class ConvertWSIToTiffd(MapTransform):
         :param image_key: The key of the image in the data dictionary, defaults to SlideKey.IMAGE
         :param src_format: The format of the src file, defaults to WSIFormat.NDPI
         :param target_magnifications: The target magnifications e.g. [10., 20.], defaults to [10.]. If target_magnifications is None, the tiff file will contain the image data at all magnifications.
-        :param add_lowest_magnification: A flag indicating whether the tiff file should also contain the image data at the lowest magnification, defaults to False. This is useful if the lowest magnification of the wsi is not part of the target magnifications and one wants to use the lowest magnification for faster processing. 
+        :param add_lowest_magnification: A flag indicating whether the tiff file should also contain the image data at the lowest magnification, defaults to False. This is useful if the lowest magnification of the wsi is not part of the target magnifications and one wants to use the lowest magnification for faster processing.
         :param base_objective_power: The base objective power of the wsi. This is used to calculate the magnification of the wsi. If the objective power is not found in the wsi properties, the base_objective_power is used instead. If the objective power is not found in the wsi properties and base_objective_power is None, an error is raised., defaults to None
         :param replace_ampersand_by: A string that is used to replace ampersands in the src file name, defaults to UNDERSCORE. This is useful because ampersands in file names can cause problems in cloud storage.
         :param compression: The compression that is used to save the tiff file, defaults to COMPRESSION.ADOBE_DEFLATE
@@ -68,7 +68,7 @@ class ConvertWSIToTiffd(MapTransform):
         tiff_filename = src_path.name.replace(self.src_format, WSIFormat.TIFF.value)
         tiff_filename = tiff_filename.replace(AMPERSAND, self.replace_ampersand_by)
         return self.dest_dir / tiff_filename
-    
+
     def _get_base_objective_power(self, wsi_obj: OpenSlide) -> float:
         """Returns the objective power of the wsi. The objective power is extracted from the wsi properties. If the objective power is not found in the wsi properties, the base_objective_power is used instead.
 
@@ -78,7 +78,7 @@ class ConvertWSIToTiffd(MapTransform):
         """
         objective_power_tag = f"openslide.{OBJ_POW}" if self.src_format != WSIFormat.TIFF else f"tiff.{OBJ_POW}"
         base_objective_power = wsi_obj.properties.get(objective_power_tag, self.base_objective_power)
-        
+
         if base_objective_power is None:
             raise ValueError(
                 f"Could not find {objective_power_tag} in wsi properties. Please specify base_objective_power."
@@ -113,7 +113,7 @@ class ConvertWSIToTiffd(MapTransform):
         level_data, _ = self.wsi_reader.get_data(wsi_obj, level=level)
         level_data = level_data.transpose(1, 2, 0)
         return level_data
-    
+
     def _validate_level_data(self, level_data: np.ndarray) -> None:
         if level_data.shape[2] != 3:
             raise ValueError(
@@ -138,7 +138,7 @@ class ConvertWSIToTiffd(MapTransform):
                     target_levels.append(highest_level)
             return target_levels
         return [level for level in range(len(wsi_obj.level_downsamples))]
-    
+
     def _get_options(self, wsi_obj: OpenSlide) -> Dict[str, Any]:
         resolution_unit = wsi_obj.properties['tiff.ResolutionUnit']
         assert resolution_unit == 'centimeter', f"Resolution unit is not in centimeters: {resolution_unit}"
@@ -163,7 +163,7 @@ class ConvertWSIToTiffd(MapTransform):
         """
 
         wsi_obj = self.wsi_reader.read(src_path)
-        
+
         try:
             levels = self._get_target_levels(wsi_obj)
         except ValueError as e:
