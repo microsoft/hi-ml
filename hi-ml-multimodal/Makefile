@@ -87,14 +87,14 @@ bump_version_dry:
 bump_version:
 	bump2version $(part) --verbose
 
-# publish package to TestPyPI
-publish_test: pip_publish
-	pip install build twine
+# build Python package
+build: pip_publish
 	python -m build
+
+# publish package to TestPyPI
+publish_test: build
 	python -m twine upload --repository testpypi dist/*
 
 # publish package to PyPI
-publish: pip_publish
-	pip install build twine
-	python -m build
+publish: build
 	python -m twine upload dist/*
