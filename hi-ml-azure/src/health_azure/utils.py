@@ -547,6 +547,30 @@ def create_from_matching_params(from_object: param.Parameterized, cls_: Type[T])
     return c
 
 
+def create_v2_job_command_line_args_from_params(script_params: List[str]) -> str:
+
+    command_line_arg_str = ""
+    for param in script_params:
+        next_param_str: str
+        if "'" in param and '"' in param:
+            raise ValueError(
+                f"Script parameters cannot contain both single and double quotes. Problematic parameter: {param}"
+            )
+        elif "'" in param:
+            next_param_str = f'"{param}"'
+        elif '"' in param:
+            next_param_str = f"'{param}'"
+        else:
+            next_param_str = f'{param}'
+
+        if command_line_arg_str == "":
+            command_line_arg_str = next_param_str
+        else:
+            command_line_arg_str = f"{command_line_arg_str} {next_param_str}"
+
+    return command_line_arg_str
+
+
 class CustomTypeParam(param.Parameter):
     def _validate(self, val: Any) -> None:
         """

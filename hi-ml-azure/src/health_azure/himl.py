@@ -19,33 +19,34 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
 
-from azure.ai.ml import MLClient, Input, Output, command
+from azure.ai.ml import Input, MLClient, Output, command
 from azure.ai.ml.constants import InputOutputModes
-from azure.ai.ml.entities import Data, Job, Command, Sweep, UserIdentityConfiguration
+from azure.ai.ml.entities import Command, Data
 from azure.ai.ml.entities import Environment as EnvironmentV2
+from azure.ai.ml.entities import Job, Sweep, UserIdentityConfiguration
 from azure.ai.ml.entities._job.distribution import MpiDistribution, PyTorchDistribution
-
 from azure.ai.ml.sweep import Choice
 from azureml._base_sdk_common import user_agent
 from azureml.core import ComputeTarget, Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
 from azureml.data import OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
-from azureml.train.hyperdrive import HyperDriveConfig, GridParameterSampling, PrimaryMetricGoal, choice
 from azureml.dataprep.fuse.daemon import MountContext
+from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
 
-from health_azure.amulet import (ENV_AMLT_DATAREFERENCE_DATA, ENV_AMLT_DATAREFERENCE_OUTPUT, is_amulet_job)
+from health_azure.amulet import ENV_AMLT_DATAREFERENCE_DATA, ENV_AMLT_DATAREFERENCE_OUTPUT, is_amulet_job
+from health_azure.datasets import (
+    DatasetConfig, StrOrDatasetConfig, _get_or_create_v2_data_asset, _input_dataset_key,
+    _output_dataset_key, _replace_string_datasets, setup_local_datasets
+)
 from health_azure.package_setup import health_azure_package_setup
-from health_azure.utils import (ENV_EXPERIMENT_NAME, create_python_environment, create_run_recovery_id,
-                                find_file_in_parent_to_pythonpath,
-                                is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
-                                run_duration_string_to_seconds, to_azure_friendly_string, RUN_CONTEXT, get_workspace,
-                                PathOrString, DEFAULT_ENVIRONMENT_VARIABLES, get_ml_client,
-                                create_python_environment_v2, register_environment_v2, wait_for_job_completion)
-from health_azure.datasets import (DatasetConfig, StrOrDatasetConfig, setup_local_datasets,
-                                   _input_dataset_key, _output_dataset_key, _replace_string_datasets,
-                                   _get_or_create_v2_data_asset)
-
+from health_azure.utils import (
+    DEFAULT_ENVIRONMENT_VARIABLES, ENV_EXPERIMENT_NAME, RUN_CONTEXT, PathOrString, create_python_environment,
+    create_python_environment_v2, create_run_recovery_id, create_v2_job_command_line_args_from_params,
+    find_file_in_parent_to_pythonpath, get_ml_client, get_workspace, is_run_and_child_runs_completed,
+    is_running_in_azure_ml, register_environment, register_environment_v2, run_duration_string_to_seconds,
+    to_azure_friendly_string, wait_for_job_completion
+)
 
 logger = logging.getLogger('health_azure')
 logger.setLevel(logging.DEBUG)
@@ -485,21 +486,11 @@ def submit_run_v2(workspace: Optional[Workspace],
     if "-m " not in str(entry_script):
         entry_script = Path(entry_script).relative_to(root_dir).as_posix()
         experiment_name = effective_experiment_name(experiment_name, entry_script)
-    script_params = script_params or []
 
-    cmd = " ".join(["python", str(entry_script)])
+        script_params = script_params or []
+    script_param_str = create_v2_job_command_line_args_from_params(script_params)
 
-    for param in script_params:
-        if "'" in param and '"' in param:
-            raise ValueError(
-                f"Script parameters cannot contain both single and double quotes. Problematic parameter: {param}"
-            )
-        elif "'" in param:
-            cmd += f' "{param}"'
-        elif '"' in param:
-            cmd += f" '{param}'"
-        else:
-            cmd += f' {param}'
+    cmd = " ".join(["python", str(entry_script), script_param_str])
 
     print(f"The following command will be run in AzureML: {cmd}")
 
