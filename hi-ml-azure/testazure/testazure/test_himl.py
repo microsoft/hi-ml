@@ -743,7 +743,6 @@ def test_submit_run_v2(tmp_path: Path) -> None:
         assert kwargs.get("goal") == "Minimize"
         return mock_command
 
-
     dummy_environment_name = "my_environment"
     dummy_environment = MagicMock()
     dummy_environment.name = dummy_environment_name
