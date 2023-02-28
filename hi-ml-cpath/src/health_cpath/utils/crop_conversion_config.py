@@ -11,7 +11,7 @@ from copy import deepcopy
 from health_azure.logging import logging_section
 from health_azure.utils import apply_overrides, create_argparser, parse_arguments
 from health_cpath.datasets.base_dataset import SlidesDataset
-from health_cpath.preprocessing.conversion import AMPERSAND, UNDERSCORE, ConvertToTiffd, WSIFormat
+from health_cpath.preprocessing.tiff_conversion import AMPERSAND, UNDERSCORE, ConvertWSIToTiffd, WSIFormat
 from health_cpath.utils.montage_config import AzureRunConfig
 from health_cpath.utils.naming import SlideKey
 from monai.data.dataset import Dataset
@@ -54,7 +54,7 @@ class TiffConversionConfig(AzureRunConfig):
 
     def __init__(self, dataset: SlidesDataset, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.transform = ConvertToTiffd(
+        self.transform = ConvertWSIToTiffd(
             dest_dir=self.dest_dir,
             image_key=self.image_key,
             src_format=self.src_format,

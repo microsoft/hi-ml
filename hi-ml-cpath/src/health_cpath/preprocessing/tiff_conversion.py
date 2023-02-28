@@ -10,12 +10,11 @@ from monai.transforms import MapTransform
 from openslide import OpenSlide
 from pathlib import Path
 from tifffile.tifffile import TiffWriter, PHOTOMETRIC, COMPRESSION, DATATYPE
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 
 AMPERSAND = "&"
 UNDERSCORE = "_"
-OBJ_POW = "objective-power"
 
 
 class WSIFormat(str, Enum):
@@ -67,7 +66,9 @@ class ConvertWSIToTiffd(MapTransform):
         self.dest_dir = dest_dir
         self.image_key = image_key
         self.src_format = src_format
-        self.target_magnifications = target_magnifications.sort(reverse=True) if target_magnifications else None
+        if target_magnifications is not None:
+            target_magnifications.sort(reverse=True)
+        self.target_magnifications = target_magnifications if target_magnifications else None
         self.add_lowest_magnification = add_lowest_magnification
         self.replace_ampersand_by = replace_ampersand_by
         self.base_objective_power = base_objective_power
@@ -96,12 +97,11 @@ class ConvertWSIToTiffd(MapTransform):
         base_objective_power is None
         :return: The base objective power of the wsi
         """
-        objective_power_tag = f"openslide.{OBJ_POW}" if self.src_format != WSIFormat.TIFF else f"tiff.{OBJ_POW}"
-        base_objective_power = wsi_obj.properties.get(objective_power_tag, self.base_objective_power)
-
+        objective_power_key = "openslide.objective-power"
+        base_objective_power = wsi_obj.properties.get(objective_power_key, self.base_objective_power)
         if base_objective_power is None:
             raise ValueError(
-                f"Could not find {objective_power_tag} in wsi properties. Please specify base_objective_power."
+                f"Could not find {objective_power_key} in wsi properties. Please specify base_objective_power."
             )
         return float(base_objective_power)
 
@@ -171,24 +171,23 @@ class ConvertWSIToTiffd(MapTransform):
 
         if resolution_unit != 'centimeter':
             raise ValueError(f"Resolution unit is not in centimeters: {resolution_unit}")
-
-        if self.target_magnifications:
-            base_obj_pow = self.target_magnifications[0]
-        else:
-            base_obj_pow = self._get_base_objective_power(wsi_obj)
-
+        
         options = dict(
             software='tifffile',
             metadata={'axes': 'YXC'},
             photometric=PHOTOMETRIC.RGB,
             resolutionunit=resolution_unit,
-            compression=COMPRESSION.ADOBE_DEFLATE,  # ADOBE_DEFLATE aka ZLIB lossless compression
-            tile=(self.tile_size, self.tile_size),  # 512x512 tiles
-            # extratags are written as a list of tuples (tag, type, count, value, writeonce)
-            extratags=[(OBJ_POW, DATATYPE.FLOAT, 1, base_obj_pow, False)],
+            compression=COMPRESSION.ADOBE_DEFLATE,
+            tile=(self.tile_size, self.tile_size),
         )
         return options
-
+    
+    def _get_px_per_cm_resolution_at_level(self, wsi_obj: OpenSlide, level: int) -> Tuple[float, float]:
+        um_per_cm = 10000
+        um_per_px = self.wsi_reader.get_mpp(wsi_obj, level=level)
+        px_per_cm = (um_per_cm / um_per_px[0], um_per_cm / um_per_px[1])
+        return px_per_cm
+    
     def convert_wsi(self, src_path: Path, tiff_path: Path) -> None:
         """Converts a single wsi file from a src format to tiff format. The tiff file is saved in the tiff_path. If the
         original src file does not have the target resolution, we skip the wsi and return None.
@@ -206,16 +205,15 @@ class ConvertWSIToTiffd(MapTransform):
             return
 
         options = self._get_options(wsi_obj)
-        um_per_cm = 10000
+        
         with TiffWriter(tiff_path, bigtiff=True) as tif:
             for i, level in enumerate(levels):
                 level_data = self._get_level_data(wsi_obj, level)
                 self._validate_level_data(level_data)
-                um_per_px = self.wsi_reader.get_mpp(wsi_obj, level=level)
-                px_per_cm = (um_per_cm / um_per_px[0], um_per_cm / um_per_px[1])
+                resolution = self._get_px_per_cm_resolution_at_level(wsi_obj, level)
                 # the subfiletype parameter is a bitfield that determines if the wsi_level is a reduced version of
                 # another image. level 0 (i.e. i=0) is the full resolution image in the pyramid.
-                tif.write(level_data, resolution=px_per_cm, subfiletype=int(i > 0), **options)
+                tif.write(level_data, resolution=resolution, subfiletype=int(i > 0), **options)
 
     def __call__(self, data: Dict) -> Dict:
         src_path = Path(data[self.image_key])
