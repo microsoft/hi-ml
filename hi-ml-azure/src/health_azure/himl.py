@@ -481,10 +481,28 @@ def submit_run_v2(workspace: Optional[Workspace],
     assert entry_script is not None, "No entry_script has been provided"
     snapshot_root_directory = snapshot_root_directory or Path.cwd()
     root_dir = Path(snapshot_root_directory)
-    entry_script = Path(entry_script).relative_to(root_dir).as_posix()
 
+
+    if "-m " not in entry_script:
+        entry_script = Path(entry_script).relative_to(root_dir).as_posix()
+        experiment_name = effective_experiment_name(experiment_name, entry_script)
     script_params = script_params or []
-    cmd = " ".join(["python", str(entry_script), *script_params])
+
+    cmd = " ".join(["python", str(entry_script)])
+
+    for param in script_params:
+        if "'" in param and '"' in param:
+            raise ValueError(
+                f"Script parameters cannot contain both single and double quotes. Problematic parameter: {param}"
+            )
+        elif "'" in param:
+            cmd += f' "{param}"'
+        elif '"' in param:
+            cmd += f" '{param}'"
+        else:
+            cmd += f' {param}'
+
+    print(f"The following command will be run in AzureML: {cmd}")
 
     job_to_submit: Union[Command, Sweep]
 
@@ -552,7 +570,7 @@ def submit_run_v2(workspace: Optional[Workspace],
         job_to_submit = create_command_job(cmd)
 
     returned_job = ml_client.jobs.create_or_update(job_to_submit)
-    logging.info(f"URL to job: {returned_job.services['Studio'].endpoint}")  # type: ignore
+    print(f"URL to job: {returned_job.services['Studio'].endpoint}")  # type: ignore
     if wait_for_completion:
         print("Waiting for the completion of the AzureML job.")
         wait_for_job_completion(ml_client, job_name=returned_job.name)
@@ -955,7 +973,7 @@ def submit_to_azure_if_needed(  # type: ignore
             job = submit_run_v2(workspace=workspace,
                                 input_datasets_v2=input_datasets_v2,
                                 output_datasets_v2=output_datasets_v2,
-                                experiment_name=effective_experiment_name(experiment_name, entry_script),
+                                experiment_name=experiment_name,
                                 environment=registered_env,
                                 snapshot_root_directory=snapshot_root_directory,
                                 entry_script=entry_script,
