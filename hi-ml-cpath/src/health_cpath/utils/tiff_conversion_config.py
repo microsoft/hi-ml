@@ -8,7 +8,6 @@ import sys
 import param
 from copy import deepcopy
 from health_azure.logging import logging_section
-from health_azure.utils import apply_overrides, parse_arguments
 from health_cpath.datasets.base_dataset import SlidesDataset
 from health_cpath.preprocessing.tiff_conversion import AMPERSAND, UNDERSCORE, ConvertWSIToTiffd, WSIFormat
 from health_cpath.utils.montage_config import AzureRunConfig
@@ -104,9 +103,3 @@ class TiffConversionConfig(AzureRunConfig):
         new_dataset_path = self.dest_dir / (self.converted_dataset_csv_filename or self.dataset.DEFAULT_CSV_FILENAME)
         new_dataset_df.to_csv(new_dataset_path, sep="\t" if new_dataset_path.suffix == ".tsv" else ",")
         logging.info(f"Saved new dataset tsv file to {new_dataset_path}")
-
-    def create_tiff_conversion_config_from_args(self, parser: ArgumentParser) -> 'TiffConversionConfig':
-        config = self(self.dataset)
-        parser_results = parse_arguments(parser, args=sys.argv[1:], fail_on_unknown_args=True)
-        _ = apply_overrides(config, parser_results.args)
-        return config
