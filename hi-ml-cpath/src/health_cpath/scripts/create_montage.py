@@ -49,7 +49,7 @@ def main() -> None:
             submit_to_azureml=submit_to_azureml,
             input_datasets=[input_dataset],
             strictly_aml_v1=True,
-            docker_shm_size="100g",
+            docker_shm_size=config.docker_shm_size,
             wait_for_completion=config.wait_for_completion,
         )
         input_folder = run_info.input_datasets[0]

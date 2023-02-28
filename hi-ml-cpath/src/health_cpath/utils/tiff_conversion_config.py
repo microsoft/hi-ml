@@ -13,13 +13,15 @@ from monai.data.dataset import Dataset
 from pathlib import Path
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from typing import List, Optional
+from typing import Callable, List, Optional
 from tifffile.tifffile import COMPRESSION
 
 
-class TiffConversionConfig:
-    image_key: str = param.String(
-        default=SlideKey.IMAGE, doc="The key of the image in the dataset. This is used to get the path of the src file."
+class TiffConversionConfig(param.Parameterized):
+    image_key: SlideKey = param.ClassSelector(
+        class_=SlideKey,
+        default=SlideKey.IMAGE,
+        doc="The key of the image in the dataset. This is used to get the path of the src file."
     )
     src_format: WSIFormat = param.ClassSelector(
         class_=WSIFormat, default=WSIFormat.NDPI, doc="The format of the source files. Default is NDPI."
@@ -62,14 +64,8 @@ class TiffConversionConfig:
         "name of the original dataset will be used.",
     )
 
-
-    def run_conversion(self, dataset: SlidesDataset, output_folder: Path) -> None:
-        """Run the conversion of the src files to tiff files.
-
-        dataset: The slides dataset that contains the src wsi.
-        output_folder: The folder where the tiff files will be saved.
-        """
-        transform = ConvertWSIToTiffd(
+    def get_transform(self, output_folder: Path) -> Callable:
+        return ConvertWSIToTiffd(
             output_folder=output_folder,
             image_key=self.image_key,
             src_format=self.src_format,
@@ -80,20 +76,37 @@ class TiffConversionConfig:
             compression=self.compression,
             tile_size=self.tile_size,
         )
-        transformed_dataset = Dataset(dataset, transform)  # type: ignore
-        dataloader = DataLoader(transformed_dataset, num_workers=self.num_workers, batch_size=1)
-        with logging_section(f"Starting conversion of {len(dataset)} slides to tiff format to {output_folder}"):
-            for _ in tqdm(dataloader, total=len(dataloader)):
-                pass
 
-    def create_dataset_csv_for_converted_data(self, output_folder: Path) -> None:
-        """Create a new dataset csv file for the converted data."""
-        new_dataset_df = deepcopy(self.dataset.dataset_df)
-        new_dataset_df[self.dataset.IMAGE_COLUMN] = (
-            new_dataset_df[self.dataset.IMAGE_COLUMN]
+    def create_dataset_csv_for_converted_data(self, dataset: SlidesDataset, output_folder: Path) -> None:
+        """Create a new dataset csv file for the converted data.
+
+        :param dataset_df: The original dataset csv file.
+        :param output_folder: The folder where the new dataset csv file will be saved.
+        """
+        new_dataset_df = deepcopy(dataset.dataset_df)
+        new_dataset_df[dataset.IMAGE_COLUMN] = (
+            new_dataset_df[dataset.IMAGE_COLUMN]
             .str.replace(self.src_format, WSIFormat.TIFF)
             .str.replace(AMPERSAND, self.replace_ampersand_by)
         )
-        new_dataset_path = output_folder / (self.converted_dataset_csv_filename or self.dataset.DEFAULT_CSV_FILENAME)
+        new_dataset_path = output_folder / (self.converted_dataset_csv_filename or dataset.DEFAULT_CSV_FILENAME)
         new_dataset_df.to_csv(new_dataset_path, sep="\t" if new_dataset_path.suffix == ".tsv" else ",")
         logging.info(f"Saved new dataset tsv file to {new_dataset_path}")
+
+
+    def __call__(self, dataloader: DataLoader) -> None:
+        for _ in tqdm(dataloader, total=len(dataloader)):
+            pass
+
+    def run(self, dataset: SlidesDataset, output_folder: Path) -> None:
+        """Run the conversion of the src files to tiff files.
+
+        dataset: The slides dataset that contains the src wsi.
+        output_folder: The folder where the tiff files will be saved.
+        """
+
+        transformed_dataset = Dataset(dataset, self.get_transform(output_folder))  # type: ignore
+        dataloader = DataLoader(transformed_dataset, num_workers=self.num_workers, batch_size=1)
+        with logging_section(f"Starting conversion of {len(dataset)} slides to tiff format to {output_folder}"):
+            self(dataloader)
+            self.create_dataset_csv_for_converted_data(dataset, output_folder)
