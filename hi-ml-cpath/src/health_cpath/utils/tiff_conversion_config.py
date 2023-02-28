@@ -105,9 +105,8 @@ class TiffConversionConfig(AzureRunConfig):
         new_dataset_df.to_csv(new_dataset_path, sep="\t" if new_dataset_path.suffix == ".tsv" else ",")
         logging.info(f"Saved new dataset tsv file to {new_dataset_path}")
 
-
-def create_tiff_conversion_config_from_args(parser: ArgumentParser, dataset: SlidesDataset) -> TiffConversionConfig:
-    config = TiffConversionConfig(dataset)
-    parser_results = parse_arguments(parser, args=sys.argv[1:], fail_on_unknown_args=True)
-    _ = apply_overrides(config, parser_results.args)
-    return config
+    def create_tiff_conversion_config_from_args(self, parser: ArgumentParser) -> 'TiffConversionConfig':
+        config = self(self.dataset)
+        parser_results = parse_arguments(parser, args=sys.argv[1:], fail_on_unknown_args=True)
+        _ = apply_overrides(config, parser_results.args)
+        return config
