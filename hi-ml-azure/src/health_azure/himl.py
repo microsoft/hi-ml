@@ -414,7 +414,7 @@ def effective_experiment_name(experiment_name: Optional[str],
 
 
 def submit_run_v2(workspace: Optional[Workspace],
-                  experiment_name: str,
+                  experiment_name: Optional[str],
                   environment: EnvironmentV2,
                   input_datasets_v2: Optional[Dict[str, Input]] = None,
                   output_datasets_v2: Optional[Dict[str, Output]] = None,
@@ -482,8 +482,7 @@ def submit_run_v2(workspace: Optional[Workspace],
     snapshot_root_directory = snapshot_root_directory or Path.cwd()
     root_dir = Path(snapshot_root_directory)
 
-
-    if "-m " not in entry_script:
+    if "-m " not in str(entry_script):
         entry_script = Path(entry_script).relative_to(root_dir).as_posix()
         experiment_name = effective_experiment_name(experiment_name, entry_script)
     script_params = script_params or []
