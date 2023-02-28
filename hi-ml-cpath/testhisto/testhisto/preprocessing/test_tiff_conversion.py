@@ -9,9 +9,11 @@ import pytest
 from pathlib import Path
 from typing import List, Dict
 from unittest.mock import MagicMock
+from health_cpath.datasets.panda_dataset import PandaDataset
 
-from health_cpath.preprocessing.tiff_conversion import UNDERSCORE, ConvertWSIToTiffd, WSIFormat
+from health_cpath.preprocessing.tiff_conversion import AMPERSAND, UNDERSCORE, ConvertWSIToTiffd, WSIFormat
 from health_cpath.utils.naming import SlideKey
+from health_cpath.utils.tiff_conversion_config import TiffConversionConfig
 
 
 WSISamplesType = List[Dict[str, Path]]
@@ -33,19 +35,20 @@ def wsi_samples(mock_panda_slides_root_dir) -> WSISamplesType:
 @pytest.mark.parametrize("replace_ampersand_by", [UNDERSCORE, ""])
 @pytest.mark.parametrize("src_format", [WSIFormat.NDPI, WSIFormat.TIFF])
 def test_get_tiff_path(src_format: WSIFormat, replace_ampersand_by: str) -> None:
-    dest_dir = Path("foo")
+    output_folder = Path("foo")
     transform = ConvertWSIToTiffd(
-        dest_dir=dest_dir, image_key=SlideKey.IMAGE, src_format=src_format, replace_ampersand_by=replace_ampersand_by
+        output_folder=output_folder, image_key=SlideKey.IMAGE, src_format=src_format,
+        replace_ampersand_by=replace_ampersand_by,
     )
     src_path = Path(f"root/h&e_foo.{src_format}")
     formated_path = transform.get_tiff_path(src_path)
-    assert formated_path == dest_dir / f"h{replace_ampersand_by}e_foo.tiff"
+    assert formated_path == output_folder / f"h{replace_ampersand_by}e_foo.tiff"
 
 
 def test_base_objective_power(wsi_samples: WSISamplesType) -> None:
     target_mag = 2.5
     transform = ConvertWSIToTiffd(
-        dest_dir=Path("foo"),
+        output_folder=Path("foo"),
         image_key=SlideKey.IMAGE,
         src_format=WSIFormat.TIFF,
         target_magnifications=[target_mag],
@@ -69,7 +72,7 @@ def test_base_objective_power(wsi_samples: WSISamplesType) -> None:
 def test_get_taget_levels(wsi_samples: WSISamplesType) -> None:
     target_mag = 2.5
     transform = ConvertWSIToTiffd(
-        dest_dir=Path("foo"),
+        output_folder=Path("foo"),
         image_key=SlideKey.IMAGE,
         src_format=WSIFormat.TIFF,
         target_magnifications=[target_mag],
@@ -96,7 +99,7 @@ def test_get_taget_levels(wsi_samples: WSISamplesType) -> None:
 
 
 def test_get_options(wsi_samples: WSISamplesType) -> None:
-    transform = ConvertWSIToTiffd(dest_dir=Path("foo"), tile_size=16)
+    transform = ConvertWSIToTiffd(output_folder=Path("foo"), tile_size=16)
     assert transform.RESOLUTION_UNIT == "centimeter"
 
     # wrong resolution unit
@@ -106,8 +109,43 @@ def test_get_options(wsi_samples: WSISamplesType) -> None:
     # correct resolution unit in centimeter
     wsi_obj = transform.wsi_reader.read(wsi_samples[0][SlideKey.IMAGE])
     options = transform.get_options(wsi_obj)
-    assert options["resolution_unit"] == transform.RESOLUTION_UNIT
+    assert options["resolutionunit"] == transform.RESOLUTION_UNIT
     assert options["software"] == transform.SOFTWARE
+
+
+def validate_tiff_conversion(
+    converted_files: List[Path],
+    original_files: List[Path],
+    transform: ConvertWSIToTiffd,
+    same_format: bool = True,
+    subfolder: str = "",
+) -> None:
+    """Validate the conversion of a list of files to tiff."""
+    for converted_file, original_file in zip(converted_files, original_files):
+        # check that the converted file exists and is not empty
+        assert converted_file.exists()
+        assert converted_file.stat().st_size > 0
+        assert converted_file.suffix == ".tiff"
+        assert converted_file.parent == transform.output_folder / subfolder
+        assert converted_file.name == original_file.name if same_format else converted_file.name != original_file.name
+        assert converted_file.stem == original_file.stem.replace(AMPERSAND, transform.replace_ampersand_by)
+        # get the original and converted wsi objects
+        original_wsi = transform.wsi_reader.read(original_file)
+        converted_wsi = transform.wsi_reader.read(converted_file)
+        # check that the number of levels is the same
+        target_levels = transform.get_target_levels(original_wsi)
+        assert len(target_levels) == converted_wsi.level_count
+        # check that the data and mpp are the same for each level
+        for original_level, converted_level in zip(target_levels, range(converted_wsi.level_count)):
+            # For each level, check that the data is the same
+            original_wsi_data = transform.get_level_data(original_wsi, original_level)
+            converted_wsi_data = transform.get_level_data(converted_wsi, converted_level)
+            assert original_wsi_data.shape == converted_wsi_data.shape
+            assert np.allclose(original_wsi_data, converted_wsi_data)
+            # Check that the mpp is the same
+            o_mpp = transform.wsi_reader.get_mpp(original_wsi, original_level)
+            c_mpp = transform.wsi_reader.get_mpp(converted_wsi, converted_level)
+            assert all(map(lambda a, b: math.isclose(a, b, rel_tol=1e-3), o_mpp, c_mpp))
 
 
 @pytest.mark.parametrize("add_low_mag", [True, False])
@@ -115,7 +153,7 @@ def test_convert_wsi_to_tiff(add_low_mag: bool, wsi_samples: WSISamplesType, tmp
     """Test the conversion of the cyted dataset from tiff to tiff."""
     target_mag = 2.5
     transform = ConvertWSIToTiffd(
-        dest_dir=tmp_path,
+        output_folder=tmp_path,
         image_key=SlideKey.IMAGE,
         src_format=WSIFormat.TIFF,
         target_magnifications=[target_mag],
@@ -130,21 +168,33 @@ def test_convert_wsi_to_tiff(add_low_mag: bool, wsi_samples: WSISamplesType, tmp
     original_files = [wsi_sample[SlideKey.IMAGE] for wsi_sample in wsi_samples]
     converted_files = [tmp_path / file.name for file in original_files]
 
-    for converted_file, original_file in zip(converted_files, original_files):
-        # check that the converted file exists and is not empty
-        assert converted_file.exists()
-        assert converted_file.stat().st_size > 0
-        assert converted_file.name == original_file.name
-        # get the original and converted wsi objects
-        original_wsi = transform.wsi_reader.read(original_file)
-        converted_wsi = transform.wsi_reader.read(converted_file)
-        for o_level, c_level in zip(transform.get_target_levels(original_wsi), range(converted_wsi.level_count)):
-            # For each level, check that the data is the same
-            original_wsi_data = transform.get_level_data(original_wsi, o_level)
-            converted_wsi_data = transform.get_level_data(converted_wsi, c_level)
-            assert original_wsi_data.shape == converted_wsi_data.shape
-            assert np.allclose(original_wsi_data, converted_wsi_data)
-            # Check that the mpp is the same
-            o_mpp = transform.wsi_reader.get_mpp(original_wsi, o_level)
-            c_mpp = transform.wsi_reader.get_mpp(converted_wsi, c_level)
-            assert all(map(lambda a, b: math.isclose(a, b, rel_tol=1e-3), o_mpp, c_mpp))
+    validate_tiff_conversion(converted_files, original_files, transform)
+
+
+def test_tiff_conversion_config(mock_panda_slides_root_dir: Path, tmp_path: Path) -> None:
+    dataset = PandaDataset(mock_panda_slides_root_dir)
+    target_mag = 5
+    limit = 2
+    conversion_config = TiffConversionConfig(
+        src_format=WSIFormat.TIFF,
+        target_magnifications=[target_mag / 2],
+        base_objective_power=target_mag,
+        tile_size=16,
+        num_workers=1,
+    )
+    dataset.dataset_df = dataset.dataset_df.iloc[:limit]
+    conversion_config.run(dataset, tmp_path, wsi_subfolder="train_images")
+
+    # Test the original dataset is not modified
+    original_dataset = PandaDataset(mock_panda_slides_root_dir)
+    assert original_dataset.dataset_df.iloc[:limit].equals(dataset.dataset_df)
+
+    # Validate that the new dataset has the expected number of samples
+    converted_dataset = PandaDataset(tmp_path)
+    assert converted_dataset.dataset_df.shape[0] == dataset.dataset_df.shape[0]
+    assert converted_dataset.dataset_df.index.equals(dataset.dataset_df.index)
+
+    original_files = [Path(dataset[i][SlideKey.IMAGE]) for i in range(limit)]
+    converted_files = [Path(converted_dataset[i][SlideKey.IMAGE]) for i in range(limit)]
+    transform = conversion_config.get_transform(tmp_path)
+    validate_tiff_conversion(converted_files, original_files, transform, same_format=True, subfolder="train_images")

@@ -58,13 +58,14 @@ class TiffConversionConfig(param.Parameterized):
         default=1,
         doc="The number of workers that will be used to convert the src files to tiff files. If num_workers is 1.",
     )
-    converted_dataset_csv_filename: Optional[str] = param.String(
-        default="dataset.csv",
+    converted_dataset_csv: str = param.String(
+        default="",
         doc="The name of the new dataset csv file that will be created for the converted data. If None, the default "
         "name of the original dataset will be used.",
     )
 
     def get_transform(self, output_folder: Path) -> Callable:
+        """Get the transform that will be used to convert the src files to tiff files."""
         return ConvertWSIToTiffd(
             output_folder=output_folder,
             image_key=self.image_key,
@@ -89,23 +90,27 @@ class TiffConversionConfig(param.Parameterized):
             .str.replace(self.src_format, WSIFormat.TIFF)
             .str.replace(AMPERSAND, self.replace_ampersand_by)
         )
-        new_dataset_path = output_folder / (self.converted_dataset_csv_filename or dataset.DEFAULT_CSV_FILENAME)
+        new_dataset_path = output_folder / (self.converted_dataset_csv or dataset.DEFAULT_CSV_FILENAME)
         new_dataset_df.to_csv(new_dataset_path, sep="\t" if new_dataset_path.suffix == ".tsv" else ",")
         logging.info(f"Saved new dataset tsv file to {new_dataset_path}")
-
 
     def __call__(self, dataloader: DataLoader) -> None:
         for _ in tqdm(dataloader, total=len(dataloader)):
             pass
 
-    def run(self, dataset: SlidesDataset, output_folder: Path) -> None:
+    def run(self, dataset: SlidesDataset, output_folder: Path, wsi_subfolder: Optional[str] = None) -> None:
         """Run the conversion of the src files to tiff files.
 
         dataset: The slides dataset that contains the src wsi.
         output_folder: The folder where the tiff files will be saved.
+        image_subfolder: The subfolder where the tiff files will be saved. If None, the tiff files will be saved in the
+        root output folder.
         """
-
-        transformed_dataset = Dataset(dataset, self.get_transform(output_folder))  # type: ignore
+        if wsi_subfolder is not None:
+            wsi_output_folder = output_folder / wsi_subfolder
+            wsi_output_folder.mkdir(parents=True, exist_ok=True)
+            logging.info(f"Whole slide images will be saved to subfolder {wsi_output_folder}")
+        transformed_dataset = Dataset(dataset, self.get_transform(wsi_output_folder))  # type: ignore
         dataloader = DataLoader(transformed_dataset, num_workers=self.num_workers, batch_size=1)
         with logging_section(f"Starting conversion of {len(dataset)} slides to tiff format to {output_folder}"):
             self(dataloader)

@@ -26,7 +26,12 @@ class WSIFormat(str, Enum):
 
 
 class ConvertWSIToTiffd(MapTransform):
-    """Converts a wsi file to a tiff file. The tiff file is saved in the output_folder with the same name as the src file but with the tiff extension. Ampersands are replaced by the replace_ampersand_by string. The tiff file contains the image data at the target magnifications. If target_magnifications is None, the tiff file contains the image data at all magnifications. If add_lowest_magnification is True, the tiff file also contains the image data at the lowest magnification. The tiff file is saved with the compression specified by the compression parameter.
+    """Converts a wsi file to a tiff file. The tiff file is saved in the output_folder with the same name as the src
+    file but with the tiff extension. Ampersands are replaced by the replace_ampersand_by string. The tiff file
+    contains the image data at the target magnifications. If target_magnifications is None, the tiff file contains the
+    image data at all magnifications. If add_lowest_magnification is True, the tiff file also contains the image data
+    at the lowest magnification. The tiff file is saved with the compression specified by the compression parameter with
+    a fixed tile size.
     """
     OBJECTIVE_POWER_KEY = "openslide.objective-power"
     RESOLUTION_UNIT_KEY = "tiff.ResolutionUnit"
