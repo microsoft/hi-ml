@@ -482,7 +482,6 @@ def submit_run_v2(workspace: Optional[Workspace],
     snapshot_root_directory = snapshot_root_directory or Path.cwd()
     root_dir = Path(snapshot_root_directory)
 
-
     if "-m " not in entry_script:
         entry_script = Path(entry_script).relative_to(root_dir).as_posix()
         experiment_name = effective_experiment_name(experiment_name, entry_script)
