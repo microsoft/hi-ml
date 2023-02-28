@@ -9,7 +9,7 @@ from monai.data.wsi_reader import WSIReader
 from monai.transforms import MapTransform
 from openslide import OpenSlide
 from pathlib import Path
-from tifffile.tifffile import TiffWriter, PHOTOMETRIC, COMPRESSION, DATATYPE
+from tifffile.tifffile import TiffWriter, PHOTOMETRIC, COMPRESSION
 from typing import Any, Dict, List, Optional, Tuple
 
 
@@ -122,26 +122,7 @@ class ConvertWSIToTiffd(MapTransform):
         """Returns the highest resolution level of the wsi pyramid."""
         return len(wsi_obj.level_downsamples) - 1
 
-    def _get_level_data(self, wsi_obj: OpenSlide, level: int) -> np.ndarray:
-        """Returns data from a given level of the wsi pyramid. The data is returned in HWC format as expected by the
-        tiffwriter. The data must be in HWC format otherwise the compression will not work properly.
-
-        :param wsi_obj: The wsi object in openslide format
-        :param level: The level at which the data is extracted from the wsi pyramid
-        :return: A numpy array of shape (H, W, C) where H is the height, W is the width and C is the number of channels
-        """
-        level_data, _ = self.wsi_reader.get_data(wsi_obj, level=level)
-        level_data = level_data.transpose(1, 2, 0)
-        return level_data
-
-    def _validate_level_data(self, level_data: np.ndarray) -> None:
-        if level_data.shape[2] != 3:
-            raise ValueError(
-                f"Expected 3 channels but got {level_data.shape[2]}. Maybe the image is in channel first format? Try "
-                "transposing the image."
-            )
-
-    def _get_target_levels(self, wsi_obj: Any) -> List[int]:
+    def get_target_levels(self, wsi_obj: Any) -> List[int]:
         """Returns the levels of the wsi pyramid that will be saved in the tiff file. If target_magnifications is not
         None, we return the levels that correspond to the target magnifications. If add_lowest_magnification is True, we
         add the highest resolution level of the wsi pyramid if it is not already in the target levels.
@@ -159,7 +140,30 @@ class ConvertWSIToTiffd(MapTransform):
             return target_levels
         return [level for level in range(len(wsi_obj.level_downsamples))]
 
-    def _get_options(self, wsi_obj: OpenSlide) -> Dict[str, Any]:
+    def get_level_data(self, wsi_obj: OpenSlide, level: int) -> np.ndarray:
+        """Returns data from a given level of the wsi pyramid. The data is returned in HWC format as expected by the
+        tiffwriter. The data must be in HWC format otherwise the compression will not work properly.
+
+        :param wsi_obj: The wsi object in openslide format
+        :param level: The level at which the data is extracted from the wsi pyramid
+        :return: A numpy array of shape (H, W, C) where H is the height, W is the width and C is the number of channels
+        """
+        level_data, _ = self.wsi_reader.get_data(wsi_obj, level=level)
+        level_data = level_data.transpose(1, 2, 0)
+        self.validate_level_data(level_data)
+        return level_data
+
+    def validate_level_data(self, level_data: np.ndarray) -> None:
+        """Makes sure that the level data is in HWC format. If the level data is not in HWC format, an error is raised.
+        This sanity check is necessary to avoid compression issues.
+        """
+        if level_data.shape[2] != 3:
+            raise ValueError(
+                f"Expected 3 channels but got {level_data.shape[2]}. Maybe the image is in channel first format? Try "
+                "transposing the image."
+            )
+
+    def get_options(self, wsi_obj: OpenSlide) -> Dict[str, Any]:
         """Returns the options that will be passed to the tiffwriter. The options are extracted from the wsi properties
         and will be written as tags in the tiff file.
 
@@ -171,7 +175,7 @@ class ConvertWSIToTiffd(MapTransform):
 
         if resolution_unit != 'centimeter':
             raise ValueError(f"Resolution unit is not in centimeters: {resolution_unit}")
-        
+
         options = dict(
             software='tifffile',
             metadata={'axes': 'YXC'},
@@ -181,13 +185,19 @@ class ConvertWSIToTiffd(MapTransform):
             tile=(self.tile_size, self.tile_size),
         )
         return options
-    
-    def _get_px_per_cm_resolution_at_level(self, wsi_obj: OpenSlide, level: int) -> Tuple[float, float]:
+
+    def get_px_per_cm_resolution_at_level(self, wsi_obj: OpenSlide, level: int) -> Tuple[float, float]:
+        """Returns the resolution of the wsi at a given level in pixels per centimeter.
+
+        :param wsi_obj: The wsi object in openslide format
+        :param level: The level at which the resolution is calculated
+        :return: A tuple of floats (x_resolution, y_resolution)
+        """
         um_per_cm = 10000
         um_per_px = self.wsi_reader.get_mpp(wsi_obj, level=level)
         px_per_cm = (um_per_cm / um_per_px[0], um_per_cm / um_per_px[1])
         return px_per_cm
-    
+
     def convert_wsi(self, src_path: Path, tiff_path: Path) -> None:
         """Converts a single wsi file from a src format to tiff format. The tiff file is saved in the tiff_path. If the
         original src file does not have the target resolution, we skip the wsi and return None.
@@ -199,18 +209,18 @@ class ConvertWSIToTiffd(MapTransform):
         wsi_obj = self.wsi_reader.read(src_path)
 
         try:
-            levels = self._get_target_levels(wsi_obj)
+            levels = self.get_target_levels(wsi_obj)
         except ValueError as e:
             logging.warning(f"Skipping {src_path} because {e}")
             return
 
-        options = self._get_options(wsi_obj)
-        
+        options = self.get_options(wsi_obj)
+
         with TiffWriter(tiff_path, bigtiff=True) as tif:
             for i, level in enumerate(levels):
-                level_data = self._get_level_data(wsi_obj, level)
-                self._validate_level_data(level_data)
-                resolution = self._get_px_per_cm_resolution_at_level(wsi_obj, level)
+                level_data = self.get_level_data(wsi_obj, level)
+                self.validate_level_data(level_data)
+                resolution = self.get_px_per_cm_resolution_at_level(wsi_obj, level)
                 # the subfiletype parameter is a bitfield that determines if the wsi_level is a reduced version of
                 # another image. level 0 (i.e. i=0) is the full resolution image in the pyramid.
                 tif.write(level_data, resolution=resolution, subfiletype=int(i > 0), **options)

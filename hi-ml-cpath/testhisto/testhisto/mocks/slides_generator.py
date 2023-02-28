@@ -184,6 +184,7 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
                 software='tifffile',
                 metadata={'axes': 'YXC'},
                 photometric=PHOTOMETRIC.RGB,
+                resolutionunit='centimeter',
                 compression=COMPRESSION.ADOBE_DEFLATE,  # ADOBE_DEFLATE aka ZLIB lossless compression
                 tile=(16, 16),
             )
