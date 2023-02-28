@@ -16,10 +16,10 @@ class AzureRunConfig(param.Parameterized):
         param.String(default="", allow_None=False,
                      doc="The name of the GPU or CPU cluster inside the AzureML workspace"
                          "that should execute the job. To run on your local machine, omit this argument.")
-    datastore = \
+    datastore: str = \
         param.String(default="",
                      doc="The name of the AzureML datastore where the dataset is defined.")
-    dataset = \
+    dataset: str = \
         param.String(default="",
                      doc="The name of the AzureML dataset to use for creating the montage. The dataset will be "
                          "mounted automatically. Use an absolute path to a folder on the local machine to bypass "

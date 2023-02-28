@@ -26,11 +26,7 @@ class WSIFormat(str, Enum):
 
 
 class ConvertWSIToTiffd(MapTransform):
-    """Converts a wsi file to a tiff file. The tiff file is saved in the dest_dir with the same name as the src file
-    but with the tiff extension. Ampersands are replaced by the replace_ampersand_by string. The tiff file contains the
-    image data at the target magnifications. If target_magnifications is None, the tiff file contains the image data at
-    all magnifications. If add_lowest_magnification is True, the tiff file also contains the image data at the lowest
-    magnification. The tiff file is saved with the compression specified by the compression parameter.
+    """Converts a wsi file to a tiff file. The tiff file is saved in the output_folder with the same name as the src file but with the tiff extension. Ampersands are replaced by the replace_ampersand_by string. The tiff file contains the image data at the target magnifications. If target_magnifications is None, the tiff file contains the image data at all magnifications. If add_lowest_magnification is True, the tiff file also contains the image data at the lowest magnification. The tiff file is saved with the compression specified by the compression parameter.
     """
     OBJECTIVE_POWER_KEY = "openslide.objective-power"
     RESOLUTION_UNIT_KEY = "tiff.ResolutionUnit"
@@ -39,7 +35,7 @@ class ConvertWSIToTiffd(MapTransform):
 
     def __init__(
         self,
-        dest_dir: Path,
+        output_folder: Path,
         image_key: str = SlideKey.IMAGE,
         src_format: WSIFormat = WSIFormat.NDPI,
         target_magnifications: Optional[List[float]] = [10.],
@@ -50,7 +46,7 @@ class ConvertWSIToTiffd(MapTransform):
         tile_size: int = 512,
     ) -> None:
         """
-        :param dest_dir: The directory where the tiff file will be saved.
+        :param output_folder: The directory where the tiff file will be saved.
         :param image_key: The key of the image in the data dictionary, defaults to SlideKey.IMAGE
         :param src_format: The format of the src file, defaults to WSIFormat.NDPI
         :param target_magnifications: The target magnifications e.g. [10., 20.], defaults to [10.]. If
@@ -68,7 +64,7 @@ class ConvertWSIToTiffd(MapTransform):
         aka ZLIB that is lossless compression.
         :param tile_size: The size of the tiles that are used to write the tiff file, defaults to 512.
         """
-        self.dest_dir = dest_dir
+        self.output_folder = output_folder
         self.image_key = image_key
         self.src_format = src_format
         if target_magnifications is not None:
@@ -83,7 +79,7 @@ class ConvertWSIToTiffd(MapTransform):
 
     def get_tiff_path(self, src_path: Path) -> Path:
         """Returns the path to the tiff file that will be created from the src file. The tiff file is saved in the
-        dest_dir with the same name as the src file but with the tiff extension. Ampersands are replaced by the
+        output_folder with the same name as the src file but with the tiff extension. Ampersands are replaced by the
         replace_ampersand_by string.
 
         :param src_path: The path to the src file.
@@ -91,7 +87,7 @@ class ConvertWSIToTiffd(MapTransform):
         """
         tiff_filename = src_path.name.replace(self.src_format, WSIFormat.TIFF)
         tiff_filename = tiff_filename.replace(AMPERSAND, self.replace_ampersand_by)
-        return self.dest_dir / tiff_filename
+        return self.output_folder / tiff_filename
 
     def _get_base_objective_power(self, wsi_obj: OpenSlide) -> float:
         """Returns the objective power of the wsi. The objective power is extracted from the wsi properties. If the
