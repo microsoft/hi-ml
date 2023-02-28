@@ -19,4 +19,5 @@ help:
 %: Makefile
 	cp ../CHANGELOG.md source/
 	cp ../.github/CONTRIBUTING.md source/
+	cp ../hi-ml-multimodal/README.md source/multimodal.md
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)

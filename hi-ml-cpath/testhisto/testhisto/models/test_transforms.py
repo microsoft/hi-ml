@@ -28,7 +28,8 @@ from health_cpath.datasets.panda_tiles_dataset import PandaTilesDataset
 from health_cpath.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
 from health_cpath.models.encoders import Resnet18
 from health_cpath.models.transforms import (EncodeTilesBatchd, ExtractCoordinatesd, LoadTiled, TimerWrapper,
-                                            LoadTilesBatchd, MetaTensorToTensord, Subsampled, transform_dict_adaptor)
+                                            LoadTilesBatchd, MetaTensorToTensord, Subsampled, transform_dict_adaptor,
+                                            NormalizeBackgroundd)
 from testhisto.utils.utils_testhisto import assert_dicts_equal
 
 
@@ -266,7 +267,7 @@ def test_shuffle(max_size: int) -> None:
     shuffling = Subsampled(keys_to_subsample, max_size=max_size, allow_missing_keys=True)
     shuffling.randomize(total_size=max_size)
     indices = shuffling._indices
-    assert len(indices) <= len(data['indices'])
+    assert len(indices) <= len(data['indices'])         # type: ignore
     assert len(indices) == len(set(indices))
 
 
@@ -389,3 +390,62 @@ def test_timer_wrapper_transform(capsys: SysCapture) -> None:
     message = capsys.readouterr().out  # type: ignore
     assert "Rank " in message
     assert "DummyTransform, Slide 0 took 0.10 seconds" in message
+
+
+def _get_wsi_sample() -> Dict[str, Any]:
+    torch.manual_seed(42)
+    wsi = torch.randint(0, 254, (3, 4, 4))
+    return {SlideKey.IMAGE: wsi}
+
+
+def test_normalize_background_d_transform_invalid_percentile_background_keys() -> None:
+    with pytest.raises(AssertionError, match=r"Either background_keys or q_percentile must be set."):
+        _ = NormalizeBackgroundd(image_key=SlideKey.IMAGE, background_keys=None, q_percentile=None)
+
+
+def test_normalize_background_d_transform_wrong_number_of_background_keys() -> None:
+    with pytest.raises(AssertionError, match=r"Number of background keys must be 3"):
+        _ = NormalizeBackgroundd(image_key=SlideKey.IMAGE, background_keys=["foo", "bar"])
+
+
+def test_missing_metadata_field() -> None:
+    sample = _get_wsi_sample()
+    with pytest.raises(AssertionError, match=r"Background keys are expected to be in `SlideKey.METADATA`"):
+        transform = NormalizeBackgroundd(image_key=SlideKey.IMAGE, background_keys=["foo", "bar", "baz"])
+        _ = transform(sample)
+
+
+def test_normalize_background_d_transform_missing_keys_in_data_dict() -> None:
+    sample = _get_wsi_sample()
+    sample[SlideKey.METADATA] = {"r": 1, "g": 2, "b": 3}
+    with pytest.raises(AssertionError, match=r"Not all background keys present in data dictionary"):
+        transform = NormalizeBackgroundd(image_key=SlideKey.IMAGE, background_keys=["foo", "bar", "baz"])
+        _ = transform(sample)
+
+
+def test_normalize_background_d_transform_no_background_keys() -> None:
+    sample = _get_wsi_sample()
+    transform = NormalizeBackgroundd(image_key=SlideKey.IMAGE, q_percentile=50)
+    new_sample = transform(sample)
+    assert new_sample[SlideKey.IMAGE].shape == sample[SlideKey.IMAGE].shape
+    assert new_sample[SlideKey.IMAGE].dtype == sample[SlideKey.IMAGE].dtype
+    assert new_sample[SlideKey.IMAGE].min() >= 0
+    assert new_sample[SlideKey.IMAGE].max() <= 255
+    assert torch.allclose(new_sample[SlideKey.IMAGE][0, 0], torch.tensor([255, 111, 246, 226], dtype=torch.uint8))
+    assert torch.allclose(new_sample[SlideKey.IMAGE][1, 0], torch.tensor([64, 255, 255, 255], dtype=torch.uint8))
+    assert torch.allclose(new_sample[SlideKey.IMAGE][2, 0], torch.tensor([215, 45, 255, 237], dtype=torch.uint8))
+
+
+def test_normalize_background_d_transform_with_fixed_background_keys() -> None:
+    sample = _get_wsi_sample()
+    background_dict = {"r": 237, "g": 210, "b": 205}
+    sample[SlideKey.METADATA] = background_dict
+    transform = NormalizeBackgroundd(image_key=SlideKey.IMAGE, background_keys=list(background_dict.keys()))
+    new_sample = transform(sample)
+    assert new_sample[SlideKey.IMAGE].shape == sample[SlideKey.IMAGE].shape
+    assert new_sample[SlideKey.IMAGE].dtype == sample[SlideKey.IMAGE].dtype
+    assert new_sample[SlideKey.IMAGE].min() >= 0
+    assert new_sample[SlideKey.IMAGE].max() <= 255
+    assert torch.allclose(new_sample[SlideKey.IMAGE][0, 0], torch.tensor([182, 72, 159, 146], dtype=torch.uint8))
+    assert torch.allclose(new_sample[SlideKey.IMAGE][1, 0], torch.tensor([37, 212, 255, 160], dtype=torch.uint8))
+    assert torch.allclose(new_sample[SlideKey.IMAGE][2, 0], torch.tensor([135, 28, 170, 149], dtype=torch.uint8))
