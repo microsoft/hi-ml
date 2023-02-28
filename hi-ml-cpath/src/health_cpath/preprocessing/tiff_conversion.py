@@ -32,6 +32,11 @@ class ConvertWSIToTiffd(MapTransform):
     all magnifications. If add_lowest_magnification is True, the tiff file also contains the image data at the lowest
     magnification. The tiff file is saved with the compression specified by the compression parameter.
     """
+    OBJECTIVE_POWER_KEY = "openslide.objective-power"
+    RESOLUTION_UNIT_KEY = "tiff.ResolutionUnit"
+    RESOLUTION_UNIT = "centimeter"
+    SOFTWARE = "tifffile"
+
     def __init__(
         self,
         dest_dir: Path,
@@ -76,7 +81,7 @@ class ConvertWSIToTiffd(MapTransform):
         self.compression = compression
         self.tile_size = tile_size
 
-    def _get_tiff_path(self, src_path: Path) -> Path:
+    def get_tiff_path(self, src_path: Path) -> Path:
         """Returns the path to the tiff file that will be created from the src file. The tiff file is saved in the
         dest_dir with the same name as the src file but with the tiff extension. Ampersands are replaced by the
         replace_ampersand_by string.
@@ -84,7 +89,7 @@ class ConvertWSIToTiffd(MapTransform):
         :param src_path: The path to the src file.
         :return: The path to the tiff file that will be created from the src file.
         """
-        tiff_filename = src_path.name.replace(self.src_format, WSIFormat.TIFF.value)
+        tiff_filename = src_path.name.replace(self.src_format, WSIFormat.TIFF)
         tiff_filename = tiff_filename.replace(AMPERSAND, self.replace_ampersand_by)
         return self.dest_dir / tiff_filename
 
@@ -97,11 +102,10 @@ class ConvertWSIToTiffd(MapTransform):
         base_objective_power is None
         :return: The base objective power of the wsi
         """
-        objective_power_key = "openslide.objective-power"
-        base_objective_power = wsi_obj.properties.get(objective_power_key, self.base_objective_power)
+        base_objective_power = wsi_obj.properties.get(self.OBJECTIVE_POWER_KEY, self.base_objective_power)
         if base_objective_power is None:
             raise ValueError(
-                f"Could not find {objective_power_key} in wsi properties. Please specify base_objective_power."
+                f"Could not find {self.OBJECTIVE_POWER_KEY} in wsi properties. Please specify base_objective_power."
             )
         return float(base_objective_power)
 
@@ -171,17 +175,17 @@ class ConvertWSIToTiffd(MapTransform):
         :raises ValueError: Raises an error if the resolution unit is not in centimeters
         :return: A dictionary of options that will be passed to the tiffwriter
         """
-        resolution_unit = wsi_obj.properties['tiff.ResolutionUnit']
+        resolution_unit = wsi_obj.properties[self.RESOLUTION_UNIT_KEY]
 
-        if resolution_unit != 'centimeter':
-            raise ValueError(f"Resolution unit is not in centimeters: {resolution_unit}")
+        if resolution_unit != self.RESOLUTION_UNIT:
+            raise ValueError(f"Resolution unit is not in {self.RESOLUTION_UNIT}: {resolution_unit}")
 
         options = dict(
-            software='tifffile',
+            software=self.SOFTWARE,
             metadata={'axes': 'YXC'},
             photometric=PHOTOMETRIC.RGB,
             resolutionunit=resolution_unit,
-            compression=COMPRESSION.ADOBE_DEFLATE,
+            compression=self.compression,
             tile=(self.tile_size, self.tile_size),
         )
         return options
@@ -227,7 +231,7 @@ class ConvertWSIToTiffd(MapTransform):
 
     def __call__(self, data: Dict) -> Dict:
         src_path = Path(data[self.image_key])
-        tiff_path = self._get_tiff_path(src_path)
+        tiff_path = self.get_tiff_path(src_path)
         if not tiff_path.exists():
             self.convert_wsi(src_path, tiff_path)
         return data
