@@ -34,6 +34,7 @@ class AzureRunConfig(param.Parameterized):
     docker_shm_size: str = param.String("100g",
                                         doc="The shared memory in the Docker image for the AzureML VMs.")
 
+
 class MontageConfig(AzureRunConfig):
     level: int = \
         param.Integer(default=1,
