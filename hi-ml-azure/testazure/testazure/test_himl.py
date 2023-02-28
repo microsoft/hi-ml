@@ -743,7 +743,6 @@ def test_submit_run_v2(tmp_path: Path) -> None:
         assert kwargs.get("goal") == "Minimize"
         return mock_command
 
-    dummy_experiment_name = "my_experiment"
 
     dummy_environment_name = "my_environment"
     dummy_environment = MagicMock()
@@ -771,6 +770,8 @@ def test_submit_run_v2(tmp_path: Path) -> None:
 
     dummy_root_directory = tmp_path
     dummy_entry_script = dummy_root_directory / "my_entry_script"
+    dummy_experiment_name = "my_experiment"
+    dummy_experiment_name = himl.effective_experiment_name(dummy_experiment_name, dummy_entry_script)
     dummy_entry_script.touch()
 
     dummy_script_params = ["--arg1=val1", "--arg2=val2", "--conda_env=some_path"]
