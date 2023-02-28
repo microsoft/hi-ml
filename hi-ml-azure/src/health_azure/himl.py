@@ -487,7 +487,7 @@ def submit_run_v2(workspace: Optional[Workspace],
         entry_script = Path(entry_script).relative_to(root_dir).as_posix()
         experiment_name = effective_experiment_name(experiment_name, entry_script)
 
-        script_params = script_params or []
+    script_params = script_params or []
     script_param_str = create_v2_job_command_line_args_from_params(script_params)
 
     cmd = " ".join(["python", str(entry_script), script_param_str])
