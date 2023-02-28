@@ -64,7 +64,7 @@ class TiffConversionConfig(param.Parameterized):
         "name of the original dataset will be used.",
     )
 
-    def get_transform(self, output_folder: Path) -> Callable:
+    def get_transform(self, output_folder: Path) -> ConvertWSIToTiffd:
         """Get the transform that will be used to convert the src files to tiff files."""
         return ConvertWSIToTiffd(
             output_folder=output_folder,
