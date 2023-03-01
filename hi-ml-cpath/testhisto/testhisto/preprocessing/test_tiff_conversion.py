@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from pathlib import Path
-from typing import List, Dict
+from typing import Any, List, Dict
 from unittest.mock import MagicMock
 from health_cpath.datasets.panda_dataset import PandaDataset
 
@@ -16,11 +16,11 @@ from health_cpath.utils.naming import SlideKey
 from health_cpath.utils.tiff_conversion_config import TiffConversionConfig
 
 
-WSISamplesType = List[Dict[str, Path]]
+WSISamplesType = List[Dict[SlideKey, Any]]
 
 
 @pytest.fixture
-def wsi_samples(mock_panda_slides_root_dir) -> WSISamplesType:
+def wsi_samples(mock_panda_slides_root_dir: Path) -> WSISamplesType:
     wsi_root_dir = mock_panda_slides_root_dir / "train_images"
     wsi_filenames = ["_1.tiff", "_2.tiff"]
     return [

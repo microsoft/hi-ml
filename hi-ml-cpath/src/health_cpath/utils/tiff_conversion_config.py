@@ -13,7 +13,7 @@ from monai.data.dataset import Dataset
 from pathlib import Path
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from typing import Callable, List, Optional
+from typing import List, Optional
 from tifffile.tifffile import COMPRESSION
 
 
