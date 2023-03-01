@@ -107,6 +107,8 @@ class TiffConversionConfig(param.Parameterized):
             wsi_output_folder = output_folder / wsi_subfolder
             wsi_output_folder.mkdir(parents=True, exist_ok=True)
             logging.info(f"Whole slide images will be saved to subfolder {wsi_output_folder}")
+        else:
+            wsi_output_folder = output_folder
         transformed_dataset = Dataset(dataset, self.get_transform(wsi_output_folder))  # type: ignore
         dataloader = DataLoader(transformed_dataset, num_workers=self.num_workers, batch_size=1)
         with logging_section(f"Starting conversion of {len(dataset)} slides to tiff format to {output_folder}"):
