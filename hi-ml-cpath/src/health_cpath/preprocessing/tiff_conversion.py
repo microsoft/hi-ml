@@ -1,4 +1,3 @@
-from enum import Enum
 import logging
 import math
 import numpy as np
@@ -15,14 +14,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 AMPERSAND = "&"
 UNDERSCORE = "_"
-
-
-class WSIFormat(str, Enum):
-    """The format of the wsi file."""
-    NDPI = "ndpi"
-    SVS = "svs"
-    TIF = "tif"
-    TIFF = "tiff"
+TIFF_EXTENSION = ".tiff"
 
 
 class ConvertWSIToTiffd(MapTransform):
@@ -42,46 +34,42 @@ class ConvertWSIToTiffd(MapTransform):
         self,
         output_folder: Path,
         image_key: str = SlideKey.IMAGE,
-        src_format: WSIFormat = WSIFormat.NDPI,
         target_magnifications: Optional[List[float]] = [10.],
         add_lowest_magnification: bool = False,
-        base_objective_power: Optional[float] = None,
+        default_base_objective_power: Optional[float] = None,
         replace_ampersand_by: str = UNDERSCORE,
         compression: COMPRESSION = COMPRESSION.ADOBE_DEFLATE,
         tile_size: int = 512,
-        backend: WSIBackend = WSIBackend.OPENSLIDE,
     ) -> None:
         """
         :param output_folder: The directory where the tiff file will be saved.
-        :param image_key: The key of the image in the data dictionary, defaults to SlideKey.IMAGE
-        :param src_format: The format of the src file, defaults to WSIFormat.NDPI
-        :param target_magnifications: The target magnifications e.g. [10., 20.], defaults to [10.]. If
-        target_magnifications is None, the tiff file will contain the image data at all magnifications.
+        :param image_key: The key of the image that should be converted in the data dictionary, defaults to
+            `SlideKey.IMAGE`.
+        :param target_magnifications: The magnifications that should be read, converted and written to the output file,
+            e.g. [10., 20.], defaults to [10.]. If target_magnifications is None, the tiff file will contain the image
+            data at all magnifications.
         :param add_lowest_magnification: A flag indicating whether the tiff file should also contain the image data at
-        the lowest magnification, defaults to False. This is useful if the lowest magnification of the wsi is not part
-        of the target magnifications and one wants to use the lowest magnification for faster processing.
-        :param base_objective_power: The base objective power of the wsi. This is used to calculate the magnification
-        of the wsi. If the objective power is not found in the wsi properties, the base_objective_power is used
-        instead. If the objective power is not found in the wsi properties and base_objective_power is None, an error
-        is raised., defaults to None
+            the lowest magnification, defaults to False. This is useful if the lowest magnification of the wsi is not
+            part of the target magnifications and one wants to use the lowest magnification for faster processing.
+        :param default_base_objective_power: The base objective power of the wsi. This is used to calculate the
+            magnification of the wsi. If the objective power is not found in the wsi properties, the
+            base_objective_power is used instead. If the objective power is not found in the wsi properties and
+            base_objective_power is None, an error is raised, defaults to None.
         :param replace_ampersand_by: A string that is used to replace ampersands in the src file name, defaults to
-        UNDERSCORE. This is useful because ampersands in file names can cause problems in cloud storage.
-        :param compression: The compression that is used to save the tiff file, defaults to COMPRESSION.ADOBE_DEFLATE
-        aka ZLIB that is lossless compression.
+            `UNDERSCORE`. This is useful because ampersands in file names can cause problems in cloud storage.
+        :param compression: The compression that is used to save the tiff file, defaults to `COMPRESSION.ADOBE_DEFLATE`
+            aka ZLIB that is lossless compression.
         :param tile_size: The size of the tiles that are used to write the tiff file, defaults to 512.
-        :param backend: The backend that is used to read the wsi file, defaults to WSIBackend. OPENSLIDE which is
-        compatible with most wsi formats.
         """
         self.output_folder = output_folder
         self.image_key = image_key
-        self.src_format = src_format
         if target_magnifications is not None:
             target_magnifications.sort(reverse=True)
         self.target_magnifications = target_magnifications if target_magnifications else None
         self.add_lowest_magnification = add_lowest_magnification
         self.replace_ampersand_by = replace_ampersand_by
-        self.base_objective_power = base_objective_power
-        self.wsi_reader = WSIReader(backend=backend)
+        self.default_base_objective_power = default_base_objective_power
+        self.wsi_reader = WSIReader(backend=WSIBackend.OPENSLIDE)
         self.compression = compression
         self.tile_size = tile_size
 
@@ -93,7 +81,7 @@ class ConvertWSIToTiffd(MapTransform):
         :param src_path: The path to the src file.
         :return: The path to the tiff file that will be created from the src file.
         """
-        tiff_filename = src_path.name.replace(self.src_format, WSIFormat.TIFF)
+        tiff_filename = src_path.with_suffix(TIFF_EXTENSION).name
         tiff_filename = tiff_filename.replace(AMPERSAND, self.replace_ampersand_by)
         return self.output_folder / tiff_filename
 
@@ -103,13 +91,14 @@ class ConvertWSIToTiffd(MapTransform):
 
         :param wsi_obj: The wsi object in openslide format
         :raises ValueError: Raises an error if the objective power is not found in the wsi properties and
-        base_objective_power is None
+            base_objective_power is None
         :return: The base objective power of the wsi
         """
-        base_objective_power = wsi_obj.properties.get(self.OBJECTIVE_POWER_KEY, self.base_objective_power)
+        base_objective_power = wsi_obj.properties.get(self.OBJECTIVE_POWER_KEY, self.default_base_objective_power)
         if base_objective_power is None:
             raise ValueError(
-                f"Could not find {self.OBJECTIVE_POWER_KEY} in wsi properties. Please specify base_objective_power."
+                f"Could not find {self.OBJECTIVE_POWER_KEY} in wsi properties. Please specify a default value for "
+                "default_base_objective_power."
             )
         return float(base_objective_power)
 
@@ -171,7 +160,7 @@ class ConvertWSIToTiffd(MapTransform):
                 "transposing the image."
             )
 
-    def get_options(self, wsi_obj: OpenSlide) -> Dict[str, Any]:
+    def get_tiffwriter_options(self, wsi_obj: OpenSlide) -> Dict[str, Any]:
         """Returns the options that will be passed to the tiffwriter. The options are extracted from the wsi properties
         and will be written as tags in the tiff file.
 
@@ -222,7 +211,7 @@ class ConvertWSIToTiffd(MapTransform):
             logging.warning(f"Skipping {src_path} because {e}")
             return
 
-        options = self.get_options(wsi_obj)
+        options = self.get_tiffwriter_options(wsi_obj)
 
         with TiffWriter(tiff_path, bigtiff=True) as tif:
             for i, level in enumerate(levels):

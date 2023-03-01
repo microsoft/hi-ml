@@ -7,7 +7,7 @@ import param
 from copy import deepcopy
 from health_azure.logging import logging_section
 from health_cpath.datasets.base_dataset import SlidesDataset
-from health_cpath.preprocessing.tiff_conversion import AMPERSAND, UNDERSCORE, ConvertWSIToTiffd, WSIFormat
+from health_cpath.preprocessing.tiff_conversion import AMPERSAND, TIFF_EXTENSION, UNDERSCORE, ConvertWSIToTiffd
 from health_cpath.utils.naming import SlideKey
 from monai.data.dataset import Dataset
 from pathlib import Path
@@ -23,9 +23,6 @@ class TiffConversionConfig(param.Parameterized):
         default=SlideKey.IMAGE,
         doc="The key of the image in the dataset. This is used to get the path of the src file."
     )
-    src_format: WSIFormat = param.ClassSelector(
-        class_=WSIFormat, default=WSIFormat.NDPI, doc="The format of the source files. Default is NDPI."
-    )
     target_magnifications: Optional[List[float]] = param.List(
         default=[5.0],
         doc="The magnifications that will be saved in the tiff files. Use None for all available magnifications.",
@@ -33,18 +30,19 @@ class TiffConversionConfig(param.Parameterized):
     add_lowest_magnification: bool = param.Boolean(
         default=False,
         doc="If True, the lowest magnification will be saved in the tiff files in addition to the target "
-        "magnifications. If False, only the specified magnifications will be saved. This is especially useful for "
-        "costly computations that can be applied at a lower magnification.",
+            "magnifications. If False, only the specified magnifications will be saved. This is especially useful for "
+            "costly computations that can be applied at a lower magnification.",
     )
-    base_objective_power: Optional[float] = param.Number(
-        default=40.0,
+    default_base_objective_power: Optional[float] = param.Number(
+        default=None,
         doc="The objective power of the base magnification of the originale whole slide image. This is used to "
-        "calculate the levels corresponding to the target magnifications",
+            "calculate the levels corresponding to the target magnifications. If None, the objective power will be "
+            "extracted from the properties of the src file.",
     )
     replace_ampersand_by: str = param.String(
         default=UNDERSCORE,
         doc="The character that will replace the ampersand in the file name. & (as in H&E) can be problematic in some "
-        "file systems. It is recommended to use _ instead.",
+            "file systems. It is recommended to use _ instead.",
     )
     compression: COMPRESSION = param.ClassSelector(
         default=COMPRESSION.ADOBE_DEFLATE,
@@ -56,12 +54,12 @@ class TiffConversionConfig(param.Parameterized):
     )
     num_workers: int = param.Integer(
         default=1,
-        doc="The number of workers that will be used to convert the src files to tiff files. If num_workers is 1.",
+        doc="The number of workers that will be used to convert the src files to tiff files. Defaults to 1.",
     )
     converted_dataset_csv: str = param.String(
         default="",
         doc="The name of the new dataset csv file that will be created for the converted data. If None, the default "
-        "name of the original dataset will be used.",
+            "name of the original dataset will be used.",
     )
 
     def get_transform(self, output_folder: Path) -> ConvertWSIToTiffd:
@@ -69,10 +67,9 @@ class TiffConversionConfig(param.Parameterized):
         return ConvertWSIToTiffd(
             output_folder=output_folder,
             image_key=self.image_key,
-            src_format=self.src_format,
             target_magnifications=self.target_magnifications,
             add_lowest_magnification=self.add_lowest_magnification,
-            base_objective_power=self.base_objective_power,
+            default_base_objective_power=self.default_base_objective_power,
             replace_ampersand_by=self.replace_ampersand_by,
             compression=self.compression,
             tile_size=self.tile_size,
@@ -87,8 +84,8 @@ class TiffConversionConfig(param.Parameterized):
         new_dataset_df = deepcopy(dataset.dataset_df)
         new_dataset_df[dataset.IMAGE_COLUMN] = (
             new_dataset_df[dataset.IMAGE_COLUMN]
-            .str.replace(self.src_format, WSIFormat.TIFF)
             .str.replace(AMPERSAND, self.replace_ampersand_by)
+            .map(lambda x: str(Path(x).with_suffix(TIFF_EXTENSION)))
         )
         new_dataset_path = output_folder / (self.converted_dataset_csv or dataset.DEFAULT_CSV_FILENAME)
         new_dataset_df.to_csv(new_dataset_path, sep="\t" if new_dataset_path.suffix == ".tsv" else ",")
@@ -104,7 +101,7 @@ class TiffConversionConfig(param.Parameterized):
         dataset: The slides dataset that contains the src wsi.
         output_folder: The folder where the tiff files will be saved.
         image_subfolder: The subfolder where the tiff files will be saved. If None, the tiff files will be saved in the
-        root output folder.
+            root output folder.
         """
         if wsi_subfolder is not None:
             wsi_output_folder = output_folder / wsi_subfolder

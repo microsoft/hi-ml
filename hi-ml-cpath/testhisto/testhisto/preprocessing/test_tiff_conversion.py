@@ -10,10 +10,10 @@ from pathlib import Path
 from monai.data.wsi_reader import WSIReader
 from health_cpath.datasets.panda_dataset import PandaDataset
 from health_cpath.preprocessing.loading import WSIBackend
-from health_cpath.preprocessing.tiff_conversion import AMPERSAND, UNDERSCORE, ConvertWSIToTiffd, WSIFormat
+from health_cpath.preprocessing.tiff_conversion import AMPERSAND, TIFF_EXTENSION, UNDERSCORE, ConvertWSIToTiffd
 from health_cpath.utils.naming import SlideKey
 from health_cpath.utils.tiff_conversion_config import TiffConversionConfig
-from typing import Any, List, Dict, Optional
+from typing import Any, List, Dict
 from unittest.mock import MagicMock
 
 from testhisto.utils.utils_testhisto import skipif_no_gpu
@@ -36,11 +36,11 @@ def wsi_samples(mock_panda_slides_root_dir: Path) -> WSISamplesType:
 
 
 @pytest.mark.parametrize("replace_ampersand_by", [UNDERSCORE, ""])
-@pytest.mark.parametrize("src_format", [WSIFormat.NDPI, WSIFormat.TIFF])
-def test_get_tiff_path(src_format: WSIFormat, replace_ampersand_by: str) -> None:
+@pytest.mark.parametrize("src_format", ['ndpi', 'tiff'])
+def test_get_tiff_path(src_format: str, replace_ampersand_by: str) -> None:
     output_folder = Path("foo")
     transform = ConvertWSIToTiffd(
-        output_folder=output_folder, image_key=SlideKey.IMAGE, src_format=src_format,
+        output_folder=output_folder,
         replace_ampersand_by=replace_ampersand_by,
     )
     src_path = Path(f"root/h&e_foo.{src_format}")
@@ -52,17 +52,15 @@ def test_base_objective_power(wsi_samples: WSISamplesType) -> None:
     target_mag = 2.5
     transform = ConvertWSIToTiffd(
         output_folder=Path("foo"),
-        image_key=SlideKey.IMAGE,
-        src_format=WSIFormat.TIFF,
         target_magnifications=[target_mag],
-        base_objective_power=None,
+        default_base_objective_power=None,
     )
     wsi_obj = transform.wsi_reader.read(wsi_samples[0][SlideKey.IMAGE])
     with pytest.raises(ValueError, match=r"Could not find openslide.objective-power in"):
         _ = transform._get_base_objective_power(wsi_obj)
 
-    # openslide.objective-power is not part of the wsi object properties but base_objective_power is set
-    transform.base_objective_power = target_mag
+    # openslide.objective-power is not part of the wsi object properties but default_base_objective_power is set
+    transform.default_base_objective_power = target_mag
     base_obj_power = transform._get_base_objective_power(wsi_obj)
     assert base_obj_power == target_mag
 
@@ -76,10 +74,8 @@ def test_get_taget_levels(wsi_samples: WSISamplesType) -> None:
     target_mag = 2.5
     transform = ConvertWSIToTiffd(
         output_folder=Path("foo"),
-        image_key=SlideKey.IMAGE,
-        src_format=WSIFormat.TIFF,
         target_magnifications=[target_mag],
-        base_objective_power=target_mag,
+        default_base_objective_power=target_mag,
     )
     wsi_obj = transform.wsi_reader.read(wsi_samples[0][SlideKey.IMAGE])
 
@@ -95,7 +91,7 @@ def test_get_taget_levels(wsi_samples: WSISamplesType) -> None:
     transform.add_lowest_magnification = False
 
     # set the base objective power to 5x
-    transform.base_objective_power = target_mag * 2
+    transform.default_base_objective_power = target_mag * 2
     target_levels = transform.get_target_levels(wsi_obj)
     assert len(target_levels) == 1
     assert target_levels[0] == 1
@@ -108,16 +104,20 @@ def test_get_options(wsi_samples: WSISamplesType) -> None:
     # wrong resolution unit
     mock_wsi_obj = MagicMock(properties={transform.RESOLUTION_UNIT_KEY: "micrometer"})
     with pytest.raises(ValueError, match=r"Resolution unit is not in centimeter"):
-        _ = transform.get_options(mock_wsi_obj)
+        _ = transform.get_tiffwriter_options(mock_wsi_obj)
     # correct resolution unit in centimeter
     wsi_obj = transform.wsi_reader.read(wsi_samples[0][SlideKey.IMAGE])
-    options = transform.get_options(wsi_obj)
+    options = transform.get_tiffwriter_options(wsi_obj)
     assert options["resolutionunit"] == transform.RESOLUTION_UNIT
     assert options["software"] == transform.SOFTWARE
 
 
 def validate_converted_tiff_file(
-    tiff_file: Path, original_file: Path, transform: ConvertWSIToTiffd, same_format: bool = True, subfolder: str = "",
+    tiff_file: Path,
+    original_file: Path,
+    transform: ConvertWSIToTiffd,
+    same_format: bool = True,
+    subfolder: str = "",
 ) -> None:
     """Sanity check for the converted tiff file.
 
@@ -129,7 +129,7 @@ def validate_converted_tiff_file(
     """
     assert tiff_file.exists()
     assert tiff_file.stat().st_size > 0
-    assert tiff_file.suffix == ".tiff"
+    assert tiff_file.suffix == TIFF_EXTENSION
     assert tiff_file.parent == transform.output_folder / subfolder
     assert tiff_file.name == original_file.name if same_format else tiff_file.name != original_file.name
     assert tiff_file.stem == original_file.stem.replace(AMPERSAND, transform.replace_ampersand_by)
@@ -186,11 +186,9 @@ def test_convert_wsi_to_tiff(add_low_mag: bool, wsi_samples: WSISamplesType, tmp
     target_mag = 2.5
     transform = ConvertWSIToTiffd(
         output_folder=tmp_path,
-        image_key=SlideKey.IMAGE,
-        src_format=WSIFormat.TIFF,
         target_magnifications=[target_mag],
         add_lowest_magnification=add_low_mag,
-        base_objective_power=target_mag,
+        default_base_objective_power=target_mag,
         tile_size=16,
     )
 
@@ -210,9 +208,8 @@ def test_tiff_conversion_config(mock_panda_slides_root_dir: Path, tmp_path: Path
     target_mag = 5
     limit = 2
     conversion_config = TiffConversionConfig(
-        src_format=WSIFormat.TIFF,
         target_magnifications=[target_mag / 2],
-        base_objective_power=target_mag,
+        default_base_objective_power=target_mag,
         tile_size=16,
         num_workers=1,
     )
