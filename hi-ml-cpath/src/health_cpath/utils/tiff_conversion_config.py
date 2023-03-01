@@ -112,6 +112,6 @@ class TiffConversionConfig(param.Parameterized):
             wsi_output_folder = output_folder
         transformed_dataset = Dataset(dataset, self.get_transform(wsi_output_folder))  # type: ignore
         dataloader = DataLoader(transformed_dataset, num_workers=self.num_workers, batch_size=1)
-        with logging_section(f"Starting conversion of {len(dataset)} slides to tiff format to {output_folder}"):
+        with logging_section(f"Conversion of {len(dataset)} slides to tiff format to {output_folder}"):
             self(dataloader)
             self.create_dataset_csv_for_converted_data(output_folder)
