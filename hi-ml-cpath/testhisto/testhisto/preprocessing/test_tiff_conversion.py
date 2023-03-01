@@ -7,13 +7,14 @@ import numpy as np
 import pytest
 
 from pathlib import Path
-from typing import Any, List, Dict
-from unittest.mock import MagicMock
+from monai.data.wsi_reader import WSIReader
 from health_cpath.datasets.panda_dataset import PandaDataset
-
+from health_cpath.preprocessing.loading import WSIBackend
 from health_cpath.preprocessing.tiff_conversion import AMPERSAND, UNDERSCORE, ConvertWSIToTiffd, WSIFormat
 from health_cpath.utils.naming import SlideKey
 from health_cpath.utils.tiff_conversion_config import TiffConversionConfig
+from typing import Any, List, Dict, Optional
+from unittest.mock import MagicMock
 
 
 WSISamplesType = List[Dict[SlideKey, Any]]
@@ -119,8 +120,18 @@ def validate_tiff_conversion(
     transform: ConvertWSIToTiffd,
     same_format: bool = True,
     subfolder: str = "",
+    converted_wsi_reader: Optional[WSIReader] = None,
 ) -> None:
-    """Validate the conversion of a list of files to tiff."""
+    """Validate the conversion of a list of files to tiff.
+
+    :param converted_files: list of converted files
+    :param original_files: list of original files
+    :param transform: the conversion transform object
+    :param same_format: if the original and converted files have the same format
+    :param subfolder: the subfolder where the converted files are stored
+    :param converted_wsi_reader: the wsi reader to use to read the converted files, if None use the transform wsi reader
+    """
+    converted_wsi_reader = converted_wsi_reader or transform.wsi_reader
     for converted_file, original_file in zip(converted_files, original_files):
         # check that the converted file exists and is not empty
         assert converted_file.exists()
@@ -131,7 +142,7 @@ def validate_tiff_conversion(
         assert converted_file.stem == original_file.stem.replace(AMPERSAND, transform.replace_ampersand_by)
         # get the original and converted wsi objects
         original_wsi = transform.wsi_reader.read(original_file)
-        converted_wsi = transform.wsi_reader.read(converted_file)
+        converted_wsi = converted_wsi_reader.read(converted_file)
         # check that the number of levels is the same
         target_levels = transform.get_target_levels(original_wsi)
         assert len(target_levels) == converted_wsi.level_count
@@ -144,7 +155,7 @@ def validate_tiff_conversion(
             assert np.allclose(original_wsi_data, converted_wsi_data)
             # Check that the mpp is the same
             o_mpp = transform.wsi_reader.get_mpp(original_wsi, original_level)
-            c_mpp = transform.wsi_reader.get_mpp(converted_wsi, converted_level)
+            c_mpp = converted_wsi_reader.get_mpp(converted_wsi, converted_level)
             assert all(map(lambda a, b: math.isclose(a, b, rel_tol=1e-3), o_mpp, c_mpp))
 
 
@@ -168,7 +179,11 @@ def test_convert_wsi_to_tiff(add_low_mag: bool, wsi_samples: WSISamplesType, tmp
     original_files = [wsi_sample[SlideKey.IMAGE] for wsi_sample in wsi_samples]
     converted_files = [tmp_path / file.name for file in original_files]
 
-    validate_tiff_conversion(converted_files, original_files, transform)
+    validate_tiff_conversion(converted_files, original_files, transform, same_format=True)
+    # Make sure we can read the new tiff files with cucim backend
+    validate_tiff_conversion(
+        converted_files, original_files, transform, converted_wsi_reader=WSIReader(WSIBackend.CUCIM)
+    )
 
 
 def test_tiff_conversion_config(mock_panda_slides_root_dir: Path, tmp_path: Path) -> None:

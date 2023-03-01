@@ -49,6 +49,7 @@ class ConvertWSIToTiffd(MapTransform):
         replace_ampersand_by: str = UNDERSCORE,
         compression: COMPRESSION = COMPRESSION.ADOBE_DEFLATE,
         tile_size: int = 512,
+        backend: WSIBackend = WSIBackend.OPENSLIDE,
     ) -> None:
         """
         :param output_folder: The directory where the tiff file will be saved.
@@ -68,6 +69,8 @@ class ConvertWSIToTiffd(MapTransform):
         :param compression: The compression that is used to save the tiff file, defaults to COMPRESSION.ADOBE_DEFLATE
         aka ZLIB that is lossless compression.
         :param tile_size: The size of the tiles that are used to write the tiff file, defaults to 512.
+        :param backend: The backend that is used to read the wsi file, defaults to WSIBackend. OPENSLIDE which is
+        compatible with most wsi formats.
         """
         self.output_folder = output_folder
         self.image_key = image_key
@@ -78,7 +81,7 @@ class ConvertWSIToTiffd(MapTransform):
         self.add_lowest_magnification = add_lowest_magnification
         self.replace_ampersand_by = replace_ampersand_by
         self.base_objective_power = base_objective_power
-        self.wsi_reader = WSIReader(WSIBackend.OPENSLIDE)
+        self.wsi_reader = WSIReader(backendbackend=backend)
         self.compression = compression
         self.tile_size = tile_size
 
