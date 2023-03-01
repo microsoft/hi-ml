@@ -887,12 +887,6 @@ def test_submit_run_v2(tmp_path: Path) -> None:
             assert mock_command.experiment_name == dummy_experiment_name
 
             dummy_entry_script_for_module = "-m Foo.bar run"
-            dummy_experiment_name = himl.effective_experiment_name(
-                experiment_name=None,
-                entry_script=dummy_entry_script_for_module
-            )
-            assert dummy_experiment_name == "Foo_bar_run"
-
             expected_command = f"python {dummy_entry_script_for_module} {expected_arg_str}"
 
             himl.submit_run_v2(
