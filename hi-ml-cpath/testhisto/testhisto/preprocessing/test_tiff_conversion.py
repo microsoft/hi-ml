@@ -142,6 +142,7 @@ def validate_tiff_conversion(
     same_format: bool = True,
     subfolder: str = "",
     backend: WSIBackend = WSIBackend.OPENSLIDE,
+    data_is_equal: bool = True,
 ) -> None:
     """Validate the conversion of a list of files to tiff.
 
@@ -151,6 +152,7 @@ def validate_tiff_conversion(
     :param same_format: if the original and converted files have the same format
     :param subfolder: the subfolder where the converted files are stored
     :param backend: the backend used to read the converted files, default is openslide
+    :param data_is_equal: A flag to indicate if the data is expected to be equal, defaults to True
     """
     converted_wsi_reader = WSIReader(backend=backend)
     for converted_file, original_file in zip(converted_files, original_files):
@@ -169,9 +171,10 @@ def validate_tiff_conversion(
             original_wsi_data = transform.get_level_data(original_wsi, original_level)
             converted_wsi_data, _ = converted_wsi_reader.get_data(converted_wsi, level=converted_level)
             converted_wsi_data = converted_wsi_data.transpose((1, 2, 0))
-            assert original_wsi_data.shape == converted_wsi_data.shape
             assert original_wsi_data.dtype == converted_wsi_data.dtype
-            assert np.allclose(original_wsi_data, converted_wsi_data)
+            if data_is_equal:
+                assert original_wsi_data.shape == converted_wsi_data.shape
+                assert np.allclose(original_wsi_data, converted_wsi_data)
             # Check that the mpp is the same
             o_mpp = transform.wsi_reader.get_mpp(original_wsi, original_level)
             c_mpp = converted_wsi_reader.get_mpp(converted_wsi, converted_level)
