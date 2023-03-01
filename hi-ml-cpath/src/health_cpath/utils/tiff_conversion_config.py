@@ -75,19 +75,19 @@ class TiffConversionConfig(param.Parameterized):
             tile_size=self.tile_size,
         )
 
-    def create_dataset_csv_for_converted_data(self, dataset: SlidesDataset, output_folder: Path) -> None:
+    def create_dataset_csv_for_converted_data(self, output_folder: Path) -> None:
         """Create a new dataset csv file for the converted data.
 
         :param dataset_df: The original dataset csv file.
         :param output_folder: The folder where the new dataset csv file will be saved.
         """
-        new_dataset_df = deepcopy(dataset.dataset_df)
-        new_dataset_df[dataset.IMAGE_COLUMN] = (
-            new_dataset_df[dataset.IMAGE_COLUMN]
+        new_dataset_df = deepcopy(self.dataset.dataset_df)
+        new_dataset_df[self.dataset.IMAGE_COLUMN] = (
+            new_dataset_df[self.dataset.IMAGE_COLUMN]
             .str.replace(AMPERSAND, self.replace_ampersand_by)
             .map(lambda x: str(Path(x).with_suffix(TIFF_EXTENSION)))
         )
-        new_dataset_path = output_folder / (self.converted_dataset_csv or dataset.DEFAULT_CSV_FILENAME)
+        new_dataset_path = output_folder / (self.converted_dataset_csv or self.dataset.DEFAULT_CSV_FILENAME)
         new_dataset_df.to_csv(new_dataset_path, sep="\t" if new_dataset_path.suffix == ".tsv" else ",")
         logging.info(f"Saved new dataset tsv file to {new_dataset_path}")
 
@@ -103,6 +103,7 @@ class TiffConversionConfig(param.Parameterized):
         image_subfolder: The subfolder where the tiff files will be saved. If None, the tiff files will be saved in the
             root output folder.
         """
+        self.dataset: SlidesDataset = dataset
         if wsi_subfolder is not None:
             wsi_output_folder = output_folder / wsi_subfolder
             wsi_output_folder.mkdir(parents=True, exist_ok=True)
@@ -113,4 +114,4 @@ class TiffConversionConfig(param.Parameterized):
         dataloader = DataLoader(transformed_dataset, num_workers=self.num_workers, batch_size=1)
         with logging_section(f"Starting conversion of {len(dataset)} slides to tiff format to {output_folder}"):
             self(dataloader)
-            self.create_dataset_csv_for_converted_data(dataset, output_folder)
+            self.create_dataset_csv_for_converted_data(output_folder)
