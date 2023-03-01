@@ -33,6 +33,10 @@ class AzureRunConfig(param.Parameterized):
                                                   "If False, submit the run to AML and exit")
     docker_shm_size: str = param.String("100g",
                                         doc="The shared memory in the Docker image for the AzureML VMs.")
+    workspace_config_path: Optional[Path] = \
+        param.ClassSelector(class_=Path, default=None, allow_None=True,
+                            doc="The path to the AzureML workspace configuration file. If not specified, the "
+                                "configuration file in the current folder or one of its parents will be used.")
 
 
 class MontageConfig(AzureRunConfig):

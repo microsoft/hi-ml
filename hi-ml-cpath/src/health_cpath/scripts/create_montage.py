@@ -51,6 +51,7 @@ def main() -> None:
             strictly_aml_v1=True,
             docker_shm_size=config.docker_shm_size,
             wait_for_completion=config.wait_for_completion,
+            workspace_config_file=config.workspace_config_path,
         )
         input_folder = run_info.input_datasets[0]
 
