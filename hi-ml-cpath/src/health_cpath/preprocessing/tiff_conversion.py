@@ -1,3 +1,7 @@
+#  -------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  -------------------------------------------------------------------------------------------
 import logging
 import math
 import numpy as np
@@ -23,7 +27,7 @@ class ConvertWSIToTiffd(MapTransform):
     contains the image data at the target magnifications. If target_magnifications is None, the tiff file contains the
     image data at all magnifications. If add_lowest_magnification is True, the tiff file also contains the image data
     at the lowest magnification. The tiff file is saved with the compression specified by the compression parameter with
-    a fixed tile size.
+    a fixed tile size. This works with all supported wsi formats by openslide.
     """
     OBJECTIVE_POWER_KEY = "openslide.objective-power"
     RESOLUTION_UNIT_KEY = "tiff.ResolutionUnit"
@@ -58,7 +62,8 @@ class ConvertWSIToTiffd(MapTransform):
         :param replace_ampersand_by: A string that is used to replace ampersands in the src file name, defaults to
             `UNDERSCORE`. This is useful because ampersands in file names can cause problems in cloud storage.
         :param compression: The compression that is used to save the tiff file, defaults to `COMPRESSION.ADOBE_DEFLATE`
-            aka ZLIB that is lossless compression.
+            aka ZLIB that is lossless compression. Make sure to use one of these options (RAW, LZW, JPEG, JPEG2000) so
+            that the converted files are readable by cucim.
         :param tile_size: The size of the tiles that are used to write the tiff file, defaults to 512.
         """
         self.output_folder = output_folder
