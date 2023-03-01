@@ -24,7 +24,7 @@ class TiffConversionConfig(param.Parameterized):
         doc="The key of the image in the dataset. This is used to get the path of the src file."
     )
     target_magnifications: Optional[List[float]] = param.List(
-        default=[5.0],
+        default=[5.0], class_=float,
         doc="The magnifications that will be saved in the tiff files. Use None for all available magnifications.",
     )
     add_lowest_magnification: bool = param.Boolean(
@@ -81,13 +81,13 @@ class TiffConversionConfig(param.Parameterized):
         :param dataset_df: The original dataset csv file.
         :param output_folder: The folder where the new dataset csv file will be saved.
         """
-        new_dataset_df = deepcopy(self.dataset.dataset_df)
-        new_dataset_df[self.dataset.IMAGE_COLUMN] = (
-            new_dataset_df[self.dataset.IMAGE_COLUMN]
+        new_dataset_df = deepcopy(self.slides_dataset.dataset_df)
+        new_dataset_df[self.slides_dataset.IMAGE_COLUMN] = (
+            new_dataset_df[self.slides_dataset.IMAGE_COLUMN]
             .str.replace(AMPERSAND, self.replace_ampersand_by)
             .map(lambda x: str(Path(x).with_suffix(TIFF_EXTENSION)))
         )
-        new_dataset_path = output_folder / (self.converted_dataset_csv or self.dataset.DEFAULT_CSV_FILENAME)
+        new_dataset_path = output_folder / (self.converted_dataset_csv or self.slides_dataset.DEFAULT_CSV_FILENAME)
         new_dataset_df.to_csv(new_dataset_path, sep="\t" if new_dataset_path.suffix == ".tsv" else ",")
         logging.info(f"Saved new dataset tsv file to {new_dataset_path}")
 
@@ -103,7 +103,7 @@ class TiffConversionConfig(param.Parameterized):
         image_subfolder: The subfolder where the tiff files will be saved. If None, the tiff files will be saved in the
             root output folder.
         """
-        self.dataset: SlidesDataset = dataset
+        self.slides_dataset: SlidesDataset = dataset
         if wsi_subfolder is not None:
             wsi_output_folder = output_folder / wsi_subfolder
             wsi_output_folder.mkdir(parents=True, exist_ok=True)
