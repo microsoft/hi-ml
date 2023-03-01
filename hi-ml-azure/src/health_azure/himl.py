@@ -406,8 +406,8 @@ def effective_experiment_name(experiment_name: Optional[str],
     elif experiment_name:
         raw_value = experiment_name
     elif entry_script is not None:
-        if  str(entry_script)[:2] == "-m":
-            raw_value = "_".join(entry_script[2:].split("."))  # e.g. -m foo.bar.baz -> foo_bar_baz
+        if str(entry_script)[:3] == "-m ":
+            raw_value = str(entry_script)[3:]
         else:
             raw_value = Path(entry_script).stem
     else:
