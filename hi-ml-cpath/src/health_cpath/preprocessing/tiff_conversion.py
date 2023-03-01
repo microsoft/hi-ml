@@ -81,7 +81,7 @@ class ConvertWSIToTiffd(MapTransform):
         self.add_lowest_magnification = add_lowest_magnification
         self.replace_ampersand_by = replace_ampersand_by
         self.base_objective_power = base_objective_power
-        self.wsi_reader = WSIReader(backendbackend=backend)
+        self.wsi_reader = WSIReader(backend=backend)
         self.compression = compression
         self.tile_size = tile_size
 

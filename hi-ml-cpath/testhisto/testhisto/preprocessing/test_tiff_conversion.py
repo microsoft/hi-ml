@@ -16,6 +16,8 @@ from health_cpath.utils.tiff_conversion_config import TiffConversionConfig
 from typing import Any, List, Dict, Optional
 from unittest.mock import MagicMock
 
+from testhisto.utils.utils_testhisto import skipif_no_gpu
+
 
 WSISamplesType = List[Dict[SlideKey, Any]]
 
@@ -114,13 +116,32 @@ def test_get_options(wsi_samples: WSISamplesType) -> None:
     assert options["software"] == transform.SOFTWARE
 
 
+def validate_converted_tiff_file(
+    tiff_file: Path, original_file: Path, transform: ConvertWSIToTiffd, same_format: bool = True, subfolder: str = "",
+) -> None:
+    """Sanity check for the converted tiff file.
+
+    :param tiff_file: The converted tiff file.
+    :param original_file: The original file.
+    :param transform: The conversion transform.
+    :param same_format: if the original and converted files have the same format, defaults to True
+    :param subfolder: the subfolder where the converted files are stored, defaults to ""
+    """
+    assert tiff_file.exists()
+    assert tiff_file.stat().st_size > 0
+    assert tiff_file.suffix == ".tiff"
+    assert tiff_file.parent == transform.output_folder / subfolder
+    assert tiff_file.name == original_file.name if same_format else tiff_file.name != original_file.name
+    assert tiff_file.stem == original_file.stem.replace(AMPERSAND, transform.replace_ampersand_by)
+
+
 def validate_tiff_conversion(
     converted_files: List[Path],
     original_files: List[Path],
     transform: ConvertWSIToTiffd,
     same_format: bool = True,
     subfolder: str = "",
-    converted_wsi_reader: Optional[WSIReader] = None,
+    backend: WSIBackend = WSIBackend.OPENSLIDE,
 ) -> None:
     """Validate the conversion of a list of files to tiff.
 
@@ -129,29 +150,27 @@ def validate_tiff_conversion(
     :param transform: the conversion transform object
     :param same_format: if the original and converted files have the same format
     :param subfolder: the subfolder where the converted files are stored
-    :param converted_wsi_reader: the wsi reader to use to read the converted files, if None use the transform wsi reader
+    :param backend: the backend used to read the converted files, default is openslide
     """
-    converted_wsi_reader = converted_wsi_reader or transform.wsi_reader
+    converted_wsi_reader = WSIReader(backend=backend)
     for converted_file, original_file in zip(converted_files, original_files):
         # check that the converted file exists and is not empty
-        assert converted_file.exists()
-        assert converted_file.stat().st_size > 0
-        assert converted_file.suffix == ".tiff"
-        assert converted_file.parent == transform.output_folder / subfolder
-        assert converted_file.name == original_file.name if same_format else converted_file.name != original_file.name
-        assert converted_file.stem == original_file.stem.replace(AMPERSAND, transform.replace_ampersand_by)
+        validate_converted_tiff_file(converted_file, original_file, transform, same_format, subfolder)
         # get the original and converted wsi objects
-        original_wsi = transform.wsi_reader.read(original_file)
-        converted_wsi = converted_wsi_reader.read(converted_file)
+        original_wsi = transform.wsi_reader.read(str(original_file))
+        converted_wsi = converted_wsi_reader.read(str(converted_file))
         # check that the number of levels is the same
-        target_levels = transform.get_target_levels(original_wsi)
-        assert len(target_levels) == converted_wsi.level_count
+        original_levels = transform.get_target_levels(original_wsi)
+        converted_levels = range(converted_wsi_reader.get_level_count(converted_wsi))
+        assert len(original_levels) == len(converted_levels)
         # check that the data and mpp are the same for each level
-        for original_level, converted_level in zip(target_levels, range(converted_wsi.level_count)):
+        for original_level, converted_level in zip(original_levels, converted_levels):
             # For each level, check that the data is the same
             original_wsi_data = transform.get_level_data(original_wsi, original_level)
-            converted_wsi_data = transform.get_level_data(converted_wsi, converted_level)
+            converted_wsi_data, _ = converted_wsi_reader.get_data(converted_wsi, level=converted_level)
+            converted_wsi_data = converted_wsi_data.transpose((1, 2, 0))
             assert original_wsi_data.shape == converted_wsi_data.shape
+            assert original_wsi_data.dtype == converted_wsi_data.dtype
             assert np.allclose(original_wsi_data, converted_wsi_data)
             # Check that the mpp is the same
             o_mpp = transform.wsi_reader.get_mpp(original_wsi, original_level)
@@ -159,6 +178,8 @@ def validate_tiff_conversion(
             assert all(map(lambda a, b: math.isclose(a, b, rel_tol=1e-3), o_mpp, c_mpp))
 
 
+@pytest.mark.gpu
+@skipif_no_gpu()  # cucim is not available on cpu
 @pytest.mark.parametrize("add_low_mag", [True, False])
 def test_convert_wsi_to_tiff(add_low_mag: bool, wsi_samples: WSISamplesType, tmp_path: Path) -> None:
     """Test the conversion of the cyted dataset from tiff to tiff."""
@@ -179,11 +200,9 @@ def test_convert_wsi_to_tiff(add_low_mag: bool, wsi_samples: WSISamplesType, tmp
     original_files = [wsi_sample[SlideKey.IMAGE] for wsi_sample in wsi_samples]
     converted_files = [tmp_path / file.name for file in original_files]
 
-    validate_tiff_conversion(converted_files, original_files, transform, same_format=True)
-    # Make sure we can read the new tiff files with cucim backend
-    validate_tiff_conversion(
-        converted_files, original_files, transform, converted_wsi_reader=WSIReader(WSIBackend.CUCIM)
-    )
+    validate_tiff_conversion(converted_files, original_files, transform, same_format=True, backend=WSIBackend.OPENSLIDE)
+    # Make sure we can read the new tiff files with cucim backend as well
+    validate_tiff_conversion(converted_files, original_files, transform, same_format=True, backend=WSIBackend.CUCIM)
 
 
 def test_tiff_conversion_config(mock_panda_slides_root_dir: Path, tmp_path: Path) -> None:
