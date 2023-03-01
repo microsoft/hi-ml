@@ -548,27 +548,29 @@ def create_from_matching_params(from_object: param.Parameterized, cls_: Type[T])
 
 
 def create_v2_job_command_line_args_from_params(script_params: List[str]) -> str:
+    """Given a list of parameters as passed in from the command line, create a string that can be passed as a command
+    to execute a v2 AzureML job. Specifically, wraps any that contain double or single quotes in the opposite type of
+    quote to avoid escaping issues.
 
-    command_line_arg_str = ""
+    :param script_params: List of params, e.g. ["--param1", "--param2==foo"]
+    :raises ValueError: If a single parameter contains both a single quote and a double quote.
+    :return: The command line arguments as a v2 job-acceptable string.
+    """
+
+    parsed_cmd_strings: List[str] = []
     for script_param in script_params:
-        next_param_str: str
         if "'" in script_param and '"' in script_param:
             raise ValueError(
                 f"Script parameters cannot contain both single and double quotes. Problematic parameter: {script_param}"
             )
         elif "'" in script_param:
-            next_param_str = f'"{script_param}"'
+            parsed_cmd_strings.append(f'"{script_param}"')
         elif '"' in script_param:
-            next_param_str = f"'{script_param}'"
+            parsed_cmd_strings.append(f"'{script_param}'")
         else:
-            next_param_str = f'{script_param}'
+            parsed_cmd_strings.append(f'{script_param}')
 
-        if command_line_arg_str == "":
-            command_line_arg_str = next_param_str
-        else:
-            command_line_arg_str = f"{command_line_arg_str} {next_param_str}"
-
-    return command_line_arg_str
+    return " ".join(parsed_cmd_strings)
 
 
 class CustomTypeParam(param.Parameter):

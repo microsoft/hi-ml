@@ -406,7 +406,10 @@ def effective_experiment_name(experiment_name: Optional[str],
     elif experiment_name:
         raw_value = experiment_name
     elif entry_script is not None:
-        raw_value = Path(entry_script).stem
+        if  str(entry_script)[:2] == "-m":
+            raw_value = "_".join(entry_script[2:].split("."))  # e.g. -m foo.bar.baz -> foo_bar_baz
+        else:
+            raw_value = Path(entry_script).stem
     else:
         raise ValueError("No experiment name provided, and no entry script provided. ")
     cleaned_value = to_azure_friendly_string(raw_value)
@@ -415,8 +418,8 @@ def effective_experiment_name(experiment_name: Optional[str],
 
 
 def submit_run_v2(workspace: Optional[Workspace],
-                  experiment_name: Optional[str],
                   environment: EnvironmentV2,
+                  experiment_name: Optional[str] = None,
                   input_datasets_v2: Optional[Dict[str, Input]] = None,
                   output_datasets_v2: Optional[Dict[str, Output]] = None,
                   snapshot_root_directory: Optional[Path] = None,
@@ -483,9 +486,10 @@ def submit_run_v2(workspace: Optional[Workspace],
     snapshot_root_directory = snapshot_root_directory or Path.cwd()
     root_dir = Path(snapshot_root_directory)
 
-    if "-m " not in str(entry_script):
+    if str(entry_script)[:2] != "-m":
         entry_script = Path(entry_script).relative_to(root_dir).as_posix()
-        experiment_name = effective_experiment_name(experiment_name, entry_script)
+
+    experiment_name = effective_experiment_name(experiment_name, entry_script)
 
     script_params = script_params or []
     script_param_str = create_v2_job_command_line_args_from_params(script_params)

@@ -1970,7 +1970,7 @@ def test_create_v2_job_command_line_args_from_params() -> None:
     v2_command_line_args = util.create_v2_job_command_line_args_from_params(test_params)
     assert v2_command_line_args == expected_command_line_arg_str
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError,  match="cannot contain both single and double quotes"):
         test_params = ["--azureml", "'--test_arg_1=[\"test_arg_1_value_1\", \'test_arg_1_value_2\']'"]
         util.create_v2_job_command_line_args_from_params(test_params)
 
