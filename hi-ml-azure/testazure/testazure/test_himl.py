@@ -886,14 +886,14 @@ def test_submit_run_v2(tmp_path: Path) -> None:
             mock_command.sweep.assert_called_once()
             assert mock_command.experiment_name == dummy_experiment_name
 
-            dummy_entry_script = "-m Foo.bar run"
+            dummy_entry_script_for_module = "-m Foo.bar run"
             dummy_experiment_name = himl.effective_experiment_name(
                 experiment_name=None,
-                entry_script=dummy_entry_script
+                entry_script=dummy_entry_script_for_module
             )
             assert dummy_experiment_name == "Foo_bar_run"
 
-            expected_command = f"python {dummy_entry_script} {expected_arg_str}"
+            expected_command = f"python {dummy_entry_script_for_module} {expected_arg_str}"
 
             himl.submit_run_v2(
                 workspace=None,
@@ -902,7 +902,7 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 input_datasets_v2=dummy_inputs,
                 output_datasets_v2=dummy_outputs,
                 snapshot_root_directory=dummy_root_directory,
-                entry_script=dummy_entry_script,
+                entry_script=dummy_entry_script_for_module,
                 script_params=dummy_script_params,
                 compute_target=dummy_compute_target,
                 tags=dummy_tags,
