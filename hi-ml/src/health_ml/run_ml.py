@@ -356,7 +356,7 @@ class MLRunner:
 
                 logging.info("Comparing the current results against stored results.")
                 if self.is_crossval_disabled_or_child_0():
-                    if is_running_in_azure_ml:
+                    if is_running_in_azure_ml():
                         if PARENT_RUN_CONTEXT is not None:
                             df = aggregate_hyperdrive_metrics(
                                 child_run_arg_name=crossval_arg_name,

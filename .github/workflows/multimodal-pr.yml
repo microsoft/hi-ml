@@ -115,6 +115,7 @@ jobs:
           echo "The package will be installed from: $PIP_SOURCE"
           papermill \
             --parameters pip_source $PIP_SOURCE \
+            --log-output \
             $IN_NB_PATH \
             $OUT_NB_PATH
 
