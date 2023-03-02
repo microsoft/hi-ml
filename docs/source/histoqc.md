@@ -6,11 +6,8 @@
 git clone https://github.com/choosehappy/HistoQC
 ```
 
-Then edit `HistoQC/environment.devenv.yml` and remove (or comment) line 17:
-
-```shell
-#{% set HISTOQC_DEVEL = os.environ.get('HISTOQC_DEVEL', False) %}
-```
+Then edit `HistoQC/environment.devenv.yml` and remove line 17 completely,
+which contains a string like this `... set HISTOQC_DEVEL = os.environ.get('HISTOQC_DEVEL', False)`.
 
 Create a Conda environment called `histoqc` by running
 
