@@ -394,7 +394,8 @@ def effective_experiment_name(experiment_name: Optional[str],
                               entry_script: Optional[PathOrString] = None) -> str:
     """Choose the experiment name to use for the run. If provided in the environment variable HIML_EXPERIMENT_NAME,
     then use that. Otherwise, use the argument `experiment_name`, or fall back to the default based on the
-    entry point script.
+    entry point script. If script in the form "foo/bar/baz.py", then the experiment name will be "baz". If the script is
+    of the form "-m foo.bar.baz", then the experiment name will be "foo_bar_baz".
 
     :param experiment_name: The name of the AzureML experiment in which the run should be submitted.
     :param entry_script: The script that should be run in AzureML.
@@ -441,9 +442,9 @@ def submit_run_v2(workspace: Optional[Workspace],
     Starts a v2 AML Job on a given workspace by submitting a command
 
     :param workspace: The AzureML workspace to use.
+    :param environment: An AML v2 Environment object.
     :param experiment_name: The name of the experiment that will be used or created. If the experiment name contains
         characters that are not valid in Azure, those will be removed.
-    :param environment: An AML v2 Environment object.
     :param input_datasets_v2: An optional dictionary of Inputs to pass in to the command.
     :param output_datasets_v2: An optional dictionary of Outputs to pass in to the command.
     :param snapshot_root_directory: The directory that contains all code that should be packaged and sent to AzureML.
