@@ -83,7 +83,7 @@ class ImageModelInput():
 
 
 class BaseImageModel(nn.Module, ABC):
-    """ An abstract class defining methods required by the ImageInferenceEngine """
+    """Abstract class for image models."""
 
     def __init__(self, **kwargs: Any):
         super().__init__()
