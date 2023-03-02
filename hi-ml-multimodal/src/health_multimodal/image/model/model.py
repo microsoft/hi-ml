@@ -83,7 +83,7 @@ class ImageModelInput():
 
 
 class BaseImageModel(nn.Module, ABC):
-    """ An abstract class defining methods required by the ImageInferenceEngine """
+    """Abstract class for image models."""
     @abstractmethod
     def forward(self, image_input: ImageModelInput) -> ImageModelOutput:
         raise NotImplementedError
