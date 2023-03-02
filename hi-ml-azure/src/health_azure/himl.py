@@ -19,33 +19,34 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
 
-from azure.ai.ml import MLClient, Input, Output, command
+from azure.ai.ml import Input, MLClient, Output, command
 from azure.ai.ml.constants import InputOutputModes
-from azure.ai.ml.entities import Data, Job, Command, Sweep, UserIdentityConfiguration
+from azure.ai.ml.entities import Command, Data
 from azure.ai.ml.entities import Environment as EnvironmentV2
+from azure.ai.ml.entities import Job, Sweep, UserIdentityConfiguration
 from azure.ai.ml.entities._job.distribution import MpiDistribution, PyTorchDistribution
-
 from azure.ai.ml.sweep import Choice
 from azureml._base_sdk_common import user_agent
 from azureml.core import ComputeTarget, Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
 from azureml.data import OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
-from azureml.train.hyperdrive import HyperDriveConfig, GridParameterSampling, PrimaryMetricGoal, choice
 from azureml.dataprep.fuse.daemon import MountContext
+from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
 
-from health_azure.amulet import (ENV_AMLT_DATAREFERENCE_DATA, ENV_AMLT_DATAREFERENCE_OUTPUT, is_amulet_job)
+from health_azure.amulet import ENV_AMLT_DATAREFERENCE_DATA, ENV_AMLT_DATAREFERENCE_OUTPUT, is_amulet_job
+from health_azure.datasets import (
+    DatasetConfig, StrOrDatasetConfig, _get_or_create_v2_data_asset, _input_dataset_key,
+    _output_dataset_key, _replace_string_datasets, setup_local_datasets
+)
 from health_azure.package_setup import health_azure_package_setup
-from health_azure.utils import (ENV_EXPERIMENT_NAME, create_python_environment, create_run_recovery_id,
-                                find_file_in_parent_to_pythonpath,
-                                is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
-                                run_duration_string_to_seconds, to_azure_friendly_string, RUN_CONTEXT, get_workspace,
-                                PathOrString, DEFAULT_ENVIRONMENT_VARIABLES, get_ml_client,
-                                create_python_environment_v2, register_environment_v2, wait_for_job_completion)
-from health_azure.datasets import (DatasetConfig, StrOrDatasetConfig, setup_local_datasets,
-                                   _input_dataset_key, _output_dataset_key, _replace_string_datasets,
-                                   _get_or_create_v2_data_asset)
-
+from health_azure.utils import (
+    DEFAULT_ENVIRONMENT_VARIABLES, ENV_EXPERIMENT_NAME, RUN_CONTEXT, PathOrString, create_python_environment,
+    create_python_environment_v2, create_run_recovery_id, create_v2_job_command_line_args_from_params,
+    find_file_in_parent_to_pythonpath, get_ml_client, get_workspace, is_run_and_child_runs_completed,
+    is_running_in_azure_ml, register_environment, register_environment_v2, run_duration_string_to_seconds,
+    to_azure_friendly_string, wait_for_job_completion
+)
 
 logger = logging.getLogger('health_azure')
 logger.setLevel(logging.DEBUG)
@@ -393,7 +394,8 @@ def effective_experiment_name(experiment_name: Optional[str],
                               entry_script: Optional[PathOrString] = None) -> str:
     """Choose the experiment name to use for the run. If provided in the environment variable HIML_EXPERIMENT_NAME,
     then use that. Otherwise, use the argument `experiment_name`, or fall back to the default based on the
-    entry point script.
+    entry point script. If script in the form "foo/bar/baz.py", then the experiment name will be "baz". If the script is
+    of the form "-m foo.bar.baz", then the experiment name will be "foo_bar_baz".
 
     :param experiment_name: The name of the AzureML experiment in which the run should be submitted.
     :param entry_script: The script that should be run in AzureML.
@@ -405,7 +407,10 @@ def effective_experiment_name(experiment_name: Optional[str],
     elif experiment_name:
         raw_value = experiment_name
     elif entry_script is not None:
-        raw_value = Path(entry_script).stem
+        if str(entry_script)[:3] == "-m ":
+            raw_value = str(entry_script)[3:]
+        else:
+            raw_value = Path(entry_script).stem
     else:
         raise ValueError("No experiment name provided, and no entry script provided. ")
     cleaned_value = to_azure_friendly_string(raw_value)
@@ -414,8 +419,8 @@ def effective_experiment_name(experiment_name: Optional[str],
 
 
 def submit_run_v2(workspace: Optional[Workspace],
-                  experiment_name: str,
                   environment: EnvironmentV2,
+                  experiment_name: Optional[str] = None,
                   input_datasets_v2: Optional[Dict[str, Input]] = None,
                   output_datasets_v2: Optional[Dict[str, Output]] = None,
                   snapshot_root_directory: Optional[Path] = None,
@@ -437,9 +442,9 @@ def submit_run_v2(workspace: Optional[Workspace],
     Starts a v2 AML Job on a given workspace by submitting a command
 
     :param workspace: The AzureML workspace to use.
+    :param environment: An AML v2 Environment object.
     :param experiment_name: The name of the experiment that will be used or created. If the experiment name contains
         characters that are not valid in Azure, those will be removed.
-    :param environment: An AML v2 Environment object.
     :param input_datasets_v2: An optional dictionary of Inputs to pass in to the command.
     :param output_datasets_v2: An optional dictionary of Outputs to pass in to the command.
     :param snapshot_root_directory: The directory that contains all code that should be packaged and sent to AzureML.
@@ -481,10 +486,18 @@ def submit_run_v2(workspace: Optional[Workspace],
     assert entry_script is not None, "No entry_script has been provided"
     snapshot_root_directory = snapshot_root_directory or Path.cwd()
     root_dir = Path(snapshot_root_directory)
-    entry_script = Path(entry_script).relative_to(root_dir).as_posix()
+
+    if str(entry_script)[:2] != "-m":
+        entry_script = Path(entry_script).relative_to(root_dir).as_posix()
+
+    experiment_name = effective_experiment_name(experiment_name, entry_script)
 
     script_params = script_params or []
-    cmd = " ".join(["python", str(entry_script), *script_params])
+    script_param_str = create_v2_job_command_line_args_from_params(script_params)
+
+    cmd = " ".join(["python", str(entry_script), script_param_str])
+
+    print(f"The following command will be run in AzureML: {cmd}")
 
     job_to_submit: Union[Command, Sweep]
 
@@ -552,7 +565,7 @@ def submit_run_v2(workspace: Optional[Workspace],
         job_to_submit = create_command_job(cmd)
 
     returned_job = ml_client.jobs.create_or_update(job_to_submit)
-    logging.info(f"URL to job: {returned_job.services['Studio'].endpoint}")  # type: ignore
+    print(f"URL to job: {returned_job.services['Studio'].endpoint}")  # type: ignore
     if wait_for_completion:
         print("Waiting for the completion of the AzureML job.")
         wait_for_job_completion(ml_client, job_name=returned_job.name)
@@ -955,7 +968,7 @@ def submit_to_azure_if_needed(  # type: ignore
             job = submit_run_v2(workspace=workspace,
                                 input_datasets_v2=input_datasets_v2,
                                 output_datasets_v2=output_datasets_v2,
-                                experiment_name=effective_experiment_name(experiment_name, entry_script),
+                                experiment_name=experiment_name,
                                 environment=registered_env,
                                 snapshot_root_directory=snapshot_root_directory,
                                 entry_script=entry_script,

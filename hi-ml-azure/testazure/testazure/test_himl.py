@@ -743,8 +743,6 @@ def test_submit_run_v2(tmp_path: Path) -> None:
         assert kwargs.get("goal") == "Minimize"
         return mock_command
 
-    dummy_experiment_name = "my_experiment"
-
     dummy_environment_name = "my_environment"
     dummy_environment = MagicMock()
     dummy_environment.name = dummy_environment_name
@@ -771,6 +769,8 @@ def test_submit_run_v2(tmp_path: Path) -> None:
 
     dummy_root_directory = tmp_path
     dummy_entry_script = dummy_root_directory / "my_entry_script"
+    dummy_experiment_name = "my_experiment"
+    dummy_experiment_name = himl.effective_experiment_name(dummy_experiment_name, dummy_entry_script)
     dummy_entry_script.touch()
 
     dummy_script_params = ["--arg1=val1", "--arg2=val2", "--conda_env=some_path"]
@@ -885,6 +885,43 @@ def test_submit_run_v2(tmp_path: Path) -> None:
             mock_command.assert_any_call(**param_sampling)
             mock_command.sweep.assert_called_once()
             assert mock_command.experiment_name == dummy_experiment_name
+
+            dummy_entry_script_for_module = "-m Foo.bar run"
+            expected_command = f"python {dummy_entry_script_for_module} {expected_arg_str}"
+
+            himl.submit_run_v2(
+                workspace=None,
+                experiment_name=dummy_experiment_name,
+                environment=dummy_environment,
+                input_datasets_v2=dummy_inputs,
+                output_datasets_v2=dummy_outputs,
+                snapshot_root_directory=dummy_root_directory,
+                entry_script=dummy_entry_script_for_module,
+                script_params=dummy_script_params,
+                compute_target=dummy_compute_target,
+                tags=dummy_tags,
+                docker_shm_size=dummy_docker_shm_size,
+                workspace_config_path=None,
+                ml_client=mock_ml_client,
+                hyperparam_args=None,
+                display_name=dummy_display_name,
+            )
+
+            mock_command.assert_any_call(
+                code=str(dummy_root_directory),
+                command=expected_command,
+                inputs=dummy_inputs,
+                outputs=dummy_outputs,
+                environment=dummy_environment_name + "@latest",
+                compute=dummy_compute_target,
+                experiment_name=dummy_experiment_name,
+                tags=dummy_tags,
+                shm_size=dummy_docker_shm_size,
+                display_name=dummy_display_name,
+                distribution=MpiDistribution(process_count_per_instance=1),
+                instance_count=1,
+                identity=None,
+            )
 
 
 @pytest.mark.fast
