@@ -14,6 +14,7 @@ from torchvision.transforms import Compose
 from health_multimodal.image.data.io import load_image
 from health_multimodal.image.data.transforms import infer_resize_params
 from health_multimodal.image.model.model import BaseImageModel
+from health_multimodal.image.model.model import ImageModelInput
 
 TypeShape2D = Tuple[int, int]
 
@@ -78,7 +79,7 @@ class ImageInferenceEngine:
                  where joint_feature_dim is the dimensionality of the joint latent space.
         """
         input_image, _ = self.load_and_transform_input_image(image_path, self.transform)
-        projected_img_emb = self.model.forward(input_image).projected_global_embedding
+        projected_img_emb = self.model.forward(ImageModelInput(image=input_image)).projected_global_embedding
         projected_img_emb = F.normalize(projected_img_emb, dim=-1)
 
         assert projected_img_emb.shape[0] == 1
