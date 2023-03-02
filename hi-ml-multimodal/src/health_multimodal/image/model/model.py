@@ -84,11 +84,6 @@ class ImageModelInput():
 
 class BaseImageModel(nn.Module, ABC):
     """ An abstract class defining methods required by the ImageInferenceEngine """
-
-    def __init__(self, **kwargs: Any):
-        super().__init__()
-        assert hasattr(self, "training")
-
     @abstractmethod
     def forward(self, image_input: ImageModelInput) -> ImageModelOutput:
         raise NotImplementedError
