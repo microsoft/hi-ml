@@ -118,7 +118,9 @@ def test_load_mask_sub_roid_roi_label(roi_label: Optional[int]) -> None:
         assert section_label == roi_label
 
 
-def test_load_mask_sub_roid(mock_panda_slides_root_dir: Path, tmp_path) -> None:
+@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
+@pytest.mark.gpu
+def test_load_mask_sub_roid(mock_panda_slides_root_dir: Path, tmp_path: Path) -> None:
     sample = PandaDataset(mock_panda_slides_root_dir)[0]
     loading_params = LoadingParams(roi_type=ROIType.MASKSUBROI, level=0, roi_label=1)
     load_transform = loading_params.get_load_roid_transform()
