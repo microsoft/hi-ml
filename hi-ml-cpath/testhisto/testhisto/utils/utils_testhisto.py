@@ -7,10 +7,12 @@ import os
 import time
 from pathlib import Path
 from typing import Any, Callable, Collection, Mapping, Sequence
-
 import numpy as np
+from pytest import MarkDecorator
+import pytest
 import torch
 import torch.distributed
+from torch import cuda
 from PIL import Image
 
 
@@ -135,3 +137,12 @@ def wait_until_file_exists(filename: Path, timeout_sec: float = 10.0, sleep_sec:
         time.sleep(sleep_sec)
         if time.time() - current_time > timeout_sec:
             raise TimeoutError(f"File {filename} still does not exist after waiting for {timeout_sec} seconds")
+
+
+def skipif_no_gpu() -> MarkDecorator:
+    """Convenience for pytest.mark.skipif() in case no GPU is available.
+
+    :return: A Pytest skipif mark decorator.
+    """
+    has_gpu = cuda.is_available() and cuda.device_count() > 0
+    return pytest.mark.skipif(not has_gpu, reason="No GPU available")
