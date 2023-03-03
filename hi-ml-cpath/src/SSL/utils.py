@@ -55,6 +55,9 @@ def create_ssl_encoder(encoder_name: str, use_7x7_first_conv_in_resnet: bool = T
             raise ValueError("You set use_7x7_first_conv_in_resnet to False (non-default) but you requested a "
                              "DenseNet121 encoder.")
         encoder = DenseNet121Encoder()
+    elif encoder_name == 'swint':
+        from timm.models import swin_tiny_patch4_window7_224
+        encoder = swin_tiny_patch4_window7_224(pretrained=False, num_classes=0)
     else:
         raise ValueError("Unknown model type")
     return encoder

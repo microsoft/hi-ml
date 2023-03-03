@@ -40,6 +40,7 @@ class EncoderName(Enum):
     resnet50 = "resnet50"
     resnet101 = "resnet101"
     densenet121 = "densenet121"
+    swint = "swint"
 
 
 class SSLDatasetName:

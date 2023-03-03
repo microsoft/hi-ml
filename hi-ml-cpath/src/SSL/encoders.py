@@ -85,7 +85,7 @@ def get_encoder_output_dim(
         batch = next(iterator)
         x, _ = SslOnlineEvaluatorHiml.to_device(batch, device)
     else:
-        x = torch.rand((1, 3, 256, 256)).to(device)
+        x = torch.rand((1, 3, 224, 224)).to(device)
 
     # Extract the number of output feature dimensions
     with torch.no_grad():
