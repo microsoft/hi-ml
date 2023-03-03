@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+from abc import abstractmethod
+from abc import ABC
 import enum
 import tempfile
 from pathlib import Path
@@ -75,7 +77,23 @@ class ImageModelOutput():
     projected_patch_embeddings: torch.Tensor
 
 
-class ImageModel(nn.Module):
+@dataclass
+class ImageModelInput():
+    image: torch.Tensor
+
+
+class BaseImageModel(nn.Module, ABC):
+    """Abstract class for image models."""
+    @abstractmethod
+    def forward(self, image_input: ImageModelInput) -> ImageModelOutput:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_patchwise_projected_embeddings(self, input_img: torch.Tensor, normalize: bool) -> torch.Tensor:
+        raise NotImplementedError
+
+
+class ImageModel(BaseImageModel):
     """Image encoder module"""
 
     def __init__(self,
@@ -112,7 +130,8 @@ class ImageModel(nn.Module):
             self.projector.train(mode=False)
         return self
 
-    def forward(self, x: torch.Tensor) -> ImageModelOutput:
+    def forward(self, image_input: ImageModelInput) -> ImageModelOutput:
+        x = image_input.image
         with torch.set_grad_enabled(not self.freeze_encoder):
             patch_x, pooled_x = self.encoder(x, return_patch_embeddings=True)
             projected_patch_embeddings = self.projector(patch_x)
@@ -139,7 +158,7 @@ class ImageModel(nn.Module):
         :returns projected_embeddings: tensor of embeddings in shape [batch, n_patches_h, n_patches_w, feature_size].
         """
         assert not self.training, "This function is only implemented for evaluation mode"
-        outputs = self.forward(input_img)
+        outputs = self.forward(ImageModelInput(image=input_img))
         projected_embeddings = outputs.projected_patch_embeddings.detach()  # type: ignore
         if normalize:
             projected_embeddings = F.normalize(projected_embeddings, dim=1)

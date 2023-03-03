@@ -10,6 +10,7 @@ import torch
 
 from health_multimodal.image.model.model import ImageModel
 from health_multimodal.image.model.model import ImageEncoder
+from health_multimodal.image.model.model import ImageModelInput
 from health_multimodal.image.model.model import ImageModelOutput
 from health_multimodal.image.model.model import get_biovil_resnet
 from health_multimodal.image.model.model import restore_training_mode
@@ -84,7 +85,7 @@ def test_image_get_patchwise_projected_embeddings() -> None:
 
     # First check the model output is in the expected shape,
     # since this is used internally by get_patchwise_projected_embeddings
-    model_output = model.forward(image)
+    model_output = model.forward(ImageModelInput(image=image))
     assert model_output.projected_patch_embeddings.shape == (batch_size, joint_feature_size, h, w)
     assert model_output.projected_global_embedding.shape == (batch_size, joint_feature_size)
     projected_global_embedding = model_output.projected_global_embedding
@@ -149,7 +150,7 @@ def test_hubconf() -> None:
     model_himl = get_biovil_resnet()
 
     output_hub: ImageModelOutput = model_hub(image)
-    output_himl: ImageModelOutput = model_himl(image)
+    output_himl: ImageModelOutput = model_himl(ImageModelInput(image))
 
     for field_himl in fields(output_himl):
         value_hub = getattr(output_hub, field_himl.name)

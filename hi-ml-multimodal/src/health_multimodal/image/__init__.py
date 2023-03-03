@@ -34,6 +34,7 @@
    resnet
 """
 
+from .model import BaseImageModel
 from .model import ImageModel
 from .model import ResnetType
 from .model import get_biovil_resnet
@@ -42,6 +43,7 @@ from .utils import get_biovil_resnet_inference
 
 
 __all__ = [
+    "BaseImageModel",
     "ImageModel",
     "ResnetType",
     "ImageInferenceEngine",
