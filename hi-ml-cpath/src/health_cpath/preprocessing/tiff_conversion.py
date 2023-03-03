@@ -12,7 +12,7 @@ from monai.data.wsi_reader import WSIReader
 from monai.transforms import MapTransform
 from openslide import OpenSlide
 from pathlib import Path
-from tifffile.tifffile import TiffWriter, PHOTOMETRIC, COMPRESSION
+from tifffile.tifffile import TiffWriter, PHOTOMETRIC, COMPRESSION, RESUNIT
 from typing import Any, Dict, List, Optional, Tuple
 
 
@@ -31,7 +31,7 @@ class ConvertWSIToTiffd(MapTransform):
     """
     OBJECTIVE_POWER_KEY = "openslide.objective-power"
     RESOLUTION_UNIT_KEY = "tiff.ResolutionUnit"
-    RESOLUTION_UNIT = "centimeter"
+    RESOLUTION_UNIT = RESUNIT.CENTIMETER
     SOFTWARE = "tifffile"
 
     def __init__(
