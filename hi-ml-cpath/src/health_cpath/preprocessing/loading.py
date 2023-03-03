@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from git import Sequence
 import param
 import numpy as np
 import skimage.filters
@@ -10,8 +11,9 @@ from enum import Enum
 from health_ml.utils import box_utils
 from health_cpath.utils.naming import SlideKey
 from monai.data.wsi_reader import WSIReader
-from monai.transforms import MapTransform, LoadImaged
-from typing import Any, Callable, Dict, Optional, Tuple
+from monai.transforms import MapTransform, LoadImaged, RandomizableTransform
+from PIL import Image
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 from health_azure.logging import print_message_with_rank_pid
 
 
@@ -41,23 +43,30 @@ def segment_foreground(slide: np.ndarray, threshold: Optional[float] = None) -> 
 
 class ROIType(str, Enum):
     """Options for the ROI selection. Either a bounding box defined by foreground or a mask can be used."""
-    FOREGROUND = 'foreground'
-    MASK = 'segmentation_mask'
-    WHOLE = 'whole_slide'
+
+    FOREGROUND = "foreground"
+    MASK = "segmentation_mask"
+    WHOLE = "whole_slide"
+    MASKSUBROI = "sub_section"
 
 
 class WSIBackend(str, Enum):
     """Options for the WSI reader backend."""
-    OPENSLIDE = 'OpenSlide'
-    CUCIM = 'cuCIM'
+
+    OPENSLIDE = "OpenSlide"
+    CUCIM = "cuCIM"
 
 
 class BaseLoadROId:
     """Abstract base class for loading a region of interest (ROI) from a slide. The ROI is defined by a bounding box."""
 
     def __init__(
-        self, backend: str = WSIBackend.CUCIM, image_key: str = SlideKey.IMAGE, level: int = 1, margin: int = 0,
-        backend_args: Dict = {}
+        self,
+        backend: str = WSIBackend.CUCIM,
+        image_key: str = SlideKey.IMAGE,
+        level: int = 1,
+        margin: int = 0,
+        backend_args: Dict = {},
     ) -> None:
         """
         :param backend: The WSI reader backend to use. One of 'OpenSlide' or 'cuCIM'. Default: 'cuCIM'.
@@ -81,7 +90,7 @@ class BaseLoadROId:
         h, w = self.reader.get_size(slide_obj, level=level)
         return box_utils.Box(0, 0, w, h)
 
-    def _get_bounding_box(self, slide_obj: Any, slide_id: int) -> box_utils.Box:
+    def _get_bounding_box(self, slide_obj: Any, slide_id: Union[str, int]) -> box_utils.Box:
         """Estimate bounding box at the lowest resolution (i.e. highest level) of the slide."""
         highest_level = self.reader.get_level_count(slide_obj) - 1
         scale = self.reader.get_downsample_ratio(slide_obj, highest_level)
@@ -138,8 +147,9 @@ class LoadROId(MapTransform, BaseLoadROId):
             scale = self.reader.get_downsample_ratio(image_obj, self.level)
             scaled_bbox = level0_bbox / scale
 
-            data[self.image_key], _ = self.reader.get_data(image_obj, location=origin, level=self.level,
-                                                           size=(scaled_bbox.h, scaled_bbox.w))
+            data[self.image_key], _ = self.reader.get_data(
+                image_obj, location=origin, level=self.level, size=(scaled_bbox.h, scaled_bbox.w)
+            )
             data[SlideKey.ORIGIN] = origin
             data[SlideKey.SCALE] = scale
             data[SlideKey.FOREGROUND_THRESHOLD] = self.foreground_threshold
@@ -151,8 +161,8 @@ class LoadROId(MapTransform, BaseLoadROId):
 class LoadMaskROId(MapTransform, BaseLoadROId):
     """Transform that loads a pathology slide and mask, cropped to the mask bounding box (ROI) defined by the mask.
 
-    Operates on dictionaries, replacing the file paths in `image_key` and `mask_key` with the
-    respective loaded arrays, in (C, H, W) format. Also adds the following meta-data entries:
+    Operates on dictionaries, replacing the file paths in `image_key` loaded array, in (C, H, W) format. Also adds the
+    following meta-data entries:
     - `'location'` (tuple): top-right coordinates of the bounding box
     - `'size'` (tuple): width and height of the bounding box
     - `'level'` (int): chosen magnification level
@@ -192,8 +202,6 @@ class LoadMaskROId(MapTransform, BaseLoadROId):
                 size=(scaled_bbox.h, scaled_bbox.w),
                 level=self.level,
             )
-            mask, _ = self.reader.get_data(mask_obj, **get_data_kwargs)  # type: ignore
-            data[self.mask_key] = mask[:1]  # PANDA segmentation mask is in 'R' channel
             data[self.image_key], _ = self.reader.get_data(image_obj, **get_data_kwargs)  # type: ignore
             data.update(get_data_kwargs)
             data[SlideKey.SCALE] = scale
@@ -204,38 +212,127 @@ class LoadMaskROId(MapTransform, BaseLoadROId):
         return data
 
 
+class LoadMaskSubROId(MapTransform, RandomizableTransform, BaseLoadROId):
+    """Transform that loads a pathology slide cropped to a sub-region of the mask bounding box (ROI).
+    The masks are supposed to be in png format, with the background in black (0) and tissue sections in categorical
+    values (e.g., 128, 255) along the RGB channels. The sub ROI is sampled from the foreground by randomly selecting a
+    label from unique values in the mask if roi_label is None. Otherwise the sub ROI is sampled from the foreground of
+    the specified label.
+
+    Operates on dictionaries, replacing the file paths in `image_key` loaded array, in (C, H, W) format. Also adds the
+    following meta-data entries:
+    - `'location'` (tuple): top-right coordinates of the bounding box
+    - `'size'` (tuple): width and height of the bounding box
+    - `'level'` (int): chosen magnification level
+    - `'scale'` (float): corresponding scale, loaded from the file
+    """
+
+    def __init__(
+        self,
+        image_key: str = SlideKey.IMAGE,
+        mask_key: str = SlideKey.MASK,
+        wsi_mag_at_level0: float = 10.0,
+        wsi_mag_at_level: float = 10.0,
+        mask_mag: float = 1.25,
+        roi_label: Optional[Sequence[int]] = None,
+        **kwargs: Any,
+    ) -> None:
+        """
+        :param image_key: Image key in the input and output dictionaries. Default: 'image'.
+        :param mask_key: Mask key in the input and output dictionaries. Default: 'mask'.
+        :param wsi_mag_at_level0: WSI magnification at level 0. Default: 10x.
+        :param wsi_mag_at_level: WSI magnification at the chosen level. Default: 10x.
+        :param mask_mag: Mask magnification. Default: 1.25x.
+        :param roi_label: The label corresponding to the foreground tissue to sub sectionned. If None (default), a
+            random label is sampled from the foreground tissue uniformly.
+        :param kwargs: Additional arguments for `BaseLoadROId`.
+        """
+        MapTransform.__init__(self, [image_key, mask_key], allow_missing_keys=False)
+        BaseLoadROId.__init__(self, image_key=image_key, **kwargs)
+        self.mask_key = mask_key
+        self.scale_level0 = wsi_mag_at_level0 / mask_mag
+        self.scale_level = wsi_mag_at_level / (mask_mag * self.scale_level0)
+        self.roi_label = roi_label
+
+    def _get_sub_section_label(self, mask: np.ndarray) -> int:
+        """Return the label of the sub section to crop. If roi_label is None, a random label is sampled from the
+        foreground tissue uniformly. Otherwise the sub ROI is sampled from the foreground of the specified label."""
+        return self.roi_label or self.R.choice(np.unique(mask).tolist())
+
+    def _get_foreground_mask(self, mask_path: str, level: int = 0) -> np.ndarray:
+        """Return a binary foreground mask using the specified label or a random label if roi_label is None."""
+        mask = np.asarray(Image.open(mask_path))[..., 0]
+        section = self._get_sub_section_label(mask)
+        foreground_mask = mask == section
+        return foreground_mask
+
+    def _get_bounding_box(self, foreground_mask: np.ndarray, slide_id: Union[str, int] = "") -> box_utils.Box:
+        """Estimate bounding box at the lowest resolution (i.e. highest level) of the slide."""
+        bbox = box_utils.get_bounding_box(foreground_mask)
+        return self.scale_level0 * bbox.add_margin(self.margin)
+
+    def __call__(self, data: Dict) -> Dict:
+        try:
+            foreground_mask = self._get_foreground_mask(data[self.mask_key])
+            image_obj = self.reader.read(data[self.image_key])
+            level0_bbox = self._get_bounding_box(foreground_mask)
+
+            # cuCIM/OpenSlide take absolute location coordinates in the level 0 reference frame,
+            # but relative region size in pixels at the chosen level
+            scaled_bbox = level0_bbox / self.scale_level
+            origin = (level0_bbox.y, level0_bbox.x)
+            get_data_kwargs = dict(
+                location=origin,
+                size=(scaled_bbox.h, scaled_bbox.w),
+                level=self.level,
+            )
+            data[self.image_key], _ = self.reader.get_data(image_obj, **get_data_kwargs)  # type: ignore
+            data.update(get_data_kwargs)
+            data[SlideKey.SCALE] = self.scale_level
+            data[SlideKey.ORIGIN] = origin
+        finally:
+            image_obj.close()
+        return data
+
+
 class LoadingParams(param.Parameterized):
     """Parameters for loading a whole slide image."""
 
-    level: int = param.Integer(
-        default=1,
-        doc="Magnification level to load from the raw multi-scale files. Default: 1.")
+    level: int = param.Integer(default=1, doc="Magnification level to load from the raw multi-scale files. Default: 1.")
     margin: int = param.Integer(
-        default=0, doc="Amount in pixels by which to enlarge the estimated bounding box for cropping")
+        default=0, doc="Amount in pixels by which to enlarge the estimated bounding box for cropping"
+    )
     backend: WSIBackend = param.ClassSelector(
-        default=WSIBackend.CUCIM,
-        class_=WSIBackend,
-        doc="WSI reader backend. Default: cuCIM.")
+        default=WSIBackend.CUCIM, class_=WSIBackend, doc="WSI reader backend. Default: cuCIM."
+    )
     roi_type: ROIType = param.ClassSelector(
         default=ROIType.WHOLE,
         class_=ROIType,
-        doc="ROI type to use for cropping the slide. Default: `ROIType.WHOLE`. no cropping is performed.")
-    image_key: str = param.String(
-        default=SlideKey.IMAGE,
-        doc="Key for the image in the data dictionary.")
+        doc="ROI type to use for cropping the slide. Default: `ROIType.WHOLE`. no cropping is performed.",
+    )
+    image_key: str = param.String(default=SlideKey.IMAGE, doc="Key for the image in the data dictionary.")
     mask_key: str = param.String(
-        default=SlideKey.MASK,
-        doc="Key for the mask in the data dictionary. This only applies to `LoadMaskROId`.")
+        default=SlideKey.MASK, doc="Key for the mask in the data dictionary. This only applies to `LoadMaskROId`."
+    )
     foreground_threshold: Optional[float] = param.Number(
         default=None,
-        bounds=(0, 255.),
+        bounds=(0, 255.0),
         allow_None=True,
         doc="Threshold for foreground mask. If None, the threshold is selected automatically with otsu thresholding."
-        "This only applies to `LoadROId`.")
+        "This only applies to `LoadROId`.",
+    )
+    wsi_mag_at_level0: float = param.Number(default=10.0, doc="WSI magnification at level 0. Default: 10x.")
+    wsi_mag_at_level: float = param.Number(default=10.0, doc="WSI magnification at the chosen level. Default: 10x.")
+    mask_mag: float = param.Number(default=1.25, doc="Mask magnification. Default: 1.25x.")
+    roi_label: Optional[int] = param.Integer(
+        default=None,
+        doc="The label corresponding to the foreground tissue to sub sectionned. If None (default), a random label is"
+        "selected from the foreground tissue uniformly. This only applies to `LoadMaskSubROId`.",
+    )
 
     def set_roi_type_to_foreground(self) -> None:
         """Set the ROI type to foreground. This is useful for plotting even if we load whole slides during
-        training. This help us reduce the size of thrumbnails to only meaningful tissue. We only hardcode it to
+        training. This help us reduce the size of thumbnails to only meaningful tissue. We only hardcode it to
         foreground in the WHOLE case. Otherwise, keep it as is if a mask is available."""
         if self.roi_type == ROIType.WHOLE:
             self.roi_type = ROIType.FOREGROUND
@@ -244,16 +341,46 @@ class LoadingParams(param.Parameterized):
         """Returns a transform to load a slide and mask, cropped to the mask bounding box (ROI) defined by either the
         mask or the foreground."""
         if self.roi_type == ROIType.WHOLE:
-            return LoadImaged(keys=self.image_key, reader=WSIReader, image_only=True, level=self.level,  # type: ignore
-                              backend=self.backend, dtype=np.uint8, **self.get_additionl_backend_args())
+            return LoadImaged(
+                keys=self.image_key,
+                reader=WSIReader,
+                image_only=True,
+                level=self.level,  # type: ignore
+                backend=self.backend,
+                dtype=np.uint8,
+                **self.get_additionl_backend_args(),
+            )
         elif self.roi_type == ROIType.FOREGROUND:
-            return LoadROId(backend=self.backend, image_key=self.image_key, level=self.level,
-                            margin=self.margin, foreground_threshold=self.foreground_threshold,
-                            backend_args=self.get_additionl_backend_args())
+            return LoadROId(
+                backend=self.backend,
+                image_key=self.image_key,
+                level=self.level,
+                margin=self.margin,
+                foreground_threshold=self.foreground_threshold,
+                backend_args=self.get_additionl_backend_args(),
+            )
         elif self.roi_type == ROIType.MASK:
-            return LoadMaskROId(backend=self.backend, image_key=self.image_key,
-                                mask_key=self.mask_key, level=self.level, margin=self.margin,
-                                backend_args=self.get_additionl_backend_args())
+            return LoadMaskROId(
+                backend=self.backend,
+                image_key=self.image_key,
+                mask_key=self.mask_key,
+                level=self.level,
+                margin=self.margin,
+                backend_args=self.get_additionl_backend_args(),
+            )
+        elif self.roi_type == ROIType.MASKSUBROI:
+            return LoadMaskSubROId(
+                backend=self.backend,
+                image_key=self.image_key,
+                mask_key=self.mask_key,
+                level=self.level,
+                margin=self.margin,
+                wsi_mag_at_level=self.wsi_mag_at_level,
+                mask_mag=self.mask_mag,
+                wsi_mag_at_level0=self.wsi_mag_at_level0,
+                roi_label=self.roi_label,
+                backend_args=self.get_additionl_backend_args(),
+            )
         else:
             raise ValueError(f"Unknown ROI type: {self.roi_type}. Choose from {list(ROIType)}.")
 
