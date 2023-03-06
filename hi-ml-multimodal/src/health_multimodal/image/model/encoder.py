@@ -32,11 +32,16 @@ class ImageEncoder(nn.Module):
         self.encoder = self._create_encoder()
 
     def _create_encoder(self, **kwargs: Any) -> nn.Module:
-        supported = ImageEncoderType.get_members(multi_image_encoders_only=False)
-        if self.img_model_type not in supported:
+        if self.img_model_type in [ImageEncoderType.RESNET18, ImageEncoderType.RESNET18_MULTI_IMAGE]:
+            encoder_class = resnet18
+        elif self.img_model_type in [ImageEncoderType.RESNET50, ImageEncoderType.RESNET50_MULTI_IMAGE]:
+            encoder_class = resnet50
+        else:
+            supported = ImageEncoderType.get_members(multi_image_encoders_only=False)
             raise NotImplementedError(f"Image model type \"{self.img_model_type}\" must be in {supported}")
-        encoder_class = resnet18 if self.img_model_type == ImageEncoderType.RESNET18 else resnet50
+
         encoder = encoder_class(pretrained=True, **kwargs)
+
         return encoder
 
     def forward(self,
