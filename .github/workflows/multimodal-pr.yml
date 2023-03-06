@@ -107,7 +107,13 @@ jobs:
         run: |
           cd ${{ env.folder }}
           ipython kernel install --name "python3" --user
-          USER="microsoft"
+          if (github.event.pull_request) {
+            REPO=github.event.pull_request.head.repo.name
+          } else {
+            REPO="microsoft"
+          }
+          echo "REPO: $REPO"
+          exit 1
           REPO_URL="https://github.com/${USER}/hi-ml.git"
           SUBDIR_STR="subdirectory=${{ env.folder }}"
           PIP_SOURCE="git+${REPO_URL}@${BRANCH_NAME}#${SUBDIR_STR}"
