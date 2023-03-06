@@ -202,6 +202,8 @@ class LoadMaskROId(MapTransform, BaseLoadROId):
                 size=(scaled_bbox.h, scaled_bbox.w),
                 level=self.level,
             )
+            mask, _ = self.reader.get_data(mask_obj, **get_data_kwargs)  # type: ignore
+            data[self.mask_key] = mask[:1]  # PANDA segmentation mask is in 'R' channel
             data[self.image_key], _ = self.reader.get_data(image_obj, **get_data_kwargs)  # type: ignore
             data.update(get_data_kwargs)
             data[SlideKey.SCALE] = scale
@@ -232,7 +234,6 @@ class LoadMaskSubROId(MapTransform, RandomizableTransform, BaseLoadROId):
         image_key: str = SlideKey.IMAGE,
         mask_key: str = SlideKey.MASK,
         wsi_mag_at_level0: float = 10.0,
-        wsi_mag_at_level: float = 10.0,
         mask_mag: float = 1.25,
         roi_label: Optional[Sequence[int]] = None,
         **kwargs: Any,
@@ -241,7 +242,6 @@ class LoadMaskSubROId(MapTransform, RandomizableTransform, BaseLoadROId):
         :param image_key: Image key in the input and output dictionaries. Default: 'image'.
         :param mask_key: Mask key in the input and output dictionaries. Default: 'mask'.
         :param wsi_mag_at_level0: WSI magnification at level 0. Default: 10x.
-        :param wsi_mag_at_level: WSI magnification at the chosen level. Default: 10x.
         :param mask_mag: Mask magnification. Default: 1.25x.
         :param roi_label: The label corresponding to the foreground tissue to sub sectionned. If None (default), a
             random label is sampled from the foreground tissue uniformly.
@@ -251,7 +251,6 @@ class LoadMaskSubROId(MapTransform, RandomizableTransform, BaseLoadROId):
         BaseLoadROId.__init__(self, image_key=image_key, **kwargs)
         self.mask_key = mask_key
         self.scale_level0 = wsi_mag_at_level0 / mask_mag
-        self.scale_level = wsi_mag_at_level / (mask_mag * self.scale_level0)
         self.roi_label = roi_label
 
     def _get_sub_section_label(self, mask: np.ndarray) -> int:
@@ -279,7 +278,8 @@ class LoadMaskSubROId(MapTransform, RandomizableTransform, BaseLoadROId):
 
             # cuCIM/OpenSlide take absolute location coordinates in the level 0 reference frame,
             # but relative region size in pixels at the chosen level
-            scaled_bbox = level0_bbox / self.scale_level
+            scale = self.reader.get_downsample_ratio(image_obj, self.level)
+            scaled_bbox = level0_bbox / scale
             origin = (level0_bbox.y, level0_bbox.x)
             get_data_kwargs = dict(
                 location=origin,
@@ -288,7 +288,7 @@ class LoadMaskSubROId(MapTransform, RandomizableTransform, BaseLoadROId):
             )
             data[self.image_key], _ = self.reader.get_data(image_obj, **get_data_kwargs)  # type: ignore
             data.update(get_data_kwargs)
-            data[SlideKey.SCALE] = self.scale_level
+            data[SlideKey.SCALE] = scale
             data[SlideKey.ORIGIN] = origin
         finally:
             image_obj.close()
@@ -322,7 +322,6 @@ class LoadingParams(param.Parameterized):
         "This only applies to `LoadROId`.",
     )
     wsi_mag_at_level0: float = param.Number(default=10.0, doc="WSI magnification at level 0. Default: 10x.")
-    wsi_mag_at_level: float = param.Number(default=10.0, doc="WSI magnification at the chosen level. Default: 10x.")
     mask_mag: float = param.Number(default=1.25, doc="Mask magnification. Default: 1.25x.")
     roi_label: Optional[int] = param.Integer(
         default=None,
@@ -375,7 +374,6 @@ class LoadingParams(param.Parameterized):
                 mask_key=self.mask_key,
                 level=self.level,
                 margin=self.margin,
-                wsi_mag_at_level=self.wsi_mag_at_level,
                 mask_mag=self.mask_mag,
                 wsi_mag_at_level0=self.wsi_mag_at_level0,
                 roi_label=self.roi_label,
