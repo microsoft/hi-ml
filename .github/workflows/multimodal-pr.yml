@@ -107,7 +107,8 @@ jobs:
         run: |
           cd ${{ env.folder }}
           ipython kernel install --name "python3" --user
-          REPO_URL="https://github.com/microsoft/hi-ml.git"
+          USER="microsoft"
+          REPO_URL="https://github.com/${USER}/hi-ml.git"
           SUBDIR_STR="subdirectory=${{ env.folder }}"
           PIP_SOURCE="git+${REPO_URL}@${BRANCH_NAME}#${SUBDIR_STR}"
           IN_NB_PATH="notebooks/phrase_grounding.ipynb"
