@@ -107,11 +107,11 @@ jobs:
         run: |
           cd ${{ env.folder }}
           ipython kernel install --name "python3" --user
-          if (github.event.pull_request) {
+           if [ -n "${github.event.pull_request}" ]; then
             REPO=github.event.pull_request.head.repo.name
-          } else {
-            REPO="microsoft"
-          }
+          else
+            REPO="testing"
+          fi
           echo "REPO: $REPO"
           exit 1
           REPO_URL="https://github.com/${USER}/hi-ml.git"
