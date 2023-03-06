@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import enum
 from contextlib import contextmanager
 from typing import Any, Generator, Optional, Sequence, Tuple, Union
 
@@ -16,15 +15,9 @@ from timm.models.layers import trunc_normal_
 
 from .resnet import resnet18, resnet50
 from .transformer import VisionTransformerPooler
-from .types import ImageModelInput
+from .types import ImageEncoderType, ImageModelInput
 
 TypeImageEncoder = Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
-
-
-@enum.unique
-class ResnetType(str, enum.Enum):
-    RESNET18 = "resnet18"
-    RESNET50 = "resnet50"
 
 
 class ImageEncoder(nn.Module):
@@ -39,10 +32,10 @@ class ImageEncoder(nn.Module):
         self.encoder = self._create_encoder()
 
     def _create_encoder(self, **kwargs: Any) -> nn.Module:
-        supported = ResnetType.RESNET18, ResnetType.RESNET50
+        supported = ImageEncoderType.get_members(multi_image_encoders_only=False)
         if self.img_model_type not in supported:
             raise NotImplementedError(f"Image model type \"{self.img_model_type}\" must be in {supported}")
-        encoder_class = resnet18 if self.img_model_type == ResnetType.RESNET18 else resnet50
+        encoder_class = resnet18 if self.img_model_type == ImageEncoderType.RESNET18 else resnet50
         encoder = encoder_class(pretrained=True, **kwargs)
         return encoder
 
