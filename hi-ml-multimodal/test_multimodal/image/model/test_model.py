@@ -7,7 +7,7 @@ from dataclasses import fields
 
 import pytest
 import torch
-from health_multimodal.image.model.model import ImageModel, get_biovil_resnet
+from health_multimodal.image.model.model import ImageModel, get_biovil_resnet, MultiImageModel
 from health_multimodal.image.model.modules import MultiTaskModel
 from health_multimodal.image.model.types import ImageModelOutput
 
@@ -119,3 +119,21 @@ def test_hubconf() -> None:
         if value_hub is None and value_himl is None:  # for example, class_logits
             continue
         assert torch.allclose(value_hub, value_himl)
+
+
+def test_multi_image_model() -> None:
+    with pytest.raises(AssertionError) as ex:
+        MultiImageModel(img_model_type="resnet18", joint_feature_size=4)
+    assert "MultiImageModel only supports MultiImageEncoder" in str(ex)
+
+    model = MultiImageModel(img_model_type="resnet18_multi_image", joint_feature_size=4)
+    assert model.encoder.training
+    assert model.projector.training
+
+    # run inference with a dummy input and check the output
+    batch_size = 2
+    image = torch.rand(size=(batch_size, 3, 448, 448))
+    previous_image = torch.rand(size=(batch_size, 3, 448, 448))
+    model_output = model.forward(image, previous_image)
+    assert model_output.projected_patch_embeddings.shape == (batch_size, 4, 14, 14)
+    assert model_output.projected_global_embedding.shape == (batch_size, 4)
