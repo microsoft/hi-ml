@@ -77,15 +77,10 @@ class ImageModelOutput():
     projected_patch_embeddings: torch.Tensor
 
 
-@dataclass
-class ImageModelInput():
-    image: torch.Tensor
-
-
 class BaseImageModel(nn.Module, ABC):
     """Abstract class for image models."""
     @abstractmethod
-    def forward(self, image_input: ImageModelInput) -> ImageModelOutput:
+    def forward(self, *args: Any, **kwargs: Any) -> ImageModelOutput:
         raise NotImplementedError
 
     @abstractmethod
@@ -130,8 +125,7 @@ class ImageModel(BaseImageModel):
             self.projector.train(mode=False)
         return self
 
-    def forward(self, image_input: ImageModelInput) -> ImageModelOutput:
-        x = image_input.image
+    def forward(self, x: torch.Tensor, *args: Any, **kwargs: Any) -> ImageModelOutput:
         with torch.set_grad_enabled(not self.freeze_encoder):
             patch_x, pooled_x = self.encoder(x, return_patch_embeddings=True)
             projected_patch_embeddings = self.projector(patch_x)
@@ -158,7 +152,7 @@ class ImageModel(BaseImageModel):
         :returns projected_embeddings: tensor of embeddings in shape [batch, n_patches_h, n_patches_w, feature_size].
         """
         assert not self.training, "This function is only implemented for evaluation mode"
-        outputs = self.forward(ImageModelInput(image=input_img))
+        outputs = self.forward(input_img)
         projected_embeddings = outputs.projected_patch_embeddings.detach()  # type: ignore
         if normalize:
             projected_embeddings = F.normalize(projected_embeddings, dim=1)
