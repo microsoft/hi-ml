@@ -95,7 +95,7 @@ class MultiImageEncoder(ImageEncoder):
         output_dim = 256  # The aggregate feature dim of the encoder is `2 * output_dim` i.e. [f_static, f_diff]
         grid_shape = (14, 14)  # Spatial dimensions of patch grid.
 
-        backbone_output_feature_dim = get_encoder_output_dim(super().forward, device=get_module_device(self))
+        backbone_output_feature_dim = get_encoder_output_dim(self.encoder, device=get_module_device(self))
 
         self.backbone_to_vit = nn.Conv2d(in_channels=backbone_output_feature_dim, out_channels=output_dim,
                                          kernel_size=1, stride=1, padding=0, bias=False)
@@ -117,12 +117,12 @@ class MultiImageEncoder(ImageEncoder):
 
         if previous_image is not None:
             assert current_image.shape == previous_image.shape
-            x = super().forward(torch.cat([current_image, previous_image], dim=0))
+            x = super().forward(torch.cat([current_image, previous_image], dim=0), return_patch_embeddings=True)[0]
             x = self.backbone_to_vit(x)
             patch_x, patch_x_previous = x[:batch_size], x[batch_size:]
             diff_x = self.vit_pooler(current_image=patch_x, previous_image=patch_x_previous)
         else:
-            x = super().forward(current_image)
+            x = super().forward(current_image, return_patch_embeddings=True)[0]
             patch_x = self.backbone_to_vit(x)
             B, _, W, H = patch_x.shape
             diff_x = self.missing_previous_emb.repeat(B, 1, W, H)
