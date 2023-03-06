@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from git import Sequence
 import param
 import numpy as np
 import skimage.filters
@@ -166,7 +165,7 @@ class LoadMaskROId(MapTransform, BaseLoadROId):
     - `'location'` (tuple): top-right coordinates of the bounding box
     - `'size'` (tuple): width and height of the bounding box
     - `'level'` (int): chosen magnification level
-    - `'scale'` (float): corresponding scale, loaded from the file
+    - `'scale'` (float): corresponding scaling factor to level 0 of the slide
     """
 
     def __init__(self, image_key: str = SlideKey.IMAGE, mask_key: str = SlideKey.MASK, **kwargs: Any) -> None:
@@ -215,18 +214,18 @@ class LoadMaskROId(MapTransform, BaseLoadROId):
 
 
 class LoadMaskSubROId(MapTransform, RandomizableTransform, BaseLoadROId):
-    """Transform that loads a pathology slide cropped to a sub-region of the mask bounding box (ROI).
-    The masks are supposed to be in png format, with the background in black (0) and tissue sections in categorical
-    values (e.g., 128, 255) along the RGB channels. The sub ROI is sampled from the foreground by randomly selecting a
-    label from unique values in the mask if roi_label is None. Otherwise the sub ROI is sampled from the foreground of
-    the specified label.
+    """Transform that loads a pathology slide cropped to a sub-region of the mask bounding box (ROI). The mask can be at
+    a different magnification level than the slide image to be specified by `mask_mag` argument. The mask is then scaled
+    up to the slide image resolution at level 0 to retrieve the bounding box of the sub-region. The sub ROI is sampled
+    from the foreground amsk by randomly selecting a label from unique values in the mask if `roi_label` is None.
+    Otherwise the sub ROI is bounded by the specified label `roi_label`.
 
     Operates on dictionaries, replacing the file paths in `image_key` loaded array, in (C, H, W) format. Also adds the
     following meta-data entries:
     - `'location'` (tuple): top-right coordinates of the bounding box
     - `'size'` (tuple): A tuple with (width, height) of the bounding box
-    - `'level'` (int): chosen magnification level
-    - `'scale'` (float): corresponding scale, loaded from the file
+    - `'level'` (int): chosen magnification level of the slide pyramid
+    - `'scale'` (float): corresponding scaling factor to level 0 of the slide
     """
 
     def __init__(
@@ -235,7 +234,8 @@ class LoadMaskSubROId(MapTransform, RandomizableTransform, BaseLoadROId):
         mask_key: str = SlideKey.MASK,
         wsi_mag_at_level0: float = 10.0,
         mask_mag: float = 1.25,
-        roi_label: Optional[Sequence[int]] = None,
+        mask_channel: int = 0,
+        roi_label: Optional[int] = None,
         **kwargs: Any,
     ) -> None:
         """
@@ -243,6 +243,9 @@ class LoadMaskSubROId(MapTransform, RandomizableTransform, BaseLoadROId):
         :param mask_key: Mask key in the input and output dictionaries. Default: 'mask'.
         :param wsi_mag_at_level0: WSI magnification at level 0. Default: 10x.
         :param mask_mag: Mask magnification. Default: 1.25x.
+        :param mask_channel: Mask channel to use. The masks are supposed to be in png format, with the background in
+            black (0) and tissue sections in categorical values (e.g., 128, 255) along the RGB channels. The foreground
+            labels are supposed to be consistent across channels, so only one channel is used. Default: 0.
         :param roi_label: The label corresponding to the foreground tissue to sub sectionned. If None (default), a
             random label is sampled from the foreground tissue uniformly.
         :param kwargs: Additional arguments for `BaseLoadROId`.
@@ -250,17 +253,18 @@ class LoadMaskSubROId(MapTransform, RandomizableTransform, BaseLoadROId):
         MapTransform.__init__(self, [image_key, mask_key], allow_missing_keys=False)
         BaseLoadROId.__init__(self, image_key=image_key, **kwargs)
         self.mask_key = mask_key
+        self.mask_channel = mask_channel
         self.scale_level0 = wsi_mag_at_level0 / mask_mag
         self.roi_label = roi_label
 
     def _get_sub_section_label(self, mask: np.ndarray) -> int:
         """Return the label of the sub section to crop. If roi_label is None, a random label is sampled from the
         foreground tissue uniformly. Otherwise the sub ROI is sampled from the foreground of the specified label."""
-        return self.roi_label or self.R.choice(np.unique(mask).tolist())
+        return self.roi_label or self.R.choice(np.unique(mask))
 
     def _get_foreground_mask(self, mask_path: str, level: int = 0) -> np.ndarray:
         """Return a binary foreground mask using the specified label or a random label if roi_label is None."""
-        mask = np.asarray(Image.open(mask_path))[..., 0]
+        mask = np.asarray(Image.open(mask_path))[..., self.mask_channel]
         section = self._get_sub_section_label(mask)
         foreground_mask = mask == section
         return foreground_mask
