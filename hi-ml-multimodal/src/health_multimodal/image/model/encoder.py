@@ -16,6 +16,7 @@ from timm.models.layers import trunc_normal_
 
 from .resnet import resnet18, resnet50
 from .transformer import VisionTransformerPooler
+from .types import ImageModelInput
 
 TypeImageEncoder = Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
 
@@ -45,13 +46,19 @@ class ImageEncoder(nn.Module):
         encoder = encoder_class(pretrained=True, **kwargs)
         return encoder
 
-    def forward(self, x: torch.Tensor, return_patch_embeddings: bool = False) -> TypeImageEncoder:
+    def forward(self,
+                encoder_input: Union[torch.Tensor, ImageModelInput],
+                return_patch_embeddings: bool = False) -> TypeImageEncoder:
         """Image encoder forward pass."""
 
-        x = self.encoder(x)
-        avg_pooled_emb = torch.flatten(torch.nn.functional.adaptive_avg_pool2d(x, (1, 1)), 1)
+        if isinstance(encoder_input, ImageModelInput):
+            assert encoder_input.previous_image is None, "ImageModelInput with previous_image is not supported."
+            current_image = encoder_input.current_image
+
+        patch_emb = self.encoder(current_image)
+        avg_pooled_emb = torch.flatten(torch.nn.functional.adaptive_avg_pool2d(patch_emb, (1, 1)), 1)
         if return_patch_embeddings:
-            return x, avg_pooled_emb
+            return patch_emb, avg_pooled_emb
 
         return avg_pooled_emb
 
@@ -101,19 +108,23 @@ class MultiImageEncoder(ImageEncoder):
         trunc_normal_(self.missing_previous_emb, std=.02)
 
     def forward(self,
-                x: torch.Tensor,
-                previous_image: torch.Tensor = None,
+                encoder_input: Union[torch.Tensor, ImageModelInput],
                 return_patch_embeddings: bool = False) -> TypeImageEncoder:
-        batch_size = x.shape[0]
+
+        assert isinstance(encoder_input, ImageModelInput), "MultiImageEncoder requires ImageModelInput as input"
+        current_image = encoder_input.current_image
+        previous_image = encoder_input.previous_image
+
+        batch_size = current_image.shape[0]
 
         if previous_image is not None:
-            assert x.shape == previous_image.shape
-            x = super().forward(torch.cat([x, previous_image], dim=0))
+            assert current_image.shape == previous_image.shape
+            x = super().forward(torch.cat([current_image, previous_image], dim=0))
             x = self.backbone_to_vit(x)
             patch_x, patch_x_previous = x[:batch_size], x[batch_size:]
             diff_x = self.vit_pooler(current_image=patch_x, previous_image=patch_x_previous)
         else:
-            x = super().forward(x)
+            x = super().forward(current_image)
             patch_x = self.backbone_to_vit(x)
             B, _, W, H = patch_x.shape
             diff_x = self.missing_previous_emb.repeat(B, 1, W, H)

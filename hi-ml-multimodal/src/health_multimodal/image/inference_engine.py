@@ -79,7 +79,7 @@ class ImageInferenceEngine:
                  where joint_feature_dim is the dimensionality of the joint latent space.
         """
         input_image, _ = self.load_and_transform_input_image(image_path, self.transform)
-        projected_img_emb = self.model.forward(ImageModelInput(image=input_image)).projected_global_embedding
+        projected_img_emb = self.model.forward(ImageModelInput(current_image=input_image)).projected_global_embedding
         projected_img_emb = F.normalize(projected_img_emb, dim=-1)
 
         assert projected_img_emb.shape[0] == 1

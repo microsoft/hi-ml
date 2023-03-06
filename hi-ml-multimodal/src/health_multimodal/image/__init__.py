@@ -34,6 +34,7 @@
    modules
    resnet
    transformer
+   types
 """
 
 from .model import BaseImageModel
