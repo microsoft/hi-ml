@@ -224,7 +224,7 @@ class LoadMaskSubROId(MapTransform, RandomizableTransform, BaseLoadROId):
     Operates on dictionaries, replacing the file paths in `image_key` loaded array, in (C, H, W) format. Also adds the
     following meta-data entries:
     - `'location'` (tuple): top-right coordinates of the bounding box
-    - `'size'` (tuple): width and height of the bounding box
+    - `'size'` (tuple): A tuple with (width, height) of the bounding box
     - `'level'` (int): chosen magnification level
     - `'scale'` (float): corresponding scale, loaded from the file
     """
