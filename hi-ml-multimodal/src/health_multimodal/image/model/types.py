@@ -17,6 +17,7 @@ class ImageModelInput():
     current_image: torch.Tensor
     previous_image: Optional[torch.Tensor] = None
 
+
 @dataclass
 class ImageModelOutput():
     img_embedding: torch.Tensor

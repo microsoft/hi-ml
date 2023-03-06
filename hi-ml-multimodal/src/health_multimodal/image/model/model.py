@@ -18,7 +18,7 @@ from torchvision.datasets.utils import download_url
 
 from .encoder import ImageEncoder, get_encoder_output_dim
 from .modules import MLP, MultiTaskModel
-from .types import ImageModelInput
+from .types import ImageModelInput, ImageModelOutput
 
 MODEL_TYPE = "resnet50"
 JOINT_FEATURE_SIZE = 128
