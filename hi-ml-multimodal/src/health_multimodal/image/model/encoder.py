@@ -101,7 +101,7 @@ class MultiImageEncoder(ImageEncoder):
         self.missing_previous_emb = nn.Parameter(torch.zeros(1, output_dim, 1, 1))
         trunc_normal_(self.missing_previous_emb, std=.02)
 
-    def forward(self,
+    def forward(self,  # type: ignore[override]
                 current_image: torch.Tensor,
                 previous_image: Optional[torch.Tensor] = None,
                 return_patch_embeddings: bool = False) -> TypeImageEncoder:
