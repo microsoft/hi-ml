@@ -51,9 +51,9 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         :param n_repeat_tile: Number of repeat times of a tile along both Y and X axes, defaults to 2.
         :param background_val: A value to assign to the background, defaults to 255.
         :param tiles_pos_type: The tiles positioning type to define how tiles should be positioned within the WSI grid,
-        defaults to TilesPositioningType.DIAGONAL.
+        defaults to `TilesPositioningType.DIAGONAL`.
         :param n_tiles_list: A list to use different n_tiles per slide for randomly positioned tiles.
-        :param resultion_unit: The resolution unit to use for writing the WSI, defaults to RESUNIT.CENTIMETER.
+        :param resultion_unit: The resolution unit to use for writing the WSI, defaults to `ResolutionUnit.CENTIMETER`.
         :param kwargs: Same params passed to MockHistoDataGenerator.
         """
         self.generated_files: List[str] = []
