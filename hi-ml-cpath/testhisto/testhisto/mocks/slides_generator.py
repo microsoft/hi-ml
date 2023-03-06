@@ -9,9 +9,10 @@ from typing import Any, Optional, Tuple, List, Union
 import numpy as np
 import pandas as pd
 import torch
-from tifffile.tifffile import TiffWriter, PHOTOMETRIC, COMPRESSION, RESUNIT
+from tifffile.tifffile import TiffWriter, PHOTOMETRIC, COMPRESSION
 from torch import Tensor
 from health_cpath.datasets.panda_dataset import PandaDataset
+from health_cpath.preprocessing.tiff_conversion import ResolutionUnit
 from testhisto.mocks.base_data_generator import MockHistoDataGenerator, MockHistoDataType, PANDA_N_CLASSES
 
 
@@ -41,7 +42,7 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         background_val: Union[int, float] = 255,
         tiles_pos_type: TilesPositioningType = TilesPositioningType.DIAGONAL,
         n_tiles_list: Optional[List[int]] = None,
-        resultion_unit: Optional[RESUNIT] = RESUNIT.CENTIMETER,
+        resultion_unit: Optional[ResolutionUnit] = ResolutionUnit.CENTIMETER,
         **kwargs: Any,
     ) -> None:
         """

@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  -------------------------------------------------------------------------------------------
+from enum import Enum
 import logging
 import math
 import numpy as np
@@ -12,13 +13,22 @@ from monai.data.wsi_reader import WSIReader
 from monai.transforms import MapTransform
 from openslide import OpenSlide
 from pathlib import Path
-from tifffile.tifffile import TiffWriter, PHOTOMETRIC, COMPRESSION, RESUNIT
+from tifffile.tifffile import TiffWriter, PHOTOMETRIC, COMPRESSION
 from typing import Any, Dict, List, Optional, Tuple
 
 
 AMPERSAND = "&"
 UNDERSCORE = "_"
 TIFF_EXTENSION = ".tiff"
+
+
+class ResolutionUnit(str, Enum):
+    """The unit of the resolution of the tiff file. This is used to calculate the resolution of the tiff file."""
+
+    INCH = "inch"
+    CENTIMETER = "centimeter"
+    MILLIMETER = "millimeter"
+    MICROMETER = "micrometer"
 
 
 class ConvertWSIToTiffd(MapTransform):
@@ -31,7 +41,7 @@ class ConvertWSIToTiffd(MapTransform):
     """
     OBJECTIVE_POWER_KEY = "openslide.objective-power"
     RESOLUTION_UNIT_KEY = "tiff.ResolutionUnit"
-    RESOLUTION_UNIT = RESUNIT.CENTIMETER
+    RESOLUTION_UNIT = ResolutionUnit.CENTIMETER
     SOFTWARE = "tifffile"
 
     def __init__(
