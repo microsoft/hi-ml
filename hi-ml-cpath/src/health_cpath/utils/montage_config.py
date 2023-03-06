@@ -16,10 +16,10 @@ class AzureRunConfig(param.Parameterized):
         param.String(default="", allow_None=False,
                      doc="The name of the GPU or CPU cluster inside the AzureML workspace"
                          "that should execute the job. To run on your local machine, omit this argument.")
-    datastore = \
+    datastore: str = \
         param.String(default="",
                      doc="The name of the AzureML datastore where the dataset is defined.")
-    dataset = \
+    dataset: str = \
         param.String(default="",
                      doc="The name of the AzureML dataset to use for creating the montage. The dataset will be "
                          "mounted automatically. Use an absolute path to a folder on the local machine to bypass "
@@ -31,6 +31,12 @@ class AzureRunConfig(param.Parameterized):
     wait_for_completion: bool = param.Boolean(default=False,
                                               doc="If True, wait for AML Run to complete before proceeding. "
                                                   "If False, submit the run to AML and exit")
+    docker_shm_size: str = param.String("100g",
+                                        doc="The shared memory in the Docker image for the AzureML VMs.")
+    workspace_config_path: Optional[Path] = \
+        param.ClassSelector(class_=Path, default=None, allow_None=True,
+                            doc="The path to the AzureML workspace configuration file. If not specified, the "
+                                "configuration file in the current folder or one of its parents will be used.")
 
 
 class MontageConfig(AzureRunConfig):

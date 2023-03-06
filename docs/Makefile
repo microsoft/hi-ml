@@ -17,7 +17,4 @@ help:
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
 %: Makefile
-	cp ../CHANGELOG.md source/
-	cp ../.github/CONTRIBUTING.md source/
-	cp ../hi-ml-multimodal/README.md source/multimodal.md
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
