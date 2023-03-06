@@ -21,15 +21,21 @@ TypeImageEncoder = Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
 
 
 class ImageEncoder(nn.Module):
-    """Image encoder trunk module for the ``ImageModel`` class.
-
-    :param img_model_type: Type of image model to use: either ``"resnet18"`` or ``"resnet50"``.
-    """
-
     def __init__(self, img_model_type: str):
         super().__init__()
         self.img_model_type = img_model_type
         self.encoder = self._create_encoder()
+
+    def forward(self, *args, return_patch_embeddings: bool = False) -> TypeImageEncoder:
+        """Image encoder forward pass."""
+        patch_emb, avg_pooled_emb = self.encode(
+            *args,
+            return_patch_embeddings=return_patch_embeddings,
+        )
+        if return_patch_embeddings:
+            return patch_emb, avg_pooled_emb
+
+        return avg_pooled_emb
 
     def _create_encoder(self, **kwargs: Any) -> nn.Module:
         if self.img_model_type in [ImageEncoderType.RESNET18, ImageEncoderType.RESNET18_MULTI_IMAGE]:
@@ -41,24 +47,20 @@ class ImageEncoder(nn.Module):
             raise NotImplementedError(f"Image model type \"{self.img_model_type}\" must be in {supported}")
 
         encoder = encoder_class(pretrained=True, **kwargs)
-
         return encoder
 
-    def forward(self,
-                encoder_input: Union[torch.Tensor, ImageModelInput],
-                return_patch_embeddings: bool = False) -> TypeImageEncoder:
+
+class SingleImageEncoder(ImageEncoder):
+    """Image encoder trunk module for the ``ImageModel`` class.
+
+    :param img_model_type: Type of image model to use: either ``"resnet18"`` or ``"resnet50"``.
+    """
+
+    def encode(self, x: Union[torch.Tensor, ImageModelInput]) -> Tuple[torch.Tensor, torch.Tensor]:
         """Image encoder forward pass."""
-
-        if isinstance(encoder_input, ImageModelInput):
-            assert encoder_input.previous_image is None, "ImageModelInput with previous_image is not supported."
-            encoder_input = encoder_input.current_image
-
-        patch_emb = self.encoder(encoder_input)
+        patch_emb = self.encoder(x)
         avg_pooled_emb = torch.flatten(torch.nn.functional.adaptive_avg_pool2d(patch_emb, (1, 1)), 1)
-        if return_patch_embeddings:
-            return patch_emb, avg_pooled_emb
-
-        return avg_pooled_emb
+        return patch_emb, avg_pooled_emb
 
     def reload_encoder_with_dilation(self, replace_stride_with_dilation: Optional[Sequence[bool]] = None) -> None:
         """Workaround for enabling dilated convolutions after model initialization.
@@ -105,18 +107,10 @@ class MultiImageEncoder(ImageEncoder):
         self.missing_previous_emb = nn.Parameter(torch.zeros(1, output_dim, 1, 1))
         trunc_normal_(self.missing_previous_emb, std=.02)
 
-    def forward(self,
-                encoder_input: Union[torch.Tensor, ImageModelInput],
-                return_patch_embeddings: bool = False) -> TypeImageEncoder:
-
-        if isinstance(encoder_input, ImageModelInput):
-            current_image = encoder_input.current_image
-            previous_image = encoder_input.previous_image
-        elif isinstance(encoder_input, torch.Tensor):
-            current_image = encoder_input
-            previous_image = None
-        else:
-            raise TypeError(f"Unsupported input type: {type(encoder_input)}")
+    def encode(self,
+                current_image: torch.Tensor,
+                previous_image: Optional[torch.Tensor] = None,
+                ) -> Tuple[torch.Tensor, torch.Tensor]:
 
         batch_size = current_image.shape[0]
 
@@ -134,14 +128,7 @@ class MultiImageEncoder(ImageEncoder):
 
         patch_fused = torch.cat([patch_x, diff_x], dim=1)
         avg_pooled_emb = torch.flatten(torch.nn.functional.adaptive_avg_pool2d(patch_fused, (1, 1)), 1)
-
-        if return_patch_embeddings:
-            return patch_fused, avg_pooled_emb
-
-        return avg_pooled_emb
-
-    def reload_encoder_with_dilation(self, replace_stride_with_dilation: Optional[Sequence[bool]] = None) -> None:
-        raise NotImplementedError
+        return patch_fused, avg_pooled_emb
 
 
 @torch.no_grad()
