@@ -162,3 +162,14 @@ def restore_training_mode(module: nn.Module) -> Generator[None, None, None]:
     training_mode = module.training
     yield
     module.train(mode=training_mode)
+
+
+def get_encoder_from_type(img_model_type: str) -> ImageEncoder:
+    """Returns the encoder class for the given encoder type.
+
+    :param img_model_type: Encoder type. {RESNET18, RESNET50, RESNET18_MULTI_IMAGE, RESNET50_MULTI_IMAGE}
+    """
+    if img_model_type in ImageEncoderType.get_members(multi_image_encoders_only=True):
+        return MultiImageEncoder(img_model_type=img_model_type)
+    else:
+        return ImageEncoder(img_model_type=img_model_type)

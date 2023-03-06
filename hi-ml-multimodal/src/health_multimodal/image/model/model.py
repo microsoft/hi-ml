@@ -16,7 +16,7 @@ import torch.nn.functional as F
 from health_multimodal.common.device import get_module_device
 from torchvision.datasets.utils import download_url
 
-from .encoder import ImageEncoder, get_encoder_output_dim
+from .encoder import get_encoder_from_type, get_encoder_output_dim
 from .modules import MLP, MultiTaskModel
 from .types import ImageModelInput, ImageModelOutput
 
@@ -82,7 +82,7 @@ class ImageModel(BaseImageModel):
         super().__init__()
 
         # Initiate encoder, projector, and classifier
-        self.encoder = ImageEncoder(img_model_type)
+        self.encoder = get_encoder_from_type(img_model_type)
         self.feature_size = get_encoder_output_dim(self.encoder, device=get_module_device(self.encoder))
         self.projector = MLP(input_dim=self.feature_size, output_dim=joint_feature_size,
                              hidden_dim=joint_feature_size, use_1x1_convs=True)
