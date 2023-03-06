@@ -122,11 +122,12 @@ def test_hubconf() -> None:
 
 
 def test_multi_image_model() -> None:
+    joint_feature_size = 4
     with pytest.raises(AssertionError) as ex:
-        MultiImageModel(img_model_type="resnet18", joint_feature_size=4)
+        MultiImageModel(img_model_type="resnet18", joint_feature_size=joint_feature_size)
     assert "MultiImageModel only supports MultiImageEncoder" in str(ex)
 
-    model = MultiImageModel(img_model_type="resnet18_multi_image", joint_feature_size=4)
+    model = MultiImageModel(img_model_type="resnet18_multi_image", joint_feature_size=joint_feature_size)
     assert model.encoder.training
     assert model.projector.training
 
@@ -135,5 +136,5 @@ def test_multi_image_model() -> None:
     image = torch.rand(size=(batch_size, 3, 448, 448))
     previous_image = torch.rand(size=(batch_size, 3, 448, 448))
     model_output = model.forward(image, previous_image)
-    assert model_output.projected_patch_embeddings.shape == (batch_size, 4, 14, 14)
-    assert model_output.projected_global_embedding.shape == (batch_size, 4)
+    assert model_output.projected_patch_embeddings.shape == (batch_size, joint_feature_size, 14, 14)
+    assert model_output.projected_global_embedding.shape == (batch_size, joint_feature_size)
