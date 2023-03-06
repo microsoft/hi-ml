@@ -5,24 +5,21 @@
 
 from __future__ import annotations
 
-from abc import abstractmethod
-from abc import ABC
-import enum
 import tempfile
-from pathlib import Path
-from contextlib import contextmanager
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Generator, Optional, Tuple, Union, Sequence
+from pathlib import Path
+from typing import Any, Optional, Union
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from health_multimodal.common.device import get_module_device
 from torchvision.datasets.utils import download_url
 
-from .resnet import resnet18, resnet50
+from .encoder import ImageEncoder, get_encoder_output_dim
 from .modules import MLP, MultiTaskModel
 
-TypeImageEncoder = Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
 MODEL_TYPE = "resnet50"
 JOINT_FEATURE_SIZE = 128
 
@@ -60,12 +57,6 @@ def get_biovil_resnet(pretrained: bool = True) -> ImageModel:
         pretrained_model_path=resnet_checkpoint_path,
     )
     return image_model
-
-
-@enum.unique
-class ResnetType(str, enum.Enum):
-    RESNET18 = "resnet18"
-    RESNET50 = "resnet50"
 
 
 @dataclass
@@ -106,7 +97,7 @@ class ImageModel(BaseImageModel):
 
         # Initiate encoder, projector, and classifier
         self.encoder = ImageEncoder(img_model_type)
-        self.feature_size = get_encoder_output_dim(self.encoder)
+        self.feature_size = get_encoder_output_dim(self.encoder, device=get_module_device(self.encoder))
         self.projector = MLP(input_dim=self.feature_size, output_dim=joint_feature_size,
                              hidden_dim=joint_feature_size, use_1x1_convs=True)
         self.downstream_classifier_kwargs = downstream_classifier_kwargs
@@ -164,86 +155,3 @@ class ImageModel(BaseImageModel):
             projected_embeddings = F.normalize(projected_embeddings, dim=1)
         projected_embeddings = projected_embeddings.permute([0, 2, 3, 1])  # B D H W -> B H W D (D: Features)
         return projected_embeddings
-
-
-class ImageEncoder(nn.Module):
-    """Image encoder trunk module for the ``ImageModel`` class.
-
-    :param img_model_type: Type of image model to use: either ``"resnet18"`` or ``"resnet50"``.
-    """
-
-    def __init__(self, img_model_type: str):
-        super().__init__()
-        self.img_model_type = img_model_type
-        self.encoder = self._create_encoder()
-
-    def _create_encoder(self, **kwargs: Any) -> nn.Module:
-        supported = ResnetType.RESNET18, ResnetType.RESNET50
-        if self.img_model_type not in supported:
-            raise NotImplementedError(f"Image model type \"{self.img_model_type}\" must be in {supported}")
-        encoder_class = resnet18 if self.img_model_type == ResnetType.RESNET18 else resnet50
-        encoder = encoder_class(pretrained=True, **kwargs)
-        return encoder
-
-    def forward(self, x: torch.Tensor, return_patch_embeddings: bool = False) -> TypeImageEncoder:
-        """Image encoder forward pass."""
-
-        x = self.encoder(x)
-        avg_pooled_emb = torch.flatten(torch.nn.functional.adaptive_avg_pool2d(x, (1, 1)), 1)
-        if return_patch_embeddings:
-            return x, avg_pooled_emb
-
-        return avg_pooled_emb
-
-    def reload_encoder_with_dilation(self, replace_stride_with_dilation: Optional[Sequence[bool]] = None) -> None:
-        """Workaround for enabling dilated convolutions after model initialization.
-
-        :param replace_stride_with_dilation: for each layer to replace the 2x2 stride with a dilated convolution
-        """
-        if self.img_model_type == "resnet18":
-            # resnet18 uses BasicBlock implementation, which does not support dilated convolutions.
-            raise NotImplementedError("resnet18 does not support dilated convolutions")
-
-        if replace_stride_with_dilation is None:
-            replace_stride_with_dilation = False, False, True
-
-        device = next(self.encoder.parameters()).device
-        new_encoder = self._create_encoder(replace_stride_with_dilation=replace_stride_with_dilation).to(device)
-
-        if self.encoder.training:
-            new_encoder.train()
-        else:
-            new_encoder.eval()
-
-        new_encoder.load_state_dict(self.encoder.state_dict())
-        self.encoder = new_encoder
-
-
-@torch.no_grad()
-def get_encoder_output_dim(module: torch.nn.Module) -> int:
-    """Calculate the output dimension of ssl encoder by making a single forward pass.
-
-    :param module: Encoder module.
-    """
-    # Target device
-    device = next(module.parameters()).device  # type: ignore
-    assert isinstance(device, torch.device)
-
-    x = torch.rand((1, 3, 448, 448)).to(device)
-
-    # Extract the number of output feature dimensions
-    with restore_training_mode(module):
-        module.eval()
-        representations = module(x)
-    return representations.shape[1]
-
-
-@contextmanager
-def restore_training_mode(module: nn.Module) -> Generator[None, None, None]:
-    """Restore the training mode of a module after some operation.
-
-    :param module: PyTorch module.
-    """
-    training_mode = module.training
-    yield
-    module.train(mode=training_mode)

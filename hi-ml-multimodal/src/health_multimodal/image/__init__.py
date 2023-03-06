@@ -29,9 +29,11 @@
 .. autosummary::
    :toctree:
 
+   encoder
    model
    modules
    resnet
+   transformer
 """
 
 from .model import BaseImageModel

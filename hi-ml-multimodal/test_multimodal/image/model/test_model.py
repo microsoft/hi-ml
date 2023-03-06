@@ -8,8 +8,8 @@ from dataclasses import fields
 import pytest
 import torch
 
+from health_multimodal.image.model.encoder import ImageEncoder
 from health_multimodal.image.model.model import ImageModel
-from health_multimodal.image.model.model import ImageEncoder
 from health_multimodal.image.model.model import ImageModelInput
 from health_multimodal.image.model.model import ImageModelOutput
 from health_multimodal.image.model.model import get_biovil_resnet
