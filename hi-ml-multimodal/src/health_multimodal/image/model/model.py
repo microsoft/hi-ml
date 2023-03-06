@@ -18,7 +18,8 @@ from torchvision.datasets.utils import download_url
 
 from .encoder import get_encoder_from_type, get_encoder_output_dim
 from .modules import MLP, MultiTaskModel
-from .types import ImageModelOutput
+from .types import ImageEncoderType, ImageModelOutput
+
 
 MODEL_TYPE = "resnet50"
 JOINT_FEATURE_SIZE = 128
@@ -82,6 +83,7 @@ class ImageModel(BaseImageModel):
         super().__init__()
 
         # Initiate encoder, projector, and classifier
+        self.img_model_type = img_model_type
         self.encoder = get_encoder_from_type(img_model_type)
         self.feature_size = get_encoder_output_dim(self.encoder, device=get_module_device(self.encoder))
         self.projector = MLP(input_dim=self.feature_size, output_dim=joint_feature_size,
@@ -99,6 +101,11 @@ class ImageModel(BaseImageModel):
             state_dict = torch.load(pretrained_model_path, map_location="cpu")
             self.load_state_dict(state_dict)
 
+        self.post_init_checks()
+
+    def post_init_checks(self) -> None:
+        pass
+
     def train(self, mode: bool = True) -> Any:
         """Switch the model between training and evaluation modes."""
         super().train(mode=mode)
@@ -110,6 +117,10 @@ class ImageModel(BaseImageModel):
     def forward(self, x: torch.Tensor) -> ImageModelOutput:  # type: ignore[override]
         with torch.set_grad_enabled(not self.freeze_encoder):
             patch_x, pooled_x = self.encoder(x, return_patch_embeddings=True)
+        return self.forward_post_encoder(patch_x, pooled_x)
+
+    def forward_post_encoder(self, patch_x: torch.Tensor, pooled_x: torch.Tensor) -> ImageModelOutput:
+        with torch.set_grad_enabled(not self.freeze_encoder):
             projected_patch_embeddings = self.projector(patch_x)
             projected_global_embedding = torch.mean(projected_patch_embeddings, dim=(2, 3))
 
@@ -140,3 +151,19 @@ class ImageModel(BaseImageModel):
             projected_embeddings = F.normalize(projected_embeddings, dim=1)
         projected_embeddings = projected_embeddings.permute([0, 2, 3, 1])  # B D H W -> B H W D (D: Features)
         return projected_embeddings
+
+
+class MultiImageModel(ImageModel):
+    def post_init_checks(self) -> None:
+        super().post_init_checks()
+        assert self.img_model_type in ImageEncoderType.get_members(multi_image_encoders_only=True)
+
+    def forward(self,  # type: ignore[override]
+                current_image: torch.Tensor,
+                previous_image: Optional[torch.Tensor] = None) -> ImageModelOutput:
+
+        with torch.set_grad_enabled(not self.freeze_encoder):
+            patch_x, pooled_x = self.encoder(current_image=current_image,
+                                             previous_image=previous_image,
+                                             return_patch_embeddings=True)
+        return self.forward_post_encoder(patch_x, pooled_x)
