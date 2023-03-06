@@ -15,7 +15,7 @@ from timm.models.layers import trunc_normal_
 
 from .resnet import resnet18, resnet50
 from .transformer import VisionTransformerPooler
-from .types import ImageEncoderType, ImageModelInput
+from .types import ImageEncoderType
 
 TypeImageEncoder = Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
 
@@ -45,15 +45,11 @@ class ImageEncoder(nn.Module):
         return encoder
 
     def forward(self,
-                encoder_input: Union[torch.Tensor, ImageModelInput],
+                current_image: torch.Tensor,
                 return_patch_embeddings: bool = False) -> TypeImageEncoder:
         """Image encoder forward pass."""
 
-        if isinstance(encoder_input, ImageModelInput):
-            assert encoder_input.previous_image is None, "ImageModelInput with previous_image is not supported."
-            encoder_input = encoder_input.current_image
-
-        patch_emb = self.encoder(encoder_input)
+        patch_emb = self.encoder(current_image)
         avg_pooled_emb = torch.flatten(torch.nn.functional.adaptive_avg_pool2d(patch_emb, (1, 1)), 1)
         if return_patch_embeddings:
             return patch_emb, avg_pooled_emb
@@ -106,17 +102,9 @@ class MultiImageEncoder(ImageEncoder):
         trunc_normal_(self.missing_previous_emb, std=.02)
 
     def forward(self,
-                encoder_input: Union[torch.Tensor, ImageModelInput],
+                current_image: torch.Tensor,
+                previous_image: Optional[torch.Tensor] = None,
                 return_patch_embeddings: bool = False) -> TypeImageEncoder:
-
-        if isinstance(encoder_input, ImageModelInput):
-            current_image = encoder_input.current_image
-            previous_image = encoder_input.previous_image
-        elif isinstance(encoder_input, torch.Tensor):
-            current_image = encoder_input
-            previous_image = None
-        else:
-            raise TypeError(f"Unsupported input type: {type(encoder_input)}")
 
         batch_size = current_image.shape[0]
 

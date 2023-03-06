@@ -9,7 +9,6 @@ import torch
 
 from health_multimodal.image.model.encoder import ImageEncoder, MultiImageEncoder, restore_training_mode
 from health_multimodal.image.model.resnet import resnet50
-from health_multimodal.image.model.types import ImageModelInput
 
 
 def test_reload_resnet_with_dilation() -> None:
@@ -74,15 +73,17 @@ def test_multi_image_encoder_forward_pass() -> None:
     batch_size = 2
     current_image = torch.rand(size=(batch_size, 3, 448, 448))
     previous_image = torch.rand(size=(batch_size, 3, 448, 448))
-    model_input = ImageModelInput(current_image=current_image, previous_image=previous_image)
     with torch.no_grad():
-        patch_emb, global_emb = encoder(model_input, return_patch_embeddings=True)
+        patch_emb, global_emb = encoder(current_image=current_image,
+                                        previous_image=previous_image,
+                                        return_patch_embeddings=True)
         assert global_emb.shape == (batch_size, 512)
         assert patch_emb.shape == (batch_size, 512, 14, 14)
 
     # Single-image run
-    model_input = ImageModelInput(current_image=current_image, previous_image=None)
     with torch.no_grad():
-        patch_emb, global_emb = encoder(model_input, return_patch_embeddings=True)
+        patch_emb, global_emb = encoder(current_image=current_image,
+                                        previous_image=previous_image,
+                                        return_patch_embeddings=True)
         assert global_emb.shape == (batch_size, 512)
         assert patch_emb.shape == (batch_size, 512, 14, 14)
