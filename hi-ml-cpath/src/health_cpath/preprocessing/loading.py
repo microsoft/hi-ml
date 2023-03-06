@@ -158,7 +158,9 @@ class LoadROId(MapTransform, BaseLoadROId):
 
 
 class LoadMaskROId(MapTransform, BaseLoadROId):
-    """Operates on dictionaries, replacing the file paths in `image_key` and `mask_key` with the
+    """Transform that loads a pathology slide and mask, cropped to the mask bounding box (ROI) defined by the mask.
+
+    Operates on dictionaries, replacing the file paths in `image_key` and `mask_key` with the
     respective loaded arrays, in (C, H, W) format. Also adds the following meta-data entries:
     Operates on dictionaries, replacing the file paths in `image_key` loaded array, in (C, H, W) format. Also adds the
     following meta-data entries:
