@@ -1,0 +1,5 @@
+{
+    "python.linting.flake8Args": [
+        "--line-length=120",
+    ]
+}

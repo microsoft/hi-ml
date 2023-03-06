@@ -107,10 +107,11 @@ class MultiImageEncoder(ImageEncoder):
         self.missing_previous_emb = nn.Parameter(torch.zeros(1, output_dim, 1, 1))
         trunc_normal_(self.missing_previous_emb, std=.02)
 
-    def encode(self,
-                current_image: torch.Tensor,
-                previous_image: Optional[torch.Tensor] = None,
-                ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def encode(
+        self,
+        current_image: torch.Tensor,
+        previous_image: Optional[torch.Tensor] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
 
         batch_size = current_image.shape[0]
 
