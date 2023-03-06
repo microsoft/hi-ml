@@ -125,9 +125,7 @@ class ImageModel(BaseImageModel):
             self.projector.train(mode=False)
         return self
 
-    def forward(self, *args: Any, **kwargs: Any) -> ImageModelOutput:
-        x = kwargs["x"]
-        assert isinstance(x, torch.Tensor)
+    def forward(self, x: torch.Tensor, *args: Any, **kwargs: Any) -> ImageModelOutput:  # type: ignore
         with torch.set_grad_enabled(not self.freeze_encoder):
             patch_x, pooled_x = self.encoder(x, return_patch_embeddings=True)
             projected_patch_embeddings = self.projector(patch_x)
