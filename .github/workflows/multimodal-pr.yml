@@ -107,7 +107,7 @@ jobs:
         run: |
           cd ${{ env.folder }}
           ipython kernel install --name "python3" --user
-           if [ -n "${{ github.event.pull_request }}" ]; then
+          if [ -n "${{ github.event.pull_request }}" ]; then
             REPO_FULL_NAME=${{ github.event.pull_request.head.repo.full_name }}
           else
             REPO_FULL_NAME="microsoft/hi-ml"
