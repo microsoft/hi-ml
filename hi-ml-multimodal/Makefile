@@ -12,6 +12,9 @@ pip_build: pip_upgrade
 pip_test: pip_upgrade
 	pip install .[test]
 
+pip_publish: pip_upgrade
+	pip install --upgrade build twine
+
 # pip install local package in editable mode for development and testing
 pip_local:
 	pip install -e .
@@ -77,3 +80,15 @@ bump_version_dry:
 # $ make bump_version part=patch
 bump_version:
 	bump2version $(part) --verbose
+
+# build Python package
+build: pip_publish
+	python -m build
+
+# publish package to TestPyPI
+publish_test: build
+	python -m twine upload --repository testpypi dist/*
+
+# publish package to PyPI
+publish: build
+	python -m twine upload dist/*

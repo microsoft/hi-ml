@@ -5,29 +5,18 @@ DO NOT RENAME THIS FILE: (https://docs.pytest.org/en/latest/fixture.html#sharing
 -or-class-session)
 """
 import shutil
-import sys
 import uuid
 from pathlib import Path
 from typing import Generator
 
 import pytest
 
-# temporary workaround until these hi-ml package release
-testSSL_root_dir = Path(__file__).resolve().parent
-print(f"Adding {testSSL_root_dir} to sys path")
-sys.path.insert(0, str(testSSL_root_dir))
-
-himl_root = testSSL_root_dir.parent.parent
-packages = {"hi-ml": ["src", "testhiml"], "hi-ml-azure": ["src", "testazure"], "hi-ml-cpath": ["src"]}
-for package, subpackages in packages.items():
-    for subpackage in subpackages:
-        print(f"Adding {himl_root / package / subpackage} to sys path")
-        sys.path.insert(0, str(himl_root / package / subpackage))
 from health_cpath.utils import health_cpath_package_setup  # noqa: E402
 from health_ml.utils.fixed_paths import OutputFolderForTests  # noqa: E402
 from testSSL.test_ssl_containers import create_cxr_test_dataset  # noqa: E402
 
 
+testSSL_root_dir = Path(__file__).resolve().parent
 TEST_OUTPUTS_PATH = testSSL_root_dir / "test_outputs"
 
 # Reduce logging noise in DEBUG mode

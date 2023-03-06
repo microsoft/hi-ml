@@ -1958,6 +1958,23 @@ def test_create_from_matching_params() -> None:
     assert "NotParameterized" in str(ex)
 
 
+@pytest.mark.fast
+def test_create_v2_job_command_line_args_from_params() -> None:
+    test_params = ["--azureml"]
+    expected_command_line_arg_str = f"{test_params[0]}"
+    v2_command_line_args = util.create_v2_job_command_line_args_from_params(test_params)
+    assert v2_command_line_args == expected_command_line_arg_str
+
+    test_params = ["--azureml", "--test_arg_1=['test_arg_1_value_1', 'test_arg_1_value_2']"]
+    expected_command_line_arg_str = f'{test_params[0]} "{test_params[1]}"'
+    v2_command_line_args = util.create_v2_job_command_line_args_from_params(test_params)
+    assert v2_command_line_args == expected_command_line_arg_str
+
+    with pytest.raises(ValueError,  match="cannot contain both single and double quotes"):
+        test_params = ["--azureml", "'--test_arg_1=[\"test_arg_1_value_1\", \'test_arg_1_value_2\']'"]
+        util.create_v2_job_command_line_args_from_params(test_params)
+
+
 def test_parse_illegal_params() -> None:
     with pytest.raises(TypeError) as e:
         ParamClass(readonly="abc")

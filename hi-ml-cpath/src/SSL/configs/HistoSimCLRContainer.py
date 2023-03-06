@@ -50,11 +50,11 @@ class HistoSSLContainer(SSLContainer):
         return train_transforms, val_transforms
 
     def get_preprocessing_transforms(self) -> List[Callable]:
-        return([Lambda(lambda x: x)])
+        return ([Lambda(lambda x: x)])
 
     def get_augmentations(self) -> List[Callable]:
         # SimClr augmentations
-        return([RandomResizedCrop(size=224),
+        return ([RandomResizedCrop(size=224),
                 RandomHorizontalFlip(p=0.5),
                 RandomApply([ColorJitter(brightness=0.8, contrast=0.8, saturation=0.8, hue=0.2)], 0.8),
                 RandomGrayscale(p=0.2),

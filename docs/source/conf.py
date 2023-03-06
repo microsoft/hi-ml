@@ -43,6 +43,7 @@ extensions = [
     'sphinx_automodapi.automodapi',
     'sphinx_autodoc_typehints',
     'sphinx.ext.viewcode',
+    "sphinxarg.ext",
 ]
 
 numpydoc_show_class_members = False

@@ -9,6 +9,8 @@ on:
     paths:
       - "hi-ml-multimodal/**"
       - ".github/workflows/multimodal-*.yml"
+  schedule:
+    - cron: "0 4 * * *"  # every day at 4 AM UTC
 
 env:
   pythonVersion: "3.10"
@@ -113,6 +115,7 @@ jobs:
           echo "The package will be installed from: $PIP_SOURCE"
           papermill \
             --parameters pip_source $PIP_SOURCE \
+            --log-output \
             $IN_NB_PATH \
             $OUT_NB_PATH
 
