@@ -18,7 +18,7 @@ from torchvision.datasets.utils import download_url
 
 from .encoder import get_encoder_from_type, get_encoder_output_dim
 from .modules import MLP, MultiTaskModel
-from .types import ImageModelInput, ImageModelOutput
+from .types import ImageModelOutput
 
 MODEL_TYPE = "resnet50"
 JOINT_FEATURE_SIZE = 128
@@ -62,7 +62,7 @@ def get_biovil_resnet(pretrained: bool = True) -> ImageModel:
 class BaseImageModel(nn.Module, ABC):
     """Abstract class for image models."""
     @abstractmethod
-    def forward(self, image_input: ImageModelInput) -> ImageModelOutput:
+    def forward(self, *args: Any, **kwargs: Any) -> ImageModelOutput:
         raise NotImplementedError
 
     @abstractmethod
@@ -107,9 +107,9 @@ class ImageModel(BaseImageModel):
             self.projector.train(mode=False)
         return self
 
-    def forward(self, image_input: ImageModelInput) -> ImageModelOutput:
+    def forward(self, x: torch.Tensor) -> ImageModelOutput:  # type: ignore[override]
         with torch.set_grad_enabled(not self.freeze_encoder):
-            patch_x, pooled_x = self.encoder(image_input, return_patch_embeddings=True)
+            patch_x, pooled_x = self.encoder(x, return_patch_embeddings=True)
             projected_patch_embeddings = self.projector(patch_x)
             projected_global_embedding = torch.mean(projected_patch_embeddings, dim=(2, 3))
 
@@ -134,7 +134,7 @@ class ImageModel(BaseImageModel):
         :returns projected_embeddings: tensor of embeddings in shape [batch, n_patches_h, n_patches_w, feature_size].
         """
         assert not self.training, "This function is only implemented for evaluation mode"
-        outputs = self.forward(ImageModelInput(current_image=input_img))
+        outputs = self.forward(input_img)
         projected_embeddings = outputs.projected_patch_embeddings.detach()  # type: ignore
         if normalize:
             projected_embeddings = F.normalize(projected_embeddings, dim=1)

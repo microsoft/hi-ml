@@ -8,15 +8,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum, unique
-from typing import List, Optional
+from typing import List
 
 import torch
-
-
-@dataclass
-class ImageModelInput():
-    current_image: torch.Tensor
-    previous_image: Optional[torch.Tensor] = None
 
 
 @dataclass

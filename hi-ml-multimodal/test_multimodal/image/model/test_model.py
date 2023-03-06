@@ -9,7 +9,7 @@ import pytest
 import torch
 from health_multimodal.image.model.model import ImageModel, get_biovil_resnet
 from health_multimodal.image.model.modules import MultiTaskModel
-from health_multimodal.image.model.types import ImageModelInput, ImageModelOutput
+from health_multimodal.image.model.types import ImageModelOutput
 
 
 def test_frozen_cnn_model() -> None:
@@ -76,13 +76,12 @@ def test_image_get_patchwise_projected_embeddings(img_model_type: str) -> None:
     batch_size = 2
     image = torch.rand(size=(batch_size, 3, 448, 448))
     with torch.no_grad():
-        encoder_input = ImageModelInput(current_image=image)
-        encoder_output, _ = model.encoder.forward(encoder_input, return_patch_embeddings=True)
+        encoder_output, _ = model.encoder.forward(image, return_patch_embeddings=True)
     h, w = encoder_output.shape[2:]
 
     # First check the model output is in the expected shape,
     # since this is used internally by get_patchwise_projected_embeddings
-    model_output = model.forward(ImageModelInput(current_image=image))
+    model_output = model.forward(image)
     assert model_output.projected_patch_embeddings.shape == (batch_size, joint_feature_size, h, w)
     assert model_output.projected_global_embedding.shape == (batch_size, joint_feature_size)
     projected_global_embedding = model_output.projected_global_embedding
@@ -112,7 +111,7 @@ def test_hubconf() -> None:
     model_himl = get_biovil_resnet()
 
     output_hub: ImageModelOutput = model_hub(image)
-    output_himl: ImageModelOutput = model_himl(ImageModelInput(current_image=image))
+    output_himl: ImageModelOutput = model_himl(image)
 
     for field_himl in fields(output_himl):
         value_hub = getattr(output_hub, field_himl.name)
