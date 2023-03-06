@@ -7,8 +7,8 @@ from dataclasses import fields
 
 import pytest
 import torch
-from health_multimodal.image.model.encoder import ImageEncoder
-from health_multimodal.image.model.model import ImageModel, get_biovil_resnet, restore_training_mode
+from health_multimodal.image.model.encoder import ImageEncoder, restore_training_mode
+from health_multimodal.image.model.model import ImageModel, get_biovil_resnet
 from health_multimodal.image.model.modules import MultiTaskModel
 from health_multimodal.image.model.resnet import resnet50
 from health_multimodal.image.model.types import ImageModelInput, ImageModelOutput

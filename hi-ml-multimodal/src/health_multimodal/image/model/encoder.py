@@ -46,9 +46,9 @@ class ImageEncoder(nn.Module):
 
         if isinstance(encoder_input, ImageModelInput):
             assert encoder_input.previous_image is None, "ImageModelInput with previous_image is not supported."
-            current_image = encoder_input.current_image
+            encoder_input = encoder_input.current_image
 
-        patch_emb = self.encoder(current_image)
+        patch_emb = self.encoder(encoder_input)
         avg_pooled_emb = torch.flatten(torch.nn.functional.adaptive_avg_pool2d(patch_emb, (1, 1)), 1)
         if return_patch_embeddings:
             return patch_emb, avg_pooled_emb
