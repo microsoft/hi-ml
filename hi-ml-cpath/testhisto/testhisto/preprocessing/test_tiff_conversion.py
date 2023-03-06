@@ -10,7 +10,13 @@ from pathlib import Path
 from monai.data.wsi_reader import WSIReader
 from health_cpath.datasets.panda_dataset import PandaDataset
 from health_cpath.preprocessing.loading import WSIBackend
-from health_cpath.preprocessing.tiff_conversion import AMPERSAND, ResolutionUnit, TIFF_EXTENSION, UNDERSCORE, ConvertWSIToTiffd
+from health_cpath.preprocessing.tiff_conversion import (
+    AMPERSAND,
+    ResolutionUnit,
+    TIFF_EXTENSION,
+    UNDERSCORE,
+    ConvertWSIToTiffd,
+)
 from health_cpath.utils.naming import SlideKey
 from health_cpath.utils.tiff_conversion_config import TiffConversionConfig
 from typing import Any, List, Dict
@@ -35,7 +41,7 @@ def wsi_samples(mock_panda_slides_root_dir: Path) -> WSISamplesType:
 
 
 @pytest.mark.parametrize("replace_ampersand_by", [UNDERSCORE, ""])
-@pytest.mark.parametrize("src_format", ['ndpi', 'tiff'])
+@pytest.mark.parametrize("src_format", ["ndpi", "tiff"])
 def test_get_tiff_path(src_format: str, replace_ampersand_by: str) -> None:
     output_folder = Path("foo")
     transform = ConvertWSIToTiffd(
