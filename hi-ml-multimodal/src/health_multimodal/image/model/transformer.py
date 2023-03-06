@@ -32,6 +32,7 @@ class VisionTransformerPooler(nn.Module):
                        create permutation variance across modalities/series.
     `self.cls_token`: Cane be used to aggregate information across modalities and image series.
     """
+
     def __init__(self,
                  input_dim: int,
                  grid_shape: Tuple[int, int],
