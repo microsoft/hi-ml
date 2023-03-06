@@ -107,8 +107,8 @@ jobs:
         run: |
           cd ${{ env.folder }}
           ipython kernel install --name "python3" --user
-           if [ -n "${github.event.pull_request}" ]; then
-            REPO=github.event.pull_request.head.repo.name
+           if [ -n "${{ github.event.pull_request }}" ]; then
+            REPO=${{ github.event.pull_request.head.repo.name }}
           else
             REPO="testing"
           fi
