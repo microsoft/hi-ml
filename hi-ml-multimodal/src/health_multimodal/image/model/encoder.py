@@ -109,9 +109,14 @@ class MultiImageEncoder(ImageEncoder):
                 encoder_input: Union[torch.Tensor, ImageModelInput],
                 return_patch_embeddings: bool = False) -> TypeImageEncoder:
 
-        assert isinstance(encoder_input, ImageModelInput), "MultiImageEncoder requires ImageModelInput as input"
-        current_image = encoder_input.current_image
-        previous_image = encoder_input.previous_image
+        if isinstance(encoder_input, ImageModelInput):
+            current_image = encoder_input.current_image
+            previous_image = encoder_input.previous_image
+        elif isinstance(encoder_input, torch.Tensor):
+            current_image = encoder_input
+            previous_image = None
+        else:
+            raise TypeError(f"Unsupported input type: {type(encoder_input)}")
 
         batch_size = current_image.shape[0]
 

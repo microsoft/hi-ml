@@ -52,7 +52,8 @@ def test_frozen_cnn_model() -> None:
     assert model.classifier.training  # type: ignore
 
 
-def test_image_get_patchwise_projected_embeddings() -> None:
+@pytest.mark.parametrize("img_model_type", ["resnet18", "resnet18_multi_image"])
+def test_image_get_patchwise_projected_embeddings(img_model_type: str) -> None:
     """
     Checks if the image patch embeddings are correctly computed and projected to the latent space.
     """
@@ -60,7 +61,7 @@ def test_image_get_patchwise_projected_embeddings() -> None:
     num_classes = 2
     num_tasks = 1
     joint_feature_size = 4
-    model = ImageModel(img_model_type='resnet18',
+    model = ImageModel(img_model_type=img_model_type,
                        joint_feature_size=joint_feature_size,
                        num_classes=num_classes,
                        freeze_encoder=True,
@@ -73,8 +74,10 @@ def test_image_get_patchwise_projected_embeddings() -> None:
     model.eval()
 
     batch_size = 2
-    image = torch.rand(size=(batch_size, 3, 64, 64))
-    encoder_output, _ = model.encoder.forward(image, return_patch_embeddings=True)
+    image = torch.rand(size=(batch_size, 3, 448, 448))
+    with torch.no_grad():
+        encoder_input = ImageModelInput(current_image=image)
+        encoder_output, _ = model.encoder.forward(encoder_input, return_patch_embeddings=True)
     h, w = encoder_output.shape[2:]
 
     # First check the model output is in the expected shape,
