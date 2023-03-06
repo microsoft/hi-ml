@@ -103,18 +103,16 @@ jobs:
           cd ${{ env.folder }}
           make pip_test
 
-      - name: Run Jupyter notebooks
+      - name: Run Jupyter notebook
         run: |
           cd ${{ env.folder }}
           ipython kernel install --name "python3" --user
            if [ -n "${{ github.event.pull_request }}" ]; then
-            REPO=${{ github.event.pull_request.head.repo.full_name }}
+            REPO_FULL_NAME=${{ github.event.pull_request.head.repo.full_name }}
           else
-            REPO="microsoft/hi-ml"
+            REPO_FULL_NAME="microsoft/hi-ml"
           fi
-          echo "REPO: $REPO"
-          exit 1
-          REPO_URL="https://github.com/${USER}/hi-ml.git"
+          REPO_URL="https://github.com/${REPO_FULL_NAME}.git"
           SUBDIR_STR="subdirectory=${{ env.folder }}"
           PIP_SOURCE="git+${REPO_URL}@${BRANCH_NAME}#${SUBDIR_STR}"
           IN_NB_PATH="notebooks/phrase_grounding.ipynb"
