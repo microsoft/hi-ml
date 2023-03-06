@@ -113,6 +113,8 @@ jobs:
             REPO="testing"
           fi
           echo "REPO: $REPO"
+          echo "head:" ${{ github.event.pull_request.head }}
+          echo "repo:" ${{ github.event.pull_request.head.repo }}
           exit 1
           REPO_URL="https://github.com/${USER}/hi-ml.git"
           SUBDIR_STR="subdirectory=${{ env.folder }}"
