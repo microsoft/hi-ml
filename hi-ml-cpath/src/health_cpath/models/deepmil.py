@@ -21,6 +21,7 @@ from health_cpath.datasets.base_dataset import TilesDataset
 from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
 from health_cpath.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
                                              validate_class_names, EXTRA_PREFIX)
+from torch.utils.checkpoint import checkpoint
 
 
 RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
@@ -245,17 +246,17 @@ class DeepMILModule(LightningModule):
             embeddings = []
             chunks = torch.split(instances, self.encoder_params.encoding_chunk_size)
             for chunk in chunks:
-                chunk_embeddings = self.encoder(chunk)
+                chunk_embeddings = checkpoint(self.encoder, chunk)
                 embeddings.append(chunk_embeddings)
             instance_features = torch.cat(embeddings)
         else:
-            instance_features = self.encoder(instances)  # N X L x 1 x 1
+            instance_features = checkpoint(self.encoder, instances)  # N X L x 1 x 1
         return instance_features
 
     def get_attentions_and_bag_features(self, instance_features: Tensor) -> Tuple[Tensor, Tensor]:
         if not self.pooling_params.tune_pooling:
             self.aggregation_fn.eval()
-        attentions, bag_features = self.aggregation_fn(instance_features)  # K x N | K x L
+        attentions, bag_features = checkpoint(self.aggregation_fn, instance_features)  # K x N | K x L
         bag_features = bag_features.view(1, -1)
         return attentions, bag_features
 

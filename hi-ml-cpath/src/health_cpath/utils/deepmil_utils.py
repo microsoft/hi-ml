@@ -7,6 +7,7 @@ import param
 from torch import nn
 from pathlib import Path
 from typing import Optional, Tuple
+from cpath.utils.ctranspath import CTransPath_Imagenet, CTransPath_SSL
 from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_cpath.models.encoders import (
     HistoSSLEncoder,
@@ -95,6 +96,12 @@ class EncoderParams(param.Parameterized):
 
         elif self.encoder_type == SwinTransformer_NoPreproc.__name__:
             encoder = SwinTransformer_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
+
+        elif self.encoder_type == CTransPath_Imagenet.__name__:
+            encoder = CTransPath_Imagenet(tile_size=self.tile_size, n_channels=self.n_channels)
+
+        elif self.encoder_type == CTransPath_SSL.__name__:
+            encoder = CTransPath_SSL(tile_size=self.tile_size, n_channels=self.n_channels)
 
         elif self.encoder_type == ImageNetSimCLREncoder.__name__:
             encoder = ImageNetSimCLREncoder(tile_size=self.tile_size, n_channels=self.n_channels)
