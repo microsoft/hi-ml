@@ -120,14 +120,14 @@ def test_load_mask_sub_roid_roi_label(roi_label: Optional[int]) -> None:
 
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
-def test_load_mask_sub_roid(mock_panda_slides_root_dir: Path, tmp_path: Path) -> None:
-    sample = PandaDataset(mock_panda_slides_root_dir)[0]
-    loading_params = LoadingParams(roi_type=ROIType.MASKSUBROI, level=0, roi_label=1)
+def test_load_mask_sub_roid(mock_panda_slides_root_dir_diagonal: Path, tmp_path: Path) -> None:
+    sample = PandaDataset(mock_panda_slides_root_dir_diagonal)[0]
+    loading_params = LoadingParams(roi_type=ROIType.MASKSUBROI, level=0, roi_label=1, mask_mag=10.0)
     load_transform = loading_params.get_load_roid_transform()
 
     # Creat a fake mask
     mask = np.zeros((224, 224, 3))
-    mask[:, :56, :56] = 1  # Set the first 56x56 pixels to 1 (foreground), they are all white in the image
+    mask[56:112, :56, :] = 1  # Set pixels to 1 (foreground), they are all white in the image
     # write a mask as png
     mask_path = tmp_path / "mask.png"
     Image.fromarray(mask.astype(np.uint8)).save(mask_path)
@@ -136,4 +136,4 @@ def test_load_mask_sub_roid(mock_panda_slides_root_dir: Path, tmp_path: Path) ->
     slide_dict = load_transform(sample)
     assert SlideKey.IMAGE in slide_dict
     assert slide_dict[SlideKey.IMAGE].shape == (3, 56, 56)
-    assert slide_dict[SlideKey.IMAGE].sum() == 0
+    assert slide_dict[SlideKey.IMAGE].sum() == 255 * 3 * 56 * 56  # all pixels are white
