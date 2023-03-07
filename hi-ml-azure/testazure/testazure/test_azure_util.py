@@ -2226,6 +2226,35 @@ def test_get_metrics_for_childless_run() -> None:
     pd.testing.assert_frame_equal(expected_metrics_df, metrics_df_5, check_exact=False, rtol=similarity_tolerance)
 
 
+@pytest.mark.parametrize(
+    "metrics",
+    [
+        {"metric1": [1.234], "metric2": [2.345, 3.456]},
+        {"metric1": [2.345, 3.456], "metric2": [1.234]}
+    ])
+def test_get_metrics_for_childless_run_2(metrics: Dict[str, List[float]]) -> None:
+    """
+    Test if we can get metrics for a run with no children, and that the order in which metrics are read does
+    not create a problem.
+    """
+    run_name = "test_get_metrics_for_childless_run_2"
+    experiment_name = effective_experiment_name("himl-tests")
+    try:
+        run = util.create_aml_run_object(
+            experiment_name=experiment_name,
+            run_name=run_name,
+            workspace=DEFAULT_WORKSPACE.workspace
+        )
+        for metric_name, metric_values in metrics.items():
+            for metric_value in metric_values:
+                run.log(metric_name, metric_value)
+        run.flush()
+        metrics_df = util.get_metrics_for_childless_run(run=run)
+        assert isinstance(metrics_df, pd.DataFrame)
+    finally:
+        run.complete()
+
+
 def test_create_run() -> None:
     """
     Test if we can create an AML run object here in the test suite, write logs and read them back in.
