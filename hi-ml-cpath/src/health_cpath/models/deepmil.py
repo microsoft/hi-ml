@@ -12,7 +12,6 @@ from torchmetrics.classification import (MulticlassAUROC, MulticlassAccuracy, Mu
                                          MulticlassCohenKappa, MulticlassAveragePrecision, BinaryConfusionMatrix,
                                          BinaryAccuracy, BinaryPrecision, BinaryRecall, BinaryF1Score, BinaryCohenKappa,
                                          BinaryAUROC, BinarySpecificity, BinaryAveragePrecision)
-from health_azure.logging import print_message_with_rank_pid
 from health_ml.utils import log_on_epoch
 from health_ml.deep_learning_config import OptimizerParams
 from health_cpath.models.encoders import IdentityEncoder
@@ -21,7 +20,7 @@ from health_cpath.datasets.base_dataset import TilesDataset
 from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
 from health_cpath.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
                                              validate_class_names, EXTRA_PREFIX)
-from torch.utils.checkpoint import checkpoint
+from torch.utils.checkpoint import checkpoint, checkpoint_sequential
 
 
 RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
@@ -239,6 +238,29 @@ class DeepMILModule(LightningModule):
             else:
                 log_on_epoch(self, f'{prefix}{stage}/{metric_name}', metric_object)
 
+    def encoder_forward(self, x: Tensor, segments: int = 2) -> Tensor:
+        if self.encoder_params.checkpoint_encoder:
+
+            segments = self.encoder_params.checkpoint_segments_size
+            first_modules = [
+                self.encoder.feature_extractor_fn.conv1,
+                self.encoder.feature_extractor_fn.bn1,
+                self.encoder.feature_extractor_fn.relu,
+                self.encoder.feature_extractor_fn.maxpool
+            ]
+            x = checkpoint_sequential(first_modules, segments, x)
+            x = checkpoint_sequential(self.encoder.feature_extractor_fn.layer1, segments, x)
+            x = checkpoint_sequential(self.encoder.feature_extractor_fn.layer2, segments, x)
+            x = checkpoint_sequential(self.encoder.feature_extractor_fn.layer3, segments, x)
+            x = checkpoint_sequential(self.encoder.feature_extractor_fn.layer4, segments, x)
+
+            x = checkpoint(self.encoder.feature_extractor_fn.avgpool, x)
+            x = torch.flatten(x, 1)
+            x = checkpoint(self.encoder.feature_extractor_fn.fc, x)
+            return x
+
+        return self.encoder(x)
+
     def get_instance_features(self, instances: Tensor) -> Tensor:
         if not self.encoder_params.tune_encoder:
             self.encoder.eval()
@@ -246,17 +268,17 @@ class DeepMILModule(LightningModule):
             embeddings = []
             chunks = torch.split(instances, self.encoder_params.encoding_chunk_size)
             for chunk in chunks:
-                chunk_embeddings = checkpoint(self.encoder, chunk)
+                chunk_embeddings = self.encoder_forward(chunk)
                 embeddings.append(chunk_embeddings)
             instance_features = torch.cat(embeddings)
         else:
-            instance_features = checkpoint(self.encoder, instances)  # N X L x 1 x 1
+            instance_features = self.encoder_forward(instances)  # N X L x 1 x 1
         return instance_features
 
     def get_attentions_and_bag_features(self, instance_features: Tensor) -> Tuple[Tensor, Tensor]:
         if not self.pooling_params.tune_pooling:
             self.aggregation_fn.eval()
-        attentions, bag_features = checkpoint(self.aggregation_fn, instance_features)  # K x N | K x L
+        attentions, bag_features = self.aggregation_fn(instance_features)  # K x N | K x L
         bag_features = bag_features.view(1, -1)
         return attentions, bag_features
 
