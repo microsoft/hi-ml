@@ -2,12 +2,10 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-
-import math
 import param
 from torch import nn
 from pathlib import Path
-from typing import Callable, Optional, Tuple
+from typing import Optional, Tuple
 from cpath.utils.ctranspath import CTransPath_Imagenet, CTransPath_SSL
 from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_cpath.models.encoders import (
@@ -76,6 +74,9 @@ class EncoderParams(param.Parameterized):
         bounds=(1, None),
         doc="The segments size to use for checkpointing the encoder's activations. Default: 2. "
     )
+    bn_momentum: Optional[float] = param.Number(
+        default=None, bounds=(0, 1), doc="Batch norm momentum. If None, use the default value."
+    )
 
     def validate(self) -> None:
         """Validate the encoder parameters."""
@@ -96,16 +97,16 @@ class EncoderParams(param.Parameterized):
         """
         encoder: TileEncoder
         if self.encoder_type == Resnet18.__name__:
-            encoder = self.get_resnet_encoder(Resnet18)
+            encoder = Resnet18(tile_size=self.tile_size, n_channels=self.n_channels)
 
         elif self.encoder_type == Resnet18_NoPreproc.__name__:
-            encoder = self.get_resnet_encoder(Resnet18_NoPreproc)
+            encoder = Resnet18_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
 
         elif self.encoder_type == Resnet50.__name__:
-            encoder = self.get_resnet_encoder(Resnet50)
+            encoder = Resnet50(tile_size=self.tile_size, n_channels=self.n_channels)
 
         elif self.encoder_type == Resnet50_NoPreproc.__name__:
-            encoder = self.get_resnet_encoder(Resnet50_NoPreproc)
+            encoder = Resnet50_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
 
         elif self.encoder_type == SwinTransformer_NoPreproc.__name__:
             encoder = SwinTransformer_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
@@ -132,6 +133,8 @@ class EncoderParams(param.Parameterized):
         else:
             raise ValueError(f"Unsupported encoder type: {self.encoder_type}")
         set_module_gradients_enabled(encoder, tuning_flag=self.tune_encoder)
+        if self.checkpoint_encoder:
+            encoder.set_batch_norm_momentum(momentum=self.bn_momentum)
         return encoder
 
     def get_projection_layer(self, num_encoding: int) -> nn.Module:
@@ -144,27 +147,6 @@ class EncoderParams(param.Parameterized):
         if self.projection_dim > 0:
             return nn.Sequential(nn.Linear(num_encoding, self.projection_dim), nn.ReLU())
         return nn.Identity()
-
-    @staticmethod
-    def sqrt_batch_norm_momentum_for_gradient_checkpointing(encoder: TileEncoder) -> None:
-        encoder.feature_extractor_fn.bn1.momentum = math.sqrt(encoder.feature_extractor_fn.bn1.momentum)
-
-        def _sqrt_bn_momentum(layer_block: nn.Module) -> None:
-            for sub_layer in layer_block:
-                for key, layer in sub_layer._modules.items():
-                    if 'bn' in key:
-                        layer.momentum = math.sqrt(layer.momentum)
-
-        _sqrt_bn_momentum(encoder.feature_extractor_fn.layer1)
-        _sqrt_bn_momentum(encoder.feature_extractor_fn.layer2)
-        _sqrt_bn_momentum(encoder.feature_extractor_fn.layer3)
-        _sqrt_bn_momentum(encoder.feature_extractor_fn.layer4)
-
-    def get_resnet_encoder(self, resnet_class: Callable) -> TileEncoder:
-        encoder = resnet_class(tile_size=self.tile_size, n_channels=self.n_channels)
-        if self.checkpoint_encoder:
-            self.sqrt_batch_norm_momentum_for_gradient_checkpointing(encoder)
-        return encoder
 
 
 class PoolingParams(param.Parameterized):

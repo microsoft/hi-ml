@@ -2,7 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-
+import math
 from pathlib import Path
 from typing import Callable, Optional, Sequence, Tuple
 
@@ -84,6 +84,21 @@ class ImageNetEncoder(TileEncoder):
     def _get_encoder(self) -> Tuple[torch.nn.Module, int]:
         pretrained_model = self.create_feature_extractor_fn(pretrained=True)
         return setup_feature_extractor(pretrained_model, self.input_dim)
+
+    def set_batch_norm_momentum(self, momentum: Optional[float] = None) -> None:
+        _momentum = momentum if momentum is not None else math.sqrt(self.feature_extractor_fn.bn1.momentum)
+        self.feature_extractor_fn.bn1.momentum = _momentum
+
+        def _set_bn_momentum(layer_block: nn.Module) -> None:
+            for sub_layer in layer_block:
+                for key, layer in sub_layer._modules.items():
+                    if 'bn' in key:
+                        layer.momentum = _momentum
+
+        _set_bn_momentum(self.feature_extractor_fn.layer1)
+        _set_bn_momentum(self.feature_extractor_fn.layer2)
+        _set_bn_momentum(self.feature_extractor_fn.layer3)
+        _set_bn_momentum(self.feature_extractor_fn.layer4)
 
 
 class Resnet18(ImageNetEncoder):

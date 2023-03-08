@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import math
 import torch
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 from pathlib import Path
@@ -14,7 +15,7 @@ from torchmetrics.classification import (MulticlassAUROC, MulticlassAccuracy, Mu
                                          BinaryAUROC, BinarySpecificity, BinaryAveragePrecision)
 from health_ml.utils import log_on_epoch
 from health_ml.deep_learning_config import OptimizerParams
-from health_cpath.models.encoders import IdentityEncoder
+from health_cpath.models.encoders import IdentityEncoder, ImageNetEncoder
 from health_cpath.utils.deepmil_utils import ClassifierParams, EncoderParams, PoolingParams
 from health_cpath.datasets.base_dataset import TilesDataset
 from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
