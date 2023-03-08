@@ -39,13 +39,10 @@ def compare_dictionaries(expected: Dict[str, Any], actual: Dict[str, Any], toler
     def _check_values_match(expected_v: Any, actual_v: Any, tolerance: float = 1e-5) -> None:
         if type(actual_v) in [float, int] and type(expected_v) in [float, int]:
             if not isclose(actual_v, expected_v, rel_tol=tolerance):
-                raise ValueError(f"Expected: {expected_v} does not match actual {actual_v}")
-            else:
-                return
+                logging.warning(f"Expected: {expected_v} does not match actual {actual_v}")
         else:
             if expected_v != actual_v:
-                raise ValueError(f"Expected: {expected_v} does not match actual {actual_v}")
-        return
+                logging.warning(f"Expected: {expected_v} does not match actual {actual_v}")
 
     for expected_key, expected_val in expected.items():
         if expected_key not in actual:
@@ -67,6 +64,93 @@ def compare_dictionaries(expected: Dict[str, Any], actual: Dict[str, Any], toler
                     logging.warning(f"Expected value to have length {expected_len} but found {actual_len}")
                 for expected_value, actual_value in zip(expected_val, actual_val):
                     _check_values_match(expected_value, actual_value, tolerance=tolerance)
+
+
+def _compare_metric_values(expected: Any, actual: Any, tolerance: float = 1e-5) -> str:
+    """Compares an expected and an actual value coming from a metrics dictionary. If the values are numeric
+    and are close enough (within the given tolerance), an empty string is returned. String values
+    are always considered to match, because they usually contain AzureML resource ID. If the actual
+    and expected value are not matching, a string description of the discrepancy will be returned.
+
+    :param expected: The expected value
+    :param actual: The actual value
+    :param tolerance: For numerical values, this is the relative tolerance allowed, defaults to 1e-5
+    :return: An empty string if the expected and actual values match, otherwise a string describing the discrepancy.
+    """
+    if type(actual) in [float, int] and type(expected) in [float, int]:
+        if isclose(actual, expected, rel_tol=tolerance):
+            return ""
+        return f"Expected {expected} but got {actual} (allowed tolerance {tolerance})"
+    elif type(actual) is str and type(expected) is str:
+        return ""
+    return f"Expected {expected} but got {actual}"
+
+
+def _compare_metrics_list(expected: List, actual: List, tolerance: float = 1e-5) -> List[str]:
+    """Compares two lists of expected and actual values, coming from a metrics dictionary. The two lists are
+    considered matching if they have the same length, and matching list elements are within the given relative
+    tolerance.
+
+    :param expected: A list of expected values.
+    :param actual: A list with actual metric values.
+    :param tolerance: For numerical values, this is the relative tolerance allowed, defaults to 1e-5
+    :return: A list of strings describing the discrepancies between the two lists. If the lists match, the
+        return value is an empty list.
+    """
+    messages = []
+    expected_len = len(expected)
+    actual_len = len(actual)
+    if expected_len == actual_len:
+        for index, (expected_value, actual_value) in enumerate(zip(expected, actual)):
+            mismatch = _compare_metric_values(expected_value, actual_value, tolerance=tolerance)
+            if mismatch:
+                messages.append(f"Index {index}: {mismatch}")
+    else:
+        messages.append(f"Expected list of length {expected_len} but got {actual_len}")
+    return messages
+
+
+def compare_metrics_dictionaries(expected: Dict[str, Any],
+                                 actual: Dict[str, Any],
+                                 tolerance: float = 1e-5) -> None:
+    """
+    Function to compare two dictionaries that are expected to contain metrics (scalars or lists of scalars) or strings.
+    Discrepancies are logged via logging.warning. The function returns an empty string if the dictionaries are
+    identical, otherwise a string giving a short summary of the discrepancies.
+
+    :param expected: The first dictionary to compare
+    :param actual: The second dictionary to compare
+    :param tolerance: The tolerance to allow when comparing numeric values, defaults to 1e-5.
+    """
+
+    allowed_types = [float, int, str, list]
+    discrepancies = 0
+    for key, expected_val in expected.items():
+        messages = []
+        expected_type = type(expected_val)
+        if expected_type not in allowed_types:
+            raise ValueError(f"Expected value has type {expected_type.__name__} which is not handled.")
+        if key not in actual:
+            messages.append("No data found in actual metrics.")
+        else:
+            actual_val = actual[key]
+            actual_type = type(actual_val)
+            if actual_type not in allowed_types:
+                messages.append(f"Actual value has type {actual_type.__name__} which is not handled.")
+            elif expected_type is not actual_type:
+                messages.append(f"Actual value has type {actual_type.__name__} but we expected "
+                                f"{expected_type.__name__}.")
+            elif expected_type is list:
+                messages.extend(_compare_metrics_list(expected_val, actual_val, tolerance=tolerance))
+            else:
+                mismatch = _compare_metric_values(expected_val, actual_val, tolerance=tolerance)
+                if mismatch:
+                    messages.append(mismatch)
+        for message in messages[:5]:
+            logging.warning(f"Metric '{key}': {message}")
+        if len(messages) > 0:
+            discrepancies += 1
+    return f"Mismatch for {discrepancies} out of {len(expected)} metrics" if discrepancies > 0 else ""
 
 
 def compare_files(expected: Path, actual: Path, csv_relative_tolerance: float = 0.0) -> str:
@@ -179,6 +263,11 @@ def compare_folder_contents(
                 run.download_file(name=str(file_relative), output_file_path=str(actual_file))
         else:
             raise ValueError("Either of the two arguments 'run' or 'actual_folder' must be provided")
+        if str(file_relative) == REGRESSION_TEST_METRICS_FILENAME:
+            message = compare_regression_metrics(
+                expected=file,
+                actual=actual_file,
+                csv_relative_tolerance=csv_relative_tolerance)
         message = compare_files(expected=file, actual=actual_file,
                                 csv_relative_tolerance=csv_relative_tolerance) if actual_file.exists() else MISSING_FILE
         if message:

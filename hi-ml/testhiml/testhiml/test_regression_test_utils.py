@@ -23,10 +23,13 @@ from health_ml.utils.regression_test_utils import (
     REGRESSION_TEST_AZUREML_FOLDER,
     REGRESSION_TEST_AZUREML_PARENT_FOLDER,
     TEXT_FILE_SUFFIXES,
+    _compare_metric_values,
+    _compare_metrics_list,
     compare_dictionaries,
     compare_files,
     compare_folder_contents,
     compare_folders_and_run_outputs,
+    compare_metrics_dictionaries,
 )
 from testazure.utils_testazure import DEFAULT_WORKSPACE, experiment_for_unittests
 
@@ -294,3 +297,131 @@ def test_compare_dictionaries(
             for expected_warning in expected_warnings:
                 assert expected_warning in caplog.text
     caplog.clear()
+
+
+@pytest.mark.parametrize("expected",
+    [
+        {"a": 1},
+        {"a": [1.0]},
+        {"a": [1.0, 2.0]},
+        {"a": "foo"},
+        {"a": ["foo"]},
+    ])
+def test_compare_metrics_dictionaries_matches(expected: Dict[str, Any], caplog: pytest.LogCaptureFixture) -> None:
+    """Test simple cases where a metrics dictionary matches its expected value"""
+    with caplog.at_level(logging.WARNING):
+        assert compare_metrics_dictionaries(expected, expected) == ""
+    assert len(caplog.records) == 0
+
+
+def test_compare_metrics_dictionaries_numeric(caplog: pytest.LogCaptureFixture) -> None:
+    """Test comparing metrics dictionaries with numeric values, matching and not matching"""
+    expected = {"a": 1.0}
+    tol = 1e-3
+    with caplog.at_level(logging.WARNING):
+        assert compare_metrics_dictionaries(expected, {"a": 1+0.9*tol}, tolerance=tol) == ""
+    assert len(caplog.records) == 0
+
+    with caplog.at_level(logging.WARNING):
+        assert compare_metrics_dictionaries(expected, {"a": 1+1.1*tol}, tolerance=tol) == \
+            "Mismatch for 1 out of 1 metrics"
+    assert len(caplog.records) == 1
+    assert caplog.messages[0] == "Metric 'a': Expected 1.0 but got 1.0011 (allowed tolerance 0.001)"
+
+
+def test_compare_metrics_dictionaries_list(caplog: pytest.LogCaptureFixture) -> None:
+    """Test comparing metrics dictionaries with numeric values, matching and not matching"""
+    expected = {"a": 1.0}
+    tol = 1e-3
+    with caplog.at_level(logging.WARNING):
+        assert compare_metrics_dictionaries(expected, {"a": 1+0.9*tol}, tolerance=tol) == ""
+    assert len(caplog.records) == 0
+
+    with caplog.at_level(logging.WARNING):
+        assert compare_metrics_dictionaries(expected, {"a": 1+1.1*tol}, tolerance=tol) == \
+            "Mismatch for 1 out of 1 metrics"
+    assert len(caplog.records) == 1
+    assert caplog.messages[0] == "Metric 'a': Expected 1.0 but got 1.0011 (allowed tolerance 0.001)"
+
+
+def test_compare_metrics_dictionaries_invalid_expected() -> None:
+    """Test for metrics dictionaries where an invalid expected value is passed"""
+    expected = {"a": False}
+    with pytest.raises(ValueError, match="Expected value has type bool which is not handled."):
+        compare_metrics_dictionaries(expected, {})
+
+
+def test_compare_metrics_dictionaries_invalid_actual(caplog: pytest.LogCaptureFixture) -> None:
+    """Test for metrics dictionaries where an invalid actual value is passed"""
+    expected = {"a": 1.0}
+    actual = {"a": False}
+    with caplog.at_level(logging.WARNING):
+        assert compare_metrics_dictionaries(expected, actual) == \
+            "Mismatch for 1 out of 1 metrics"
+    assert len(caplog.records) == 1
+    assert caplog.messages[0] == "Metric 'a': Actual value has type bool which is not handled."
+
+
+def test_compare_metrics_dictionaries_missing(caplog: pytest.LogCaptureFixture) -> None:
+    """Test for metrics dictionaries where not data is present for an expected metric"""
+    expected = {"a": 1.0}
+    actual = {}
+    with caplog.at_level(logging.WARNING):
+        assert compare_metrics_dictionaries(expected, actual) == \
+            "Mismatch for 1 out of 1 metrics"
+    assert len(caplog.records) == 1
+    assert caplog.messages[0] == "Metric 'a': No data found in actual metrics."
+
+
+def test_compare_metrics_dictionaries_type_mismatch(caplog: pytest.LogCaptureFixture) -> None:
+    """Test for metrics dictionaries where the types of expected and actual value don't match"""
+    expected = {"a": 1.0}
+    actual = {"a": "foo"}
+    with caplog.at_level(logging.WARNING):
+        assert compare_metrics_dictionaries(expected, actual) == "Mismatch for 1 out of 1 metrics"
+    assert len(caplog.records) == 1
+    assert caplog.messages[0] == "Metric 'a': Actual value has type str but we expected float."
+
+
+def test_compare_metrics_dictionaries_lists(caplog: pytest.LogCaptureFixture) -> None:
+    """Test for metrics dictionaries with lists"""
+    expected = {"a": [1.0, 2.0]}
+    with caplog.at_level(logging.WARNING):
+        assert compare_metrics_dictionaries(expected, expected) == ""
+    assert len(caplog.records) == 0
+
+    tol = 1e-3
+    expected = {"a": [1.0, 1.0]}
+    actual = {"a": [1.0 + 0.9*tol, 1.0 + 1.1*tol]}
+    with caplog.at_level(logging.WARNING):
+        assert compare_metrics_dictionaries(expected, actual, tolerance = tol) == "Mismatch for 1 out of 1 metrics"
+    assert len(caplog.records) == 1
+    assert caplog.messages[0] == "Metric 'a': Index 1: Expected 1.0 but got 1.0011 (allowed tolerance 0.001)"
+
+
+
+@pytest.mark.parametrize("expected, actual, tol, expected_result",
+    [
+        (1.0, 1.0, 1e-3, ""),
+        (1.0, 1.01, 1e-3, "Expected 1.0 but got 1.01 (allowed tolerance 0.001)"),
+        (100.0, 100.09, 1e-3, ""),
+        (100.0, 101, 1e-3, "Expected 100.0 but got 101 (allowed tolerance 0.001)"),
+        ("foo", "bar", 1e-3, ""),
+        ("foo", 1.0, 1e-3, "Expected foo but got 1.0"),
+    ])
+def test_compare_metric_values(expected: Any, actual: Any, tol: float, expected_result: str) -> None:
+    result = _compare_metric_values(expected, actual, tol)
+    assert result == expected_result
+
+
+@pytest.mark.parametrize("expected, actual, tol, expected_result",
+    [
+        ([], [], 1e-3, []),
+        ([], [1], 1e-3, ["Expected list of length 0 but got 1"]),
+        ([1], [1], 1e-3, []),
+        ([1], [1.1], 1e-3, ["Index 0: Expected 1 but got 1.1 (allowed tolerance 0.001)"]),
+        (["a"], ["b"], 1e-3, []),
+    ])
+def test_compare_metric_lists(expected: Any, actual: Any, tol: float, expected_result: List) -> None:
+    result = _compare_metrics_list(expected, actual, tol)
+    assert result == expected_result
