@@ -3,10 +3,11 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
+import math
 import param
 from torch import nn
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple
 from cpath.utils.ctranspath import CTransPath_Imagenet, CTransPath_SSL
 from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_cpath.models.encoders import (
@@ -66,12 +67,24 @@ class EncoderParams(param.Parameterized):
     projection_dim: int = param.Integer(
         default=0, doc="If > 0, project the encoded tiles to this dimension. Otherwise, use identity projection."
     )
+    checkpoint_encoder: bool = param.Boolean(
+        default=False, doc="If True, checkpoint the encoder gradients during training. This is useful to trade compute "
+        "for memory, and is only supported for the Resnet18 and Resnet50 encoders at the moment. Default: False."
+    )
+    checkpoint_segments_size: int = param.Integer(
+        default=2,
+        bounds=(1, None),
+        doc="The segments size to use for checkpointing the encoder's activations. Default: 2. "
+    )
 
     def validate(self) -> None:
         """Validate the encoder parameters."""
         if self.encoder_type == SSLEncoder.__name__ and not self.ssl_checkpoint:
             raise ValueError("SSLEncoder requires an ssl_checkpoint. Please specify a valid checkpoint. "
                              f"{CheckpointParser.INFO_MESSAGE}")
+        resnets = set([Resnet18.__name__, Resnet50.__name__, Resnet18_NoPreproc.__name__, Resnet50_NoPreproc.__name__])
+        if self.checkpoint_encoder and self.encoder_type not in resnets:
+            raise ValueError("Checkpointing the encoder is only supported for Resnet18 and Resnet50 encoders.")
 
     def get_encoder(self, outputs_folder: Optional[Path]) -> TileEncoder:
         """Given the current encoder parameters, returns the encoder object.
@@ -83,16 +96,16 @@ class EncoderParams(param.Parameterized):
         """
         encoder: TileEncoder
         if self.encoder_type == Resnet18.__name__:
-            encoder = Resnet18(tile_size=self.tile_size, n_channels=self.n_channels)
+            encoder = self.get_resnet_encoder(Resnet18)
 
         elif self.encoder_type == Resnet18_NoPreproc.__name__:
-            encoder = Resnet18_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
+            encoder = self.get_resnet_encoder(Resnet18_NoPreproc)
 
         elif self.encoder_type == Resnet50.__name__:
-            encoder = Resnet50(tile_size=self.tile_size, n_channels=self.n_channels)
+            encoder = self.get_resnet_encoder(Resnet50)
 
         elif self.encoder_type == Resnet50_NoPreproc.__name__:
-            encoder = Resnet50_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
+            encoder = self.get_resnet_encoder(Resnet50_NoPreproc)
 
         elif self.encoder_type == SwinTransformer_NoPreproc.__name__:
             encoder = SwinTransformer_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
@@ -131,6 +144,27 @@ class EncoderParams(param.Parameterized):
         if self.projection_dim > 0:
             return nn.Sequential(nn.Linear(num_encoding, self.projection_dim), nn.ReLU())
         return nn.Identity()
+
+    @staticmethod
+    def sqrt_batch_norm_momentum_for_gradient_checkpointing(encoder: TileEncoder) -> None:
+        encoder.feature_extractor_fn.bn1.momentum = math.sqrt(encoder.feature_extractor_fn.bn1.momentum)
+
+        def _sqrt_bn_momentum(layer_block: nn.Module) -> None:
+            for sub_layer in layer_block:
+                for key, layer in sub_layer._modules.items():
+                    if 'bn' in key:
+                        layer.momentum = math.sqrt(layer.momentum)
+
+        _sqrt_bn_momentum(encoder.feature_extractor_fn.layer1)
+        _sqrt_bn_momentum(encoder.feature_extractor_fn.layer2)
+        _sqrt_bn_momentum(encoder.feature_extractor_fn.layer3)
+        _sqrt_bn_momentum(encoder.feature_extractor_fn.layer4)
+
+    def get_resnet_encoder(self, resnet_class: Callable) -> TileEncoder:
+        encoder = resnet_class(tile_size=self.tile_size, n_channels=self.n_channels)
+        if self.checkpoint_encoder:
+            self.sqrt_batch_norm_momentum_for_gradient_checkpointing(encoder)
+        return encoder
 
 
 class PoolingParams(param.Parameterized):
