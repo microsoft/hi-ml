@@ -9,16 +9,20 @@ import numpy as np
 import pytest
 from _pytest.capture import SysCapture
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 from monai.transforms import LoadImaged
 from monai.data.wsi_reader import CuCIMWSIReader, OpenSlideWSIReader, WSIReader
 from health_cpath.datasets.default_paths import PANDA_DATASET_ID
 from health_cpath.datasets.panda_dataset import PandaDataset
-from health_cpath.preprocessing.loading import BaseLoadROId, LoadingParams, ROIType, WSIBackend, LoadROId, LoadMaskROId
+from health_cpath.preprocessing.loading import (
+    BaseLoadROId, LoadingParams, ROIType, WSIBackend, LoadROId, LoadMaskROId, LoadMaskSubROId
+)
 from health_cpath.scripts.mount_azure_dataset import mount_dataset
 from health_cpath.utils.naming import SlideKey
 from health_ml.utils.common_utils import is_gpu_available
+from PIL import Image
 from testhiml.utils_testhiml import DEFAULT_WORKSPACE
+
 
 no_gpu = not is_gpu_available()
 
@@ -28,7 +32,10 @@ no_gpu = not is_gpu_available()
 def test_get_load_roid_transform(backend: WSIBackend, roi_type: ROIType) -> None:
     loading_params = LoadingParams(backend=backend, roi_type=roi_type)
     transform = loading_params.get_load_roid_transform()
-    transform_type = {ROIType.MASK: LoadMaskROId, ROIType.FOREGROUND: LoadROId, ROIType.WHOLE: LoadImaged}
+    transform_type = {
+        ROIType.MASK: LoadMaskROId, ROIType.FOREGROUND: LoadROId, ROIType.WHOLE: LoadImaged,
+        ROIType.MASKSUBROI: LoadMaskSubROId,
+    }
     assert isinstance(transform, transform_type[roi_type])
     reader_type = {WSIBackend.CUCIM: CuCIMWSIReader, WSIBackend.OPENSLIDE: OpenSlideWSIReader}
     if roi_type in [ROIType.MASK, ROIType.FOREGROUND]:
@@ -94,3 +101,39 @@ def test_failed_to_estimate_foreground(
                 mock_get_wsi_bbox.assert_called_once()
                 stdout: str = capsys.readouterr().out  # type: ignore
                 assert "Failed to estimate bounding box for slide _0: The input mask is empty" in stdout
+
+
+@pytest.mark.parametrize("roi_label", [None, 1])
+def test_load_mask_sub_roid_roi_label(roi_label: Optional[int]) -> None:
+    loading_params = LoadingParams(roi_type=ROIType.MASKSUBROI, level=2, roi_label=roi_label)
+    load_transform = loading_params.get_load_roid_transform()
+    assert isinstance(load_transform, LoadMaskSubROId)
+    assert load_transform.roi_label == roi_label
+    mask = np.random.randint(0, 3, size=(4, 4))
+    np.random.seed(0)
+    section_label = load_transform._get_sub_section_label(mask)
+    if roi_label is None:
+        assert section_label in [0, 1, 2]
+    else:
+        assert section_label == roi_label
+
+
+@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
+@pytest.mark.gpu
+def test_load_mask_sub_roid(mock_panda_slides_root_dir_diagonal: Path, tmp_path: Path) -> None:
+    sample = PandaDataset(mock_panda_slides_root_dir_diagonal)[0]
+    loading_params = LoadingParams(roi_type=ROIType.MASKSUBROI, level=0, roi_label=1, mask_mag=10.0)
+    load_transform = loading_params.get_load_roid_transform()
+
+    # Creat a fake mask
+    mask = np.zeros((224, 224, 3))
+    mask[56:112, :56, :] = 1  # Set pixels to 1 (foreground), they are all white in the image
+    # write a mask as png
+    mask_path = tmp_path / "mask.png"
+    Image.fromarray(mask.astype(np.uint8)).save(mask_path)
+
+    sample[SlideKey.MASK] = str(mask_path)
+    slide_dict = load_transform(sample)
+    assert SlideKey.IMAGE in slide_dict
+    assert slide_dict[SlideKey.IMAGE].shape == (3, 56, 56)
+    assert slide_dict[SlideKey.IMAGE].sum() == 255 * 3 * 56 * 56  # all pixels are white
