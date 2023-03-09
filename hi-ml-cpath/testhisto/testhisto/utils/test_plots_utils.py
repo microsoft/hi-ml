@@ -34,7 +34,7 @@ def test_plots_handler_always_uses_roid_loading(roi_type: ROIType) -> None:
     plot_options = {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX}
     loading_params = LoadingParams(roi_type=roi_type)
     plots_handler = DeepMILPlotsHandler(plot_options, class_names=["foo", "bar"], loading_params=loading_params)
-    assert plots_handler.loading_params.roi_type in [ROIType.MASK, ROIType.FOREGROUND]
+    assert plots_handler.loading_params.roi_type in [ROIType.MASK, ROIType.FOREGROUND, ROIType.MASKSUBROI]
 
 
 @pytest.mark.parametrize(
