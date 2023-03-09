@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-
 import param
 from torch import nn
 from pathlib import Path
@@ -66,12 +65,27 @@ class EncoderParams(param.Parameterized):
     projection_dim: int = param.Integer(
         default=0, doc="If > 0, project the encoded tiles to this dimension. Otherwise, use identity projection."
     )
+    checkpoint_encoder: bool = param.Boolean(
+        default=False, doc="If True, checkpoint the encoder gradients during training. This is useful to trade compute "
+        "for memory, and is only supported for the Resnet18 and Resnet50 encoders at the moment. Default: False."
+    )
+    checkpoint_segments_size: int = param.Integer(
+        default=2,
+        bounds=(1, None),
+        doc="The segments size to use for checkpointing the encoder's activations. Default: 2. "
+    )
+    bn_momentum: Optional[float] = param.Number(
+        default=None, bounds=(0, 1), doc="Batch norm momentum. If None, use the default value."
+    )
 
     def validate(self) -> None:
         """Validate the encoder parameters."""
         if self.encoder_type == SSLEncoder.__name__ and not self.ssl_checkpoint:
             raise ValueError("SSLEncoder requires an ssl_checkpoint. Please specify a valid checkpoint. "
                              f"{CheckpointParser.INFO_MESSAGE}")
+        resnets = set([Resnet18.__name__, Resnet50.__name__, Resnet18_NoPreproc.__name__, Resnet50_NoPreproc.__name__])
+        if self.checkpoint_encoder and self.encoder_type not in resnets:
+            raise ValueError("Checkpointing the encoder is only supported for Resnet18 and Resnet50 encoders.")
 
     def get_encoder(self, outputs_folder: Optional[Path]) -> TileEncoder:
         """Given the current encoder parameters, returns the encoder object.
@@ -119,6 +133,8 @@ class EncoderParams(param.Parameterized):
         else:
             raise ValueError(f"Unsupported encoder type: {self.encoder_type}")
         set_module_gradients_enabled(encoder, tuning_flag=self.tune_encoder)
+        if self.checkpoint_encoder:
+            encoder.set_batch_norm_momentum(momentum=self.bn_momentum)
         return encoder
 
     def get_projection_layer(self, num_encoding: int) -> nn.Module:
