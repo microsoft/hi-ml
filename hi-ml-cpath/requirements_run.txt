@@ -4,7 +4,7 @@ girder-client==3.1.14
 hi-ml
 ipykernel==6.21.2
 lightning-bolts==0.4.0
-monai==1.0.1
+git+https://github.com/Project-MONAI/MONAI.git@958aac78ab8130517638a47175571e081ae03aee
 more-itertools==8.10.0
 numpy==1.22.0
 pillow==9.3.0
