@@ -112,7 +112,7 @@ def _compare_metrics_list(expected: List, actual: List, tolerance: float = 1e-5)
 
 def compare_metrics_dictionaries(expected: Dict[str, Any],
                                  actual: Dict[str, Any],
-                                 tolerance: float = 1e-5) -> None:
+                                 tolerance: float = 1e-5) -> str:
     """
     Function to compare two dictionaries that are expected to contain metrics (scalars or lists of scalars) or strings.
     Discrepancies are logged via logging.warning. The function returns an empty string if the dictionaries are
@@ -121,6 +121,7 @@ def compare_metrics_dictionaries(expected: Dict[str, Any],
     :param expected: The first dictionary to compare
     :param actual: The second dictionary to compare
     :param tolerance: The tolerance to allow when comparing numeric values, defaults to 1e-5.
+    :return: An empty string if the dictionaries match, otherwise a string describing the discrepancies.
     """
 
     allowed_types = [float, int, str, list]
@@ -347,7 +348,7 @@ def compare_folder_contents(
             message = compare_metrics_files(
                 expected=file,
                 actual=actual_file,
-                csv_relative_tolerance=csv_relative_tolerance)
+                tolerance=csv_relative_tolerance)
         message = compare_files(expected=file, actual=actual_file,
                                 csv_relative_tolerance=csv_relative_tolerance) if actual_file.exists() else MISSING_FILE
         if message:

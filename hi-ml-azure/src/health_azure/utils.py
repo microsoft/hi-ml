@@ -35,7 +35,6 @@ from azureml.core.authentication import InteractiveLoginAuthentication, ServiceP
 from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.run import _OfflineRun
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
-from azureml.train.hyperdrive import HyperDriveRun
 
 from azure.ai.ml import MLClient
 from azure.ai.ml.entities import Job

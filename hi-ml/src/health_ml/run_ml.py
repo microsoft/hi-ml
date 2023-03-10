@@ -362,7 +362,7 @@ class MLRunner:
                         if metrics:
                             metrics_filename = self.container.outputs_folder / REGRESSION_TEST_METRICS_FILENAME
                             logging.info(f"Saving metrics to {metrics_filename}")
-                            json.dump(metrics, metrics_filename)
+                            metrics_filename.write_text(json.dumps(metrics))
 
                     compare_folders_and_run_outputs(expected=self.container.regression_test_folder,
                                                     actual=self.container.outputs_folder,

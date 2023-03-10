@@ -487,7 +487,7 @@ def _test_compare_metrics_files(
     tmp_path: Path,
     expected: Dict[str, Any],
     actual: Dict[str, Any],
-) -> None:
+) -> str:
     expected_file = _write_to_json_dict(tmp_path, expected)
     actual_file = _write_to_json_dict(tmp_path, actual)
     return compare_metrics_files(expected_file, actual_file)
@@ -585,7 +585,7 @@ def test_compare_metrics_files_invalid_data(tmp_path: Path, caplog: pytest.LogCa
     expected = ["a", "b"]
     actual = {"0": {"b": 2.0}}
     with caplog.at_level(logging.WARNING):
-        result = _test_compare_metrics_files(tmp_path, expected, actual)
+        result = _test_compare_metrics_files(tmp_path, expected, actual)  # type: ignore
     assert len(caplog.messages) == 0
     assert result.startswith("Error comparing metrics files")
     assert result.endswith("contain a JSON dictionary, but got list")

@@ -2237,18 +2237,26 @@ def test_get_metrics_for_run_2(metrics: Dict[str, List[float]]) -> None:
     """
     run_name = "test_get_metrics_for_run_2"
     experiment_name = effective_experiment_name("himl-tests")
+    run = util.create_aml_run_object(
+        experiment_name=experiment_name,
+        run_name=run_name,
+        workspace=DEFAULT_WORKSPACE.workspace
+    )
     try:
-        run = util.create_aml_run_object(
-            experiment_name=experiment_name,
-            run_name=run_name,
-            workspace=DEFAULT_WORKSPACE.workspace
-        )
         for metric_name, metric_values in metrics.items():
             for metric_value in metric_values:
                 run.log(metric_name, metric_value)
         run.flush()
-        metrics_df = util.get_metrics_for_run(run=run)
-        assert isinstance(metrics_df, pd.DataFrame)
+        metrics_dict = util.get_metrics_for_run(run=run)
+        assert isinstance(metrics_dict, Dict)
+        for metric_name, expected_metrics in metrics.items():
+            assert metric_name in metrics_dict
+            value_from_run = metrics_dict[metric_name]
+            if len(expected_metrics) == 1:
+                assert value_from_run == expected_metrics[0]
+            else:
+                assert isinstance(value_from_run, list)
+                assert value_from_run == expected_metrics
     finally:
         run.complete()
 
