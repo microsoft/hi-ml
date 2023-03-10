@@ -511,6 +511,9 @@ class TrainerParams(param.Parameterized):
                                             doc="PyTorch Lightning trainer flag 'sync_batchnorm': If True, "
                                             "synchronize batchnorm across all GPUs when running in ddp mode."
                                             "If False, batchnorm is not synchronized.")
+    pl_static_graph: bool = param.Boolean(default=False,
+                                          doc="PyTorch DDP flag 'static_graph': If True, the trained graph is static. "
+                                          "Default is False.")
     monitor_gpu: bool = param.Boolean(default=False,
                                       doc="If True, add the GPUStatsMonitor callback to the Lightning trainer object. "
                                           "This will write GPU utilization metrics every 50 batches by default.")
