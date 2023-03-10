@@ -210,7 +210,7 @@ dependencies:
       - mdit-py-plugins==0.2.8
       - mlflow==2.2.1
       - mlflow-skinny==2.2.1
-      - monai==1.1.0+100.g958aac78
+      - git+https://github.com/Project-MONAI/MONAI.git@958aac78ab8130517638a47175571e081ae03aee
       - more-itertools==8.10.0
       - msal==1.21.0
       - msal-extensions==0.3.1
