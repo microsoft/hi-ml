@@ -86,7 +86,7 @@ class ImageNetEncoder(TileEncoder):
         return setup_feature_extractor(pretrained_model, self.input_dim)
 
     def set_batch_norm_momentum(self, momentum: Optional[float] = None) -> None:
-        _momentum = momentum if momentum is not None else math.sqrt(self.feature_extractor_fn.bn1.momentum)
+        _momentum = momentum if momentum is not None else 1 - math.sqrt(1 - self.feature_extractor_fn.bn1.momentum)
         self.feature_extractor_fn.bn1.momentum = _momentum
 
         def _set_bn_momentum(layer_block: nn.Module) -> None:
