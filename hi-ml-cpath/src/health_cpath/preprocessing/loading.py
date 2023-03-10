@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from git import Sequence
 import param
 import numpy as np
 import skimage.filters
@@ -204,6 +203,8 @@ class LoadMaskROId(MapTransform, BaseLoadROId):
                 size=(scaled_bbox.h, scaled_bbox.w),
                 level=self.level,
             )
+            mask, _ = self.reader.get_data(mask_obj, **get_data_kwargs)  # type: ignore
+            data[self.mask_key] = mask[:1]  # PANDA segmentation mask is in 'R' channel
             data[self.image_key], _ = self.reader.get_data(image_obj, **get_data_kwargs)  # type: ignore
             data.update(get_data_kwargs)
             data[SlideKey.SCALE] = scale
