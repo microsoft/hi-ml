@@ -144,7 +144,7 @@ dependencies:
       - cryptography==39.0.2
       - cucim==22.10.0
       - cycler==0.11.0
-      - databricks-cli==0.17.4
+      - databricks-cli==0.17.5
       - dataclasses-json==0.5.2
       - debugpy==1.6.6
       - dill==0.3.6
@@ -210,7 +210,7 @@ dependencies:
       - mdit-py-plugins==0.2.8
       - mlflow==2.2.1
       - mlflow-skinny==2.2.1
-      - git+https://github.com/Project-MONAI/MONAI.git@958aac78ab8130517638a47175571e081ae03aee
+      - monai-weekly==1.2.dev2310
       - more-itertools==8.10.0
       - msal==1.21.0
       - msal-extensions==0.3.1
@@ -296,7 +296,7 @@ dependencies:
       - sphinxcontrib-serializinghtml==1.1.5
       - sqlalchemy==2.0.5.post1
       - sqlparse==0.4.3
-      - strictyaml==1.6.2
+      - strictyaml==1.7.3
       - stringcase==1.2.0
       - tabulate==0.9.0
       - tensorboard==2.6.0
