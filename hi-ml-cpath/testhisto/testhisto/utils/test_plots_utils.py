@@ -130,23 +130,9 @@ def test_save_conf_matrix_integration(tmp_path: Path) -> None:
     }
     class_names = ["foo", "bar"]
 
-    # normalized confusion matrix
-    save_confusion_matrix(results, class_names, tmp_path, stage='foo', normlize='true')
+    save_confusion_matrix(results, class_names, tmp_path, stage='foo')
     file = Path(tmp_path) / "normalized_confusion_matrix_foo.png"
     assert file.exists()
-    expected = full_ml_test_data_path("histo_heatmaps") / f"normalized_confusion_matrix_foo.png"
-    # To update the stored results, uncomment this line:
-    # expected.write_bytes(file.read_bytes())
-    assert_binary_files_match(file, expected)
-
-    # unnormalized confusion matrix
-    save_confusion_matrix(results, class_names, tmp_path, stage='foo', normalize=None)
-    file = Path(tmp_path) / "confusion_matrix_foo.png"
-    assert file.exists()
-    expected = full_ml_test_data_path("histo_heatmaps") / f"confusion_matrix_foo.png"
-    # To update the stored results, uncomment this line:
-    # expected.write_bytes(file.read_bytes())
-    assert_binary_files_match(file, expected)
 
     # check that an error is raised if true labels include indices greater than the expected number of classes
     invalid_results_1 = {

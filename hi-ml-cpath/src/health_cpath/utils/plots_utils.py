@@ -34,14 +34,11 @@ SlideDictType = Dict[SlideKey, Any]
 def validate_class_names_for_plot_options(
     class_names: Optional[Sequence[str]], plot_options: Collection[PlotOption]
 ) -> Optional[Sequence[str]]:
-    """Make sure that class names are provided if `PlotOption.CONFUSION_MATRIX` or
-    `PlotOption.NORMALIZED_CONFUSION_MATRIX` is among the chosen plot_options."""
-    if (
-        PlotOption.NORMALIZED_CONFUSION_MATRIX in plot_options or PlotOption.CONFUSION_MATRIX in plot_options
-    ) and not class_names:
+    """Make sure that class names are provided if `PlotOption.CONFUSION_MATRIX` is among the chosen plot_options."""
+    if PlotOption.CONFUSION_MATRIX in plot_options and not class_names:
         raise ValueError(
             "No class_names were provided while activating confusion matrix plotting. You need to specify the class "
-            "names to use the `PlotOption.CONFUSION_MATRIX` or `PlotOption.NORMALIZED_CONFUSION_MATRIX`"
+            "names to use the `PlotOption.CONFUSION_MATRIX`"
         )
     return class_names
 
@@ -114,18 +111,13 @@ def save_roc_curve(results: ResultsType, figures_dir: Path, stage: str = '',
         logging.warning("The ROC curve plot implementation works only for binary cases, this plot will be skipped.")
 
 
-def save_confusion_matrix(
-    results: ResultsType, class_names: Sequence[str], figures_dir: Path, stage: str = '',
-    normalize: Optional[str] = 'true',
-) -> None:
+def save_confusion_matrix(results: ResultsType, class_names: Sequence[str], figures_dir: Path, stage: str = '') -> None:
     """Plots and saves confusion matrix figure in its dedicated directory.
 
     :param results: Dict of lists that contains slide_level results
     :param class_names: List of class names.
     :param figures_dir: The path to the directory where to save the confusion matrix.
     :param stage: Test or validation, used to name the figure. Empty string by default.
-    normalize: Normalizes confusion matrix over the true (rows), predicted (columns) conditions or all the population.
-    If None, confusion matrix will not be normalized.
     """
     true_labels = get_list_from_results_dict(results=results, results_key=ResultsKey.TRUE_LABEL)
     pred_labels = get_list_from_results_dict(results=results, results_key=ResultsKey.PRED_LABEL)
@@ -142,11 +134,11 @@ def save_confusion_matrix(
         true_labels,
         pred_labels,
         labels=all_potential_labels,
-        normalize=normalize,
+        normalize="true"
     )
 
     fig = plot_normalized_confusion_matrix(cm=cf_matrix_n, class_names=(class_names))
-    save_figure(fig=fig, figpath=figures_dir / f"{'normalized_' if normalize else ''}confusion_matrix_{stage}.png")
+    save_figure(fig=fig, figpath=figures_dir / f"normalized_confusion_matrix_{stage}.png")
 
 
 def save_top_and_bottom_tiles(
@@ -405,17 +397,9 @@ class DeepMILPlotsHandler:
             if PlotOption.HISTOGRAM in self.plot_options:
                 save_scores_histogram(results=results, figures_dir=figures_dir, stage=self.stage,)
 
-            if PlotOption.NORMALIZED_CONFUSION_MATRIX in self.plot_options:
-                assert self.class_names
-                save_confusion_matrix(
-                    results, class_names=self.class_names, figures_dir=figures_dir, stage=self.stage, normalize='true',
-                )
-
             if PlotOption.CONFUSION_MATRIX in self.plot_options:
                 assert self.class_names
-                save_confusion_matrix(
-                    results, class_names=self.class_names, figures_dir=figures_dir, stage=self.stage, normalize=None,
-                )
+                save_confusion_matrix(results, class_names=self.class_names, figures_dir=figures_dir, stage=self.stage)
 
             if tiles_selector:
                 for class_id in range(tiles_selector.n_classes):
