@@ -90,7 +90,9 @@ def create_lightning_trainer(container: LightningContainer,
             # GPU memory).
             # Initialize the DDP plugin. The default for pl_find_unused_parameters is False. If True, the plugin
             # prints out lengthy warnings about the performance impact of find_unused_parameters.
-            strategy = DDPStrategy(find_unused_parameters=container.pl_find_unused_parameters)
+            strategy = DDPStrategy(
+                find_unused_parameters=container.pl_find_unused_parameters, static_graph=container.pl_static_graph,
+            )
             message += "s per node with DDP"
     logging.info(f"Using {message}")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
