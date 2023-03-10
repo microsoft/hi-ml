@@ -385,7 +385,7 @@ def test_compare_metrics_dictionaries_invalid_actual(caplog: pytest.LogCaptureFi
 def test_compare_metrics_dictionaries_missing(caplog: pytest.LogCaptureFixture) -> None:
     """Test for metrics dictionaries where not data is present for an expected metric"""
     expected = {"a": 1.0}
-    actual = {}
+    actual: Dict[str, Any] = {}
     with caplog.at_level(logging.WARNING):
         assert compare_metrics_dictionaries(expected, actual) == "Mismatch for 1 out of 1 metrics"
     assert len(caplog.records) == 1
