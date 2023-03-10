@@ -25,11 +25,14 @@ from health_ml.utils.regression_test_utils import (
     TEXT_FILE_SUFFIXES,
     _compare_metric_values,
     _compare_metrics_list,
+    _is_nested_dict,
+    _load_json_dict,
     compare_dictionaries,
     compare_files,
     compare_folder_contents,
     compare_folders_and_run_outputs,
     compare_metrics_dictionaries,
+    compare_metrics_files,
 )
 from testazure.utils_testazure import DEFAULT_WORKSPACE, experiment_for_unittests
 
@@ -245,9 +248,11 @@ def upload_to_run_and_compare(regression_test_subfolder: str, run_to_mock: str, 
     file_contents = "some file contents"
     file_name = "contents.txt"
     regression_test_folder = tmp_path / "expected"
-    run = create_aml_run_object(workspace=DEFAULT_WORKSPACE.workspace,
-                                experiment_name=experiment_for_unittests(),
-                                run_name="upload_to_run_and_compare")
+    run = create_aml_run_object(
+        workspace=DEFAULT_WORKSPACE.workspace,
+        experiment_name=experiment_for_unittests(),
+        run_name="upload_to_run_and_compare",
+    )
     # Upload a single file to the newly created run. When comparing the run output files,
     # and seeing this in the set of files that are expected to exist on the run, this should pass.
     file1 = tmp_path / file_name
@@ -276,18 +281,28 @@ def upload_to_run_and_compare(regression_test_subfolder: str, run_to_mock: str, 
     run.complete()
 
 
-@pytest.mark.parametrize("dict1, dict2, should_pass, expected_warnings", [
-    ({"a": [1.0, 2.0, 3.0], "b": 4}, {"a": [1.0, 2.0, 3.0], "b": 4}, True, ""),
-    ({"a": [1.0, 2.0, 3.0], "b": 4}, {"c": [1.0, 2.0, 3.0]}, False,
-     ["Key a is expected but not found in actual", "Key b is expected but not found in actual"]),
-    ({"c": "hello"}, {"c": "hello"}, True, ""),
-    ({"d": {"a": [1, 2, 3]}}, {"d": {"a": [1, 2, 3]}}, True, ""),
-    ({"0": {"a": 0.1, "b": 0.5}}, {"0": {"a": 0.1}}, False, "Key b is expected but not found in actual"),
-    ({"0": {"a": 0.1}}, {"0": {"a": 0.1, "b": 0.5}}, True, "")
-])
+@pytest.mark.parametrize(
+    "dict1, dict2, should_pass, expected_warnings",
+    [
+        ({"a": [1.0, 2.0, 3.0], "b": 4}, {"a": [1.0, 2.0, 3.0], "b": 4}, True, ""),
+        (
+            {"a": [1.0, 2.0, 3.0], "b": 4},
+            {"c": [1.0, 2.0, 3.0]},
+            False,
+            ["Key a is expected but not found in actual", "Key b is expected but not found in actual"],
+        ),
+        ({"c": "hello"}, {"c": "hello"}, True, ""),
+        ({"d": {"a": [1, 2, 3]}}, {"d": {"a": [1, 2, 3]}}, True, ""),
+        ({"0": {"a": 0.1, "b": 0.5}}, {"0": {"a": 0.1}}, False, "Key b is expected but not found in actual"),
+        ({"0": {"a": 0.1}}, {"0": {"a": 0.1, "b": 0.5}}, True, ""),
+    ],
+)
 def test_compare_dictionaries(
-    dict1: Dict[str, Any], dict2: Dict[str, Any], should_pass: bool,
-    expected_warnings: List[str], caplog: pytest.LogCaptureFixture
+    dict1: Dict[str, Any],
+    dict2: Dict[str, Any],
+    should_pass: bool,
+    expected_warnings: List[str],
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     with caplog.at_level(logging.WARNING):
         compare_dictionaries(dict1, dict2)
@@ -299,14 +314,16 @@ def test_compare_dictionaries(
     caplog.clear()
 
 
-@pytest.mark.parametrize("expected",
+@pytest.mark.parametrize(
+    "expected",
     [
         {"a": 1},
         {"a": [1.0]},
         {"a": [1.0, 2.0]},
         {"a": "foo"},
         {"a": ["foo"]},
-    ])
+    ],
+)
 def test_compare_metrics_dictionaries_matches(expected: Dict[str, Any], caplog: pytest.LogCaptureFixture) -> None:
     """Test simple cases where a metrics dictionary matches its expected value"""
     with caplog.at_level(logging.WARNING):
@@ -319,12 +336,14 @@ def test_compare_metrics_dictionaries_numeric(caplog: pytest.LogCaptureFixture) 
     expected = {"a": 1.0}
     tol = 1e-3
     with caplog.at_level(logging.WARNING):
-        assert compare_metrics_dictionaries(expected, {"a": 1+0.9*tol}, tolerance=tol) == ""
+        assert compare_metrics_dictionaries(expected, {"a": 1 + 0.9 * tol}, tolerance=tol) == ""
     assert len(caplog.records) == 0
 
     with caplog.at_level(logging.WARNING):
-        assert compare_metrics_dictionaries(expected, {"a": 1+1.1*tol}, tolerance=tol) == \
-            "Mismatch for 1 out of 1 metrics"
+        assert (
+            compare_metrics_dictionaries(expected, {"a": 1 + 1.1 * tol}, tolerance=tol)
+            == "Mismatch for 1 out of 1 metrics"
+        )
     assert len(caplog.records) == 1
     assert caplog.messages[0] == "Metric 'a': Expected 1.0 but got 1.0011 (allowed tolerance 0.001)"
 
@@ -334,12 +353,14 @@ def test_compare_metrics_dictionaries_list(caplog: pytest.LogCaptureFixture) -> 
     expected = {"a": 1.0}
     tol = 1e-3
     with caplog.at_level(logging.WARNING):
-        assert compare_metrics_dictionaries(expected, {"a": 1+0.9*tol}, tolerance=tol) == ""
+        assert compare_metrics_dictionaries(expected, {"a": 1 + 0.9 * tol}, tolerance=tol) == ""
     assert len(caplog.records) == 0
 
     with caplog.at_level(logging.WARNING):
-        assert compare_metrics_dictionaries(expected, {"a": 1+1.1*tol}, tolerance=tol) == \
-            "Mismatch for 1 out of 1 metrics"
+        assert (
+            compare_metrics_dictionaries(expected, {"a": 1 + 1.1 * tol}, tolerance=tol)
+            == "Mismatch for 1 out of 1 metrics"
+        )
     assert len(caplog.records) == 1
     assert caplog.messages[0] == "Metric 'a': Expected 1.0 but got 1.0011 (allowed tolerance 0.001)"
 
@@ -356,8 +377,7 @@ def test_compare_metrics_dictionaries_invalid_actual(caplog: pytest.LogCaptureFi
     expected = {"a": 1.0}
     actual = {"a": False}
     with caplog.at_level(logging.WARNING):
-        assert compare_metrics_dictionaries(expected, actual) == \
-            "Mismatch for 1 out of 1 metrics"
+        assert compare_metrics_dictionaries(expected, actual) == "Mismatch for 1 out of 1 metrics"
     assert len(caplog.records) == 1
     assert caplog.messages[0] == "Metric 'a': Actual value has type bool which is not handled."
 
@@ -367,8 +387,7 @@ def test_compare_metrics_dictionaries_missing(caplog: pytest.LogCaptureFixture) 
     expected = {"a": 1.0}
     actual = {}
     with caplog.at_level(logging.WARNING):
-        assert compare_metrics_dictionaries(expected, actual) == \
-            "Mismatch for 1 out of 1 metrics"
+        assert compare_metrics_dictionaries(expected, actual) == "Mismatch for 1 out of 1 metrics"
     assert len(caplog.records) == 1
     assert caplog.messages[0] == "Metric 'a': No data found in actual metrics."
 
@@ -392,15 +411,15 @@ def test_compare_metrics_dictionaries_lists(caplog: pytest.LogCaptureFixture) ->
 
     tol = 1e-3
     expected = {"a": [1.0, 1.0]}
-    actual = {"a": [1.0 + 0.9*tol, 1.0 + 1.1*tol]}
+    actual = {"a": [1.0 + 0.9 * tol, 1.0 + 1.1 * tol]}
     with caplog.at_level(logging.WARNING):
-        assert compare_metrics_dictionaries(expected, actual, tolerance = tol) == "Mismatch for 1 out of 1 metrics"
+        assert compare_metrics_dictionaries(expected, actual, tolerance=tol) == "Mismatch for 1 out of 1 metrics"
     assert len(caplog.records) == 1
     assert caplog.messages[0] == "Metric 'a': Index 1: Expected 1.0 but got 1.0011 (allowed tolerance 0.001)"
 
 
-
-@pytest.mark.parametrize("expected, actual, tol, expected_result",
+@pytest.mark.parametrize(
+    "expected, actual, tol, expected_result",
     [
         (1.0, 1.0, 1e-3, ""),
         (1.0, 1.01, 1e-3, "Expected 1.0 but got 1.01 (allowed tolerance 0.001)"),
@@ -408,20 +427,165 @@ def test_compare_metrics_dictionaries_lists(caplog: pytest.LogCaptureFixture) ->
         (100.0, 101, 1e-3, "Expected 100.0 but got 101 (allowed tolerance 0.001)"),
         ("foo", "bar", 1e-3, ""),
         ("foo", 1.0, 1e-3, "Expected foo but got 1.0"),
-    ])
+    ],
+)
 def test_compare_metric_values(expected: Any, actual: Any, tol: float, expected_result: str) -> None:
     result = _compare_metric_values(expected, actual, tol)
     assert result == expected_result
 
 
-@pytest.mark.parametrize("expected, actual, tol, expected_result",
+@pytest.mark.parametrize(
+    "expected, actual, tol, expected_result",
     [
         ([], [], 1e-3, []),
         ([], [1], 1e-3, ["Expected list of length 0 but got 1"]),
         ([1], [1], 1e-3, []),
         ([1], [1.1], 1e-3, ["Index 0: Expected 1 but got 1.1 (allowed tolerance 0.001)"]),
         (["a"], ["b"], 1e-3, []),
-    ])
+    ],
+)
 def test_compare_metric_lists(expected: Any, actual: Any, tol: float, expected_result: List) -> None:
     result = _compare_metrics_list(expected, actual, tol)
     assert result == expected_result
+
+
+def _write_to_json_dict(tmp_path: Path, data: Any) -> Path:
+    """Write an object to a JSON file and return the path to the file."""
+    random_file_name = str(uuid.uuid4()) + ".json"
+    json_file = tmp_path / random_file_name
+    json_file.write_text(json.dumps(data))
+    return json_file
+
+
+def test_load_json(tmp_path: Path) -> None:
+    """Test loading JSON dictionaries from a file"""
+    json_file = tmp_path / "test.json"
+    data = {"a": 1.0}
+    json_file.write_text(json.dumps(data))
+    from_file = _load_json_dict(json_file)
+    assert from_file == data
+
+    # Write data that is not a dictionary
+    invalid_data = [1, 2, 3]
+    json_file.write_text(json.dumps(invalid_data))
+    with pytest.raises(ValueError, match="to contain a JSON dictionary, but got list"):
+        _load_json_dict(json_file)
+
+
+def test_is_nested_dict() -> None:
+    """Test if nested dictionaries are correctly handled."""
+
+    assert _is_nested_dict({"a": {"b": 1}}, message="")
+    assert _is_nested_dict({"a": {"b": 1}, "foo": {"bar": 2}}, message="")
+    assert not _is_nested_dict({"a": 1, "foo": 2}, message="")
+    assert not _is_nested_dict({}, message="")
+    with pytest.raises(ValueError, match="Prefix: Metrics file has inconsistent type"):
+        _is_nested_dict({"a": 1, "b": {}}, message="Prefix")
+
+
+def _test_compare_metrics_files(
+    tmp_path: Path,
+    expected: Dict[str, Any],
+    actual: Dict[str, Any],
+) -> None:
+    expected_file = _write_to_json_dict(tmp_path, expected)
+    actual_file = _write_to_json_dict(tmp_path, actual)
+    return compare_metrics_files(expected_file, actual_file)
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {},
+        {"a": 1.0},
+        {"a": 1.0, "b": 2.0},
+        {"1": {"b": 2.0}, "2": {"c": 3.0}},
+    ],
+)
+def test_compare_metrics_files_matches(
+    data: Any,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test for metrics files when the expected and actual metrics are the same"""
+    with caplog.at_level(logging.WARNING):
+        assert _test_compare_metrics_files(expected=data, actual=data, tmp_path=tmp_path) == ""
+    assert len(caplog.messages) == 0
+
+
+def _compare_and_check(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    expected: Dict[str, Any],
+    actual: Dict[str, Any],
+    expected_result: str,
+    messages: List[str],
+) -> None:
+    with caplog.at_level(logging.WARNING):
+        assert _test_compare_metrics_files(tmp_path, expected, actual) == expected_result
+    assert len(caplog.messages) == len(messages), f"Expected {len(messages)} messages, but got {len(caplog.records)}"
+    print(caplog.messages)
+    for index, message in enumerate(messages):
+        assert caplog.messages[index] == message, f"Message mismatch at index {index}"
+
+
+def test_compare_metrics_files_metric(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """Test cases where metrics files don't match"""
+    _compare_and_check(
+        tmp_path,
+        caplog,
+        {"a": 1.0},
+        {"a": 2.0},
+        "Mismatch for 1 out of 1 metrics",
+        ["Metric 'a': Expected 1.0 but got 2.0 (allowed tolerance 1e-05)"],
+    )
+
+
+def test_compare_metrics_files_dict_nested(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """Test cases where metrics files don't match"""
+    _compare_and_check(
+        tmp_path,
+        caplog,
+        {"0": {"b": 1.0}},
+        {"a": 2.0},
+        "Expected a nested dictionary as the actual metrics, but got a flat dictionary",
+        [],
+    )
+
+
+def test_compare_metrics_files_missing_child(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """Test cases where metrics files don't match"""
+    _compare_and_check(
+        tmp_path,
+        caplog,
+        {"0": {"b": 1.0}},
+        {"1": {"b": 1.0}},
+        "Mismatches for 1 child runs",
+        ["Child run '0': Missing from the actual metrics"],
+    )
+
+
+def test_compare_metrics_files_child_mismtach(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """Test cases where metrics files don't match"""
+    _compare_and_check(
+        tmp_path,
+        caplog,
+        {"0": {"b": 1.0}},
+        {"0": {"b": 2.0}},
+        "Mismatches for 1 child runs",
+        [
+            "Metric 'b': Expected 1.0 but got 2.0 (allowed tolerance 1e-05)",
+            "Child run '0': Mismatch for 1 out of 1 metrics",
+        ],
+    )
+
+
+def test_compare_metrics_files_invalid_data(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """Test cases where metrics are not in the expected format"""
+    expected = ["a", "b"]
+    actual = {"0": {"b": 2.0}}
+    with caplog.at_level(logging.WARNING):
+        result = _test_compare_metrics_files(tmp_path, expected, actual)
+    assert len(caplog.messages) == 0
+    assert result.startswith("Error comparing metrics files")
+    assert result.endswith("contain a JSON dictionary, but got list")

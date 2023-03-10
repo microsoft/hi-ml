@@ -1973,11 +1973,13 @@ def aggregate_hyperdrive_metrics(
         aml_workspace=aml_workspace,
         workspace_config_path=workspace_config_path,
     )
-    metrics_swapped = {
-        metric_name: {run_tag: metric_value}
-        for run_tag, run_metrics in metrics.items()
-        for metric_name, metric_value in run_metrics.items()
-    }
+    metrics_swapped = {}
+    for run_tag, run_metrics in metrics.items():
+        for metric_name, metric_value in run_metrics.items():
+            if metric_name not in metrics_swapped:
+                metrics_swapped[metric_name] = {run_tag: metric_value}
+            else:
+                metrics_swapped[metric_name][run_tag] = metric_value
     try:
         df = pd.DataFrame.from_dict(metrics_swapped, orient="index")
     except Exception:
@@ -1999,11 +2001,12 @@ def get_metrics_for_run(
     For a given Run object or id, retrieves the metrics from that Run and returns them as a dictionary.
     Optionally filters the metrics logged in the Run, by providing a list of metrics to keep.
     If you wish to aggregate metrics for a Run with children (i.e. a HyperDriveRun),
-    please use the function ``aggregate_hyperdrive_metrics``.
+    please use the function ``get_metrics_for_hyperdrive_run``.
 
     :param run: A Run object to retrieve the metrics from. Either this or run_id must be provided
     :param run_id: The id (type: str) of an AML Run. Either this or run must be provided.
-    :param keep_metrics: An optional list of metric names to filter the returned metrics by
+    :param keep_metrics: An optional list of metric names to filter the returned metrics by. If the metric
+        is not logged in the run, an empty list will be returned for that metric.
     :param aml_workspace: If run_id is provided, this is an optional AML Workspace object to retrieve the Run from
     :param workspace_config_path: If run_id is provided, this is an optional path to a config containing details of the
         AML Workspace object to retrieve the Run from.
@@ -2016,12 +2019,13 @@ def get_metrics_for_run(
     if isinstance(run, _OfflineRun):
         logging.warning("Can't get metrics for _OfflineRun object")
         return {}
-    run_metrics = run.get_metrics()  # type: ignore
+    all_metrics = run.get_metrics()  # type: ignore
     if keep_metrics:
         metrics = {}
         for metric_name in keep_metrics:
-            metrics[metric_name] = run_metrics[metric_name] if metric_name in run_metrics else {}
-    return run_metrics
+            metrics[metric_name] = all_metrics[metric_name] if metric_name in all_metrics else []
+        return metrics
+    return all_metrics
 
 
 def get_metrics_for_hyperdrive_run(

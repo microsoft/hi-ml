@@ -162,26 +162,31 @@ def _load_json_dict(path: Path) -> Dict[str, Any]:
     """
     metrics_json = json.loads(path.read_text())
     if not isinstance(metrics_json, Dict):
-        raise ValueError(f"Expected metrics file {path} to contain a JSON dictionary, but got "
-                            f"{type(metrics_json).__name__}")
+        raise ValueError(
+            f"Expected metrics file {path} to contain a JSON dictionary, but got {type(metrics_json).__name__}"
+        )
+    return metrics_json
 
 
 def _is_nested_dict(d: Dict[str, Any], message: str) -> bool:
     """Checks if a dictionary contains only dictionaries as values. Returns `True` if the dictionary contains
-    only dictionaries as values. Returns `False` if none of the dictionary values are dictionaries. Raises
-    an exception if the dictionary contains a mix of dictionaries and non-dictionaries.
+    only dictionaries as values. Returns `False` if none of the dictionary values are dictionaries, or if the
+    dictionary is empty.
+    Raises an exception if the dictionary contains a mix of dictionaries and non-dictionaries.
 
     :param d: The dictionary to check.
     :param message: A message to include in the exception if the dictionary contains a mix of dictionaries.
     :raises ValueError: If the dictionary contains a mix of dictionaries and non-dictionaries.
-    :return: True if the dictionary contains only dictionaries as values, False otherwise.
+    :return: True if the dictionary contains values, and all those are dictionaries in turn. False otherwise.
     """
     has_dict_value = [isinstance(v, Dict) for v in d.values()]
+    if len(d) == 0:
+        return False
     if all(has_dict_value):
         return True
     if any(has_dict_value):
         raise ValueError(f"{message}: Metrics file has inconsistent type. Either all or none of the dictionary"
-                            "values should be dictionaries")
+                         "values should be dictionaries")
     return False
 
 
@@ -197,33 +202,34 @@ def compare_metrics_files(expected: Path, actual: Path, tolerance: float = 1e-5)
     :return: An empty string if the metrics match, otherwise a string summarizing the discrepancies.
     """
     try:
-        expected_json = _load_json_dict(expected)
-        actual_json = _load_json_dict(actual)
-        if _is_nested_dict(expected_json, "Expected metrics"):
+        expected_metrics = _load_json_dict(expected)
+        actual_metrics = _load_json_dict(actual)
+        if _is_nested_dict(expected_metrics, "Expected metrics"):
             # For runs with child runs, loop over the child run dictionaries and compare them.
-            if not _is_nested_dict(actual_json, "Actual metrics"):
+            if not _is_nested_dict(actual_metrics, "Actual metrics"):
                 return "Expected a nested dictionary as the actual metrics, but got a flat dictionary"
             messages = []
-            for key, expected_child in expected_json.items():
-                if key not in actual_json:
-                    logging.warning(f"Expected child run '{key}' but it is missing from the actual metrics")
-                    return "Missing child runs"
-                actual_child = actual_json[key]
-                message = compare_metrics_dictionaries(expected_child, actual_child, tolerance=tolerance)
+            for key, expected_child in expected_metrics.items():
+                prefix = f"Child run '{key}'"
+                if key in actual_metrics:
+                    actual_child = actual_metrics[key]
+                    message = compare_metrics_dictionaries(expected_child, actual_child, tolerance=tolerance)
+                else:
+                    message = "Missing from the actual metrics"
                 if message:
-                    logging.warning(f"Child run '{key}': {message}")
+                    full_message = f"{prefix}: {message}"
+                    logging.warning(full_message)
                     messages.append(message)
             if len(messages) > 0:
                 return f"Mismatches for {len(messages)} child runs"
             return ""
         else:
             # For simple runs without child runs: Compare the dictionaries.
-            if _is_nested_dict(actual_json, "Actual metrics"):
+            if _is_nested_dict(actual_metrics, "Actual metrics"):
                 return "Expected a flat dictionary as the actual metrics, but got a nested dictionary"
-            return compare_metrics_dictionaries(expected_child, actual_child, tolerance=tolerance)
+            return compare_metrics_dictionaries(expected_metrics, actual_metrics, tolerance=tolerance)
     except Exception as e:
         # This handles cases where the files cannot be found, are not JSON, or have inconsistent information.
-        logging.error(f"Error comparing metrics files: {e}")
         return f"Error comparing metrics files: {e}"
 
 
@@ -338,7 +344,7 @@ def compare_folder_contents(
         else:
             raise ValueError("Either of the two arguments 'run' or 'actual_folder' must be provided")
         if file_relative == REGRESSION_TEST_METRICS_FILENAME:
-            message = compare_regression_metrics(
+            message = compare_metrics_files(
                 expected=file,
                 actual=actual_file,
                 csv_relative_tolerance=csv_relative_tolerance)
