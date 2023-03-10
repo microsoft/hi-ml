@@ -30,6 +30,7 @@ from health_cpath.utils.tiles_selection_utils import SlideNode
 def load_image_dict(sample: dict, loading_params: LoadingParams) -> Dict[SlideKey, Any]:
     """
     Load image from metadata dictionary
+
     :param sample: dict describing image metadata. Example:
         {'image_id': ['1ca999adbbc948e69783686e5b5414e4'],
         'image': ['/tmp/datasets/PANDA/train_images/1ca999adbbc948e69783686e5b5414e4.tiff'],
@@ -258,8 +259,9 @@ def plot_attention_histogram(case: str, slide_node: SlideNode, results: Dict[Res
 
 def plot_normalized_confusion_matrix(cm: np.ndarray, class_names: Sequence[str]) -> plt.Figure:
     """Plots a normalized confusion matrix and returns the figure.
-    param cm: Normalized confusion matrix to be plotted.
-    param class_names: List of class names.
+
+    :param cm: Normalized confusion matrix to be plotted.
+    :param class_names: List of class names.
     """
     fig, ax = plt.subplots()
     ax = sns.heatmap(cm, annot=True, cmap="Blues", fmt=".2%")
@@ -270,9 +272,30 @@ def plot_normalized_confusion_matrix(cm: np.ndarray, class_names: Sequence[str])
     return fig
 
 
+def plot_normalized_and_non_normalized_confusion_matrices(
+    cm: np.ndarray, cm_n: np.ndarray, class_names: Sequence[str],
+) -> plt.Figure:
+    """Plots a normalized and non-normalized confusion matrix and returns the figure.
+
+    :param cm: Non normalized confusion matrix to be plotted.
+    :param cm_n: Normalized confusion matrix to be plotted.
+    :param class_names: List of class names.
+    """
+    fig, axes = plt.subplots(1, 2, figsize=(15, 5))
+    axes[0] = sns.heatmap(cm, annot=True, cmap="Blues", fmt="d", ax=axes[0])
+    axes[1] = sns.heatmap(cm_n, annot=True, cmap="Blues", fmt=".2%", ax=axes[1])
+    for ax in axes:
+        ax.set_xlabel("Predicted")
+        ax.set_ylabel("True")
+        ax.xaxis.set_ticklabels(class_names)
+        ax.yaxis.set_ticklabels(class_names)
+    return fig
+
+
 def resize_and_save(width_inch: int, height_inch: int, filename: Union[Path, str], dpi: int = 150) -> None:
     """
     Resizes the present figure to the given (width, height) in inches, and saves it to the given filename.
+
     :param width_inch: The width of the figure in inches.
     :param height_inch: The height of the figure in inches.
     :param filename: The filename to save to.
