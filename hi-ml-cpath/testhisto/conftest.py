@@ -111,3 +111,28 @@ def mock_panda_slides_root_dir(
     wsi_generator.generate_mock_histo_data()
     yield tmp_root_dir
     shutil.rmtree(tmp_root_dir)
+
+
+@pytest.fixture(scope="session")
+def mock_panda_slides_root_dir_diagonal(
+    tmp_path_factory: pytest.TempPathFactory, tmp_path_to_pathmnist_dataset: Path
+) -> Generator:
+    tmp_root_dir = tmp_path_factory.mktemp("mock_wsi")
+    wsi_generator = MockPandaSlidesGenerator(
+        dest_data_path=tmp_root_dir,
+        src_data_path=tmp_path_to_pathmnist_dataset,
+        mock_type=MockHistoDataType.PATHMNIST,
+        n_tiles=1,
+        n_slides=16,
+        n_repeat_diag=4,
+        n_repeat_tile=2,
+        n_channels=3,
+        n_levels=3,
+        tile_size=28,
+        background_val=255,
+        tiles_pos_type=TilesPositioningType.DIAGONAL,
+    )
+    logging.info("Generating mock whole slide images that will be deleted at the end of the session.")
+    wsi_generator.generate_mock_histo_data()
+    yield tmp_root_dir
+    shutil.rmtree(tmp_root_dir)
