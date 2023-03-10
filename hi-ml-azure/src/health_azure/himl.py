@@ -19,34 +19,34 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
 
-from azure.ai.ml import MLClient, Input, Output, command
-from azure.ai.ml.constants import AssetTypes, InputOutputModes
-from azure.ai.ml.entities import Data, Job, Command, Sweep
+from azure.ai.ml import Input, MLClient, Output, command
+from azure.ai.ml.constants import InputOutputModes
+from azure.ai.ml.entities import Command, Data
 from azure.ai.ml.entities import Environment as EnvironmentV2
+from azure.ai.ml.entities import Job, Sweep, UserIdentityConfiguration
 from azure.ai.ml.entities._job.distribution import MpiDistribution, PyTorchDistribution
-
 from azure.ai.ml.sweep import Choice
 from azureml._base_sdk_common import user_agent
 from azureml.core import ComputeTarget, Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
 from azureml.data import OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
-from azureml.train.hyperdrive import HyperDriveConfig, GridParameterSampling, PrimaryMetricGoal, choice
 from azureml.dataprep.fuse.daemon import MountContext
+from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
 
-from health_azure.amulet import (ENV_AMLT_DATAREFERENCE_DATA, ENV_AMLT_DATAREFERENCE_OUTPUT, is_amulet_job)
+from health_azure.amulet import ENV_AMLT_DATAREFERENCE_DATA, ENV_AMLT_DATAREFERENCE_OUTPUT, is_amulet_job
+from health_azure.datasets import (
+    DatasetConfig, StrOrDatasetConfig, _get_or_create_v2_data_asset, _input_dataset_key,
+    _output_dataset_key, _replace_string_datasets, setup_local_datasets
+)
 from health_azure.package_setup import health_azure_package_setup
-from health_azure.utils import (ENV_EXPERIMENT_NAME, create_python_environment, create_run_recovery_id,
-                                find_file_in_parent_to_pythonpath,
-                                is_run_and_child_runs_completed, is_running_in_azure_ml, register_environment,
-                                run_duration_string_to_seconds, to_azure_friendly_string, RUN_CONTEXT, get_workspace,
-                                PathOrString, DEFAULT_ENVIRONMENT_VARIABLES, get_ml_client,
-                                create_python_environment_v2, register_environment_v2, V2_INPUT_DATASET_PATTERN,
-                                V2_OUTPUT_DATASET_PATTERN, wait_for_job_completion)
-from health_azure.datasets import (DatasetConfig, StrOrDatasetConfig, setup_local_datasets,
-                                   _input_dataset_key, _output_dataset_key, _replace_string_datasets,
-                                   _get_or_create_v2_data_asset)
-
+from health_azure.utils import (
+    DEFAULT_ENVIRONMENT_VARIABLES, ENV_EXPERIMENT_NAME, RUN_CONTEXT, PathOrString, create_python_environment,
+    create_python_environment_v2, create_run_recovery_id, create_v2_job_command_line_args_from_params,
+    find_file_in_parent_to_pythonpath, get_ml_client, get_workspace, is_run_and_child_runs_completed,
+    is_running_in_azure_ml, register_environment, register_environment_v2, run_duration_string_to_seconds,
+    to_azure_friendly_string, wait_for_job_completion
+)
 
 logger = logging.getLogger('health_azure')
 logger.setLevel(logging.DEBUG)
@@ -60,7 +60,7 @@ RUN_RECOVERY_FILE = "most_recent_run.txt"
 SDK_NAME = "innereye"
 SDK_VERSION = "2.0"
 
-DEFAULT_DOCKER_BASE_IMAGE = "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04"
+DEFAULT_DOCKER_BASE_IMAGE = "mcr.microsoft.com/azureml/openmpi4.1.0-cuda11.3-cudnn8-ubuntu20.04"
 DEFAULT_DOCKER_SHM_SIZE = "100g"
 
 # hyperparameter search args
@@ -69,6 +69,10 @@ MAX_TOTAL_TRIALS_ARG = "max_total_trials"
 PRIMARY_METRIC_ARG = "primary_metric"
 SAMPLING_ALGORITHM_ARG = "sampling_algorithm"
 GOAL_ARG = "goal"
+
+V2_INPUT_ASSET_IDENTIFIER = "INPUT_"
+V2_OUTPUT_ASSET_IDENTIFIER = "OUTPUT_"
+# TODO: upgrade to python 3.8+ and create a Literal type for the combination of the above two vars
 
 
 @dataclass
@@ -386,41 +390,12 @@ def create_script_run(
         arguments=script_params)
 
 
-def _generate_input_dataset_command(input_datasets_v2: Dict[str, Input]) -> str:
-    """
-    Generate command line arguments to pass AML v2 data assets into a script
-
-    :param input_datasets_v2: A dictionary of Input objects that have been passed into the AML command
-    :return: A string representing the input datasets that the script should expect
-    """
-    input_cmd = ""
-    for i, (input_data_name, input_dataset_v2) in enumerate(input_datasets_v2.items()):
-        input_name = f"INPUT_{i}"
-        input_str = "${{inputs." + f"{input_name}" + "}}"
-        input_cmd += f" --{input_name}={input_str}"
-    return input_cmd
-
-
-def _generate_output_dataset_command(output_datasets_v2: Dict[str, Output]) -> str:
-    """
-    Generate command line arguments to pass AML v2 outputs into a script
-
-    :param output_datasets_v2: A dictionary of Output objects that have been passed into the AML command
-    :return: A string representing the output values that the script should expect
-    """
-    output_cmd = ""
-    for i, (output_data_name, output_dataset_v2) in enumerate(output_datasets_v2.items()):
-        output_name = f"OUTPUT_{i}"
-        output_str = "${{outputs." + f"{output_name}" + "}}"
-        output_cmd += f" --{output_name}={output_str}"
-    return output_cmd
-
-
 def effective_experiment_name(experiment_name: Optional[str],
                               entry_script: Optional[PathOrString] = None) -> str:
     """Choose the experiment name to use for the run. If provided in the environment variable HIML_EXPERIMENT_NAME,
     then use that. Otherwise, use the argument `experiment_name`, or fall back to the default based on the
-    entry point script.
+    entry point script. If script in the form "foo/bar/baz.py", then the experiment name will be "baz". If the script is
+    of the form "-m foo.bar.baz", then the experiment name will be "foo_bar_baz".
 
     :param experiment_name: The name of the AzureML experiment in which the run should be submitted.
     :param entry_script: The script that should be run in AzureML.
@@ -432,7 +407,10 @@ def effective_experiment_name(experiment_name: Optional[str],
     elif experiment_name:
         raw_value = experiment_name
     elif entry_script is not None:
-        raw_value = Path(entry_script).stem
+        if str(entry_script)[:3] == "-m ":
+            raw_value = str(entry_script)[3:]
+        else:
+            raw_value = Path(entry_script).stem
     else:
         raise ValueError("No experiment name provided, and no entry script provided. ")
     cleaned_value = to_azure_friendly_string(raw_value)
@@ -441,8 +419,8 @@ def effective_experiment_name(experiment_name: Optional[str],
 
 
 def submit_run_v2(workspace: Optional[Workspace],
-                  experiment_name: str,
                   environment: EnvironmentV2,
+                  experiment_name: Optional[str] = None,
                   input_datasets_v2: Optional[Dict[str, Input]] = None,
                   output_datasets_v2: Optional[Dict[str, Output]] = None,
                   snapshot_root_directory: Optional[Path] = None,
@@ -452,6 +430,7 @@ def submit_run_v2(workspace: Optional[Workspace],
                   tags: Optional[Dict[str, str]] = None,
                   docker_shm_size: str = "",
                   wait_for_completion: bool = False,
+                  identity_based_auth: bool = False,
                   workspace_config_path: Optional[PathOrString] = None,
                   ml_client: Optional[MLClient] = None,
                   hyperparam_args: Optional[Dict[str, Any]] = None,
@@ -463,9 +442,9 @@ def submit_run_v2(workspace: Optional[Workspace],
     Starts a v2 AML Job on a given workspace by submitting a command
 
     :param workspace: The AzureML workspace to use.
+    :param environment: An AML v2 Environment object.
     :param experiment_name: The name of the experiment that will be used or created. If the experiment name contains
         characters that are not valid in Azure, those will be removed.
-    :param environment: An AML v2 Environment object.
     :param input_datasets_v2: An optional dictionary of Inputs to pass in to the command.
     :param output_datasets_v2: An optional dictionary of Outputs to pass in to the command.
     :param snapshot_root_directory: The directory that contains all code that should be packaged and sent to AzureML.
@@ -507,20 +486,18 @@ def submit_run_v2(workspace: Optional[Workspace],
     assert entry_script is not None, "No entry_script has been provided"
     snapshot_root_directory = snapshot_root_directory or Path.cwd()
     root_dir = Path(snapshot_root_directory)
-    entry_script = Path(entry_script).relative_to(root_dir).as_posix()
+
+    if str(entry_script)[:2] != "-m":
+        entry_script = Path(entry_script).relative_to(root_dir).as_posix()
+
+    experiment_name = effective_experiment_name(experiment_name, entry_script)
 
     script_params = script_params or []
-    cmd = " ".join(["python", str(entry_script), *script_params])
+    script_param_str = create_v2_job_command_line_args_from_params(script_params)
 
-    if input_datasets_v2:
-        cmd += _generate_input_dataset_command(input_datasets_v2)
-    else:
-        input_datasets_v2 = {}
+    cmd = " ".join(["python", str(entry_script), script_param_str])
 
-    if output_datasets_v2:
-        cmd += _generate_output_dataset_command(output_datasets_v2)
-    else:
-        output_datasets_v2 = {}
+    print(f"The following command will be run in AzureML: {cmd}")
 
     job_to_submit: Union[Command, Sweep]
 
@@ -553,10 +530,14 @@ def submit_run_v2(workspace: Optional[Workspace],
             display_name=display_name,
             instance_count=num_nodes,
             distribution=distribution,
+            identity=UserIdentityConfiguration() if identity_based_auth else None,
         )
 
     if hyperparam_args:
         param_sampling = hyperparam_args[PARAM_SAMPLING_ARG]
+
+        if input_datasets_v2 is None:
+            input_datasets_v2 = {}
 
         for sample_param, choices in param_sampling.items():
             input_datasets_v2[sample_param] = choices.values[0]
@@ -585,7 +566,7 @@ def submit_run_v2(workspace: Optional[Workspace],
         job_to_submit = create_command_job(cmd)
 
     returned_job = ml_client.jobs.create_or_update(job_to_submit)
-    logging.info(f"URL to job: {returned_job.services['Studio'].endpoint}")  # type: ignore
+    print(f"URL to job: {returned_job.services['Studio'].endpoint}")  # type: ignore
     if wait_for_completion:
         print("Waiting for the completion of the AzureML job.")
         wait_for_job_completion(ml_client, job_name=returned_job.name)
@@ -686,6 +667,33 @@ def _str_to_path(s: Optional[PathOrString]) -> Optional[Path]:
     return s
 
 
+def get_data_asset_from_config(ml_client: MLClient, dataset_config: DatasetConfig) -> Data:
+    """Given a list of dataset configs, generates and returns a list of data assets.
+
+    :param ml_client: An MLClient object.
+    :param dataset_list: The list of datasets to create data assets for.
+    :raises ValueError: Raised if a data asset has no path.
+    :return: A list of data assets.
+    """
+
+    version = dataset_config.version
+    logging.info(
+        f"Trying to access data asset {dataset_config.name} version {version}, datastore {dataset_config.datastore}"
+    )
+
+    # if version is None, this function gets the latest version
+    data_asset: Data = _get_or_create_v2_data_asset(
+        ml_client,
+        dataset_config.datastore,
+        dataset_config.name,
+        version=str(version) if version else None,
+    )
+    if not data_asset.path:
+        raise ValueError(f"Data asset {data_asset.id} has no path.")
+
+    return data_asset
+
+
 def create_v2_inputs(ml_client: MLClient, input_datasets: List[DatasetConfig]) -> Dict[str, Input]:
     """
     Create a dictionary of Azure ML v2 Input objects, required for passing input data in to an AML job
@@ -694,59 +702,35 @@ def create_v2_inputs(ml_client: MLClient, input_datasets: List[DatasetConfig]) -
     :param input_datasets: A list of DatasetConfigs to convert to Inputs.
     :return: A dictionary in the format "input_name": Input.
     """
-    inputs: Dict[str, Input] = {}
-    for i, input_dataset in enumerate(input_datasets):
-        input_name = f"INPUT_{i}"
-        version = input_dataset.version
-        # if version is None, this function gets the latest version
-        logging.info(
-            f"Trying to access data asset {input_dataset.name} version {version}, datastore {input_dataset.datastore}"
-        )
-        data_asset: Data = _get_or_create_v2_data_asset(
-            ml_client,
-            input_dataset.datastore,
-            input_dataset.name,
-            version=str(version) if version else None,
-        )
-        if not data_asset.path:
-            raise ValueError(f"Data asset {data_asset.id} has no path.")
-        # Some mismatches with the documentation here:
-        # data_path = data_asset.id: This works in some jobs, but in other gives a
-        # DataAccessError(InvalidInput { message: "invalid uri format", source: None }))
-        # Unclear what the difference is between failing and successful jobs
-        # Alternative: data_path = f"azureml:{data_asset.name}:{version}"
-        # This does not work at all, neither with v1 nor v2 data assets. In both cases, we get
-        # InvalidInput { message: "invalid uri format"
-        data_path = data_asset.path
-
-        inputs[input_name] = Input(
-            # Data assets can be of type "uri_folder", "uri_file", "mltable", all of which are value types in Input
+    input_assets = [get_data_asset_from_config(ml_client, input_dataset) for input_dataset in input_datasets]
+    # Data assets can be of type "uri_folder", "uri_file", "mltable", all of which are value types in Input
+    return {
+        f"{V2_INPUT_ASSET_IDENTIFIER}{i}": Input(  # type: ignore
             type=data_asset.type,  # type: ignore
-            path=data_path,
-            mode=InputOutputModes.MOUNT if input_dataset.use_mounting else InputOutputModes.DOWNLOAD
-        )
-    return inputs
+            path=data_asset.path,
+            mode=InputOutputModes.MOUNT if input_datasets[i].use_mounting else InputOutputModes.DOWNLOAD
+        ) for i, data_asset in enumerate(input_assets)
+    }
 
 
-def create_v2_outputs(output_datasets: List[DatasetConfig]) -> Dict[str, Output]:
+def create_v2_outputs(ml_client: MLClient, output_datasets: List[DatasetConfig]) -> Dict[str, Output]:
     """
     Create a dictionary of Azure ML v2 Output objects, required for passing output data in to an AML job
 
+    :ml_client: An MLClient object.
     :param output_datasets: A list of DatasetConfigs to convert to Outputs.
     :return: A dictionary in the format "output_name": Output.
     """
-    outputs = {}
-    for i, output_dataset in enumerate(output_datasets):
-        output_name = f"OUTPUT_{i}"
-        v1_datastore_path = f"azureml://datastores/{output_dataset.datastore}/paths/{output_dataset.name}"
-        # Note that there are alternative formats that the output path can take, such as:
-        # v2_data_asset_path = f"azureml:{output_dataset.name}@latest"
-        outputs[output_name] = Output(  # type: ignore
-            type=AssetTypes.URI_FOLDER,
-            path=v1_datastore_path,
-            mode=InputOutputModes.DIRECT,
-        )
-    return outputs
+
+    output_assets = [get_data_asset_from_config(ml_client, output_dataset) for output_dataset in output_datasets]
+    return {
+        # Data assets can be of type "uri_folder", "uri_file", "mltable", all of which are value types in Input
+        f"{V2_OUTPUT_ASSET_IDENTIFIER}{i}": Output(  # type: ignore
+            type=data_asset.type,  # type: ignore
+            path=data_asset.path,
+            mode=InputOutputModes.MOUNT,  # hard-coded to mount for now, as this is the only mode that doesn't break
+        ) for i, data_asset in enumerate(output_assets)
+    }
 
 
 def submit_to_azure_if_needed(  # type: ignore
@@ -779,6 +763,7 @@ def submit_to_azure_if_needed(  # type: ignore
         hyperdrive_config: Optional[HyperDriveConfig] = None,
         hyperparam_args: Optional[Dict[str, Any]] = None,
         strictly_aml_v1: bool = False,
+        identity_based_auth: bool = False,
         pytorch_processes_per_node_v2: Optional[int] = None,
         display_name: Optional[str] = None,
 ) -> AzureRunInfo:  # pragma: no cover
@@ -979,12 +964,12 @@ def submit_to_azure_if_needed(  # type: ignore
             ml_client = get_ml_client(ml_client=ml_client, aml_workspace=workspace)
             registered_env = register_environment_v2(environment, ml_client)
             input_datasets_v2 = create_v2_inputs(ml_client, cleaned_input_datasets)
-            output_datasets_v2 = create_v2_outputs(cleaned_output_datasets)
+            output_datasets_v2 = create_v2_outputs(ml_client, cleaned_output_datasets)
 
             job = submit_run_v2(workspace=workspace,
                                 input_datasets_v2=input_datasets_v2,
                                 output_datasets_v2=output_datasets_v2,
-                                experiment_name=effective_experiment_name(experiment_name, entry_script),
+                                experiment_name=experiment_name,
                                 environment=registered_env,
                                 snapshot_root_directory=snapshot_root_directory,
                                 entry_script=entry_script,
@@ -994,10 +979,12 @@ def submit_to_azure_if_needed(  # type: ignore
                                 display_name=display_name,
                                 docker_shm_size=docker_shm_size,
                                 wait_for_completion=wait_for_completion,
+                                identity_based_auth=identity_based_auth,
                                 hyperparam_args=hyperparam_args,
                                 num_nodes=num_nodes,
                                 pytorch_processes_per_node=pytorch_processes_per_node_v2,
                                 )
+
             if after_submission is not None:
                 after_submission(job, ml_client)  # type: ignore
 
@@ -1109,22 +1096,22 @@ def _get_dataset_names_from_string(sys_arg: str, pattern: str) -> Path:
     return dataset_path
 
 
-def _extract_v2_inputs_outputs_from_args() -> Tuple[List[Path], List[Path]]:
-    """
-    Extract all command line arguments of the format INPUT_i=path_to_input or OUTPUT_i=path_to_output (where i is any
-    integer) and return a list of the Paths for each.
+def _extract_v2_data_asset_from_env_vars(asset_num: int, asset_type_identifier: str) -> Path:
+    """Provides path to the given data assets for v2 jobs by extracting it from the environment variables.
 
-    :return: A list of Input paths and a list of Output paths
+    :param asset_num: The id number of the data asset to extract
+    :param asset_type_identifier: The pattern to match the environment variables against, must be "INPUT_" or "OUTPUT_"
+    :return: The path to the data asset
     """
-    returned_input_datasets: List[Path] = []
-    returned_output_datasets: List[Path] = []
 
-    for sys_arg in sys.argv:
-        if re.match(V2_INPUT_DATASET_PATTERN, sys_arg):
-            returned_input_datasets += [_get_dataset_names_from_string(sys_arg, V2_INPUT_DATASET_PATTERN)]
-        if re.match(V2_OUTPUT_DATASET_PATTERN, sys_arg):
-            returned_output_datasets += [_get_dataset_names_from_string(sys_arg, V2_OUTPUT_DATASET_PATTERN)]
-    return returned_input_datasets, returned_output_datasets
+    asset_environment_variable = f"AZURE_ML_{asset_type_identifier}{asset_type_identifier}{asset_num}"
+    asset_path_str = os.environ.get(asset_environment_variable)
+    if asset_path_str is None:
+        raise ValueError(
+            f"Cannot find {asset_environment_variable} in environment variables, cannot retrieve data asset path."
+        )
+
+    return Path(asset_path_str)
 
 
 def _generate_v2_azure_datasets(cleaned_input_datasets: List[DatasetConfig],
@@ -1137,7 +1124,14 @@ def _generate_v2_azure_datasets(cleaned_input_datasets: List[DatasetConfig],
     :param cleaned_output_datasets: The list of output dataset configs
     :return: The AzureRunInfo containing the AzureML input and output dataset lists etc.
     """
-    returned_input_datasets, returned_output_datasets = _extract_v2_inputs_outputs_from_args()
+    returned_input_datasets = [
+        _extract_v2_data_asset_from_env_vars(i, V2_INPUT_ASSET_IDENTIFIER)
+        for i in range(len(cleaned_input_datasets))
+    ]
+    returned_output_datasets = [
+        _extract_v2_data_asset_from_env_vars(i, V2_OUTPUT_ASSET_IDENTIFIER)
+        for i in range(len(cleaned_output_datasets))
+    ]
 
     return AzureRunInfo(
         input_datasets=returned_input_datasets,  # type: ignore

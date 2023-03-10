@@ -9,6 +9,8 @@ on:
     paths:
       - "hi-ml-multimodal/**"
       - ".github/workflows/multimodal-*.yml"
+  schedule:
+    - cron: "0 4 * * *"  # every day at 4 AM UTC
 
 env:
   pythonVersion: 3.7
@@ -101,11 +103,16 @@ jobs:
           cd ${{ env.folder }}
           make pip_test
 
-      - name: Run Jupyter notebooks
+      - name: Run Jupyter notebook
         run: |
           cd ${{ env.folder }}
           ipython kernel install --name "python3" --user
-          REPO_URL="https://github.com/microsoft/hi-ml.git"
+          if [ -n "${{ github.event.pull_request }}" ]; then
+            REPO_FULL_NAME=${{ github.event.pull_request.head.repo.full_name }}
+          else
+            REPO_FULL_NAME="microsoft/hi-ml"
+          fi
+          REPO_URL="https://github.com/${REPO_FULL_NAME}.git"
           SUBDIR_STR="subdirectory=${{ env.folder }}"
           PIP_SOURCE="git+${REPO_URL}@${BRANCH_NAME}#${SUBDIR_STR}"
           IN_NB_PATH="notebooks/phrase_grounding.ipynb"
@@ -113,6 +120,7 @@ jobs:
           echo "The package will be installed from: $PIP_SOURCE"
           papermill \
             --parameters pip_source $PIP_SOURCE \
+            --log-output \
             $IN_NB_PATH \
             $OUT_NB_PATH
 

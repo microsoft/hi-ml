@@ -12,6 +12,7 @@ import torch
 from tifffile.tifffile import TiffWriter, PHOTOMETRIC, COMPRESSION
 from torch import Tensor
 from health_cpath.datasets.panda_dataset import PandaDataset
+from health_cpath.preprocessing.tiff_conversion import ResolutionUnit
 from testhisto.mocks.base_data_generator import MockHistoDataGenerator, MockHistoDataType, PANDA_N_CLASSES
 
 
@@ -41,6 +42,7 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         background_val: Union[int, float] = 255,
         tiles_pos_type: TilesPositioningType = TilesPositioningType.DIAGONAL,
         n_tiles_list: Optional[List[int]] = None,
+        resultion_unit: Optional[ResolutionUnit] = ResolutionUnit.CENTIMETER,
         **kwargs: Any,
     ) -> None:
         """
@@ -49,10 +51,12 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         :param n_repeat_tile: Number of repeat times of a tile along both Y and X axes, defaults to 2.
         :param background_val: A value to assign to the background, defaults to 255.
         :param tiles_pos_type: The tiles positioning type to define how tiles should be positioned within the WSI grid,
-        defaults to TilesPositioningType.DIAGONAL.
+        defaults to `TilesPositioningType.DIAGONAL`.
         :param n_tiles_list: A list to use different n_tiles per slide for randomly positioned tiles.
+        :param resultion_unit: The resolution unit to use for writing the WSI, defaults to `ResolutionUnit.CENTIMETER`.
         :param kwargs: Same params passed to MockHistoDataGenerator.
         """
+        self.generated_files: List[str] = []
         super().__init__(**kwargs)
 
         self.n_levels = n_levels
@@ -65,6 +69,7 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         self._dtype = np.uint8 if type(background_val) == int else np.float32
         self.img_size: int = self.n_repeat_diag * self.n_repeat_tile * self.tile_size
         self.n_tiles_list = n_tiles_list
+        self.resolution_unit = resultion_unit
 
         if self.n_tiles_list:
             assert len(self.n_tiles_list) == self.n_slides, "n_tiles_list length should be equal to n_slides"
@@ -120,13 +125,14 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
                         else tiles[i % self.n_tiles].numpy()
                     )
                     # fill the square diagonal with tile repeated n_repeat_tile times along X and Y axis.
-                    fill_square = np.tile(tile, (self.n_repeat_tile, self.n_repeat_tile))
+                    fill_square: Union[np.ndarray, float] = np.tile(tile, (self.n_repeat_tile, self.n_repeat_tile))
                     dump_tiles.append(tile)
 
             elif self.mock_type == MockHistoDataType.FAKE:
                 if i == 0 or self.n_tiles > 1:
                     # pick a random fake value to fill in the square diagonal.
-                    fill_square = np.random.uniform(0, self.background_val / (self.n_repeat_diag + 1) * (i + 1))
+                    upper = self.background_val / (self.n_repeat_diag + 1) * (i + 1)
+                    fill_square = np.random.uniform(0, upper)
                     dump_tiles.append(
                         np.full(
                             shape=(self.n_channels, self.tile_size, self.tile_size),
@@ -169,8 +175,7 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
             mock_image[:, x: x + self.tile_size, y: y + self.tile_size] = new_tile
         return np.transpose(mock_image, (1, 2, 0))
 
-    @staticmethod
-    def _save_mock_wsi_as_tiff_file(file_path: Path, wsi_levels: List[np.ndarray]) -> None:
+    def _save_mock_wsi_as_tiff_file(self, file_path: Path, wsi_levels: List[np.ndarray]) -> None:
         """Save a mock whole slide image as a tiff file of pyramidal levels.
         Warning: this function expects images to be in channels_last format (H, W, C).
 
@@ -182,6 +187,7 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
                 software='tifffile',
                 metadata={'axes': 'YXC'},
                 photometric=PHOTOMETRIC.RGB,
+                resolutionunit=self.resolution_unit,
                 compression=COMPRESSION.ADOBE_DEFLATE,  # ADOBE_DEFLATE aka ZLIB lossless compression
                 tile=(16, 16),
             )
@@ -222,6 +228,7 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
 
             slide_tiff_filename = self.dest_data_path / "train_images" / f"_{slide_counter}.tiff"
             self._save_mock_wsi_as_tiff_file(slide_tiff_filename, wsi_levels)
+            self.generated_files.append(str(slide_tiff_filename))
 
             if dump_tiles is not None:
                 dump_tiles_filename = self.dest_data_path / "dump_tiles" / f"_{slide_counter}.npy"

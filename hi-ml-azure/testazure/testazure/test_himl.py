@@ -58,10 +58,17 @@ from health_azure.utils import (
     get_workspace,
     is_running_in_azure_ml,
     get_driver_log_file_text,
+    get_ml_client,
 )
 from testazure.test_data.make_tests import render_environment_yaml, render_test_script
 from testazure.utils_testazure import (
     DEFAULT_DATASTORE,
+    USER_IDENTITY_TEST_DATASTORE,
+    USER_IDENTITY_TEST_ASSET,
+    USER_IDENTITY_TEST_ASSET_OUTPUT,
+    USER_IDENTITY_TEST_FILE,
+    TEST_DATA_ASSET_NAME,
+    TEST_DATASTORE_NAME,
     change_working_directory,
     current_test_name,
     get_shared_config_json,
@@ -72,6 +79,8 @@ INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXPECTED_QUEUED = "This command will be run in AzureML:"
 GITHUB_SHIBBOLETH = "GITHUB_RUN_ID"  # https://docs.github.com/en/actions/reference/environment-variables
 AZUREML_FLAG = himl.AZUREML_FLAG
+
+TEST_ML_CLIENT = get_ml_client()
 
 logger = logging.getLogger('test.health_azure')
 logger.setLevel(logging.DEBUG)
@@ -734,8 +743,6 @@ def test_submit_run_v2(tmp_path: Path) -> None:
         assert kwargs.get("goal") == "Minimize"
         return mock_command
 
-    dummy_experiment_name = "my_experiment"
-
     dummy_environment_name = "my_environment"
     dummy_environment = MagicMock()
     dummy_environment.name = dummy_environment_name
@@ -743,17 +750,27 @@ def test_submit_run_v2(tmp_path: Path) -> None:
     dummy_input_data_name = "my_input_dataset"
     dummy_input_path = "path_to_my_input_data"
     dummy_inputs = {
-        dummy_input_data_name: Input(type=AssetTypes.URI_FOLDER, path=dummy_input_path, mode=InputOutputModes.MOUNT)
+        dummy_input_data_name: Input(  # type: ignore
+            type=AssetTypes.URI_FOLDER,
+            path=dummy_input_path,
+            mode=InputOutputModes.MOUNT
+        )
     }
 
     dummy_output_data_name = "my_output_dataset"
     dummy_output_path = "path_to_my_output_data"
     dummy_outputs = {
-        dummy_output_data_name: Output(type=AssetTypes.URI_FOLDER, path=dummy_output_path, mode=InputOutputModes.DIRECT)
+        dummy_output_data_name: Output(  # type: ignore
+            type=AssetTypes.URI_FOLDER,
+            path=dummy_output_path,
+            mode=InputOutputModes.MOUNT
+        )
     }
 
     dummy_root_directory = tmp_path
     dummy_entry_script = dummy_root_directory / "my_entry_script"
+    dummy_experiment_name = "my_experiment"
+    dummy_experiment_name = himl.effective_experiment_name(dummy_experiment_name, dummy_entry_script)
     dummy_entry_script.touch()
 
     dummy_script_params = ["--arg1=val1", "--arg2=val2", "--conda_env=some_path"]
@@ -784,11 +801,8 @@ def test_submit_run_v2(tmp_path: Path) -> None:
             )
 
             expected_arg_str = " ".join(dummy_script_params)
-            expected_inputs_str = "--INPUT_0=${{inputs.INPUT_0}}"
-            expected_outputs_str = "--OUTPUT_0=${{outputs.OUTPUT_0}}"
             relative_entry_script = dummy_entry_script.relative_to(dummy_root_directory)
-            expected_command = f"python {relative_entry_script} {expected_arg_str} {expected_inputs_str} "\
-                f"{expected_outputs_str}"
+            expected_command = f"python {relative_entry_script} {expected_arg_str}"
 
             mock_command.assert_called_once_with(
                 code=str(dummy_root_directory),
@@ -802,7 +816,8 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 shm_size=dummy_docker_shm_size,
                 display_name=dummy_display_name,
                 distribution=MpiDistribution(process_count_per_instance=1),
-                instance_count=1
+                instance_count=1,
+                identity=None,
             )
 
             # job with hyperparameter sampling:
@@ -863,12 +878,50 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 shm_size=dummy_docker_shm_size,
                 display_name=dummy_display_name,
                 distribution=MpiDistribution(process_count_per_instance=1),
-                instance_count=1
+                instance_count=1,
+                identity=None,
             )
 
             mock_command.assert_any_call(**param_sampling)
             mock_command.sweep.assert_called_once()
             assert mock_command.experiment_name == dummy_experiment_name
+
+            dummy_entry_script_for_module = "-m Foo.bar run"
+            expected_command = f"python {dummy_entry_script_for_module} {expected_arg_str}"
+
+            himl.submit_run_v2(
+                workspace=None,
+                experiment_name=dummy_experiment_name,
+                environment=dummy_environment,
+                input_datasets_v2=dummy_inputs,
+                output_datasets_v2=dummy_outputs,
+                snapshot_root_directory=dummy_root_directory,
+                entry_script=dummy_entry_script_for_module,
+                script_params=dummy_script_params,
+                compute_target=dummy_compute_target,
+                tags=dummy_tags,
+                docker_shm_size=dummy_docker_shm_size,
+                workspace_config_path=None,
+                ml_client=mock_ml_client,
+                hyperparam_args=None,
+                display_name=dummy_display_name,
+            )
+
+            mock_command.assert_any_call(
+                code=str(dummy_root_directory),
+                command=expected_command,
+                inputs=dummy_inputs,
+                outputs=dummy_outputs,
+                environment=dummy_environment_name + "@latest",
+                compute=dummy_compute_target,
+                experiment_name=dummy_experiment_name,
+                tags=dummy_tags,
+                shm_size=dummy_docker_shm_size,
+                display_name=dummy_display_name,
+                distribution=MpiDistribution(process_count_per_instance=1),
+                instance_count=1,
+                identity=None,
+            )
 
 
 @pytest.mark.fast
@@ -916,6 +969,51 @@ def spawn_and_monitor_subprocess(process: str, args: List[str],
     logging.info("~~~~~~~~~~~~~~")
 
     return p.wait(), stdout_lines
+
+
+def validate_v1_job_outputs(captured: str, run_path: Path, extra_options: Dict[str, Any]) -> str:
+    """Assert that a v1 job/run has completed successfully.
+
+    :param captured: The captured output from the test script.
+    :param run_path: File path to where the run was executed.
+    :raises ValueError: Raises a value error if missing expected output files.
+    :return: Log text stored in the v1 log driver file.
+    """
+    assert EXPECTED_QUEUED in captured
+    with check_config_json(run_path, shared_config_json=get_shared_config_json()):
+        workspace = get_workspace(aml_workspace=None, workspace_config_path=run_path / WORKSPACE_CONFIG_JSON)
+
+    run = get_most_recent_run(
+        run_recovery_file=run_path / himl.RUN_RECOVERY_FILE,
+        workspace=workspace,
+    )
+    if run.status not in [RunStatus.FAILED, RunStatus.COMPLETED, RunStatus.CANCELED]:
+        run.wait_for_completion()
+    assert run.status == "Completed"
+    if "display_name" in extra_options:
+        assert run.display_name == extra_options["display_name"], "Display name has not been set"
+
+    # test error case mocking where no log file is present
+    log_text_undownloaded = get_driver_log_file_text(run=run, download_file=False)
+    assert log_text_undownloaded is None
+
+    # TODO: upgrade to walrus operator when upgrading python version to 3.8+
+    # if log_text := get_driver_log_file_text(run=run):
+    log_text = get_driver_log_file_text(run=run)
+
+    if log_text is None:
+        raise ValueError(
+            "The run does not contain any of the following log files: "
+            f"{[log_file_path for log_file_path in VALID_LOG_FILE_PATHS]}"
+        )
+
+    return log_text
+
+
+def validate_v2_job_outputs() -> str:
+    # TODO: implement this using run recovery files, issue open here:
+    # https://github.com/microsoft/hi-ml/issues/785
+    return "Not implemented yet"
 
 
 def render_and_run_test_script(path: Path,
@@ -1022,33 +1120,12 @@ def render_and_run_test_script(path: Path,
             assert EXPECTED_QUEUED not in captured
         return captured
     else:
-        assert EXPECTED_QUEUED in captured
-        with check_config_json(path, shared_config_json=get_shared_config_json()):
-            workspace = get_workspace(aml_workspace=None, workspace_config_path=path / WORKSPACE_CONFIG_JSON)
 
-        run = get_most_recent_run(run_recovery_file=path / himl.RUN_RECOVERY_FILE,
-                                  workspace=workspace)
-        if run.status not in ["Failed", "Completed", "Cancelled"]:
-            run.wait_for_completion()
-        assert run.status == "Completed"
-        if "display_name" in extra_options:
-            assert run.display_name == extra_options["display_name"], "Display name has not been set"
+        if "strictly_aml_v1" not in extra_options or extra_options["strictly_aml_v1"] == "True":
+            return validate_v1_job_outputs(captured, path, extra_options)
 
-        # test error case mocking where no log file is present
-        log_text_undownloaded = get_driver_log_file_text(run=run, download_file=False)
-        assert log_text_undownloaded is None
-
-        # TODO: upgrade to walrus operator when upgrading python version to 3.8+
-        # if log_text := get_driver_log_file_text(run=run):
-        log_text = get_driver_log_file_text(run=run)
-
-        if log_text is None:
-            raise ValueError(
-                "The run does not contain any of the following log files: "
-                f"{[log_file_path for log_file_path in VALID_LOG_FILE_PATHS]}"
-            )
-
-        return log_text
+        else:
+            return validate_v2_job_outputs()
 
 
 @pytest.mark.parametrize("run_target", [RunTarget.LOCAL, RunTarget.AZUREML])
@@ -1127,7 +1204,7 @@ def test_invoking_hello_world_using_azureml_flag(tmp_path: Path) -> None:
     """
     Test that invoking hello_world.py with the --azureml flag will submit to AzureML and not run locally.
 
-    :param tmp_path: PyTest test fixture for temporary path.
+    :param tmp_path: Pytest fixture for temporary path.
     """
 
     message_guid = uuid4().hex
@@ -1276,7 +1353,7 @@ class TestInputDataset:
     # Name of container for this dataset in blob storage.
     blob_name: str
     # Local folder for this dataset when running locally.
-    folder_name: Path
+    folder_name: Optional[Path] = None
     # Contents of test file.
     contents: str = ""
     # Local folder str
@@ -1288,7 +1365,7 @@ class TestOutputDataset:
     # Name of container for this dataset in blob storage.
     blob_name: str
     # Local folder for this dataset when running locally or when testing after running in Azure.
-    folder_name: Path
+    folder_name: Optional[Path] = None
 
 
 @pytest.mark.parametrize(["run_target", "local_folder", "strictly_aml_v1"],
@@ -1347,6 +1424,7 @@ def test_invoking_hello_world_datasets(run_target: RunTarget,
             assert downloaded == 1
 
             # Check that the input file is downloaded
+            assert input_dataset.folder_name is not None
             downloaded_dummy_txt_file = input_dataset.folder_name / input_dataset.blob_name / input_dataset.filename
             # Check it has expected contents
             assert input_dataset.contents == downloaded_dummy_txt_file.read_text()
@@ -1354,6 +1432,7 @@ def test_invoking_hello_world_datasets(run_target: RunTarget,
 
     if run_target == RunTarget.LOCAL:
         for output_dataset in output_datasets:
+            assert output_dataset.folder_name is not None
             output_blob_folder = output_dataset.folder_name / output_dataset.blob_name
             output_blob_folder.mkdir(parents=True)
     else:
@@ -1450,11 +1529,71 @@ import sys
                     show_progress=True)
                 assert downloaded == 1
 
+            assert isinstance(output_dataset.folder_name, Path)
             output_dummy_txt_file = output_dataset.folder_name / output_dataset.blob_name / input_dataset.filename
             assert input_dataset.contents == output_dummy_txt_file.read_text()
 
-
 # endregion Elevate to AzureML unit tests
+
+
+def test_invoking_user_identity_datasets(tmp_path: Path) -> None:
+    output_test_file_name = f"test_output_{uuid4().hex}.txt"
+    extra_options: Dict[str, str] = {
+        'imports': """
+import shutil
+import sys
+import os
+""",
+        'default_datastore': f"'{USER_IDENTITY_TEST_DATASTORE}'",
+        'input_datasets': f"['{USER_IDENTITY_TEST_ASSET}']",
+        'output_datasets': f"['{USER_IDENTITY_TEST_ASSET_OUTPUT}']",
+        'strictly_aml_v1': str(False),
+        'identity_based_auth': str(True),
+        'body': f"""
+
+    input_folder = run_info.input_datasets[0]
+    output_folder = run_info.output_datasets[0]
+
+    print("input dir contents: " + str(os.listdir(input_folder)))
+
+    output_dir_contents = os.listdir(output_folder)
+    num_output_items = len(output_dir_contents)
+
+    print("output dir contents before copying: " + str(output_dir_contents))
+    print("Number of items in output dir before copying: " + str(num_output_items))
+
+    input_file = input_folder / "{USER_IDENTITY_TEST_FILE}"
+    output_file = output_folder / "{output_test_file_name}"
+
+    print('input file: ' + str(input_file) + ', output file: ' + str(output_file))
+
+    if os.path.exists(input_file):
+        print("Input file exists")
+
+    if not os.path.exists(output_file):
+        print("Output file does not exist (yet)")
+
+    print("Copying file...")
+    shutil.copy(input_file, output_file)
+
+    num_output_dir_items_after_copying = len(os.listdir(output_folder))
+
+    assert num_output_dir_items_after_copying == num_output_items + 1, "Copied file not present in output dir"
+
+    print("File successfully copied!")
+        """,
+    }
+
+    extra_args: List[str] = []
+
+    render_and_run_test_script(
+        tmp_path,
+        RunTarget.AZUREML,
+        extra_options,
+        extra_args,
+        expected_pass=True,
+        upload_package=False,
+    )
 
 
 @pytest.mark.fast
@@ -1565,6 +1704,32 @@ def test_submit_to_azure_if_needed_with_hyperdrive(mock_sys_args: MagicMock,
                         mock_hyperdrive_config.assert_called_once()
 
 
+def test_get_data_asset_from_config() -> None:
+    n_configs = 3
+    test_dataset_configs = [
+        DatasetConfig(
+            name=TEST_DATA_ASSET_NAME,
+            datastore=TEST_DATASTORE_NAME,
+        ) for _ in range(n_configs)
+    ]
+
+    test_assets = [
+        himl.get_data_asset_from_config(TEST_ML_CLIENT, test_dataset_config)
+        for test_dataset_config in test_dataset_configs
+    ]
+    assert len(test_assets) == n_configs
+    assert all([asset.name == TEST_DATA_ASSET_NAME for asset in test_assets])
+
+    test_version = 1
+    test_versioned_config = DatasetConfig(
+        name=TEST_DATA_ASSET_NAME,
+        datastore=TEST_DATASTORE_NAME,
+        version=test_version,
+    )
+    test_versioned_asset = himl.get_data_asset_from_config(TEST_ML_CLIENT, test_versioned_config)
+    assert test_versioned_asset.version == str(test_version)
+
+
 @pytest.mark.fast
 @pytest.mark.parametrize("already_exists", [True, False])
 def test_create_v2_inputs(already_exists: bool) -> None:
@@ -1626,18 +1791,20 @@ def test_create_v2_inputs_fails(missing: Any) -> None:
 
 @pytest.mark.fast
 def test_create_v2_outputs() -> None:
-    mock_datastore_name = "dummy_datastore"
-    mock_data_name = "dummy_dataset"
+    test_dataset_config = DatasetConfig(
+        name=TEST_DATA_ASSET_NAME,
+        datastore=TEST_DATASTORE_NAME,
+    )
+    outputs = himl.create_v2_outputs(TEST_ML_CLIENT, [test_dataset_config])
 
-    mock_output_dataconfigs = [DatasetConfig(name=mock_data_name, datastore=mock_datastore_name)]
-    outputs = himl.create_v2_outputs(mock_output_dataconfigs)
-    assert isinstance(outputs, Dict)
-    assert len(outputs) == len(mock_output_dataconfigs)
-    output_entry = outputs["OUTPUT_0"]
-    assert isinstance(output_entry, Output)
-    assert output_entry.type == AssetTypes.URI_FOLDER
-    expected_path = f"azureml://datastores/{mock_datastore_name}/paths/{mock_data_name}"
-    assert expected_path in output_entry['path']
+    output_key = "OUTPUT_0"
+    assert output_key in outputs
+    assert len(outputs) == 1
+
+    output = outputs[output_key]
+    assert output.path is not None
+    assert isinstance(output, Output)
+    assert output.mode == InputOutputModes.MOUNT
 
 
 def test_submit_to_azure_if_needed_v2() -> None:
@@ -1684,42 +1851,6 @@ def test_submit_to_azure_if_needed_v2() -> None:
                 )
                 mock_submit_run.assert_called_once()
                 assert return_value is None
-
-
-@pytest.mark.fast
-def test_generate_input_dataset_command() -> None:
-    input_datasets = {"INPUT_0": Input(), "INPUT_1": Input()}
-    input_data_cmd = himl._generate_input_dataset_command(input_datasets)
-    assert input_data_cmd == " --INPUT_0=${{inputs.INPUT_0}} --INPUT_1=${{inputs.INPUT_1}}"
-
-
-@pytest.mark.fast
-def test_generate_output_dataset_command() -> None:
-    output_datasets = {"OUTPUT_0": Output(), "OUTPUT_1": Output()}
-    output_data_cmd = himl._generate_output_dataset_command(output_datasets)
-    assert output_data_cmd == " --OUTPUT_0=${{outputs.OUTPUT_0}} --OUTPUT_1=${{outputs.OUTPUT_1}}"
-
-
-@pytest.mark.fast
-def test_extract_v2_inputs_outputs_from_args() -> None:
-    path_to_input_0 = "path_to_input_0"
-    path_to_output_0 = "path_to_output_0"
-    mock_args = [f"--INPUT_0={path_to_input_0}", "--INPUT_1=path_to_input_1", f"--OUTPUT_0={path_to_output_0}",
-                 "--a=foo", "--b=bar"]
-    with patch.object(sys, "argv", new=mock_args):
-        input_datasets, output_datasets = himl._extract_v2_inputs_outputs_from_args()
-        assert len(input_datasets) == 2
-        assert input_datasets[0] == Path(path_to_input_0)
-        assert len(output_datasets) == 1
-        assert output_datasets[0] == Path(path_to_output_0)
-
-    # similar args should be ignored
-    mock_args_similar = [f"--input_0={path_to_input_0}", "--input_1=path_to_input_1", f"--output_0={path_to_output_0}",
-                         "--a=foo", "--b=bar"]
-    with patch.object(sys, "argv", new=mock_args_similar):
-        input_datasets, output_datasets = himl._extract_v2_inputs_outputs_from_args()
-        assert len(input_datasets) == 0
-        assert len(output_datasets) == 0
 
 
 @pytest.mark.parametrize("wait_for_completion", [True, False])
@@ -1959,3 +2090,34 @@ def test_submit_to_azure_v2_distributed() -> None:
                 assert call_kwargs.get("instance_count") == num_nodes
                 distribution = call_kwargs.get("distribution")
                 assert distribution == MpiDistribution(process_count_per_instance=1)
+
+
+@pytest.mark.fast
+def test_extract_v2_data_asset_from_env_vars() -> None:
+    valid_mock_environment = {
+        "AZURE_ML_INPUT_INPUT_0": "input_0",
+        "AZURE_ML_OUTPUT_OUTPUT_0": "output_0",
+    }
+
+    with patch.dict(os.environ, valid_mock_environment):
+        input_dataset_0 = himl._extract_v2_data_asset_from_env_vars(0, "INPUT_")
+        output_dataset_0 = himl._extract_v2_data_asset_from_env_vars(0, "OUTPUT_")
+        assert input_dataset_0 == Path("input_0")
+        assert output_dataset_0 == Path("output_0")
+
+        with pytest.raises(ValueError):
+            himl._extract_v2_data_asset_from_env_vars(5, "OUTPUT_")
+
+    valid_mock_environment = {
+        "AZURE_ML_INPUT_INPUT_2": "input_2",
+        "AZURE_ML_INPUT_INPUT_1": "input_1",
+        "AZURE_ML_INPUT_INPUT_0": "input_0",
+        "AZURE_ML_INPUT_INPUT_3": "input_3",
+    }
+
+    with patch.dict(os.environ, valid_mock_environment):
+        input_datasets = [
+            himl._extract_v2_data_asset_from_env_vars(i, "INPUT_")
+            for i in range(len(valid_mock_environment))
+        ]
+        assert input_datasets == [Path("input_0"), Path("input_1"), Path("input_2"), Path("input_3")]

@@ -260,7 +260,8 @@ class DeepMILOutputsHandler:
                  class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
                  maximise: bool, val_plot_options: Collection[PlotOption],
                  test_plot_options: Collection[PlotOption],
-                 save_intermediate_outputs: bool = True) -> None:
+                 save_intermediate_outputs: bool = True,
+                 stratify_plots_by: Optional[str] = None) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
@@ -273,6 +274,8 @@ class DeepMILOutputsHandler:
         :param val_plot_options: The desired plot options for validation time.
         :param test_plot_options: The desired plot options for test time.
         :param save_intermediate_outputs: Whether to save intermediate outputs (e.g. after each epoch).
+        :param stratify_plots_by: Name of metadata field to stratify output plots (PR curve, ROC curve).
+        `None` by default (no stratification).
         """
         self.outputs_root = outputs_root
         self.n_classes = n_classes
@@ -288,6 +291,7 @@ class DeepMILOutputsHandler:
             class_names=self.class_names,
             stage=ModelKey.VAL,
             loading_params=deepcopy(loading_params),
+            stratify_plots_by=stratify_plots_by
         )
         self.test_plots_handler = DeepMILPlotsHandler(
             plot_options=test_plot_options,
@@ -295,6 +299,7 @@ class DeepMILOutputsHandler:
             class_names=self.class_names,
             stage=ModelKey.TEST,
             loading_params=deepcopy(loading_params),
+            stratify_plots_by=stratify_plots_by
         )
 
     @property

@@ -5,14 +5,19 @@
 import logging
 import os
 from pathlib import Path
-from typing import Any, Collection, Dict, List
+from typing import Any, Collection, Dict, List, Optional
 from unittest.mock import MagicMock, patch
 import pytest
 import torch
+import numpy as np
+
+from health_ml.utils.common_utils import is_windows
+from health_ml.utils.fixed_paths import OutputFolderForTests
+from health_cpath.datasets.panda_dataset import PandaDataset
 from health_cpath.preprocessing.loading import LoadingParams, ROIType
 from health_cpath.utils.naming import PlotOption, ResultsKey
 from health_cpath.utils.plots_utils import (DeepMILPlotsHandler, save_confusion_matrix, save_pr_curve,
-                                            save_roc_curve, get_list_from_results_dict)
+                                            save_roc_curve, get_list_from_results_dict, get_stratified_outputs)
 from health_cpath.utils.tiles_selection_utils import SlideNode, TilesSelector
 from testhisto.mocks.container import MockDeepSMILETilesPanda
 from testhisto.utils.utils_testhisto import assert_binary_files_match, full_ml_test_data_path
@@ -29,7 +34,7 @@ def test_plots_handler_always_uses_roid_loading(roi_type: ROIType) -> None:
     plot_options = {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX}
     loading_params = LoadingParams(roi_type=roi_type)
     plots_handler = DeepMILPlotsHandler(plot_options, class_names=["foo", "bar"], loading_params=loading_params)
-    assert plots_handler.loading_params.roi_type in [ROIType.MASK, ROIType.FOREGROUND]
+    assert plots_handler.loading_params.roi_type in [ROIType.MASK, ROIType.FOREGROUND, ROIType.MASKSUBROI]
 
 
 @pytest.mark.parametrize(
@@ -173,14 +178,16 @@ def test_save_conf_matrix_integration(tmp_path: Path) -> None:
             assert actual_conf_matrix.shape == expected_conf_matrix_shape
 
 
-def test_pr_curve_integration(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+@pytest.mark.parametrize("stratify_metadata", [["A", "B", "A", "A", "B", "B"], None])
+def test_pr_curve_integration(tmp_path: Path, caplog: pytest.LogCaptureFixture,
+                              stratify_metadata: Optional[List[Any]]) -> None:
     results = {
         ResultsKey.TRUE_LABEL: [0, 1, 0, 1, 0, 1],
         ResultsKey.PROB: [0.1, 0.8, 0.6, 0.3, 0.5, 0.4]
     }
 
     # check plot is produced and it has right filename
-    save_pr_curve(results, tmp_path, stage='foo')  # type: ignore
+    save_pr_curve(results, tmp_path, stage='foo', stratify_metadata=stratify_metadata)      # type: ignore
     file = Path(tmp_path) / "pr_curve_foo.png"
     assert file.exists()
     os.remove(file)
@@ -188,21 +195,24 @@ def test_pr_curve_integration(tmp_path: Path, caplog: pytest.LogCaptureFixture) 
     # check warning is logged and plot is not produced if NOT a binary case
     results[ResultsKey.TRUE_LABEL] = [0, 1, 0, 2, 0, 1]
 
-    save_pr_curve(results, tmp_path, stage='foo')  # type: ignore
+    save_pr_curve(results, tmp_path, stage='foo', stratify_metadata=stratify_metadata)      # type: ignore
     warning_message = "The PR curve plot implementation works only for binary cases, this plot will be skipped."
     assert warning_message in caplog.records[-1].getMessage()
 
     assert not file.exists()
 
 
-def test_roc_curve_integration(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+@pytest.mark.parametrize("stratify_metadata", [["A", "B", "A", "A", "B", "B"], None])
+def test_roc_curve_integration(tmp_path: Path, caplog: pytest.LogCaptureFixture,
+                               stratify_metadata: Optional[List[Any]]) -> None:
     results = {
         ResultsKey.TRUE_LABEL: [0, 1, 0, 1, 0, 1],
         ResultsKey.PROB: [0.1, 0.8, 0.6, 0.3, 0.5, 0.4]
     }
+    stratify_metadata = ["A", "B", "A", "A", "B", "B"]
 
     # check plot is produced and it has right filename
-    save_roc_curve(results, tmp_path, stage='foo')  # type: ignore
+    save_roc_curve(results, tmp_path, stage='foo', stratify_metadata=stratify_metadata)      # type: ignore
     file = Path(tmp_path) / "roc_curve_foo.png"
     assert file.exists()
     os.remove(file)
@@ -210,7 +220,7 @@ def test_roc_curve_integration(tmp_path: Path, caplog: pytest.LogCaptureFixture)
     # check warning is logged and plot is not produced if NOT a binary case
     results[ResultsKey.TRUE_LABEL] = [0, 1, 0, 2, 0, 1]
 
-    save_roc_curve(results, tmp_path, stage='foo')  # type: ignore
+    save_roc_curve(results, tmp_path, stage='foo', stratify_metadata=stratify_metadata)      # type: ignore
     warning_message = "The ROC curve plot implementation works only for binary cases, this plot will be skipped."
     assert warning_message in caplog.records[-1].getMessage()
 
@@ -228,3 +238,62 @@ def test_get_list_from_results_dict() -> None:
     assert all(isinstance(x, float) for x in scores)
     assert all(isinstance(x, int) for x in pred_labels)
     assert len(true_labels) == len(pred_labels) == len(scores)
+
+
+def test_get_stratified_outputs() -> None:
+    results = {ResultsKey.TRUE_LABEL: [torch.tensor(0), torch.tensor(1), torch.tensor(0), torch.tensor(1)],
+               ResultsKey.PROB: [torch.tensor(0.9), torch.tensor(0.6), torch.tensor(0.8), torch.tensor(0.9)]}
+    stratify_metadata = ["A", "B", "A", "A"]
+    true_labels = get_list_from_results_dict(results=results, results_key=ResultsKey.TRUE_LABEL)
+    scores = get_list_from_results_dict(results=results, results_key=ResultsKey.PROB)
+    stratified_outputs = get_stratified_outputs(true_labels=true_labels, scores=scores,
+                                                stratify_metadata=stratify_metadata)
+    assert isinstance(stratified_outputs, dict)
+    assert len(stratified_outputs.keys()) == len(np.unique(stratify_metadata))
+    for key in stratified_outputs.keys():
+        assert len(stratified_outputs[key][0]) == len(stratified_outputs[key][1])
+
+
+@pytest.mark.parametrize("stratify_plots_by", ['data_provider', None])
+def test_plots_handler_get_metadata(mock_panda_slides_root_dir: Path, stratify_plots_by: Optional[str]) -> None:
+    results = {ResultsKey.TRUE_LABEL: [torch.tensor(0), torch.tensor(1), torch.tensor(0)],
+               ResultsKey.PRED_LABEL: [torch.tensor(1), torch.tensor(0), torch.tensor(0)],
+               ResultsKey.PROB: [torch.tensor(0.9), torch.tensor(0.6), torch.tensor(0.8)],
+               ResultsKey.SLIDE_ID: [['_0', '_0'], ['_1', '_1'], ['_2', '_2']]}
+
+    plot_options = {PlotOption.PR_CURVE, PlotOption.ROC_CURVE}
+    plots_handler = DeepMILPlotsHandler(plot_options=plot_options, class_names=[], loading_params=LoadingParams(),
+                                        stratify_plots_by=stratify_plots_by)
+    slides_dataset = PandaDataset(root=mock_panda_slides_root_dir)
+    plots_handler.slides_dataset = slides_dataset
+    metadata = plots_handler.get_metadata(results=results)    # type: ignore
+    if stratify_plots_by is None:
+        assert metadata is None
+    else:
+        assert len(metadata) == len(results[ResultsKey.PRED_LABEL])         # type: ignore
+    # check if the metadata corresponds to the correct slides
+    if metadata is not None:
+        result_ids = [x[0] for x in results[ResultsKey.SLIDE_ID]]           # type: ignore
+        for i in range(len(result_ids)):
+            df = slides_dataset.dataset_df
+            slide_row = df.iloc[np.where(df.index == result_ids[i])]
+            metadata_val = slide_row[stratify_plots_by].values[0]
+            assert metadata_val == metadata[i]
+
+
+@pytest.mark.skipif(is_windows(), reason="Rendering is different on Windows")
+def test_save_roc_curve_stratification(test_output_dirs: OutputFolderForTests) -> None:
+    results = {
+        ResultsKey.TRUE_LABEL: [0, 1, 0, 1, 0, 1],
+        ResultsKey.PROB: [0.1, 0.8, 0.6, 0.3, 0.5, 0.4]
+    }
+    stratify_metadata = ["A", "B", "A", "A", "B", "B"]
+    target_dir = Path(test_output_dirs.root_dir)
+    save_roc_curve(results, target_dir, stage='stratify', stratify_metadata=stratify_metadata)         # type: ignore
+    file = target_dir / "roc_curve_stratify.png"
+    assert file.exists()
+
+    expected = full_ml_test_data_path("histo_heatmaps") / "plot_roc_curve_stratify.png"
+    # To update the stored results, uncomment this line:
+    # expected.write_bytes(file.read_bytes())
+    assert_binary_files_match(file, expected)
