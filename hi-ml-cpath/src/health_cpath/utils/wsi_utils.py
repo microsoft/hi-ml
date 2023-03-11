@@ -3,10 +3,9 @@ import param
 from torch import Tensor
 from typing import Any, Callable, List, Optional
 from health_cpath.models.transforms import ExtractCoordinatesd
-from health_cpath.utils.grid_patch import RandGridPatchd, GridPatchd
 from health_cpath.utils.naming import ModelKey, SlideKey
 from health_ml.utils.bag_utils import multibag_collate
-from monai.transforms import SplitDimd
+from monai.transforms import RandGridPatchd, GridPatchd, SplitDimd
 
 
 def image_collate(batch: List) -> Any:
