@@ -1,22 +1,16 @@
 ## Package management
 
-# Create a Conda environment for this folder only
-env:
-	conda env create --file environment.yml
-	pip install -r requirements_test.txt
-	pip install -r requirements_build.txt
-
 # pip upgrade
 pip_upgrade:
 	python -m pip install --upgrade pip
 
 # pip upgrade and install build requirements
 pip_build: pip_upgrade
-	pip install -r requirements_build.txt
+	pip install .[build]
 
 # pip upgrade and install test requirements
 pip_test: pip_upgrade
-	pip install -r requirements_test.txt
+	pip install .[test]
 
 pip_publish: pip_upgrade
 	pip install --upgrade build twine
@@ -26,7 +20,8 @@ pip_local:
 	pip install -e .
 
 # pip install everything for local development and testing
-pip: pip_build pip_test pip_local
+pip:
+	pip install -e .[dev]
 
 ## Actions
 
@@ -48,7 +43,6 @@ flake8:
 
 # run mypy, assuming test requirements already installed
 mypy:
-	mypy --install-types --show-error-codes --non-interactive setup.py
 	mypy --install-types --show-error-codes --non-interactive src
 	mypy --install-types --show-error-codes --non-interactive test_multimodal
 
