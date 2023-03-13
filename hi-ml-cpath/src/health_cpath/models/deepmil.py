@@ -96,9 +96,6 @@ class DeepMILModule(LightningModule):
         # number of encoding dimensions of the encoder.
         num_encoding = encoder_params.projection_dim if encoder_params.projection_dim > 0 else self.encoder.num_encoding
         self.aggregation_fn, self.num_pooling = pooling_params.get_pooling_layer(num_encoding)
-        for layer in self.aggregation_fn.transformer.layers:
-            layer = checkpoint(layer)
-
         self.classifier_fn = classifier_params.get_classifier(self.num_pooling, self.n_classes)
         self.activation_fn = self.get_activation()
 
