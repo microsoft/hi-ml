@@ -21,6 +21,7 @@ from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey,
 from health_cpath.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
                                              validate_class_names, EXTRA_PREFIX)
 from torch.utils.checkpoint import checkpoint, checkpoint_sequential
+from fairscale.nn.checkpoint import checkpoint_wrapper
 
 
 RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
@@ -95,6 +96,9 @@ class DeepMILModule(LightningModule):
         # number of encoding dimensions of the encoder.
         num_encoding = encoder_params.projection_dim if encoder_params.projection_dim > 0 else self.encoder.num_encoding
         self.aggregation_fn, self.num_pooling = pooling_params.get_pooling_layer(num_encoding)
+        for layer in self.aggregation_fn.transformer.layers:
+            layer = checkpoint_wrapper(layer)
+
         self.classifier_fn = classifier_params.get_classifier(self.num_pooling, self.n_classes)
         self.activation_fn = self.get_activation()
 
