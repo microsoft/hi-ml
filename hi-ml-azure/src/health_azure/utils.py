@@ -46,6 +46,8 @@ from azure.identity import (ClientSecretCredential, DeviceCodeCredential,
                             DefaultAzureCredential, InteractiveBrowserCredential)
 
 
+logger = logging.getLogger(__name__)
+
 T = TypeVar("T")
 
 EXPERIMENT_RUN_SEPARATOR = ":"
@@ -2005,7 +2007,7 @@ def get_metrics_for_run(
     :param run: A Run object to retrieve the metrics from. Either this or run_id must be provided
     :param run_id: The id (type: str) of an AML Run. Either this or run must be provided.
     :param keep_metrics: An optional list of metric names to filter the returned metrics by. If the metric
-        is not logged in the run, an empty list will be returned for that metric.
+        is not logged in the run, a warning will be issued.
     :param aml_workspace: If run_id is provided, this is an optional AML Workspace object to retrieve the Run from
     :param workspace_config_path: If run_id is provided, this is an optional path to a config containing details of the
         AML Workspace object to retrieve the Run from.
@@ -2018,11 +2020,16 @@ def get_metrics_for_run(
     if isinstance(run, _OfflineRun):
         logging.warning("Can't get metrics for _OfflineRun object")
         return {}
+    if run.status != RunStatus.COMPLETED:
+        logger.warning(f"Run {run.id} is not completed, but has status '{run.status}'. Metrics may be incomplete.")
     all_metrics = run.get_metrics()  # type: ignore
     if keep_metrics:
         metrics = {}
         for metric_name in keep_metrics:
-            metrics[metric_name] = all_metrics[metric_name] if metric_name in all_metrics else []
+            if metric_name in all_metrics:
+                metrics[metric_name] = all_metrics[metric_name]
+            else:
+                logger.warning(f"Metric {metric_name} not found in run {run.id}")
         return metrics
     return all_metrics
 
@@ -2042,7 +2049,8 @@ def get_metrics_for_hyperdrive_run(
 
     :param run: A Run object to retrieve the metrics from. Either this or run_id must be provided
     :param run_id: The id (type: str) of an AML Run. Either this or run must be provided.
-    :param keep_metrics: An optional list of metric names to filter the returned metrics by
+    :param keep_metrics: An optional list of metric names to filter the returned metrics by. If a metric is requested,
+        but not found on the run, a warning will be issued.
     :param aml_workspace: If run_id is provided, this is an optional AML Workspace object to retrieve the Run from
     :param workspace_config_path: If run_id is provided, this is an optional path to a config containing details of the
         AML Workspace object to retrieve the Run from.
@@ -2056,12 +2064,12 @@ def get_metrics_for_hyperdrive_run(
             raise ValueError("Either run or run_id must be provided")
         run = get_aml_run_from_run_id(run_id, aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
     if isinstance(run, _OfflineRun):
-        logging.warning("Can't get metrics for _OfflineRun object")
+        logger.warning("Can't get metrics for _OfflineRun object")
         return {}
     metrics = {}
-    for child_run in run.get_children():  # type: ignore
-        child_run_metrics = get_metrics_for_run(run=child_run, keep_metrics=keep_metrics)
+    for child_run in run.get_children():
         child_run_tag = get_tags_from_hyperdrive_run(child_run, child_run_arg_name)
+        child_run_metrics = get_metrics_for_run(run=child_run, keep_metrics=keep_metrics)
         metrics[child_run_tag] = child_run_metrics
     return metrics
 

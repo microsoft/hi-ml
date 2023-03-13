@@ -7,6 +7,7 @@ Tests for the functions in health_azure.azure_util
 """
 import json
 import logging
+import math
 import os
 import sys
 import time
@@ -28,6 +29,7 @@ from _pytest.capture import CaptureFixture
 from _pytest.logging import LogCaptureFixture
 from azure.identity import (ClientSecretCredential, DeviceCodeCredential, DefaultAzureCredential)
 from azure.storage.blob import ContainerClient
+from azureml._restclient.constants import RunStatus
 from azureml.core import Experiment, Run, ScriptRunConfig, Workspace
 from azureml.core.run import _OfflineRun
 from azureml.core.environment import CondaDependencies
@@ -2065,8 +2067,9 @@ def test_parse_args_and_apply_overrides() -> None:
 
 class MockChildRun:
     def __init__(self, run_id: str, cross_val_index: int):
-        self.run_id = run_id
+        self.id = run_id
         self.tags = {"hyperparameters": json.dumps({"child_run_index": cross_val_index})}
+        self.status = RunStatus.COMPLETED
 
     def get_metrics(self) -> Dict[str, Union[float, List[Union[int, float]]]]:
         num_epochs = 5
@@ -2092,6 +2095,7 @@ class MockHyperDriveRun:
 class MockRunWithMetrics:
     def __init__(self, run_id: str = 'run1234', tags: Optional[Dict[str, str]] = None) -> None:
         self.id = run_id
+        self.status = RunStatus.COMPLETED
         self.metrics = {"test/accuracy": 0.8, "test/auroc": 0.7, "val/loss": [1.0, 0.8, 0.75]}
 
     def get_metrics(self) -> Dict[str, Union[List[float], float]]:
@@ -2259,22 +2263,19 @@ def test_aggregate_hyperdrive_metrics_keep() -> None:
     """Test hyperdrive metrics aggregation when restricting the set of metrics"""
     num_crossval_splits = 2
     dummy_hyperdrive_run = MockHyperDriveRun(num_children=num_crossval_splits)
-    keep_metrics = ["test/accuracy", "idontexist"]
+    valid_metric = "test/accuracy"
+    keep_metrics = [valid_metric, "idontexist"]
     df = util.aggregate_hyperdrive_metrics(
         run=dummy_hyperdrive_run,
         child_run_arg_name="child_run_index",
         keep_metrics=keep_metrics,
     )
-    assert len(df.index) == len(keep_metrics)
-    for metric_name in keep_metrics:
-        assert metric_name in df.index
-        assert len(df.loc[metric_name]) == num_crossval_splits
+    assert len(df.index) == 1
+    assert valid_metric in df.index
+    assert len(df.loc[valid_metric]) == num_crossval_splits
     # Test the metric that is present on the run: test/accuracy should be a float for each child run
-    for item in df.loc[keep_metrics[0]]:
+    for item in df.loc[valid_metric]:
         assert isinstance(item, float)
-    # Test the metric that is not present on the run: idontexist should be an empty list for each child run
-    for item in df.loc[keep_metrics[1]]:
-        assert item == []
 
 
 @pytest.mark.fast
@@ -2311,16 +2312,37 @@ def test_get_metrics_for_run_keep() -> None:
 
 
 @pytest.mark.fast
-def test_get_metrics_for_run_keep_missing() -> None:
+def test_get_metrics_for_run_keep_missing(caplog: LogCaptureFixture) -> None:
     """Test getting metrics from a run when passing a filter list with a non-existent metric. The nonexistnet metric
     should be ignored"""
     run = MockRunWithMetrics("run_id")
-    invalid_metrics = ["test/accuracy", "idontexist"]
-    metrics = util.get_metrics_for_run(run=run, keep_metrics=invalid_metrics)
-    assert set(metrics.keys()) == set(invalid_metrics)
-    assert len(metrics) == len(invalid_metrics)
-    assert metrics[invalid_metrics[0]] == run.metrics[invalid_metrics[0]]
-    assert metrics[invalid_metrics[1]] == []
+    valid_metric = "test/accuracy"
+    invalid_metrics = [valid_metric, "idontexist"]
+    with caplog.at_level(logging.WARNING):
+        metrics = util.get_metrics_for_run(run=run, keep_metrics=invalid_metrics)
+    assert len(caplog.messages) == 1
+    assert caplog.messages[0] == f"Metric idontexist not found in run {run.id}"
+    assert len(metrics) == 1
+    assert valid_metric in metrics
+    assert metrics[valid_metric] == run.metrics[valid_metric]
+
+
+@pytest.mark.fast
+def test_get_metrics_for_run_not_completed(caplog: LogCaptureFixture) -> None:
+    """Test getting metrics from a run should print a warning if the run is not completed."""
+    run = MockRunWithMetrics("run_id")
+    with caplog.at_level(logging.WARNING):
+        metrics = util.get_metrics_for_run(run=run)
+    assert len(caplog.messages) == 0
+
+    run.status = "not_completed"
+    assert metrics == run.get_metrics()
+    with caplog.at_level(logging.WARNING):
+        metrics = util.get_metrics_for_run(run=run)
+    assert len(caplog.messages) == 1
+    assert caplog.messages[0] == ("Run run_id is not completed, but has status 'not_completed'. "
+                                  "Metrics may be incomplete.")
+    assert metrics == run.get_metrics()
 
 
 @pytest.mark.fast
