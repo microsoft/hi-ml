@@ -6,7 +6,7 @@ import param
 from torch import nn
 from pathlib import Path
 from typing import Optional, Tuple
-from cpath.utils.ctranspath import CTransPath_Imagenet, CTransPath_SSL
+from cyted.utils.ctranspath import CTransPath_Imagenet, CTransPath_SSL
 from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_cpath.models.encoders import (
     HistoSSLEncoder,
