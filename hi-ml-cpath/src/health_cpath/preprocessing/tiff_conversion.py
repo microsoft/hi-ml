@@ -240,6 +240,7 @@ class ConvertWSIToTiffd(MapTransform):
     def __call__(self, data: Dict) -> Dict:
         src_path = Path(data[self.image_key])
         tiff_path = self.get_tiff_path(src_path)
-        if not tiff_path.exists():
+        # check if the tiff file already exists and it is not empty (i.e. it was already converted)
+        if not tiff_path.exists() and tiff_path.stat().st_size == 0:
             self.convert_wsi(src_path, tiff_path)
         return data
