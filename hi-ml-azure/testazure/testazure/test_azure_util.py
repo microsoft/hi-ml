@@ -29,6 +29,7 @@ from _pytest.logging import LogCaptureFixture
 from azure.identity import (ClientSecretCredential, DeviceCodeCredential, DefaultAzureCredential)
 from azure.storage.blob import ContainerClient
 from azureml.core import Experiment, Run, ScriptRunConfig, Workspace
+from azureml.core.run import _OfflineRun
 from azureml.core.environment import CondaDependencies
 from azure.core.exceptions import ClientAuthenticationError, ResourceNotFoundError
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
@@ -2091,13 +2092,14 @@ class MockHyperDriveRun:
 class MockRunWithMetrics:
     def __init__(self, run_id: str = 'run1234', tags: Optional[Dict[str, str]] = None) -> None:
         self.id = run_id
+        self.metrics = {"test/accuracy": 0.8, "test/auroc": 0.7, "val/loss": [1.0, 0.8, 0.75]}
 
     def get_metrics(self) -> Dict[str, Union[List[float], float]]:
         """
-        Return dummy metrics which can either be a float - i.e. if the metric is calcualted in the
+        Return dummy metrics which can either be a float - i.e. if the metric is calculated in the
         test phase, or a list of floats, if calculated during the validation phase
         """
-        return {"test/accuracy": 0.8, "test/auroc": 0.7, "val/loss": [1.0, 0.8, 0.75]}
+        return self.metrics
 
 
 def test_download_files_from_hyperdrive_children(tmp_path: Path) -> None:
@@ -2130,68 +2132,152 @@ def test_download_files_from_hyperdrive_children(tmp_path: Path) -> None:
     assert (local_download_folder / str(mock_run_1.id) / remote_file_path).exists()
 
 
-def test_get_metrics_for_hyperdrive_run() -> None:
-    # test the case where run id is provided
+@pytest.mark.fast
+@pytest.mark.parametrize("use_run_id", [True, False])
+def test_get_metrics_for_hyperdrive_run(use_run_id: bool) -> None:
+    """Test the case where we get metrics, providing the run ID"""
     num_crossval_splits = 2
-    with patch("health_azure.utils.get_aml_run_from_run_id") as mock_get_run:
-        mock_get_run.return_value = MockHyperDriveRun(num_children=num_crossval_splits)
-        metrics_dict = util.get_metrics_for_hyperdrive_run(
-            run_id="run_id_123",
-            child_run_arg_name="child_run_index",
-            aml_workspace=DEFAULT_WORKSPACE.workspace,
-        )
-        assert isinstance(metrics_dict, Dict)
-        assert len(metrics_dict) == num_crossval_splits
-        for _, value in metrics_dict.items():
-            assert isinstance(value, Dict)
-            assert len(value) == 7  # The number of metrics specified in MockChildRun.get_metrics
+    run_id = "run_id_123"
+    child_run_arg_name = "child_run_index"
+    workspace_config_path = "foo"
+    mock_run = MockHyperDriveRun(num_children=num_crossval_splits)
+    if use_run_id:
+        with patch("health_azure.utils.get_aml_run_from_run_id") as mock_get_run:
+            mock_get_run.return_value = mock_run
+            metrics_dict = util.get_metrics_for_hyperdrive_run(
+                run_id=run_id,
+                child_run_arg_name=child_run_arg_name,
+                aml_workspace=DEFAULT_WORKSPACE.workspace,
+                workspace_config_path=workspace_config_path
+            )
+            mock_get_run.assert_called_once_with(
+                run_id,
+                aml_workspace=DEFAULT_WORKSPACE.workspace,
+                workspace_config_path=workspace_config_path)
+    else:
+        with patch("health_azure.utils.get_aml_run_from_run_id") as mock_get_run:
+            metrics_dict = util.get_metrics_for_hyperdrive_run(
+                run=mock_run,
+                child_run_arg_name=child_run_arg_name,
+                aml_workspace=DEFAULT_WORKSPACE.workspace,
+            )
+    assert isinstance(metrics_dict, Dict)
+    assert len(metrics_dict) == num_crossval_splits
+    expected_metrics = MockChildRun(run_id="", cross_val_index=1).get_metrics()
+    for _, value in metrics_dict.items():
+        assert isinstance(value, Dict)
+        assert len(value) == len(expected_metrics)
 
 
+@pytest.mark.fast
+def test_get_metrics_for_hyperdrive_run_from_run() -> None:
+    """Test getting metrics when neither run nor run ID is provided"""
+    with pytest.raises(ValueError, match="Either run or run_id must be provided"):
+        util.get_metrics_for_hyperdrive_run(child_run_arg_name="child_run_index")
+
+
+@pytest.mark.fast
+def test_get_metrics_for_hyperdrive_run_offline() -> None:
+    """Test getting metrics when the run is offline"""
+    offline_run = Run.get_context()
+    assert isinstance(offline_run, _OfflineRun)
+    assert util.get_metrics_for_hyperdrive_run(child_run_arg_name="child_run_index", run=offline_run) == {}
+
+
+@pytest.mark.fast
+def test_get_metrics_for_run_offline() -> None:
+    """Test getting metrics when the run is offline"""
+    offline_run = Run.get_context()
+    assert isinstance(offline_run, _OfflineRun)
+    assert util.get_metrics_for_run(run=offline_run) == {}
+
+
+@pytest.mark.fast
 def test_aggregate_hyperdrive_metrics() -> None:
-    def _assert_dataframe_properties(df: pd.DataFrame, num_crossval_splits: int) -> None:
-        num_rows, num_cols = df.shape
-        assert num_rows == 7  # The number of metrics specified in MockChildRun.get_metrics
-        assert num_cols == num_crossval_splits
-        epochs = df.loc["epoch"]
-        assert isinstance(epochs[0], list)
-        test_accuracies = df.loc["test/accuracy"]
-        assert isinstance(test_accuracies[0], float)
+    """Test aggregating hyperdrive metrics and passing of all run-related settings"""
+    child_run_tag = "foo"
+    metric_name = "bar"
+    metrics = {child_run_tag: {metric_name: 1.0}}
+    with patch("health_azure.utils.get_metrics_for_hyperdrive_run") as mock_get_metrics:
+        mock_get_metrics.return_value = metrics
+        run = MockHyperDriveRun(num_children=2)
+        run_id = "run_id"
+        child_run_arg_name = "crossval_index",
+        aml_workspace = DEFAULT_WORKSPACE.workspace,
+        workspace_config_path = "config"
+        keep_metrics = [metric_name]
+        df = util.aggregate_hyperdrive_metrics(
+            child_run_arg_name=child_run_arg_name,
+            run=run,
+            run_id=run_id,
+            keep_metrics=keep_metrics,
+            aml_workspace=aml_workspace,
+            workspace_config_path=workspace_config_path,
+        )
+        mock_get_metrics.assert_called_once_with(
+            child_run_arg_name=child_run_arg_name,
+            run_id=run_id,
+            run=run,
+            keep_metrics=keep_metrics,
+            aml_workspace=aml_workspace,
+            workspace_config_path=workspace_config_path,
+        )
+    assert isinstance(df, pd.DataFrame)
+    assert len(df) == len(metrics)
+    assert list(df.index) == [metric_name]
+    assert df.columns == [child_run_tag]
 
-    # test the case where run id is provided
+
+@pytest.mark.fast
+def test_aggregate_hyperdrive_metrics_from_run() -> None:
+    """Test hyperdrive metrics aggregation when a run is provided"""
+    expected_metrics = MockChildRun(run_id="", cross_val_index=1).get_metrics()
+
     num_crossval_splits = 2
     dummy_hyperdrive_run = MockHyperDriveRun(num_children=num_crossval_splits)
 
-    with patch("health_azure.utils.get_aml_run_from_run_id") as mock_get_run:
-        mock_get_run.return_value = dummy_hyperdrive_run
-        metrics_df = util.aggregate_hyperdrive_metrics(
-            run_id="run_id_123",
-            child_run_arg_name="child_run_index",
-            aml_workspace=DEFAULT_WORKSPACE.workspace
-        )
-        _assert_dataframe_properties(metrics_df, num_crossval_splits)
+    df = util.aggregate_hyperdrive_metrics(
+        child_run_arg_name="child_run_index",
+        run=dummy_hyperdrive_run,
+    )
+    num_rows, num_cols = df.shape
+    assert num_rows == len(expected_metrics)
+    assert num_cols == num_crossval_splits
+    for metric_name in expected_metrics:
+        assert metric_name in df.index
+        assert len(df.loc[metric_name]) == num_crossval_splits
+    assert len(df.index) == len(expected_metrics)
+    epochs = df.loc["epoch"]
+    assert isinstance(epochs[0], list)
+    assert len(epochs[0]) == len(expected_metrics["epoch"])
+    test_accuracies = df.loc["test/accuracy"]
+    assert isinstance(test_accuracies[0], float)
 
-    # test the case where a run object is provided
-    metrics_df_2 = util.aggregate_hyperdrive_metrics(
+
+@pytest.mark.fast
+def test_aggregate_hyperdrive_metrics_keep() -> None:
+    """Test hyperdrive metrics aggregation when restricting the set of metrics"""
+    num_crossval_splits = 2
+    dummy_hyperdrive_run = MockHyperDriveRun(num_children=num_crossval_splits)
+    keep_metrics = ["test/accuracy", "idontexist"]
+    df = util.aggregate_hyperdrive_metrics(
         run=dummy_hyperdrive_run,
         child_run_arg_name="child_run_index",
+        keep_metrics=keep_metrics,
     )
-    _assert_dataframe_properties(metrics_df_2, num_crossval_splits)
-
-    # if neither a run or a run_id is passed, an error should be raised
-    with pytest.raises(ValueError, match="Either run or run_id must be provided"):
-        util.aggregate_hyperdrive_metrics(child_run_arg_name="child_run_index")
-
-    # test case with a non-existent metric name
-    invalid_metrics = ["test/accuracy", "idontexist"]
-    metrics_df_3 = util.aggregate_hyperdrive_metrics(
-        run=dummy_hyperdrive_run,
-        child_run_arg_name="child_run_index",
-        keep_metrics=invalid_metrics,
-    )
-    assert len(metrics_df_3) == 2
-    assert list(metrics_df_3.index) == invalid_metrics
+    assert len(df.index) == len(keep_metrics)
+    for metric_name in keep_metrics:
+        assert metric_name in df.index
+        assert len(df.loc[metric_name]) == num_crossval_splits
+    # Test the metric that is present on the run: test/accuracy should be a float for each child run
+    for item in df.loc[keep_metrics[0]]:
+        assert isinstance(item, float)
+    # Test the metric that is not present on the run: idontexist should be an empty list for each child run
+    for item in df.loc[keep_metrics[1]]:
+        assert item == []
 
 
+@pytest.mark.fast
 def test_get_metrics_for_run() -> None:
     ws = DEFAULT_WORKSPACE.workspace
     dummy_run_id = "run_abc_123"
@@ -2211,19 +2297,33 @@ def test_get_metrics_for_run() -> None:
     with pytest.raises(ValueError, match="Either run or run_id must be provided"):
         util.get_metrics_for_run(aml_workspace=ws)
 
-    # test the case where we filter a subset of the metrics
+
+@pytest.mark.fast
+def test_get_metrics_for_run_keep() -> None:
+    """Test getting metrics from a run when passing a filter list"""
+    run = MockRunWithMetrics("run_id")
     restrict_metrics = ["test/accuracy", "val/loss"]
-    metrics_3 = util.get_metrics_for_run(run=dummy_run, keep_metrics=restrict_metrics)
-    assert len(metrics_3) == len(restrict_metrics)
+    metrics = util.get_metrics_for_run(run=run, keep_metrics=restrict_metrics)
+    assert set(metrics.keys()) == set(restrict_metrics)
+    assert len(metrics) == len(restrict_metrics)
+    for metric_name in restrict_metrics:
+        assert metrics[metric_name] == run.metrics[metric_name]
 
-    # provide an invalid list of metrics. The nonexistnet metric should be ignored
+
+@pytest.mark.fast
+def test_get_metrics_for_run_keep_missing() -> None:
+    """Test getting metrics from a run when passing a filter list with a non-existent metric. The nonexistnet metric
+    should be ignored"""
+    run = MockRunWithMetrics("run_id")
     invalid_metrics = ["test/accuracy", "idontexist"]
-    metrics_4 = util.get_metrics_for_run(run=dummy_run, keep_metrics=invalid_metrics)
-    assert len(metrics_4) == len(invalid_metrics)
-    assert set(metrics_4.keys()) == set(invalid_metrics)
-    assert metrics_4[invalid_metrics[1]] == []
+    metrics = util.get_metrics_for_run(run=run, keep_metrics=invalid_metrics)
+    assert set(metrics.keys()) == set(invalid_metrics)
+    assert len(metrics) == len(invalid_metrics)
+    assert metrics[invalid_metrics[0]] == run.metrics[invalid_metrics[0]]
+    assert metrics[invalid_metrics[1]] == []
 
 
+@pytest.mark.fast
 @pytest.mark.parametrize(
     "metrics",
     [
