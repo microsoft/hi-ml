@@ -22,7 +22,7 @@ from health_cpath.utils.tiff_conversion_config import TiffConversionConfig
 from typing import Any, List, Dict
 from unittest.mock import MagicMock
 from testhisto.utils.utils_testhisto import skipif_no_gpu
-
+from tifffile.tifffile import TiffWriter
 
 WSISamplesType = List[Dict[SlideKey, Any]]
 
@@ -209,6 +209,27 @@ def test_convert_wsi_to_tiff(add_low_mag: bool, wsi_samples: WSISamplesType, tmp
     validate_tiff_conversion(converted_files, original_files, transform, same_format=True, backend=WSIBackend.OPENSLIDE)
     # Make sure we can read the new tiff files with cucim backend as well
     validate_tiff_conversion(converted_files, original_files, transform, same_format=True, backend=WSIBackend.CUCIM)
+
+
+@pytest.mark.gpu
+@skipif_no_gpu()  # cucim is not available on cpu
+def test_convert_wsi_to_tiff_existing_empty_file(wsi_samples: WSISamplesType, tmp_path: Path) -> None:
+    target_mag = 2.5
+    transform = ConvertWSIToTiffd(
+        output_folder=tmp_path,
+        target_magnifications=[target_mag],
+        default_base_objective_power=target_mag,
+        tile_size=16,
+    )
+    tiff_path = transform.get_tiff_path(wsi_samples[0][SlideKey.IMAGE])
+    # Create an empty file
+    _ = TiffWriter(tiff_path, bigtiff=True)
+    # Check that the file is empty
+    assert tiff_path.exists()
+    assert tiff_path.stat().st_size == 0
+    for sample in wsi_samples:
+        transform(sample)
+    assert tiff_path.stat().st_size > 0
 
 
 def test_tiff_conversion_config(mock_panda_slides_root_dir: Path, tmp_path: Path) -> None:
