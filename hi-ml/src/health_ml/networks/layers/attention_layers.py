@@ -278,7 +278,7 @@ class TransformerPoolingBenchmark(Module):
         Input size is L, bag size N, hidden dimension is D, and attention layers K (default K=1).
         """
         x = x.reshape(-1, x.shape[0], x.shape[1])                       # 1 x N X L
-        x = self.transformer_forward(x)                                         # 1 x N X L
+        x = self.transformer(x)                                         # 1 x N X L
         a = self.attention(x)                                           # 1 x N X K
         attention_weights = torch.softmax(a, dim=1)                     # 1 x N x K
         pooled_features = torch.sum(x * attention_weights, dim=1)       # K X L
