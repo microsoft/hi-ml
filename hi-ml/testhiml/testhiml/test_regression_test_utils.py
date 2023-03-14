@@ -22,6 +22,7 @@ from health_ml.utils.regression_test_utils import (
     REGRESSION_TEST_OUTPUT_FOLDER,
     REGRESSION_TEST_AZUREML_FOLDER,
     REGRESSION_TEST_AZUREML_PARENT_FOLDER,
+    REGRESSION_TEST_METRICS_FILENAME,
     TEXT_FILE_SUFFIXES,
     _compare_metric_values,
     _compare_metrics_list,
@@ -190,6 +191,22 @@ def test_compare_folder(tmp_path: Path) -> None:
     assert f"{MISSING_FILE}: {subfolder}" not in messages
     assert f"{MISSING_FILE}: {subfolder}/{missing}" in messages
     assert f"{CONTENTS_MISMATCH}: {subfolder}/{mismatch}" in messages
+
+
+@pytest.mark.fast
+def test_compare_folder_metrics(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """Compare folders that contain regression test metrics. When the metrics don't match, only the metric
+    comparison should trigger, but not the json file comparison."""
+    expected = tmp_path / "expected"
+    actual = tmp_path / "actual"
+    # This file exists in both expected and actual, should not raise any alerts because it contents matches
+    # apart from linebreaks
+    create_folder_and_write_text(expected / REGRESSION_TEST_METRICS_FILENAME, "{'metric1': 123}")
+    create_folder_and_write_text(actual / REGRESSION_TEST_METRICS_FILENAME, "{'metric1': 456}")
+
+    with caplog.atlevel(logging.WARNING):
+        messages = compare_folder_contents(expected_folder=expected, actual_folder=actual)
+    assert len(caplog.messages) == 1
 
 
 def test_compare_plain_outputs(tmp_path: Path) -> None:
