@@ -2142,7 +2142,7 @@ def test_get_metrics_for_hyperdrive_run(use_run_id: bool) -> None:
     num_crossval_splits = 2
     run_id = "run_id_123"
     child_run_arg_name = "child_run_index"
-    workspace_config_path = "foo"
+    workspace_config_path = Path("foo")ds
     mock_run = MockHyperDriveRun(num_children=num_crossval_splits)
     if use_run_id:
         with patch("health_azure.utils.get_aml_run_from_run_id") as mock_get_run:
@@ -2205,9 +2205,9 @@ def test_aggregate_hyperdrive_metrics() -> None:
         mock_get_metrics.return_value = metrics
         run = MockHyperDriveRun(num_children=2)
         run_id = "run_id"
-        child_run_arg_name = "crossval_index",
+        child_run_arg_name = "crossval_index"
         aml_workspace = DEFAULT_WORKSPACE.workspace,
-        workspace_config_path = "config"
+        workspace_config_path = Path("config")
         keep_metrics = [metric_name]
         df = util.aggregate_hyperdrive_metrics(
             child_run_arg_name=child_run_arg_name,
@@ -2252,7 +2252,7 @@ def test_aggregate_hyperdrive_metrics_from_run() -> None:
     assert len(df.index) == len(expected_metrics)
     epochs = df.loc["epoch"]
     assert isinstance(epochs[0], list)
-    assert len(epochs[0]) == len(expected_metrics["epoch"])
+    assert len(epochs[0]) == len(expected_metrics["epoch"])  # type: ignore
     test_accuracies = df.loc["test/accuracy"]
     assert isinstance(test_accuracies[0], float)
 
