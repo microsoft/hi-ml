@@ -2,11 +2,11 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+
 import param
 from torch import nn
 from pathlib import Path
 from typing import Optional, Tuple
-from cyted.utils.ctranspath import CTransPath_Imagenet, CTransPath_SSL
 from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_cpath.models.encoders import (
     HistoSSLEncoder,
@@ -83,11 +83,6 @@ class EncoderParams(param.Parameterized):
         if self.encoder_type == SSLEncoder.__name__ and not self.ssl_checkpoint:
             raise ValueError("SSLEncoder requires an ssl_checkpoint. Please specify a valid checkpoint. "
                              f"{CheckpointParser.INFO_MESSAGE}")
-        # resnets = set([
-        #     Resnet18.__name__, Resnet50.__name__, Resnet18_NoPreproc.__name__, Resnet50_NoPreproc.__name__
-        # ])
-        # if self.checkpoint_encoder and self.encoder_type not in resnets:
-        #     raise ValueError("Checkpointing the encoder is only supported for Resnet18 and Resnet50 encoders.")
 
     def get_encoder(self, outputs_folder: Optional[Path]) -> TileEncoder:
         """Given the current encoder parameters, returns the encoder object.
@@ -113,12 +108,6 @@ class EncoderParams(param.Parameterized):
         elif self.encoder_type == SwinTransformer_NoPreproc.__name__:
             encoder = SwinTransformer_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
 
-        elif self.encoder_type == CTransPath_Imagenet.__name__:
-            encoder = CTransPath_Imagenet(tile_size=self.tile_size, n_channels=self.n_channels)
-
-        elif self.encoder_type == CTransPath_SSL.__name__:
-            encoder = CTransPath_SSL(tile_size=self.tile_size, n_channels=self.n_channels)
-
         elif self.encoder_type == ImageNetSimCLREncoder.__name__:
             encoder = ImageNetSimCLREncoder(tile_size=self.tile_size, n_channels=self.n_channels)
 
@@ -135,8 +124,6 @@ class EncoderParams(param.Parameterized):
         else:
             raise ValueError(f"Unsupported encoder type: {self.encoder_type}")
         set_module_gradients_enabled(encoder, tuning_flag=self.tune_encoder)
-        # if self.checkpoint_encoder and self.encoder_type in resnets:
-        #     encoder.set_batch_norm_momentum(momentum=self.bn_momentum)
         return encoder
 
     def get_projection_layer(self, num_encoding: int) -> nn.Module:

@@ -250,7 +250,7 @@ class DeepMILModule(LightningModule):
                     self.encoder.feature_extractor_fn.relu,
                     self.encoder.feature_extractor_fn.maxpool
                 ]
-                
+
                 x = checkpoint_sequential(first_modules, segments, x)
                 x = checkpoint_sequential(self.encoder.feature_extractor_fn.layer1, segments, x)
                 x = checkpoint_sequential(self.encoder.feature_extractor_fn.layer2, segments, x)
@@ -302,8 +302,6 @@ class DeepMILModule(LightningModule):
         return bag_logit
 
     def forward(self, instances: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
-        # if instances.shape[0] < 1700:
-        #     print_message_with_rank_pid(f"instances.shape: {instances.shape}")
         instance_features = self.get_instance_features(instances)
         projected_features = self.projector(instance_features)
         attentions, bag_features = self.get_attentions_and_bag_features(projected_features)

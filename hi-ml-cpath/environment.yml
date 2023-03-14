@@ -155,7 +155,6 @@ dependencies:
       - docutils==0.16
       - dotnetcore2==3.1.23
       - exceptiongroup==1.1.0
-      - fairscale==0.4.13
       - filelock==3.9.0
       - flake8==6.0.0
       - flask==2.2.3
