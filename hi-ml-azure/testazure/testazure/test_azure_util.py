@@ -7,7 +7,6 @@ Tests for the functions in health_azure.azure_util
 """
 import json
 import logging
-import math
 import os
 import sys
 import time
