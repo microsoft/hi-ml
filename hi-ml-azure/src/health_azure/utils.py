@@ -2020,9 +2020,9 @@ def get_metrics_for_run(
     if isinstance(run, _OfflineRun):
         logging.warning("Can't get metrics for _OfflineRun object")
         return {}
-    assert isinstance(run, Run)
-    if run.status != RunStatus.COMPLETED:
-        logger.warning(f"Run {run.id} is not completed, but has status '{run.status}'. Metrics may be incomplete.")
+    if run.status != RunStatus.COMPLETED:  # type: ignore
+        logger.warning(f"Run {run.id} is not completed, but has status '{run.status}'. "  # type: ignore
+                       "Metrics may be incomplete.")
     all_metrics = run.get_metrics()  # type: ignore
     if keep_metrics:
         metrics = {}
@@ -2030,7 +2030,7 @@ def get_metrics_for_run(
             if metric_name in all_metrics:
                 metrics[metric_name] = all_metrics[metric_name]
             else:
-                logger.warning(f"Metric {metric_name} not found in run {run.id}")
+                logger.warning(f"Metric {metric_name} not found in run {run.id}")  # type: ignore
         return metrics
     return all_metrics
 
@@ -2068,7 +2068,7 @@ def get_metrics_for_hyperdrive_run(
         logger.warning("Can't get metrics for _OfflineRun object")
         return {}
     metrics = {}
-    for child_run in run.get_children():
+    for child_run in run.get_children():  # type: ignore
         child_run_tag = get_tags_from_hyperdrive_run(child_run, child_run_arg_name)
         child_run_metrics = get_metrics_for_run(run=child_run, keep_metrics=keep_metrics)
         metrics[child_run_tag] = child_run_metrics

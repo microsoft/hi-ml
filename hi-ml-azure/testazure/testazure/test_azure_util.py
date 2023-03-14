@@ -2095,7 +2095,11 @@ class MockRunWithMetrics:
     def __init__(self, run_id: str = 'run1234', tags: Optional[Dict[str, str]] = None) -> None:
         self.id = run_id
         self.status = RunStatus.COMPLETED
-        self.metrics = {"test/accuracy": 0.8, "test/auroc": 0.7, "val/loss": [1.0, 0.8, 0.75]}
+        self.metrics: Dict[str, Union[float, List[float]]] = {
+            "test/accuracy": 0.8,
+            "test/auroc": 0.7,
+            "val/loss": [1.0, 0.8, 0.75]
+        }
 
     def get_metrics(self) -> Dict[str, Union[List[float], float]]:
         """
