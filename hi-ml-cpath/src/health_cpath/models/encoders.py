@@ -11,6 +11,7 @@ import torch
 from pl_bolts.models.self_supervised import SimCLR
 from torch import Tensor as T, nn
 from torchvision.models import resnet18, resnet50
+from torchvision.models.resnet import ResNet
 from timm.models import swin_tiny_patch4_window7_224
 from monai.transforms import Compose
 
@@ -22,14 +23,20 @@ from health_cpath.utils.layer_utils import (get_imagenet_preprocessing,
 class TileEncoder(nn.Module):
     """Base tile encoder class for use in dataset transforms or as part of a bigger model"""
 
-    def __init__(self, tile_size: int = 0, n_channels: int = 3,
-                 input_dim: Optional[Sequence[int]] = None) -> None:
+    def __init__(
+        self,
+        tile_size: int = 0,
+        n_channels: int = 3,
+        input_dim: Optional[Sequence[int]] = None,
+        checkpoint_activations: bool = False,
+    ) -> None:
         """The `TileEncoder` constructor should be called after setting any attributes needed in
         `_get_preprocessing()` or `_get_encoder()`.
 
         :param tile_size: Tile width/height, in pixels.
         :param n_channels: Number of channels in the tile (default=3).
         :param input_dim: Input shape, to override default of `(n_channels, tile_size, tile_size)`.
+        :param checkpoint_activations: Whether to checkpoint activations during forward pass.
         """
         super().__init__()
         if input_dim is None:
@@ -40,6 +47,7 @@ class TileEncoder(nn.Module):
 
         self.preprocessing_fn = self._get_preprocessing()
         self.feature_extractor_fn, self.num_encoding = self._get_encoder()
+        self.checkpoint_activations = checkpoint_activations
 
     def _get_preprocessing(self) -> Callable:
         return Compose([])
@@ -47,8 +55,14 @@ class TileEncoder(nn.Module):
     def _get_encoder(self) -> Tuple[Callable, int]:
         raise NotImplementedError
 
+    def _custom_forward(self, images: torch.Tensor) -> torch.Tensor:
+        """A custom forward pass that uses checkpointing to save memory."""
+        raise NotImplementedError("Checkpointing is not supported for this encoder")
+
     def forward(self, images: torch.Tensor) -> torch.Tensor:
         prep_images = self.preprocessing_fn(images)
+        if self.checkpoint_activations:
+            return self._custom_forward(prep_images)
         return self.feature_extractor_fn(prep_images)
 
 
@@ -86,7 +100,8 @@ class ImageNetEncoder(TileEncoder):
         return setup_feature_extractor(pretrained_model, self.input_dim)
 
     def set_batch_norm_momentum(self, momentum: Optional[float] = None) -> None:
-        _momentum = momentum if momentum is not None else 1 - math.sqrt(1 - self.feature_extractor_fn.bn1.momentum)
+        assert isinstance(self.feature_extractor_fn, ResNet)
+        _momentum = momentum if momentum is not None else math.sqrt(self.feature_extractor_fn.bn1.momentum)
         self.feature_extractor_fn.bn1.momentum = _momentum
 
         def _set_bn_momentum(layer_block: nn.Module) -> None:
