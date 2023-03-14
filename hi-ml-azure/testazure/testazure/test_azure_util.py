@@ -2142,7 +2142,7 @@ def test_get_metrics_for_hyperdrive_run(use_run_id: bool) -> None:
     num_crossval_splits = 2
     run_id = "run_id_123"
     child_run_arg_name = "child_run_index"
-    workspace_config_path = Path("foo")ds
+    workspace_config_path = Path("foo")
     mock_run = MockHyperDriveRun(num_children=num_crossval_splits)
     if use_run_id:
         with patch("health_azure.utils.get_aml_run_from_run_id") as mock_get_run:
