@@ -2,39 +2,31 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import json
+import logging
 import os
 import sys
-import logging
-import torch
-
 from pathlib import Path
 from typing import Dict, List, Optional
 
+import torch
 from azureml.core import Run
 from pytorch_lightning import Trainer, seed_everything
 
 from health_azure import AzureRunInfo
-from health_azure.logging import logging_section
-from health_azure.utils import (create_run_recovery_id, ENV_OMPI_COMM_WORLD_RANK,
-                                is_running_in_azure_ml, PARENT_RUN_CONTEXT, RUN_CONTEXT,
-                                aggregate_hyperdrive_metrics, get_metrics_for_childless_run,
-                                ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK,
-                                is_local_rank_zero, is_global_rank_zero, create_aml_run_object)
-from health_azure.logging import print_message_with_rank_pid
+from health_azure.logging import logging_section, print_message_with_rank_pid
+from health_azure.utils import (ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK, ENV_OMPI_COMM_WORLD_RANK,
+                                PARENT_RUN_CONTEXT, RUN_CONTEXT, create_aml_run_object, create_run_recovery_id,
+                                get_metrics_for_hyperdrive_run, get_metrics_for_run, is_global_rank_zero,
+                                is_local_rank_zero, is_running_in_azure_ml)
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.model_trainer import create_lightning_trainer, write_experiment_summary_file
 from health_ml.utils import fixed_paths
-from health_ml.utils.checkpoint_utils import cleanup_checkpoints
 from health_ml.utils.checkpoint_handler import CheckpointHandler
-from health_ml.utils.common_utils import (
-    EFFECTIVE_RANDOM_SEED_KEY_NAME,
-    change_working_directory,
-    RUN_RECOVERY_ID_KEY,
-    RUN_RECOVERY_FROM_ID_KEY_NAME,
-    df_to_json,
-    seed_monai_if_available,
-)
+from health_ml.utils.checkpoint_utils import cleanup_checkpoints
+from health_ml.utils.common_utils import (EFFECTIVE_RANDOM_SEED_KEY_NAME, RUN_RECOVERY_FROM_ID_KEY_NAME,
+                                          RUN_RECOVERY_ID_KEY, change_working_directory, seed_monai_if_available)
 from health_ml.utils.lightning_loggers import StoringLogger, get_mlflow_run_id_from_trainer
 from health_ml.utils.regression_test_utils import REGRESSION_TEST_METRICS_FILENAME, compare_folders_and_run_outputs
 from health_ml.utils.type_annotations import PathOrString
@@ -358,19 +350,19 @@ class MLRunner:
                 if self.is_crossval_disabled_or_child_0():
                     if is_running_in_azure_ml():
                         if PARENT_RUN_CONTEXT is not None:
-                            df = aggregate_hyperdrive_metrics(
+                            metrics = get_metrics_for_hyperdrive_run(
                                 child_run_arg_name=crossval_arg_name,
                                 run=PARENT_RUN_CONTEXT,
                                 keep_metrics=regression_metrics)
                         else:
-                            df = get_metrics_for_childless_run(
+                            metrics = get_metrics_for_run(
                                 run=RUN_CONTEXT,
                                 keep_metrics=regression_metrics)
 
-                        if not df.empty:
+                        if metrics:
                             metrics_filename = self.container.outputs_folder / REGRESSION_TEST_METRICS_FILENAME
                             logging.info(f"Saving metrics to {metrics_filename}")
-                            df_to_json(df, metrics_filename)
+                            metrics_filename.write_text(json.dumps(metrics))
 
                     compare_folders_and_run_outputs(expected=self.container.regression_test_folder,
                                                     actual=self.container.outputs_folder,
