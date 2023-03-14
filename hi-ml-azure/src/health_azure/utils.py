@@ -35,7 +35,6 @@ from azureml.core.authentication import InteractiveLoginAuthentication, ServiceP
 from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.run import _OfflineRun
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
-from azureml.train.hyperdrive import HyperDriveRun
 
 from azure.ai.ml import MLClient
 from azure.ai.ml.entities import Job
@@ -46,6 +45,8 @@ from azure.core.exceptions import ClientAuthenticationError, ResourceNotFoundErr
 from azure.identity import (ClientSecretCredential, DeviceCodeCredential,
                             DefaultAzureCredential, InteractiveBrowserCredential)
 
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
@@ -1965,63 +1966,113 @@ def aggregate_hyperdrive_metrics(
         AML Workspace object to retrieve the Run from.
     :return: A Pandas DataFrame containing the aggregated metrics from each child run
     """
-    if run is None:
-        assert run_id is not None, "Either run or run_id must be provided"
-        workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
-        run = get_aml_run_from_run_id(run_id, aml_workspace=workspace)
-    # assert isinstance(run, HyperDriveRun)
-    metrics: DefaultDict = defaultdict()
-    for child_run in run.get_children():  # type: ignore
-        child_run_metrics = child_run.get_metrics()
-        keep_metrics = keep_metrics or child_run_metrics.keys()
-
-        child_run_tag = get_tags_from_hyperdrive_run(child_run, child_run_arg_name)
-        for metric_name, metric_val in child_run_metrics.items():
-            if metric_name in keep_metrics:
-                if metric_name not in metrics:
-                    metrics[metric_name] = {}
-                metrics[metric_name][child_run_tag] = metric_val
-
-    df = pd.DataFrame.from_dict(metrics, orient="index")
+    metrics = get_metrics_for_hyperdrive_run(
+        child_run_arg_name=child_run_arg_name,
+        run_id=run_id,
+        run=run,
+        keep_metrics=keep_metrics,
+        aml_workspace=aml_workspace,
+        workspace_config_path=workspace_config_path,
+    )
+    metrics_swapped = {}
+    for run_tag, run_metrics in metrics.items():
+        for metric_name, metric_value in run_metrics.items():
+            if metric_name not in metrics_swapped:
+                metrics_swapped[metric_name] = {run_tag: metric_value}
+            else:
+                metrics_swapped[metric_name][run_tag] = metric_value
+    try:
+        df = pd.DataFrame.from_dict(metrics_swapped, orient="index")
+    except Exception:
+        raise ValueError(
+            "The metrics are not compatible with Pandas DataFrame. Likely cause is that some metrics are "
+            "scalars, and some are lists. Make sure that the lists come first."
+        )
     return df
 
 
-def get_metrics_for_childless_run(
+def get_metrics_for_run(
     run_id: Optional[str] = None,
     run: Optional[Run] = None,
     keep_metrics: Optional[List[str]] = None,
     aml_workspace: Optional[Workspace] = None,
     workspace_config_path: Optional[Path] = None,
-) -> pd.DataFrame:
+) -> Dict[str, Any]:
     """
-    For a given Run object or id, retrieves the metrics from that Run and returns them as a pandas DataFrame.
-    Optionally filters the metrics logged in the Run, by providing a list of metrics to keep. This function
-    expects a childless AML Run. If you wish to aggregate metrics for a Run with children (i.e. a HyperDriveRun),
-    please use the function ``aggregate_hyperdrive_metrics``.
+    For a given Run object or id, retrieves the metrics from that Run and returns them as a dictionary.
+    Optionally filters the metrics logged in the Run, by providing a list of metrics to keep.
+    If you wish to aggregate metrics for a Run with children (i.e. a HyperDriveRun),
+    please use the function ``get_metrics_for_hyperdrive_run``.
 
-    :param run: A (childless) Run object to retrieve the metrics from. Either this or run_id must be provided
-    :param run_id: The id (type: str) of a (childless) AML Run. Either this or run must be provided.
-    :param keep_metrics: An optional list of metric names to filter the returned metrics by
+    :param run: A Run object to retrieve the metrics from. Either this or run_id must be provided
+    :param run_id: The id (type: str) of an AML Run. Either this or run must be provided.
+    :param keep_metrics: An optional list of metric names to filter the returned metrics by. If the metric
+        is not logged in the run, a warning will be issued.
     :param aml_workspace: If run_id is provided, this is an optional AML Workspace object to retrieve the Run from
     :param workspace_config_path: If run_id is provided, this is an optional path to a config containing details of the
         AML Workspace object to retrieve the Run from.
-    :return: A Pandas DataFrame containing the metrics
-    """
+    :return: A dictionary containing the metrics from the Run. The dictionary keys are the metric names, and the values
+        are the scalars or lists of scalars that were logged to the Run."""
     if run is None:
-        assert run_id is not None, "Either run or run_id must be provided"
-        workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
-        run = get_aml_run_from_run_id(run_id, aml_workspace=workspace)
+        if not run_id:
+            raise ValueError("Either run or run_id must be provided")
+        run = get_aml_run_from_run_id(run_id, aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
     if isinstance(run, _OfflineRun):
         logging.warning("Can't get metrics for _OfflineRun object")
-        return pd.DataFrame({})
+        return {}
+    if run.status != RunStatus.COMPLETED:  # type: ignore
+        logger.warning(f"Run {run.id} is not completed, but has status '{run.status}'. "  # type: ignore
+                       "Metrics may be incomplete.")
+    all_metrics = run.get_metrics()  # type: ignore
+    if keep_metrics:
+        metrics = {}
+        for metric_name in keep_metrics:
+            if metric_name in all_metrics:
+                metrics[metric_name] = all_metrics[metric_name]
+            else:
+                logger.warning(f"Metric {metric_name} not found in run {run.id}")  # type: ignore
+        return metrics
+    return all_metrics
+
+
+def get_metrics_for_hyperdrive_run(
+    child_run_arg_name: str,
+    run_id: Optional[str] = None,
+    run: Optional[Run] = None,
+    keep_metrics: Optional[List[str]] = None,
+    aml_workspace: Optional[Workspace] = None,
+    workspace_config_path: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """
+    For a given Run object or run id, retrieves the metrics for all the run's child runs.
+    Metrics are returned as a dictionary mapping from child run tag to metric name to metric value.
+    Optionally filters the metrics logged in the Run, by providing a list of metrics to keep.
+
+    :param run: A Run object to retrieve the metrics from. Either this or run_id must be provided
+    :param run_id: The id (type: str) of an AML Run. Either this or run must be provided.
+    :param keep_metrics: An optional list of metric names to filter the returned metrics by. If a metric is requested,
+        but not found on the run, a warning will be issued.
+    :param aml_workspace: If run_id is provided, this is an optional AML Workspace object to retrieve the Run from
+    :param workspace_config_path: If run_id is provided, this is an optional path to a config containing details of the
+        AML Workspace object to retrieve the Run from.
+    :raises ValueError: If neither a run object nor a run ID are provided.
+    :return: A dictionary mapping from child run tag to the metrics that run. For each child run,
+        the dictionary keys are the metric names, and the values
+        are the scalars or lists of scalars that were logged to the Run.
+    """
+    if run is None:
+        if not run_id:
+            raise ValueError("Either run or run_id must be provided")
+        run = get_aml_run_from_run_id(run_id, aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
+    if isinstance(run, _OfflineRun):
+        logger.warning("Can't get metrics for _OfflineRun object")
+        return {}
     metrics = {}
-    run_metrics = run.get_metrics()  # type: ignore
-    keep_metrics = keep_metrics or run_metrics.keys()
-    for metric_name, metric_val in run_metrics.items():
-        if metric_name in keep_metrics:
-            metrics[metric_name] = metric_val
-    df = pd.DataFrame.from_dict(metrics, orient="index")
-    return df
+    for child_run in run.get_children():  # type: ignore
+        child_run_tag = get_tags_from_hyperdrive_run(child_run, child_run_arg_name)
+        child_run_metrics = get_metrics_for_run(run=child_run, keep_metrics=keep_metrics)
+        metrics[child_run_tag] = child_run_metrics
+    return metrics
 
 
 def download_files_from_hyperdrive_children(
