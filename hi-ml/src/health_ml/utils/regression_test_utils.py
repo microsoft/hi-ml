@@ -68,8 +68,7 @@ def compare_dictionaries(expected: Dict[str, Any], actual: Dict[str, Any], toler
 
 def _compare_metric_values(expected: Any, actual: Any, tolerance: float = 1e-5) -> str:
     """Compares an expected and an actual value coming from a metrics dictionary. If the values are numeric
-    and are close enough (within the given tolerance), an empty string is returned. String values
-    are always considered to match, because they usually contain AzureML resource ID. If the actual
+    and are close enough (within the given tolerance), an empty string is returned. If the actual
     and expected value are not matching, a string description of the discrepancy will be returned.
 
     :param expected: The expected value
@@ -77,13 +76,13 @@ def _compare_metric_values(expected: Any, actual: Any, tolerance: float = 1e-5) 
     :param tolerance: For numerical values, this is the relative tolerance allowed, defaults to 1e-5
     :return: An empty string if the expected and actual values match, otherwise a string describing the discrepancy.
     """
-    if type(actual) in [float, int] and type(expected) in [float, int]:
-        if isclose(actual, expected, rel_tol=tolerance):
-            return ""
-        return f"Expected {expected} but got {actual} (allowed tolerance {tolerance})"
-    elif type(actual) is str and type(expected) is str:
-        return ""
-    return f"Expected {expected} but got {actual}"
+    if type(expected) in [float, int]:
+        if type(actual) in [float, int]:
+            if isclose(actual, expected, rel_tol=tolerance):
+                return ""
+            return f"Expected {expected} but got {actual} (allowed tolerance {tolerance})"
+        return f"Expected a numeric value, but got type {type(actual).__name__}"
+    return f"Don't know how to handle expected value of type {type(expected).__name__}"
 
 
 def _compare_metrics_list(expected: List, actual: List, tolerance: float = 1e-5) -> List[str]:

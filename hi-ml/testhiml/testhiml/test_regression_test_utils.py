@@ -383,7 +383,7 @@ def test_compare_metrics_dictionaries_invalid_actual(caplog: pytest.LogCaptureFi
 
 
 def test_compare_metrics_dictionaries_missing(caplog: pytest.LogCaptureFixture) -> None:
-    """Test for metrics dictionaries where not data is present for an expected metric"""
+    """Test for metrics dictionaries where no data is present for an expected metric"""
     expected = {"a": 1.0}
     actual: Dict[str, Any] = {}
     with caplog.at_level(logging.WARNING):
@@ -425,8 +425,8 @@ def test_compare_metrics_dictionaries_lists(caplog: pytest.LogCaptureFixture) ->
         (1.0, 1.01, 1e-3, "Expected 1.0 but got 1.01 (allowed tolerance 0.001)"),
         (100.0, 100.09, 1e-3, ""),
         (100.0, 101, 1e-3, "Expected 100.0 but got 101 (allowed tolerance 0.001)"),
-        ("foo", "bar", 1e-3, ""),
-        ("foo", 1.0, 1e-3, "Expected foo but got 1.0"),
+        ("foo", 1.0, 1e-3, "Don't know how to handle expected value of type str"),
+        (1.0, "bar", 1e-3, "Expected a numeric value, but got type str"),
     ],
 )
 def test_compare_metric_values(expected: Any, actual: Any, tol: float, expected_result: str) -> None:
@@ -524,7 +524,6 @@ def _compare_and_check(
     with caplog.at_level(logging.WARNING):
         assert _test_compare_metrics_files(tmp_path, expected, actual) == expected_result
     assert len(caplog.messages) == len(messages), f"Expected {len(messages)} messages, but got {len(caplog.records)}"
-    print(caplog.messages)
     for index, message in enumerate(messages):
         assert caplog.messages[index] == message, f"Message mismatch at index {index}"
 
