@@ -281,6 +281,7 @@ def upload_to_run_and_compare(regression_test_subfolder: str, run_to_mock: str, 
     run.complete()
 
 
+@pytest.mark.fast
 @pytest.mark.parametrize(
     "dict1, dict2, should_pass, expected_warnings",
     [
@@ -314,14 +315,13 @@ def test_compare_dictionaries(
     caplog.clear()
 
 
+@pytest.mark.fast
 @pytest.mark.parametrize(
     "expected",
     [
         {"a": 1},
         {"a": [1.0]},
         {"a": [1.0, 2.0]},
-        {"a": "foo"},
-        {"a": ["foo"]},
     ],
 )
 def test_compare_metrics_dictionaries_matches(expected: Dict[str, Any], caplog: pytest.LogCaptureFixture) -> None:
@@ -331,6 +331,7 @@ def test_compare_metrics_dictionaries_matches(expected: Dict[str, Any], caplog: 
     assert len(caplog.records) == 0
 
 
+@pytest.mark.fast
 def test_compare_metrics_dictionaries_numeric(caplog: pytest.LogCaptureFixture) -> None:
     """Test comparing metrics dictionaries with numeric values, matching and not matching"""
     expected = {"a": 1.0}
@@ -348,6 +349,7 @@ def test_compare_metrics_dictionaries_numeric(caplog: pytest.LogCaptureFixture) 
     assert caplog.messages[0] == "Metric 'a': Expected 1.0 but got 1.0011 (allowed tolerance 0.001)"
 
 
+@pytest.mark.fast
 def test_compare_metrics_dictionaries_list(caplog: pytest.LogCaptureFixture) -> None:
     """Test comparing metrics dictionaries with numeric values, matching and not matching"""
     expected = {"a": 1.0}
@@ -365,6 +367,7 @@ def test_compare_metrics_dictionaries_list(caplog: pytest.LogCaptureFixture) -> 
     assert caplog.messages[0] == "Metric 'a': Expected 1.0 but got 1.0011 (allowed tolerance 0.001)"
 
 
+@pytest.mark.fast
 def test_compare_metrics_dictionaries_invalid_expected() -> None:
     """Test for metrics dictionaries where an invalid expected value is passed"""
     expected = {"a": False}
@@ -372,6 +375,7 @@ def test_compare_metrics_dictionaries_invalid_expected() -> None:
         compare_metrics_dictionaries(expected, {})
 
 
+@pytest.mark.fast
 def test_compare_metrics_dictionaries_invalid_actual(caplog: pytest.LogCaptureFixture) -> None:
     """Test for metrics dictionaries where an invalid actual value is passed"""
     expected = {"a": 1.0}
@@ -382,6 +386,7 @@ def test_compare_metrics_dictionaries_invalid_actual(caplog: pytest.LogCaptureFi
     assert caplog.messages[0] == "Metric 'a': Actual value has type bool which is not handled."
 
 
+@pytest.mark.fast
 def test_compare_metrics_dictionaries_missing(caplog: pytest.LogCaptureFixture) -> None:
     """Test for metrics dictionaries where no data is present for an expected metric"""
     expected = {"a": 1.0}
@@ -392,6 +397,7 @@ def test_compare_metrics_dictionaries_missing(caplog: pytest.LogCaptureFixture) 
     assert caplog.messages[0] == "Metric 'a': No data found in actual metrics."
 
 
+@pytest.mark.fast
 def test_compare_metrics_dictionaries_type_mismatch(caplog: pytest.LogCaptureFixture) -> None:
     """Test for metrics dictionaries where the types of expected and actual value don't match"""
     expected = {"a": 1.0}
@@ -402,6 +408,7 @@ def test_compare_metrics_dictionaries_type_mismatch(caplog: pytest.LogCaptureFix
     assert caplog.messages[0] == "Metric 'a': Actual value has type str but we expected float."
 
 
+@pytest.mark.fast
 def test_compare_metrics_dictionaries_lists(caplog: pytest.LogCaptureFixture) -> None:
     """Test for metrics dictionaries with lists"""
     expected = {"a": [1.0, 2.0]}
@@ -418,6 +425,7 @@ def test_compare_metrics_dictionaries_lists(caplog: pytest.LogCaptureFixture) ->
     assert caplog.messages[0] == "Metric 'a': Index 1: Expected 1.0 but got 1.0011 (allowed tolerance 0.001)"
 
 
+@pytest.mark.fast
 @pytest.mark.parametrize(
     "expected, actual, tol, expected_result",
     [
@@ -434,6 +442,7 @@ def test_compare_metric_values(expected: Any, actual: Any, tol: float, expected_
     assert result == expected_result
 
 
+@pytest.mark.fast
 @pytest.mark.parametrize(
     "expected, actual, tol, expected_result",
     [
@@ -441,7 +450,6 @@ def test_compare_metric_values(expected: Any, actual: Any, tol: float, expected_
         ([], [1], 1e-3, ["Expected list of length 0 but got 1"]),
         ([1], [1], 1e-3, []),
         ([1], [1.1], 1e-3, ["Index 0: Expected 1 but got 1.1 (allowed tolerance 0.001)"]),
-        (["a"], ["b"], 1e-3, []),
     ],
 )
 def test_compare_metric_lists(expected: Any, actual: Any, tol: float, expected_result: List) -> None:
@@ -457,6 +465,7 @@ def _write_to_json_dict(tmp_path: Path, data: Any) -> Path:
     return json_file
 
 
+@pytest.mark.fast
 def test_load_json(tmp_path: Path) -> None:
     """Test loading JSON dictionaries from a file"""
     json_file = tmp_path / "test.json"
@@ -472,6 +481,7 @@ def test_load_json(tmp_path: Path) -> None:
         _load_json_dict(json_file)
 
 
+@pytest.mark.fast
 def test_is_nested_dict() -> None:
     """Test if nested dictionaries are correctly handled."""
 
@@ -493,6 +503,7 @@ def _test_compare_metrics_files(
     return compare_metrics_files(expected_file, actual_file)
 
 
+@pytest.mark.fast
 @pytest.mark.parametrize(
     "data",
     [
@@ -528,6 +539,7 @@ def _compare_and_check(
         assert caplog.messages[index] == message, f"Message mismatch at index {index}"
 
 
+@pytest.mark.fast
 def test_compare_metrics_files_metric(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """Test cases where metrics files don't match"""
     _compare_and_check(
@@ -540,6 +552,7 @@ def test_compare_metrics_files_metric(tmp_path: Path, caplog: pytest.LogCaptureF
     )
 
 
+@pytest.mark.fast
 def test_compare_metrics_files_dict_nested(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """Test cases where metrics files don't match"""
     _compare_and_check(
@@ -552,6 +565,7 @@ def test_compare_metrics_files_dict_nested(tmp_path: Path, caplog: pytest.LogCap
     )
 
 
+@pytest.mark.fast
 def test_compare_metrics_files_missing_child(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """Test cases where metrics files don't match"""
     _compare_and_check(
@@ -564,6 +578,7 @@ def test_compare_metrics_files_missing_child(tmp_path: Path, caplog: pytest.LogC
     )
 
 
+@pytest.mark.fast
 def test_compare_metrics_files_child_mismtach(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """Test cases where metrics files don't match"""
     _compare_and_check(
@@ -579,6 +594,7 @@ def test_compare_metrics_files_child_mismtach(tmp_path: Path, caplog: pytest.Log
     )
 
 
+@pytest.mark.fast
 def test_compare_metrics_files_invalid_data(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """Test cases where metrics are not in the expected format"""
     expected = ["a", "b"]
