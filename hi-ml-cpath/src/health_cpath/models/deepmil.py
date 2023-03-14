@@ -14,14 +14,15 @@ from torchmetrics.classification import (MulticlassAUROC, MulticlassAccuracy, Mu
                                          BinaryAUROC, BinarySpecificity, BinaryAveragePrecision)
 from health_ml.utils import log_on_epoch
 from health_ml.deep_learning_config import OptimizerParams
-from health_cpath.models.encoders import IdentityEncoder
+from health_cpath.models.encoders import (
+    IdentityEncoder, Resnet18_NoPreproc, Resnet50_NoPreproc, SwinTransformer_NoPreproc
+)
 from health_cpath.utils.deepmil_utils import ClassifierParams, EncoderParams, PoolingParams
 from health_cpath.datasets.base_dataset import TilesDataset
 from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
 from health_cpath.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
                                              validate_class_names, EXTRA_PREFIX)
 from torch.utils.checkpoint import checkpoint, checkpoint_sequential
-from fairscale.nn.checkpoint import checkpoint_wrapper
 
 
 RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
@@ -241,25 +242,36 @@ class DeepMILModule(LightningModule):
 
     def encoder_forward(self, x: Tensor, segments: int = 2) -> Tensor:
         if self.encoder_params.checkpoint_encoder:
+            if self.encoder_params.encoder_type in [Resnet50_NoPreproc.__name__, Resnet18_NoPreproc.__name__]:
+                segments = self.encoder_params.checkpoint_segments_size
+                first_modules = [
+                    self.encoder.feature_extractor_fn.conv1,
+                    self.encoder.feature_extractor_fn.bn1,
+                    self.encoder.feature_extractor_fn.relu,
+                    self.encoder.feature_extractor_fn.maxpool
+                ]
+                
+                x = checkpoint_sequential(first_modules, segments, x)
+                x = checkpoint_sequential(self.encoder.feature_extractor_fn.layer1, segments, x)
+                x = checkpoint_sequential(self.encoder.feature_extractor_fn.layer2, segments, x)
+                x = checkpoint_sequential(self.encoder.feature_extractor_fn.layer3, segments, x)
+                x = checkpoint_sequential(self.encoder.feature_extractor_fn.layer4, segments, x)
 
-            segments = self.encoder_params.checkpoint_segments_size
-            first_modules = [
-                self.encoder.feature_extractor_fn.conv1,
-                self.encoder.feature_extractor_fn.bn1,
-                self.encoder.feature_extractor_fn.relu,
-                self.encoder.feature_extractor_fn.maxpool
-            ]
-            x = checkpoint_sequential(first_modules, segments, x)
-            x = checkpoint_sequential(self.encoder.feature_extractor_fn.layer1, segments, x)
-            x = checkpoint_sequential(self.encoder.feature_extractor_fn.layer2, segments, x)
-            x = checkpoint_sequential(self.encoder.feature_extractor_fn.layer3, segments, x)
-            x = checkpoint_sequential(self.encoder.feature_extractor_fn.layer4, segments, x)
-
-            x = checkpoint(self.encoder.feature_extractor_fn.avgpool, x)
-            x = torch.flatten(x, 1)
-            x = checkpoint(self.encoder.feature_extractor_fn.fc, x)
-            return x
-
+                x = checkpoint(self.encoder.feature_extractor_fn.avgpool, x)
+                x = torch.flatten(x, 1)
+                x = checkpoint(self.encoder.feature_extractor_fn.fc, x)
+                return x
+            elif self.encoder_params.encoder_type in [SwinTransformer_NoPreproc.__name__]:
+                # patch embedding
+                x = checkpoint(self.encoder.feature_extractor_fn.patch_embed.proj, x)
+                x = x.flatten(2).transpose(1, 2)  # BCHW -> BNC
+                x = checkpoint(self.encoder.feature_extractor_fn.patch_embed.norm, x)
+                # do not checkpoint dropout
+                x = self.encoder.feature_extractor_fn.pos_drop(x)
+                x = checkpoint_sequential(self.encoder.feature_extractor_fn.layers, 2, x)
+                x = checkpoint(self.encoder.feature_extractor_fn.norm, x)
+                x = x.mean(dim=1)
+                return x
         return self.encoder(x)
 
     def get_instance_features(self, instances: Tensor) -> Tensor:
