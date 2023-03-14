@@ -17,7 +17,7 @@ from health_cpath.utils.viz_utils import (
     plot_attention_tiles,
     plot_heatmap_overlay,
     plot_attention_histogram,
-    plot_normalized_confusion_matrix,
+    plot_normalized_and_non_normalized_confusion_matrices,
     plot_scores_hist,
     plot_slide,
 )
@@ -130,15 +130,11 @@ def save_confusion_matrix(results: ResultsType, class_names: Sequence[str], figu
     if pred_labels_diff_expected != set():
         raise ValueError("More entries were found in predicted labels than are available in class names")
 
-    cf_matrix_n = confusion_matrix(
-        true_labels,
-        pred_labels,
-        labels=all_potential_labels,
-        normalize="true"
-    )
+    cf_matrix = confusion_matrix(true_labels, pred_labels, labels=all_potential_labels)
+    cf_matrix_n = confusion_matrix(true_labels, pred_labels, labels=all_potential_labels, normalize="true")
 
-    fig = plot_normalized_confusion_matrix(cm=cf_matrix_n, class_names=(class_names))
-    save_figure(fig=fig, figpath=figures_dir / f"normalized_confusion_matrix_{stage}.png")
+    fig = plot_normalized_and_non_normalized_confusion_matrices(cm=cf_matrix, cm_n=cf_matrix_n, class_names=class_names)
+    save_figure(fig=fig, figpath=figures_dir / f"confusion_matrices_{stage}.png")
 
 
 def save_top_and_bottom_tiles(
