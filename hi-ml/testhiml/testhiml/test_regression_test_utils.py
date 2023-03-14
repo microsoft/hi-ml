@@ -201,12 +201,16 @@ def test_compare_folder_metrics(tmp_path: Path, caplog: pytest.LogCaptureFixture
     actual = tmp_path / "actual"
     # This file exists in both expected and actual, should not raise any alerts because it contents matches
     # apart from linebreaks
-    create_folder_and_write_text(expected / REGRESSION_TEST_METRICS_FILENAME, "{'metric1': 123}")
-    create_folder_and_write_text(actual / REGRESSION_TEST_METRICS_FILENAME, "{'metric1': 456}")
+    create_folder_and_write_text(expected / REGRESSION_TEST_METRICS_FILENAME, '{"metric1": 123}')
+    create_folder_and_write_text(actual / REGRESSION_TEST_METRICS_FILENAME, '{"metric1": 456}')
 
-    with caplog.atlevel(logging.WARNING):
+    with caplog.at_level(logging.WARNING):
         messages = compare_folder_contents(expected_folder=expected, actual_folder=actual)
-    assert len(caplog.messages) == 1
+    assert len(messages) == 1
+    assert messages[0] == "Mismatch for 1 out of 1 metrics: regression_metrics.json"
+    assert len(caplog.messages) == 2
+    assert caplog.messages[0] == "Metric 'metric1': Expected 123 but got 456 (allowed tolerance 0.0)"
+    assert caplog.messages[1] == "File regression_metrics.json: Mismatch for 1 out of 1 metrics"
 
 
 def test_compare_plain_outputs(tmp_path: Path) -> None:

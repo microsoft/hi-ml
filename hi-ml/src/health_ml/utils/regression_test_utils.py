@@ -355,7 +355,7 @@ def compare_folder_contents(
                 csv_relative_tolerance=csv_relative_tolerance
             )
         else:
-            MISSING_FILE
+            message = MISSING_FILE
         if message:
             messages.append(f"{message}: {file_relative}")
             logging.warning(f"File {file_relative}: {message}")
