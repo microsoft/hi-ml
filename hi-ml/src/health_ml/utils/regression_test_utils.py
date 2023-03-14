@@ -348,8 +348,14 @@ def compare_folder_contents(
                 expected=file,
                 actual=actual_file,
                 tolerance=csv_relative_tolerance)
-        message = compare_files(expected=file, actual=actual_file,
-                                csv_relative_tolerance=csv_relative_tolerance) if actual_file.exists() else MISSING_FILE
+        elif actual_file.exists():
+            message = compare_files(
+                expected=file,
+                actual=actual_file,
+                csv_relative_tolerance=csv_relative_tolerance
+            )
+        else:
+            MISSING_FILE
         if message:
             messages.append(f"{message}: {file_relative}")
             logging.warning(f"File {file_relative}: {message}")
