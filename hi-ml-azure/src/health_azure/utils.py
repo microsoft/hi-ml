@@ -2020,6 +2020,7 @@ def get_metrics_for_run(
     if isinstance(run, _OfflineRun):
         logging.warning("Can't get metrics for _OfflineRun object")
         return {}
+    assert isinstance(run, Run)
     if run.status != RunStatus.COMPLETED:
         logger.warning(f"Run {run.id} is not completed, but has status '{run.status}'. Metrics may be incomplete.")
     all_metrics = run.get_metrics()  # type: ignore
