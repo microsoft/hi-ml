@@ -40,7 +40,7 @@ def set_module_gradients_enabled(model: nn.Module, tuning_flag: bool) -> None:
 
 
 class EncoderParams(param.Parameterized):
-    """Parameters class to group all encoder specific attributes for deepmil module. """
+    """Parameters class to group all encoder specific attributes for deepmil module."""
 
     encoder_type: str = param.String(doc="Name of the encoder class to use.")
     tile_size: int = param.Integer(default=224, bounds=(1, None), doc="Tile width/height, in pixels.")
@@ -94,19 +94,48 @@ class EncoderParams(param.Parameterized):
         """
         encoder: TileEncoder
         if self.encoder_type == Resnet18.__name__:
-            encoder = Resnet18(tile_size=self.tile_size, n_channels=self.n_channels)
+            encoder = Resnet18(
+                tile_size=self.tile_size,
+                n_channels=self.n_channels,
+                checkpoint_activations=self.checkpoint_encoder,
+                checkpoint_segments_size=self.checkpoint_segments_size,
+                bn_momentum=self.bn_momentum,
+            )
 
         elif self.encoder_type == Resnet18_NoPreproc.__name__:
-            encoder = Resnet18_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
+            encoder = Resnet18_NoPreproc(
+                tile_size=self.tile_size,
+                n_channels=self.n_channels,
+                checkpoint_activations=self.checkpoint_encoder,
+                checkpoint_segments_size=self.checkpoint_segments_size,
+                bn_momentum=self.bn_momentum,
+            )
 
         elif self.encoder_type == Resnet50.__name__:
-            encoder = Resnet50(tile_size=self.tile_size, n_channels=self.n_channels)
+            encoder = Resnet50(
+                tile_size=self.tile_size,
+                n_channels=self.n_channels,
+                checkpoint_activations=self.checkpoint_encoder,
+                checkpoint_segments_size=self.checkpoint_segments_size,
+                bn_momentum=self.bn_momentum,
+            )
 
         elif self.encoder_type == Resnet50_NoPreproc.__name__:
-            encoder = Resnet50_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
+            encoder = Resnet50_NoPreproc(
+                tile_size=self.tile_size,
+                n_channels=self.n_channels,
+                checkpoint_activations=self.checkpoint_encoder,
+                checkpoint_segments_size=self.checkpoint_segments_size,
+                bn_momentum=self.bn_momentum,
+            )
 
         elif self.encoder_type == SwinTransformer_NoPreproc.__name__:
-            encoder = SwinTransformer_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
+            encoder = SwinTransformer_NoPreproc(
+                tile_size=self.tile_size,
+                n_channels=self.n_channels,
+                checkpoint_activations=self.checkpoint_encoder,
+                checkpoint_segments_size=self.checkpoint_segments_size,
+            )
 
         elif self.encoder_type == ImageNetSimCLREncoder.__name__:
             encoder = ImageNetSimCLREncoder(tile_size=self.tile_size, n_channels=self.n_channels)
@@ -165,6 +194,15 @@ class PoolingParams(param.Parameterized):
         default=0.0,
         doc="If transformer pooling is chosen, this defines the dropout of the tranformer encoder layers.",
     )
+    checkpoint_pooling: bool = param.Boolean(
+        default=False, doc="If True, checkpoint the encoder gradients during training. This is useful to trade compute "
+        "for memory, and is only supported for the Resnet18 and Resnet50 encoders at the moment. Default: False."
+    )
+    checkpoint_segments_size: int = param.Integer(
+        default=2,
+        bounds=(1, None),
+        doc="The segments size to use for checkpointing the encoder's activations. Default: 2. "
+    )
 
     def get_pooling_layer(self, num_encoding: int) -> Tuple[nn.Module, int]:
         """Given the pooling parameters, returns the pooling layer object.
@@ -200,7 +238,10 @@ class PoolingParams(param.Parameterized):
                 num_heads=self.num_transformer_pool_heads,
                 dim_representation=num_encoding,
                 hidden_dim=self.pool_hidden_dim,
-                transformer_dropout=self.transformer_dropout)
+                transformer_dropout=self.transformer_dropout,
+                checkpoint_activations=self.checkpoint_pooling,
+                checkpoint_segments_size=self.checkpoint_segments_size,
+                )
             self.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
         else:
             raise ValueError(f"Unsupported pooling type: {self.pool_type}")

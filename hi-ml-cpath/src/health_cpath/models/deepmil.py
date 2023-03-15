@@ -14,6 +14,7 @@ from torchmetrics.classification import (MulticlassAUROC, MulticlassAccuracy, Mu
                                          BinaryAUROC, BinarySpecificity, BinaryAveragePrecision)
 from health_ml.utils import log_on_epoch
 from health_ml.deep_learning_config import OptimizerParams
+from health_cpath.models.encoders import IdentityEncoder
 from health_cpath.utils.deepmil_utils import ClassifierParams, EncoderParams, PoolingParams
 from health_cpath.datasets.base_dataset import TilesDataset
 from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
