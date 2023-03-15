@@ -11,6 +11,7 @@ from torch import nn, Tensor, transpose, mm
 import torch
 import torch.nn.functional as F
 from torch.nn import Module, TransformerEncoderLayer
+from torch.utils.checkpoint import checkpoint, checkpoint_sequential
 
 
 class MeanPoolingLayer(nn.Module):
@@ -243,15 +244,24 @@ class TransformerPoolingBenchmark(Module):
         transformer_dropout: The dropout value of transformer encoder layers.
     """
 
-    def __init__(self, num_layers: int, num_heads: int,
-                 dim_representation: int, hidden_dim: int,
-                 transformer_dropout: float) -> None:
+    def __init__(
+        self,
+        num_layers: int,
+        num_heads: int,
+        dim_representation: int,
+        hidden_dim: int,
+        transformer_dropout: float,
+        checkpoint_activations: bool = False,
+        checkpoint_segments_size: int = 2,
+    ) -> None:
         super().__init__()
         self.num_layers = num_layers
         self.num_heads = num_heads
         self.dim_representation = dim_representation
         self.hidden_dim = hidden_dim
         self.transformer_dropout = transformer_dropout
+        self.checkpoint_activations = checkpoint_activations
+        self.checkpoint_segments_size = checkpoint_segments_size
         transformer_layer = nn.TransformerEncoderLayer(d_model=self.dim_representation,
                                                        nhead=self.num_heads,
                                                        dropout=self.transformer_dropout,
@@ -260,26 +270,39 @@ class TransformerPoolingBenchmark(Module):
         self.attention = nn.Sequential(nn.Linear(self.dim_representation, self.hidden_dim),
                                        nn.Tanh(), nn.Linear(self.hidden_dim, 1))
 
-    def transformer_forward(self, x: torch.Tensor) -> torch.Tensor:
-        from torch.utils.checkpoint import checkpoint, checkpoint_sequential
+    def _custom_forward_transformer(self, x: torch.Tensor) -> torch.Tensor:
         output = x
         for layer in self.transformer.layers:
             assert isinstance(layer, nn.TransformerEncoderLayer)
             output = checkpoint(layer.norm1, output + layer._sa_block(output, None, None))
-            ff_block = [layer.linear1, layer.activation, layer.dropout, layer.linear2, layer.dropout2]
-            ff_pass = checkpoint_sequential(ff_block, 2, output)
+            ff_block1 = [layer.linear1, layer.activation]
+            ff_pass = checkpoint_sequential(ff_block1, self.checkpoint_segments_size, output)
+            ff_pass = layer.dropout(ff_pass)
+            ff_pass = checkpoint(layer.linear2, ff_pass)
+            ff_pass = layer.dropout2(ff_pass)
             output = checkpoint(layer.norm2, output + ff_pass)
         if self.transformer.norm is not None:
             output = self.transformer.norm(output)
         return output
+
+    def _custom_forward_attention(self, x: torch.Tensor) -> torch.Tensor:
+        return checkpoint_sequential(self.attention, self.checkpoint_segments_size, x)
+
+    def _custom_forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        x = self._custom_forward_transformer(x)
+        a = self._custom_forward_attention(x)
+        return x, a
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Input size is L, bag size N, hidden dimension is D, and attention layers K (default K=1).
         """
         x = x.reshape(-1, x.shape[0], x.shape[1])                       # 1 x N X L
-        x = self.transformer(x)                                         # 1 x N X L
-        a = self.attention(x)                                           # 1 x N X K
+        if self.checkpoint_activations:
+            x, a = self._custom_forward(x)
+        else:
+            x = self.transformer(x)                                     # 1 x N X L
+            a = self.attention(x)                                       # 1 x N X K
         attention_weights = torch.softmax(a, dim=1)                     # 1 x N x K
         pooled_features = torch.sum(x * attention_weights, dim=1)       # K X L
         attention_weights = attention_weights.permute(0, 2, 1)          # 1 x K X N
