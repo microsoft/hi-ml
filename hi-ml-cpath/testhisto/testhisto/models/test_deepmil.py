@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 from copy import deepcopy
 import os
-from pytorch_lightning import Trainer
+from pytorch_lightning import LightningDataModule, Trainer
 import torch
 import pytest
 from pathlib import Path
@@ -720,3 +720,51 @@ def test_ssl_containers_default_checkpoint(container_type: BaseMIL) -> None:
 def test_reset_encoder_to_identity_encoder(is_caching: bool) -> None:
     model = _get_tiles_deepmil_module(is_caching=is_caching)
     assert isinstance(model.encoder, IdentityEncoder) if is_caching else isinstance(model.encoder, Resnet18)
+
+
+def validate_loss_with_activations_checkpointing(
+    data_module: LightningDataModule, module_ckpt_enc: DeepMILModule, module_no_ckpt_enc: DeepMILModule
+) -> None:
+    train_data_loader = data_module.train_dataloader()
+
+    def _get_loss(module: DeepMILModule) -> Tensor:
+        loss = module.training_step(batch, batch_idx)[ResultsKey.LOSS]
+        loss.retain_grad()
+        loss.backward()
+        assert loss.grad is not None
+        assert loss.shape == (1, 1)
+        assert isinstance(loss, Tensor)
+        return loss
+
+    for batch_idx, batch in enumerate(train_data_loader):
+        batch = move_batch_to_expected_device(batch, use_gpu=False)
+        loss_ckpt_enc = _get_loss(module_ckpt_enc)
+        loss_no_ckpt_enc = _get_loss(module_no_ckpt_enc)
+        assert loss_ckpt_enc != loss_no_ckpt_enc
+        assert torch.allclose(loss_ckpt_enc, loss_no_ckpt_enc, atol=1e-4)
+
+
+def test_encoder_checkpoitning(mock_panda_tiles_root_dir: Path) -> None:
+    container = MockDeepSMILETilesPanda(tmp_path=mock_panda_tiles_root_dir)
+    container.setup()
+    data_module = container.get_data_module()
+
+    def _get_module(checkpoint_encoder: bool) -> DeepMILModule:
+        container.checkpoint_encoder = checkpoint_encoder
+        model = container.create_model()
+        model.trainer = MagicMock(world_size=1)  # type: ignore
+        model.outputs_handler = MagicMock()
+        model.log = MagicMock()  # type: ignore
+        assert model.encoder_params.checkpoint_encoder == checkpoint_encoder
+        return model
+
+    module_ckpt_enc = _get_module(checkpoint_encoder=True)
+    module_no_ckpt_enc = _get_module(checkpoint_encoder=False)
+
+    validate_loss_with_activations_checkpointing(data_module, module_ckpt_enc, module_no_ckpt_enc)
+
+    for param in module_ckpt_enc.encoder.parameters():
+        assert param.grad is None
+
+    for param in module_no_ckpt_enc.encoder.parameters():
+        assert param.grad is not None
