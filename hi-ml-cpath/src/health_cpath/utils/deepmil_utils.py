@@ -194,15 +194,6 @@ class PoolingParams(param.Parameterized):
         default=0.0,
         doc="If transformer pooling is chosen, this defines the dropout of the tranformer encoder layers.",
     )
-    checkpoint_pooling: bool = param.Boolean(
-        default=False, doc="If True, checkpoint the encoder gradients during training. This is useful to trade compute "
-        "for memory, and is only supported for the Resnet18 and Resnet50 encoders at the moment. Default: False."
-    )
-    checkpoint_segments_size: int = param.Integer(
-        default=2,
-        bounds=(1, None),
-        doc="The segments size to use for checkpointing the encoder's activations. Default: 2. "
-    )
 
     def get_pooling_layer(self, num_encoding: int) -> Tuple[nn.Module, int]:
         """Given the pooling parameters, returns the pooling layer object.
@@ -238,10 +229,7 @@ class PoolingParams(param.Parameterized):
                 num_heads=self.num_transformer_pool_heads,
                 dim_representation=num_encoding,
                 hidden_dim=self.pool_hidden_dim,
-                transformer_dropout=self.transformer_dropout,
-                checkpoint_activations=self.checkpoint_pooling,
-                checkpoint_segments_size=self.checkpoint_segments_size,
-                )
+                transformer_dropout=self.transformer_dropout)
             self.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
         else:
             raise ValueError(f"Unsupported pooling type: {self.pool_type}")

@@ -260,19 +260,6 @@ class TransformerPoolingBenchmark(Module):
         self.attention = nn.Sequential(nn.Linear(self.dim_representation, self.hidden_dim),
                                        nn.Tanh(), nn.Linear(self.hidden_dim, 1))
 
-    def transformer_forward(self, x: torch.Tensor) -> torch.Tensor:
-        from torch.utils.checkpoint import checkpoint, checkpoint_sequential
-        output = x
-        for layer in self.transformer.layers:
-            assert isinstance(layer, nn.TransformerEncoderLayer)
-            output = checkpoint(layer.norm1, output + layer._sa_block(output, None, None))
-            ff_block = [layer.linear1, layer.activation, layer.dropout, layer.linear2, layer.dropout2]
-            ff_pass = checkpoint_sequential(ff_block, 2, output)
-            output = checkpoint(layer.norm2, output + ff_pass)
-        if self.transformer.norm is not None:
-            output = self.transformer.norm(output)
-        return output
-
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Input size is L, bag size N, hidden dimension is D, and attention layers K (default K=1).
