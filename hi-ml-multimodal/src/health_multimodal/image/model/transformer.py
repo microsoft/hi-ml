@@ -30,7 +30,6 @@ class VisionTransformerPooler(nn.Module):
 
     `self.type_embed`: Is used to characterise prior and current scans, and
                        create permutation variance across modalities/series.
-    `self.cls_token`: Cane be used to aggregate information across modalities and image series.
     """
 
     def __init__(self,
@@ -45,16 +44,13 @@ class VisionTransformerPooler(nn.Module):
                             drop_path=0.25, act_layer=nn.GELU, norm_layer=norm_layer)
         self.blocks = nn.ModuleList([Block(**block_kwargs) for _ in range(num_blocks)])
         self.norm_post = norm_layer(input_dim)
-        self.use_cls_token = False
         self.grid_shape = grid_shape
         self.num_patches = grid_shape[0] * grid_shape[1]
         self.num_blocks = num_blocks
 
-        # CLS token and type embeddings
+        # Temporal positional embeddings
         num_series: int = 2
-        self.cls_token = nn.Parameter(torch.zeros(1, 1, input_dim))
         self.type_embed = nn.Parameter(torch.zeros(num_series, 1, input_dim))
-        trunc_normal_(self.cls_token, std=.02)
         trunc_normal_(self.type_embed, std=.02)
 
         # Positional embeddings 1 x L x C (L: Sequence length, C: Feature dimension)
@@ -67,7 +63,7 @@ class VisionTransformerPooler(nn.Module):
         self.apply(self._init_weights)
 
     def no_weight_decay(self) -> Set[str]:
-        return {'type_embed', 'cls_token'}
+        return {'type_embed'}
 
     def forward(self, current_image: torch.Tensor, previous_image: Optional[torch.Tensor] = None) -> torch.Tensor:
         B, C, H, W = current_image.shape
@@ -84,7 +80,7 @@ class VisionTransformerPooler(nn.Module):
         token_features = self.forward_after_reshape(x=current_image, pos_embed=pos_embed, x_previous=previous_image)
 
         # Extract the patch features of current image
-        cur_img_token_id = 1 if self.use_cls_token else 0
+        cur_img_token_id = 0
         current_token_features = token_features[:, cur_img_token_id:self.num_patches+cur_img_token_id]
         current_patch_features = current_token_features.transpose(1, 2).view(B, C, H, W)
 
@@ -107,11 +103,8 @@ class VisionTransformerPooler(nn.Module):
         # Add positional and type embeddings (used in query and key matching)
         pos_and_type_embed = pos_embed + type_embed
 
-        # Positional dropout and CLS token if required
+        # Positional dropout
         x = self.pos_drop(x)
-        if self.use_cls_token:
-            cls_tokens = self.cls_token.expand(x.shape[0], -1, -1)
-            x = torch.cat((cls_tokens, x), dim=1)
 
         # Multihead attention followed by MLP
         for block in self.blocks:
