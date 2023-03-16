@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 from copy import deepcopy
 import os
-from pytorch_lightning import LightningDataModule, Trainer
+from pytorch_lightning import Trainer
 import torch
 import pytest
 from pathlib import Path
@@ -21,15 +21,25 @@ from health_cpath.configs.classification.BaseMIL import BaseMIL, BaseMILTiles
 
 from health_cpath.configs.classification.DeepSMILECrck import DeepSMILECrck, TcgaCrckSSLMIL
 from health_cpath.configs.classification.DeepSMILEPanda import (
-    BaseDeepSMILEPanda, DeepSMILETilesPanda, SlidesPandaSSLMIL, TilesPandaSSLMIL
+    BaseDeepSMILEPanda,
+    DeepSMILETilesPanda,
+    SlidesPandaSSLMIL,
+    TilesPandaSSLMIL,
 )
 from health_cpath.datamodules.base_module import HistoDataModule, TilesDataModule
 from health_cpath.datasets.base_dataset import DEFAULT_LABEL_COLUMN, TilesDataset
 from health_cpath.datasets.default_paths import PANDA_5X_TILES_DATASET_ID, TCGA_CRCK_DATASET_DIR
 from health_cpath.models.deepmil import DeepMILModule
-from health_cpath.models.encoders import IdentityEncoder, ImageNetEncoder, Resnet18, TileEncoder
+from health_cpath.models.encoders import (
+    IdentityEncoder,
+    ImageNetEncoder,
+    Resnet18,
+    Resnet50,
+    SwinTransformer_NoPreproc,
+    TileEncoder,
+)
 from health_cpath.utils.deepmil_utils import ClassifierParams, EncoderParams, PoolingParams
-from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey
+from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey, SlideKey
 from testhisto.mocks.base_data_generator import MockHistoDataType
 from testhisto.mocks.tiles_generator import MockPandaTilesGenerator
 from testhisto.mocks.container import MockDeepSMILETilesPanda, MockDeepSMILESlidesPanda
@@ -37,6 +47,8 @@ from health_ml.utils.common_utils import is_gpu_available
 from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_cpath.configs.run_ids import innereye_ssl_checkpoint_crck_4ws, innereye_ssl_checkpoint_binary
 from testhisto.models.test_encoders import TEST_SSL_RUN_ID
+from torch.utils.data import DataLoader
+
 
 no_gpu = not is_gpu_available()
 
@@ -46,17 +58,21 @@ def get_supervised_imagenet_encoder_params(tune_encoder: bool = True, is_caching
 
 
 def get_attention_pooling_layer_params(pool_out_dim: int = 1, tune_pooling: bool = True) -> PoolingParams:
-    return PoolingParams(pool_type=AttentionLayer.__name__, pool_out_dim=pool_out_dim, pool_hidden_dim=5,
-                         tune_pooling=tune_pooling)
+    return PoolingParams(
+        pool_type=AttentionLayer.__name__, pool_out_dim=pool_out_dim, pool_hidden_dim=5, tune_pooling=tune_pooling
+    )
 
 
-def get_transformer_pooling_layer_params(num_layers: int, num_heads: int,
-                                         hidden_dim: int, transformer_dropout: float) -> PoolingParams:
-    return PoolingParams(pool_type=TransformerPoolingBenchmark.__name__,
-                         num_transformer_pool_layers=num_layers,
-                         num_transformer_pool_heads=num_heads,
-                         pool_hidden_dim=hidden_dim,
-                         transformer_dropout=transformer_dropout)
+def get_transformer_pooling_layer_params(
+    num_layers: int, num_heads: int, hidden_dim: int, transformer_dropout: float
+) -> PoolingParams:
+    return PoolingParams(
+        pool_type=TransformerPoolingBenchmark.__name__,
+        num_transformer_pool_layers=num_layers,
+        num_transformer_pool_heads=num_heads,
+        pool_hidden_dim=hidden_dim,
+        transformer_dropout=transformer_dropout,
+    )
 
 
 def _test_lightningmodule(
@@ -66,7 +82,6 @@ def _test_lightningmodule(
     pool_out_dim: int,
     dropout_rate: Optional[float],
 ) -> None:
-
     assert n_classes > 0
 
     module = DeepMILModule(
@@ -74,7 +89,7 @@ def _test_lightningmodule(
         n_classes=n_classes,
         classifier_params=ClassifierParams(dropout_rate=dropout_rate),
         encoder_params=get_supervised_imagenet_encoder_params(),
-        pooling_params=get_attention_pooling_layer_params(pool_out_dim)
+        pooling_params=get_attention_pooling_layer_params(pool_out_dim),
     )
 
     bag_images = rand([batch_size, max_bag_size, *module.encoder.input_dim])
@@ -125,7 +140,12 @@ def _test_lightningmodule(
     for metric_name, metric_object in module.train_metrics.items():
         if metric_name == MetricsKey.CONF_MATRIX:
             continue
-        score = metric_object(probs, bag_labels.view(batch_size,))
+        score = metric_object(
+            probs,
+            bag_labels.view(
+                batch_size,
+            ),
+        )
         if metric_name == MetricsKey.COHENKAPPA:
             # A NaN value could result due to a division-by-zero error
             assert torch.all(score[~score.isnan()] >= -1)
@@ -150,18 +170,20 @@ def test_lightningmodule_attention(
     pool_out_dim: int,
     dropout_rate: Optional[float],
 ) -> None:
-    _test_lightningmodule(n_classes=n_classes,
-                          batch_size=batch_size,
-                          max_bag_size=max_bag_size,
-                          pool_out_dim=pool_out_dim,
-                          dropout_rate=dropout_rate)
+    _test_lightningmodule(
+        n_classes=n_classes,
+        batch_size=batch_size,
+        max_bag_size=max_bag_size,
+        pool_out_dim=pool_out_dim,
+        dropout_rate=dropout_rate,
+    )
 
 
 def validate_metric_inputs(scores: torch.Tensor, labels: torch.Tensor) -> None:
     def is_integral(x: torch.Tensor) -> bool:
         return (x == x.long()).all()  # type: ignore
 
-    assert labels.shape == (scores.shape[0], )
+    assert labels.shape == (scores.shape[0],)
     assert torch.is_floating_point(scores), "Received scores with integer dtype"
     assert not is_integral(scores), "Received scores with integral values"
     assert is_integral(labels), "Received labels with floating-point values"
@@ -171,6 +193,7 @@ def add_callback(fn: Callable, callback: Callable) -> Callable:
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         callback(*args, **kwargs)
         return fn(*args, **kwargs)
+
     return wrapper
 
 
@@ -182,9 +205,11 @@ def test_metrics(n_classes: int) -> None:
         return IdentityEncoder(input_dim=input_dim)
 
     with patch("health_cpath.models.deepmil.EncoderParams.get_encoder", new=_mock_get_encoder):
-        module = DeepMILModule(label_column=DEFAULT_LABEL_COLUMN,
-                               n_classes=n_classes,
-                               pooling_params=get_attention_pooling_layer_params(pool_out_dim=1))
+        module = DeepMILModule(
+            label_column=DEFAULT_LABEL_COLUMN,
+            n_classes=n_classes,
+            pooling_params=get_attention_pooling_layer_params(pool_out_dim=1),
+        )
 
         # Patching to enable running the module without a Trainer object
         module.trainer = MagicMock(world_size=1)  # type: ignore
@@ -206,8 +231,7 @@ def test_metrics(n_classes: int) -> None:
                 TilesDataset.IMAGE_COLUMN: rand(bag_size, *input_dim),
                 DEFAULT_LABEL_COLUMN: bag_label.expand(bag_size),
             }
-            sample[TilesDataset.PATH_COLUMN] = [tile_id + '.png'
-                                                for tile_id in sample[TilesDataset.TILE_ID_COLUMN]]
+            sample[TilesDataset.PATH_COLUMN] = [tile_id + ".png" for tile_id in sample[TilesDataset.TILE_ID_COLUMN]]
             bags.append(sample)
         batch = default_collate(bags)
 
@@ -227,7 +251,12 @@ def test_metrics(n_classes: int) -> None:
 
         for key, metric_obj in module_metrics_dict.items():
             value = metric_obj.compute()
-            expected_value = independent_metrics_dict[key](predicted_probs, true_labels.view(batch_size,))
+            expected_value = independent_metrics_dict[key](
+                predicted_probs,
+                true_labels.view(
+                    batch_size,
+                ),
+            )
             assert torch.allclose(value, expected_value), f"Discrepancy in '{key}' metric"
 
         assert all(key in results.keys() for key in [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID])
@@ -236,9 +265,7 @@ def test_metrics(n_classes: int) -> None:
 def move_batch_to_expected_device(batch: Dict[str, List], use_gpu: bool) -> Dict:
     device = "cuda" if use_gpu else "cpu"
     return {
-        key: [
-            value.to(device) if isinstance(value, Tensor) else value for value in values
-        ]
+        key: [value.to(device) if isinstance(value, Tensor) else value for value in values]
         for key, values in batch.items()
     }
 
@@ -284,16 +311,12 @@ CONTAINER_DATASET_DIR = {
 }
 
 
-@pytest.mark.parametrize("container_type", [DeepSMILETilesPanda,
-                                            DeepSMILECrck])
+@pytest.mark.parametrize("container_type", [DeepSMILETilesPanda, DeepSMILECrck])
 @pytest.mark.parametrize("use_gpu", [True, False])
 def test_container(container_type: Type[BaseMILTiles], use_gpu: bool) -> None:
     dataset_dir = CONTAINER_DATASET_DIR[container_type]
     if not os.path.isdir(dataset_dir):
-        pytest.skip(
-            f"Dataset for container {container_type.__name__} "
-            f"is unavailable: {dataset_dir}"
-        )
+        pytest.skip(f"Dataset for container {container_type.__name__} " f"is unavailable: {dataset_dir}")
     if container_type in [DeepSMILECrck, DeepSMILETilesPanda]:
         container = container_type(encoder_type=ImageNetEncoder.__name__)
     else:
@@ -335,17 +358,20 @@ def _test_mock_panda_container(use_gpu: bool, mock_container: BaseDeepSMILEPanda
 
 
 def test_mock_tiles_panda_container_cpu(mock_panda_tiles_root_dir: Path) -> None:
-    _test_mock_panda_container(use_gpu=False, mock_container=MockDeepSMILETilesPanda,  # type: ignore
-                               tmp_path=mock_panda_tiles_root_dir)
+    _test_mock_panda_container(
+        use_gpu=False, mock_container=MockDeepSMILETilesPanda, tmp_path=mock_panda_tiles_root_dir  # type: ignore
+    )
 
 
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
-@pytest.mark.parametrize("mock_container, tmp_path", [(MockDeepSMILETilesPanda, "mock_panda_tiles_root_dir"),
-                                                      (MockDeepSMILESlidesPanda, "mock_panda_slides_root_dir")])
-def test_mock_panda_container_gpu(mock_container: BaseDeepSMILEPanda,
-                                  tmp_path: str,
-                                  request: pytest.FixtureRequest) -> None:
+@pytest.mark.parametrize(
+    "mock_container, tmp_path",
+    [(MockDeepSMILETilesPanda, "mock_panda_tiles_root_dir"), (MockDeepSMILESlidesPanda, "mock_panda_slides_root_dir")],
+)
+def test_mock_panda_container_gpu(
+    mock_container: BaseDeepSMILEPanda, tmp_path: str, request: pytest.FixtureRequest
+) -> None:
     _test_mock_panda_container(use_gpu=True, mock_container=mock_container, tmp_path=request.getfixturevalue(tmp_path))
 
 
@@ -358,7 +384,7 @@ def test_class_weights_binary() -> None:
         n_classes=n_classes,
         class_weights=class_weights,
         encoder_params=get_supervised_imagenet_encoder_params(),
-        pooling_params=get_attention_pooling_layer_params(pool_out_dim=1)
+        pooling_params=get_attention_pooling_layer_params(pool_out_dim=1),
     )
 
     logits = Tensor(randn(1, n_classes))
@@ -383,7 +409,7 @@ def test_class_weights_multiclass() -> None:
         n_classes=n_classes,
         class_weights=class_weights,
         encoder_params=get_supervised_imagenet_encoder_params(),
-        pooling_params=get_attention_pooling_layer_params(pool_out_dim=1)
+        pooling_params=get_attention_pooling_layer_params(pool_out_dim=1),
     )
 
     logits = Tensor(randn(1, n_classes))
@@ -400,14 +426,8 @@ def test_class_weights_multiclass() -> None:
 
 
 def test_wrong_tuning_options() -> None:
-    with pytest.raises(ValueError,
-                       match=r"At least one of the encoder, pooling or classifier should be fine tuned"):
-        _ = MockDeepSMILETilesPanda(
-            tmp_path=Path("foo"),
-            tune_encoder=False,
-            tune_pooling=False,
-            tune_classifier=False
-        )
+    with pytest.raises(ValueError, match=r"At least one of the encoder, pooling or classifier should be fine tuned"):
+        _ = MockDeepSMILETilesPanda(tmp_path=Path("foo"), tune_encoder=False, tune_pooling=False, tune_classifier=False)
 
 
 def _get_datamodule(tmp_path: Path) -> PandaTilesDataModule:
@@ -429,9 +449,7 @@ def _get_datamodule(tmp_path: Path) -> PandaTilesDataModule:
 @pytest.mark.parametrize("tune_classifier", [False, True])
 @pytest.mark.parametrize("tune_pooling", [False, True])
 @pytest.mark.parametrize("tune_encoder", [False, True])
-def test_finetuning_options(
-    tune_encoder: bool, tune_pooling: bool, tune_classifier: bool, tmp_path: Path
-) -> None:
+def test_finetuning_options(tune_encoder: bool, tune_pooling: bool, tune_classifier: bool, tmp_path: Path) -> None:
     module = DeepMILModule(
         n_classes=1,
         label_column=DEFAULT_LABEL_COLUMN,
@@ -579,7 +597,9 @@ def get_pretrained_module(encoder_val: int = 5, pooling_val: int = 6, classifier
 @pytest.mark.parametrize("pretrained_pooling", [False, True])
 @pytest.mark.parametrize("pretrained_encoder", [False, True])
 def test_transfer_weights_same_config(
-    pretrained_encoder: bool, pretrained_pooling: bool, pretrained_classifier: bool,
+    pretrained_encoder: bool,
+    pretrained_pooling: bool,
+    pretrained_classifier: bool,
 ) -> None:
     encoder_val = 5
     pooling_val = 6
@@ -651,7 +671,7 @@ def test_transfer_weights_different_classifier() -> None:
         mock_load_from_checkpoint.return_value = pretrained_module
         with pytest.raises(
             ValueError,
-            match=r"Number of classes in pretrained model 3 does not match number of classes in current model 4."
+            match=r"Number of classes in pretrained model 3 does not match number of classes in current model 4.",
         ):
             module.transfer_weights(Path("foo"))
 
@@ -663,22 +683,22 @@ def test_wrong_encoding_chunk_size() -> None:
         _ = BaseMIL(encoding_chunk_size=1, max_bag_size=4, tune_encoder=True, max_num_gpus=2, pl_sync_batchnorm=True)
 
 
-@pytest.mark.parametrize("container_type", [DeepSMILETilesPanda,
-                                            DeepSMILECrck])
+@pytest.mark.parametrize("container_type", [DeepSMILETilesPanda, DeepSMILECrck])
 @pytest.mark.parametrize("primary_val_metric", [m for m in MetricsKey])
 @pytest.mark.parametrize("maximise_primary_metric", [True, False])
-def test_checkpoint_name(container_type: Type[BaseMILTiles], primary_val_metric: MetricsKey,
-                         maximise_primary_metric: bool) -> None:
-
+def test_checkpoint_name(
+    container_type: Type[BaseMILTiles], primary_val_metric: MetricsKey, maximise_primary_metric: bool
+) -> None:
     if container_type in [DeepSMILECrck, DeepSMILETilesPanda]:
         container = container_type(
             encoder_type=ImageNetEncoder.__name__,
             primary_val_metric=primary_val_metric,
-            maximise_primary_metric=maximise_primary_metric)
+            maximise_primary_metric=maximise_primary_metric,
+        )
     else:
         container = container_type(
-            primary_val_metric=primary_val_metric,
-            maximise_primary_metric=maximise_primary_metric)
+            primary_val_metric=primary_val_metric, maximise_primary_metric=maximise_primary_metric
+        )
 
     metric_optim = "max" if maximise_primary_metric else "min"
     assert container.best_checkpoint_filename == f"checkpoint_{metric_optim}_val_{primary_val_metric.value}"
@@ -723,11 +743,10 @@ def test_reset_encoder_to_identity_encoder(is_caching: bool) -> None:
 
 
 def validate_loss_with_activations_checkpointing(
-    data_module: LightningDataModule, module_ckpt_enc: DeepMILModule, module_no_ckpt_enc: DeepMILModule
+    dataloader: DataLoader, model_ckpt_enc: DeepMILModule, model_no_ckpt_enc: DeepMILModule, encoder_type: str,
 ) -> None:
-    train_data_loader = data_module.train_dataloader()
 
-    def _get_loss(module: DeepMILModule) -> Tensor:
+    def _get_loss(module: DeepMILModule, batch: Dict, batch_idx: int) -> Tensor:
         loss = module.training_step(batch, batch_idx)[ResultsKey.LOSS]
         loss.retain_grad()
         loss.backward()
@@ -736,35 +755,66 @@ def validate_loss_with_activations_checkpointing(
         assert isinstance(loss, Tensor)
         return loss
 
-    for batch_idx, batch in enumerate(train_data_loader):
-        batch = move_batch_to_expected_device(batch, use_gpu=False)
-        loss_ckpt_enc = _get_loss(module_ckpt_enc)
-        loss_no_ckpt_enc = _get_loss(module_no_ckpt_enc)
-        assert loss_ckpt_enc != loss_no_ckpt_enc
+    limit = 2
+
+    for batch_idx, batch in enumerate(dataloader):
+        if encoder_type == SwinTransformer_NoPreproc.__name__:
+            batch[SlideKey.IMAGE] = [torch.randint(0, 255, (4, 3, 224, 224), dtype=torch.uint8) / 255.] * 2
+        loss_ckpt_enc = _get_loss(model_ckpt_enc, batch, batch_idx)
+        loss_no_ckpt_enc = _get_loss(model_no_ckpt_enc, batch, batch_idx)
         assert torch.allclose(loss_ckpt_enc, loss_no_ckpt_enc, atol=1e-4)
+        assert torch.allclose(loss_ckpt_enc.grad, loss_no_ckpt_enc.grad, atol=1e-4)
+        if batch_idx == limit:
+            break
 
 
-def test_encoder_checkpoitning(mock_panda_tiles_root_dir: Path) -> None:
+@pytest.mark.parametrize(
+    "encoder_type, feature_dim",
+    [(Resnet18.__name__, 512), (Resnet50.__name__, 2048), (SwinTransformer_NoPreproc.__name__, 768)],
+)
+def test_encoder_checkpoitning(encoder_type: str, feature_dim: int, mock_panda_tiles_root_dir: Path) -> None:
     container = MockDeepSMILETilesPanda(tmp_path=mock_panda_tiles_root_dir)
     container.setup()
+
     data_module = container.get_data_module()
+    train_dataloader = data_module.train_dataloader()
+    val_dataloader = data_module.val_dataloader()
 
-    def _get_module(checkpoint_encoder: bool) -> DeepMILModule:
-        container.checkpoint_encoder = checkpoint_encoder
-        model = container.create_model()
-        model.trainer = MagicMock(world_size=1)  # type: ignore
-        model.outputs_handler = MagicMock()
-        model.log = MagicMock()  # type: ignore
-        assert model.encoder_params.checkpoint_encoder == checkpoint_encoder
-        return model
+    container.encoder_type = encoder_type
 
-    module_ckpt_enc = _get_module(checkpoint_encoder=True)
-    module_no_ckpt_enc = _get_module(checkpoint_encoder=False)
+    model = container.create_model()
+    model.trainer = MagicMock(world_size=1)  # type: ignore
+    model.outputs_handler = MagicMock()
+    model.log = MagicMock()  # type: ignore
 
-    validate_loss_with_activations_checkpointing(data_module, module_ckpt_enc, module_no_ckpt_enc)
+    model_no_ckpt_enc = model
+    model_ckpt_enc = deepcopy(model)
+    model_ckpt_enc.encoder_params.checkpoint_encoder = True
+    model_ckpt_enc.encoder.checkpoint_activations = True
 
-    for param in module_ckpt_enc.encoder.parameters():
-        assert param.grad is None
+    # 1. Compare the loss and gradients of the encoder with and without checkpointing
+    validate_loss_with_activations_checkpointing(train_dataloader, model_ckpt_enc, model_no_ckpt_enc, encoder_type)
 
-    for param in module_no_ckpt_enc.encoder.parameters():
-        assert param.grad is not None
+    if encoder_type != SwinTransformer_NoPreproc.__name__:  # SwinT requires images of 224 input size, mock tiles are 28
+        # 2. Train the model with and without checkpointing and compare the encoder parameters
+        trainer_no_ckpt = Trainer(max_epochs=1, limit_train_batches=2, limit_val_batches=2, limit_test_batches=2)
+        trainer_no_ckpt.fit(model_no_ckpt_enc, train_dataloader, val_dataloader)
+
+        trainer_ckpt = Trainer(max_epochs=1, limit_train_batches=2, limit_val_batches=2, limit_test_batches=2)
+        trainer_ckpt.fit(model_ckpt_enc, train_dataloader, val_dataloader)
+
+        for param_no_ckpt, param in zip(model_no_ckpt_enc.encoder.parameters(), model_ckpt_enc.encoder.parameters()):
+            assert torch.allclose(param_no_ckpt, param, atol=1e-4)
+
+    # 3. Check that the custom forward is called only when checkpointing is enabled
+    sample = next(iter(train_dataloader))
+    if encoder_type == SwinTransformer_NoPreproc.__name__:
+        sample[SlideKey.IMAGE][0] = torch.randint(0, 255, (4, 3, 224, 224), dtype=torch.uint8) / 255.
+    with patch.object(model_no_ckpt_enc.encoder, "_custom_forward") as custom_forward:
+        _, _ = model_no_ckpt_enc(sample[SlideKey.IMAGE][0])
+        custom_forward.assert_not_called()
+
+    with patch.object(model_ckpt_enc.encoder, "_custom_forward") as custom_forward:
+        custom_forward.return_value = torch.zeros(container.max_bag_size, feature_dim)
+        _, _ = model_ckpt_enc(sample[SlideKey.IMAGE][0])
+        custom_forward.assert_called_once()
