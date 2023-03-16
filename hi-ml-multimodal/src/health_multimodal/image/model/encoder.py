@@ -17,7 +17,7 @@ from .resnet import resnet18, resnet50
 from .transformer import VisionTransformerPooler
 from .types import ImageEncoderType
 
-TypeImageEncoder = Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
+ImageEncoderOutputType = Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
 
 
 class ImageEncoder(nn.Module):
@@ -46,7 +46,7 @@ class ImageEncoder(nn.Module):
 
     def forward(self,
                 current_image: torch.Tensor,
-                return_patch_embeddings: bool = False) -> TypeImageEncoder:
+                return_patch_embeddings: bool = False) -> ImageEncoderOutputType:
         """Get image global and patch embeddings"""
 
         patch_emb = self.encoder(current_image)
@@ -107,7 +107,7 @@ class MultiImageEncoder(ImageEncoder):
     def forward(self,  # type: ignore[override]
                 current_image: torch.Tensor,
                 previous_image: Optional[torch.Tensor] = None,
-                return_patch_embeddings: bool = False) -> TypeImageEncoder:
+                return_patch_embeddings: bool = False) -> ImageEncoderOutputType:
 
         batch_size = current_image.shape[0]
 
