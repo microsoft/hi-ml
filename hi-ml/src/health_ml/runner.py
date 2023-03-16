@@ -120,7 +120,10 @@ class Runner:
         # For each parser, feed in the unknown settings from the previous parser. All commandline args should
         # be consumed by name, hence fail if there is something that is still unknown.
         parser2_result = parse_arguments(parser2, args=parser1_result.unknown, fail_on_unknown_args=True)
-        # Apply the overrides and validate. Overrides can come from either YAML settings or the commandline.
+        # Apply the commandline overrides and validate. Any parameters specified on the commandline should have
+        # higher priority than what is done in the model variant
+        assert isinstance(container, LightningContainer)
+        container.set_model_variant(experiment_config.model_variant)
         apply_overrides(container, parser2_result.overrides)  # type: ignore
         container.validate()
 
