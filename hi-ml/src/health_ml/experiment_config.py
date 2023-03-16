@@ -19,8 +19,14 @@ class ExperimentConfig(param.Parameterized):
                                     "that should execute the job. To run on your local machine, omit this argument.")
     num_nodes: int = param.Integer(default=1, doc="The number of virtual machines that will be allocated for this"
                                                   "job in AzureML.")
-    model: str = param.String(doc="The fully qualified name of the model to train/test -e.g."
-                                  "mymodule.configs.MyConfig.")
+    model: str = param.String(
+        doc="The fully or partially qualified name of the model to train/test -e.g. mymodule.configs.MyConfig."
+    )
+    model_variant: str = param.String(
+        default="",
+        doc="The name of the model variant to choose, by calling the 'set_model_variant' method. Model variants "
+        "are selected before applying commandline overrides of parameters"
+    )
     mount_in_azureml: bool = param.Boolean(False,
                                            doc="If False (default), consume datasets in AzureML by downloading at "
                                                "job start. If True, datasets in AzureML are mounted (read on demand "
