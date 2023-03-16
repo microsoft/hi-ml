@@ -763,7 +763,7 @@ def validate_loss_with_activations_checkpointing(
     "encoder_type, feature_dim",
     [(Resnet18.__name__, 512), (Resnet50.__name__, 2048), (SwinTransformer_NoPreproc.__name__, 768)],
 )
-def test_encoder_checkpoitning(encoder_type: str, feature_dim: int, mock_panda_tiles_root_dir: Path) -> None:
+def test_encoder_checkpointning(encoder_type: str, feature_dim: int, mock_panda_tiles_root_dir: Path) -> None:
     container = MockDeepSMILETilesPanda(tmp_path=mock_panda_tiles_root_dir)
     container.setup()
 
