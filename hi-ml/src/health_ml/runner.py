@@ -30,7 +30,7 @@ from health_azure.datasets import create_dataset_configs  # noqa: E402
 from health_azure.himl import DEFAULT_DOCKER_BASE_IMAGE, OUTPUT_FOLDER  # noqa: E402
 from health_azure.logging import logging_to_stdout, logging_to_file   # noqa: E402
 from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
-from health_azure.utils import (get_workspace, get_ml_client, is_local_rank_zero,  # noqa: E402
+from health_azure.utils import (ENV_GLOBAL_RANK, get_workspace, get_ml_client, is_local_rank_zero,  # noqa: E402
                                 is_running_in_azure_ml, set_environment_variables_for_multi_node,
                                 create_argparser, parse_arguments, ParserResult, apply_overrides,
                                 filter_v2_input_output_args, is_global_rank_zero)
@@ -38,7 +38,7 @@ from health_azure.utils import (get_workspace, get_ml_client, is_local_rank_zero
 from health_ml.experiment_config import DEBUG_DDP_ENV_VAR, ExperimentConfig  # noqa: E402
 from health_ml.lightning_container import LightningContainer  # noqa: E402
 from health_ml.run_ml import MLRunner  # noqa: E402
-from health_ml.utils import ENV_GLOBAL_RANK, fixed_paths  # noqa: E402
+from health_ml.utils import fixed_paths  # noqa: E402
 from health_ml.utils.common_utils import (check_conda_environment,  # noqa: E402
                                           choose_conda_env_file, is_linux)
 from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
