@@ -18,10 +18,10 @@ from torchvision.datasets.utils import download_url
 
 from .encoder import get_encoder_from_type, get_encoder_output_dim, MultiImageEncoder
 from .modules import MLP, MultiTaskModel
-from .types import ImageModelOutput
+from .types import ImageEncoderType, ImageModelOutput
 
 
-MODEL_TYPE = "resnet50"
+MODEL_TYPE = ImageEncoderType.RESNET50
 JOINT_FEATURE_SIZE = 128
 
 BIOMED_VLP_CXR_BERT_SPECIALIZED = "microsoft/BiomedVLP-CXR-BERT-specialized"
@@ -53,7 +53,7 @@ def get_biovil_resnet(pretrained: bool = True) -> ImageModel:
     resnet_checkpoint_path = _download_biovil_image_model_weights() if pretrained else None
 
     image_model = ImageModel(
-        img_model_type=MODEL_TYPE,
+        img_encoder_type=MODEL_TYPE,
         joint_feature_size=JOINT_FEATURE_SIZE,
         pretrained_model_path=resnet_checkpoint_path,
     )
@@ -75,7 +75,7 @@ class ImageModel(BaseImageModel):
     """Image encoder module"""
 
     def __init__(self,
-                 img_model_type: str,
+                 img_encoder_type: str,
                  joint_feature_size: int,
                  freeze_encoder: bool = False,
                  pretrained_model_path: Optional[Union[str, Path]] = None,
@@ -83,7 +83,7 @@ class ImageModel(BaseImageModel):
         super().__init__()
 
         # Initiate encoder, projector, and classifier
-        self.encoder = get_encoder_from_type(img_model_type)
+        self.encoder = get_encoder_from_type(img_encoder_type)
         self.feature_size = get_encoder_output_dim(self.encoder, device=get_module_device(self.encoder))
         self.projector = MLP(input_dim=self.feature_size, output_dim=joint_feature_size,
                              hidden_dim=joint_feature_size, use_1x1_convs=True)

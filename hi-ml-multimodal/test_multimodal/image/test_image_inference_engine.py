@@ -24,7 +24,7 @@ def test_image_inference_engine(height: int) -> None:
 
     width = 600
     image_inference = ImageInferenceEngine(
-        image_model=ImageModel(img_model_type=ImageEncoderType.RESNET50.value, joint_feature_size=joint_feature_size),
+        image_model=ImageModel(img_encoder_type=ImageEncoderType.RESNET50.value, joint_feature_size=joint_feature_size),
         transform=create_chest_xray_transform_for_inference(resize=resize, center_crop_size=center_crop_size))
 
     with tempfile.NamedTemporaryFile(suffix='.jpg') as f:

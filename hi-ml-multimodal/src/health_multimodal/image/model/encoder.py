@@ -23,7 +23,7 @@ ImageEncoderOutputType = Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
 class ImageEncoder(nn.Module):
     """Image encoder trunk module for the ``ImageModel`` class.
 
-    :param img_encoder_type : Type of image model to use, either ``"resnet18_multi_image"`` or
+    :param img_encoder_type : Type of image encoder model to use, either ``"resnet18_multi_image"`` or
                               ``"resnet50_multi_image"``.
     """
 
@@ -39,7 +39,7 @@ class ImageEncoder(nn.Module):
             encoder_class = resnet50
         else:
             supported = ImageEncoderType.get_members(multi_image_encoders_only=False)
-            raise NotImplementedError(f"Image model type \"{self.img_model_type}\" must be in {supported}")
+            raise NotImplementedError(f"Image encoder type \"{self.img_encoder_type}\" must be in {supported}")
 
         encoder = encoder_class(pretrained=True, **kwargs)
 
@@ -86,11 +86,11 @@ class MultiImageEncoder(ImageEncoder):
     """Multi-image encoder trunk module for the ``ImageModel`` class.
     It can be used to encode multiple images into combined latent representation.
 
-    :param img_model_type: Type of image model to use: either ``"resnet18"`` or ``"resnet50"``.
+    :param img_encoder_type: Type of image encoder model to use: either ``"resnet18"`` or ``"resnet50"``.
     """
 
-    def __init__(self, img_model_type: str):
-        super().__init__(img_model_type)
+    def __init__(self, img_encoder_type: str):
+        super().__init__(img_encoder_type)
 
         output_dim = 256  # The aggregate feature dim of the encoder is `2 * output_dim` i.e. [f_static, f_diff]
         grid_shape = (14, 14)  # Spatial dimensions of patch grid.
@@ -167,12 +167,12 @@ def restore_training_mode(module: nn.Module) -> Generator[None, None, None]:
     module.train(mode=training_mode)
 
 
-def get_encoder_from_type(img_model_type: str) -> ImageEncoder:
+def get_encoder_from_type(img_encoder_type: str) -> ImageEncoder:
     """Returns the encoder class for the given encoder type.
 
-    :param img_model_type: Encoder type. {RESNET18, RESNET50, RESNET18_MULTI_IMAGE, RESNET50_MULTI_IMAGE}
+    :param img_encoder_type: Encoder type. {RESNET18, RESNET50, RESNET18_MULTI_IMAGE, RESNET50_MULTI_IMAGE}
     """
     if img_encoder_type in ImageEncoderType.get_members(multi_image_encoders_only=True):
-        return MultiImageEncoder(img_model_type=img_model_type)
+        return MultiImageEncoder(img_encoder_type=img_encoder_type)
     else:
-        return ImageEncoder(img_model_type=img_model_type)
+        return ImageEncoder(img_encoder_type=img_encoder_type)

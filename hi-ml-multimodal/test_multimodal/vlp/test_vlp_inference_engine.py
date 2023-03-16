@@ -24,7 +24,7 @@ CENTER_CROP_SIZE = 480
 def _get_vlp_inference_engine() -> ImageTextInferenceEngine:
 
     image_inference = ImageInferenceEngine(
-        image_model=ImageModel(img_model_type=ImageEncoderType.RESNET50.value, joint_feature_size=JOINT_FEATURE_SIZE),
+        image_model=ImageModel(img_encoder_type=ImageEncoderType.RESNET50.value, joint_feature_size=JOINT_FEATURE_SIZE),
         transform=create_chest_xray_transform_for_inference(resize=512, center_crop_size=CENTER_CROP_SIZE))
     img_txt_inference = ImageTextInferenceEngine(
         image_inference_engine=image_inference,
