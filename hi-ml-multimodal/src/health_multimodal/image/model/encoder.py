@@ -23,18 +23,19 @@ ImageEncoderOutputType = Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
 class ImageEncoder(nn.Module):
     """Image encoder trunk module for the ``ImageModel`` class.
 
-    :param img_model_type: Type of image model to use: either ``"resnet18_multi_image"`` or ``"resnet50_multi_image"``.
+    :param img_encoder_type : Type of image model to use, either ``"resnet18_multi_image"`` or
+                              ``"resnet50_multi_image"``.
     """
 
-    def __init__(self, img_model_type: str):
+    def __init__(self, img_encoder_type : str):
         super().__init__()
-        self.img_model_type = img_model_type
+        self.img_encoder_type = img_encoder_type
         self.encoder = self._create_encoder()
 
     def _create_encoder(self, **kwargs: Any) -> nn.Module:
-        if self.img_model_type in [ImageEncoderType.RESNET18, ImageEncoderType.RESNET18_MULTI_IMAGE]:
+        if self.img_encoder_type in [ImageEncoderType.RESNET18, ImageEncoderType.RESNET18_MULTI_IMAGE]:
             encoder_class = resnet18
-        elif self.img_model_type in [ImageEncoderType.RESNET50, ImageEncoderType.RESNET50_MULTI_IMAGE]:
+        elif self.img_encoder_type in [ImageEncoderType.RESNET50, ImageEncoderType.RESNET50_MULTI_IMAGE]:
             encoder_class = resnet50
         else:
             supported = ImageEncoderType.get_members(multi_image_encoders_only=False)
@@ -62,7 +63,7 @@ class ImageEncoder(nn.Module):
         :param replace_stride_with_dilation: Replace the 2x2 standard convolution stride with a dilated convolution
                                              in each layer in the last three blocks of ResNet architecture.
         """
-        if self.img_model_type == ImageEncoderType.RESNET18:
+        if self.img_encoder_type == ImageEncoderType.RESNET18:
             # resnet18 uses BasicBlock implementation, which does not support dilated convolutions.
             raise NotImplementedError("resnet18 does not support dilated convolutions")
 
@@ -171,7 +172,7 @@ def get_encoder_from_type(img_model_type: str) -> ImageEncoder:
 
     :param img_model_type: Encoder type. {RESNET18, RESNET50, RESNET18_MULTI_IMAGE, RESNET50_MULTI_IMAGE}
     """
-    if img_model_type in ImageEncoderType.get_members(multi_image_encoders_only=True):
+    if img_encoder_type in ImageEncoderType.get_members(multi_image_encoders_only=True):
         return MultiImageEncoder(img_model_type=img_model_type)
     else:
         return ImageEncoder(img_model_type=img_model_type)
