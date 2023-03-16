@@ -100,11 +100,6 @@ class ImageModel(BaseImageModel):
             state_dict = torch.load(pretrained_model_path, map_location="cpu")
             self.load_state_dict(state_dict)
 
-        self.post_init_checks()
-
-    def post_init_checks(self) -> None:
-        pass
-
     def train(self, mode: bool = True) -> Any:
         """Switch the model between training and evaluation modes."""
         super().train(mode=mode)
@@ -153,8 +148,8 @@ class ImageModel(BaseImageModel):
 
 
 class MultiImageModel(ImageModel):
-    def post_init_checks(self) -> None:
-        super().post_init_checks()
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
         assert isinstance(self.encoder, MultiImageEncoder), "MultiImageModel only supports MultiImageEncoder"
 
     def forward(self,  # type: ignore[override]
