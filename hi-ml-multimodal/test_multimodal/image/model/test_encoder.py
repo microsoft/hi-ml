@@ -9,6 +9,7 @@ import torch
 
 from health_multimodal.image.model.encoder import ImageEncoder, MultiImageEncoder, restore_training_mode
 from health_multimodal.image.model.resnet import resnet50
+from health_multimodal.image.model.types import ImageEncoderType
 
 
 def test_reload_resnet_with_dilation() -> None:
@@ -19,13 +20,13 @@ def test_reload_resnet_with_dilation() -> None:
     replace_stride_with_dilation = [False, False, True]
 
     # resnet18 does not support dilation
-    model_with_dilation = ImageEncoder(img_model_type="resnet18")
+    model_with_dilation = ImageEncoder(img_model_type=ImageEncoderType.RESNET18)
     with pytest.raises(NotImplementedError):
         model_with_dilation.reload_encoder_with_dilation(replace_stride_with_dilation)
 
     # resnet50
-    original_model = ImageEncoder(img_model_type="resnet50").eval()
-    model_with_dilation = ImageEncoder(img_model_type="resnet50").eval()
+    original_model = ImageEncoder(img_model_type=ImageEncoderType.RESNET50).eval()
+    model_with_dilation = ImageEncoder(img_model_type=ImageEncoderType.RESNET50).eval()
     model_with_dilation.reload_encoder_with_dilation(replace_stride_with_dilation)
     assert not model_with_dilation.training
 
@@ -66,7 +67,7 @@ def test_restore_training_mode() -> None:
 
 
 def test_multi_image_encoder_forward_pass() -> None:
-    encoder = MultiImageEncoder(img_model_type="resnet18_multi_image")
+    encoder = MultiImageEncoder(img_model_type=ImageEncoderType.RESNET18_MULTI_IMAGE)
     assert encoder.training
 
     # Multi-image run

@@ -62,7 +62,7 @@ class ImageEncoder(nn.Module):
         :param replace_stride_with_dilation: Replace the 2x2 standard convolution stride with a dilated convolution
                                              in each layer in the last three blocks of ResNet architecture.
         """
-        if self.img_model_type == "resnet18":
+        if self.img_model_type == ImageEncoderType.RESNET18:
             # resnet18 uses BasicBlock implementation, which does not support dilated convolutions.
             raise NotImplementedError("resnet18 does not support dilated convolutions")
 

@@ -9,7 +9,7 @@ import pytest
 import torch
 from health_multimodal.image.model.model import ImageModel, get_biovil_resnet, MultiImageModel
 from health_multimodal.image.model.modules import MultiTaskModel
-from health_multimodal.image.model.types import ImageModelOutput
+from health_multimodal.image.model.types import ImageEncoderType, ImageModelOutput
 
 
 def test_frozen_cnn_model() -> None:
@@ -17,7 +17,7 @@ def test_frozen_cnn_model() -> None:
     Checks if the mode of module parameters is set correctly.
     """
 
-    model = ImageModel(img_model_type='resnet18',
+    model = ImageModel(img_model_type=ImageEncoderType.RESNET18,
                        joint_feature_size=4,
                        num_classes=2,
                        freeze_encoder=True,
@@ -52,7 +52,7 @@ def test_frozen_cnn_model() -> None:
     assert model.classifier.training  # type: ignore
 
 
-@pytest.mark.parametrize("img_model_type", ["resnet18", "resnet18_multi_image"])
+@pytest.mark.parametrize("img_model_type", [ImageEncoderType.RESNET18, ImageEncoderType.RESNET18_MULTI_IMAGE])
 def test_image_get_patchwise_projected_embeddings(img_model_type: str) -> None:
     """
     Checks if the image patch embeddings are correctly computed and projected to the latent space.
@@ -124,10 +124,11 @@ def test_hubconf() -> None:
 def test_multi_image_model() -> None:
     joint_feature_size = 4
     with pytest.raises(AssertionError) as ex:
-        MultiImageModel(img_model_type="resnet18", joint_feature_size=joint_feature_size)
+        MultiImageModel(img_model_type=ImageEncoderType.RESNET18, joint_feature_size=joint_feature_size)
     assert "MultiImageModel only supports MultiImageEncoder" in str(ex)
 
-    model = MultiImageModel(img_model_type="resnet18_multi_image", joint_feature_size=joint_feature_size)
+    model = MultiImageModel(img_model_type=ImageEncoderType.RESNET18_MULTI_IMAGE,
+                            joint_feature_size=joint_feature_size)
     assert model.encoder.training
     assert model.projector.training
 
