@@ -47,7 +47,7 @@ class ImageEncoder(nn.Module):
     def forward(self,
                 current_image: torch.Tensor,
                 return_patch_embeddings: bool = False) -> TypeImageEncoder:
-        """Image encoder forward pass."""
+        """Get image global and patch embeddings"""
 
         patch_emb = self.encoder(current_image)
         avg_pooled_emb = torch.flatten(torch.nn.functional.adaptive_avg_pool2d(patch_emb, (1, 1)), 1)
@@ -59,7 +59,8 @@ class ImageEncoder(nn.Module):
     def reload_encoder_with_dilation(self, replace_stride_with_dilation: Optional[Sequence[bool]] = None) -> None:
         """Workaround for enabling dilated convolutions after model initialization.
 
-        :param replace_stride_with_dilation: for each layer to replace the 2x2 stride with a dilated convolution
+        :param replace_stride_with_dilation: Replace the 2x2 standard convolution stride with a dilated convolution
+                                             in each layer in the last three blocks of ResNet architecture.
         """
         if self.img_model_type == "resnet18":
             # resnet18 uses BasicBlock implementation, which does not support dilated convolutions.
