@@ -49,8 +49,7 @@ def logging_to_stdout(log_level: Union[int, str] = logging.INFO) -> None:
 def logging_to_file(file_path: Path, log_level: Union[int, str] = logging.INFO) -> None:
     """
     Instructs the Python logging libraries to start writing logs to the given file.
-    Logging will use a timestamp as the prefix, using UTC. The logging level will be the same as defined for
-    logging to stdout.
+    If logging to a file has been set up previously, no new logging handler will be added.
 
     :param file_path: The path and name of the file to write to.
     :param log_level: The logging level. All logging message with a level at or above this level will be written to

@@ -28,7 +28,7 @@ from health_azure import AzureRunInfo, submit_to_azure_if_needed  # noqa: E402
 from health_azure.amulet import prepare_amulet_job, is_amulet_job  # noqa: E402
 from health_azure.datasets import create_dataset_configs  # noqa: E402
 from health_azure.himl import DEFAULT_DOCKER_BASE_IMAGE, OUTPUT_FOLDER  # noqa: E402
-from health_azure.logging import logging_to_stdout, logging_to_file   # noqa: E402
+from health_azure.logging import disable_logging_to_file, logging_to_stdout, logging_to_file   # noqa: E402
 from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
 from health_azure.utils import (ENV_GLOBAL_RANK, get_workspace, get_ml_client, is_local_rank_zero,  # noqa: E402
                                 is_running_in_azure_ml, set_environment_variables_for_multi_node,
@@ -173,16 +173,19 @@ class Runner:
         logging_to_stdout(log_level)
         # When running in Azure, also output logging to a file. This can help in particular when jobs
         # get preempted, but we don't get access to the logs from the previous incarnation of the job
-        if is_running_in_azure_ml():
-            rank = os.getenv(ENV_GLOBAL_RANK, "0")
-            timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H%M%S")
-            filename = Path(OUTPUT_FOLDER) / f"logging_{timestamp}_rank{rank}.txt"
-            logging_to_file(filename, log_level)
-        initialize_rpdb()
-        self.parse_and_load_model()
-        self.validate()
-        azure_run_info = self.submit_to_azureml_if_needed()
-        self.run_in_situ(azure_run_info)
+        try:
+            if is_running_in_azure_ml():
+                rank = os.getenv(ENV_GLOBAL_RANK, "0")
+                timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H%M%S")
+                filename = Path(OUTPUT_FOLDER) / f"logging_{timestamp}_rank{rank}.txt"
+                logging_to_file(filename, log_level)
+            initialize_rpdb()
+            self.parse_and_load_model()
+            self.validate()
+            azure_run_info = self.submit_to_azureml_if_needed()
+            self.run_in_situ(azure_run_info)
+        finally:
+            disable_logging_to_file()
         return self.lightning_container, azure_run_info
 
     def submit_to_azureml_if_needed(self) -> AzureRunInfo:
