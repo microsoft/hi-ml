@@ -27,7 +27,7 @@ class ImageEncoder(nn.Module):
                               ``"resnet50_multi_image"``.
     """
 
-    def __init__(self, img_encoder_type : str):
+    def __init__(self, img_encoder_type: str):
         super().__init__()
         self.img_encoder_type = img_encoder_type
         self.encoder = self._create_encoder()
