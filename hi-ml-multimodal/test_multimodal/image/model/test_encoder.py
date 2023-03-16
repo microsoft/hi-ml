@@ -83,7 +83,7 @@ def test_multi_image_encoder_forward_pass() -> None:
     # Single-image run
     with torch.no_grad():
         patch_emb, global_emb = encoder(current_image=current_image,
-                                        previous_image=previous_image,
+                                        previous_image=None,
                                         return_patch_embeddings=True)
         assert global_emb.shape == (batch_size, 512)
         assert patch_emb.shape == (batch_size, 512, 14, 14)
