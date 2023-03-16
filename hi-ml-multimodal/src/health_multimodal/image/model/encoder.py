@@ -23,7 +23,7 @@ TypeImageEncoder = Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
 class ImageEncoder(nn.Module):
     """Image encoder trunk module for the ``ImageModel`` class.
 
-    :param img_model_type: Type of image model to use: either ``"resnet18"`` or ``"resnet50"``.
+    :param img_model_type: Type of image model to use: either ``"resnet18_multi_image"`` or ``"resnet50_multi_image"``.
     """
 
     def __init__(self, img_model_type: str):
@@ -84,6 +84,8 @@ class ImageEncoder(nn.Module):
 class MultiImageEncoder(ImageEncoder):
     """Multi-image encoder trunk module for the ``ImageModel`` class.
     It can be used to encode multiple images into combined latent representation.
+
+    :param img_model_type: Type of image model to use: either ``"resnet18"`` or ``"resnet50"``.
     """
 
     def __init__(self, img_model_type: str):
@@ -135,7 +137,7 @@ class MultiImageEncoder(ImageEncoder):
 
 @torch.no_grad()
 def get_encoder_output_dim(module: torch.nn.Module, device: torch.device) -> int:
-    """Calculate the output dimension of ssl encoder by making a single forward pass.
+    """Calculate the output dimension of an encoder by making a single forward pass.
 
     :param module: Encoder module.
     :param device: Compute device to use.
