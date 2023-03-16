@@ -5,6 +5,7 @@
 import datetime
 import logging
 import os
+from pathlib import Path
 import sys
 import time
 from contextlib import contextmanager
@@ -43,6 +44,39 @@ def logging_to_stdout(log_level: Union[int, str] = logging.INFO) -> None:
         print(f"Setting logging level to {log_level}")
     logging_stdout_handler.setLevel(log_level)
     logger.setLevel(log_level)
+
+
+def logging_to_file(file_path: Path, log_level: Union[int, str] = logging.INFO) -> None:
+    """
+    Instructs the Python logging libraries to start writing logs to the given file.
+    Logging will use a timestamp as the prefix, using UTC. The logging level will be the same as defined for
+    logging to stdout.
+
+    :param file_path: The path and name of the file to write to.
+    :param log_level: The logging level. All logging message with a level at or above this level will be written to
+    """
+    # This function can be called multiple times, and should only add a handler during the first call.
+    global logging_to_file_handler
+    if not logging_to_file_handler:
+        global logging_stdout_handler
+        print(f"Setting up logging with level {log_level} to file {file_path}")
+        file_path.parent.mkdir(exist_ok=True, parents=True)
+        handler = logging.FileHandler(filename=str(file_path))
+        _add_formatter(handler)
+        handler.setLevel(log_level)
+        logging.getLogger().addHandler(handler)
+        logging_to_file_handler = handler
+
+
+def disable_logging_to_file() -> None:
+    """
+    If logging to a file has been enabled previously via logging_to_file, this call will remove that logging handler.
+    """
+    global logging_to_file_handler
+    if logging_to_file_handler:
+        logging_to_file_handler.close()
+        logging.getLogger().removeHandler(logging_to_file_handler)
+        logging_to_file_handler = None
 
 
 def standardize_log_level(log_level: Union[int, str]) -> int:

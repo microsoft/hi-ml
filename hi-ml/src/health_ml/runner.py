@@ -5,7 +5,9 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import argparse
+from datetime import datetime
 import logging
+import os
 import param
 import sys
 from pathlib import Path
@@ -25,8 +27,8 @@ for folder in folders_to_add:
 from health_azure import AzureRunInfo, submit_to_azure_if_needed  # noqa: E402
 from health_azure.amulet import prepare_amulet_job, is_amulet_job  # noqa: E402
 from health_azure.datasets import create_dataset_configs  # noqa: E402
-from health_azure.himl import DEFAULT_DOCKER_BASE_IMAGE  # noqa: E402
-from health_azure.logging import logging_to_stdout   # noqa: E402
+from health_azure.himl import DEFAULT_DOCKER_BASE_IMAGE, OUTPUT_FOLDER  # noqa: E402
+from health_azure.logging import logging_to_stdout, logging_to_file   # noqa: E402
 from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
 from health_azure.utils import (get_workspace, get_ml_client, is_local_rank_zero,  # noqa: E402
                                 is_running_in_azure_ml, set_environment_variables_for_multi_node,
@@ -36,7 +38,7 @@ from health_azure.utils import (get_workspace, get_ml_client, is_local_rank_zero
 from health_ml.experiment_config import DEBUG_DDP_ENV_VAR, ExperimentConfig  # noqa: E402
 from health_ml.lightning_container import LightningContainer  # noqa: E402
 from health_ml.run_ml import MLRunner  # noqa: E402
-from health_ml.utils import fixed_paths  # noqa: E402
+from health_ml.utils import ENV_GLOBAL_RANK, fixed_paths  # noqa: E402
 from health_ml.utils.common_utils import (check_conda_environment,  # noqa: E402
                                           choose_conda_env_file, is_linux)
 from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
@@ -166,9 +168,16 @@ class Runner:
         :return: a tuple of the LightningContainer object and an AzureRunInfo containing all information about
             the present run (whether running in AzureML or not)
         """
-        # Usually, when we set logging to DEBUG, we want diagnostics about the model
-        # build itself, but not the tons of debug information that AzureML submissions create.
-        logging_to_stdout(logging.INFO if is_local_rank_zero() else "ERROR")
+        # Suppress the logging from all processes but the one for GPU 0 on each node, to make log files more readable
+        log_level = logging.INFO if is_local_rank_zero() else logging.ERROR
+        logging_to_stdout(log_level)
+        # When running in Azure, also output logging to a file. This can help in particular when jobs
+        # get preempted, but we don't get access to the logs from the previous incarnation of the job
+        if is_running_in_azure_ml():
+            rank = os.getenv(ENV_GLOBAL_RANK, "0")
+            timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H%M%S")
+            filename = Path(OUTPUT_FOLDER) / f"logging_{timestamp}_rank{rank}.txt"
+            logging_to_file(filename, log_level)
         initialize_rpdb()
         self.parse_and_load_model()
         self.validate()
@@ -289,10 +298,6 @@ class Runner:
         :param azure_run_info: Contains all information about the present run in AzureML, in particular where the
         datasets are mounted.
         """
-        # Only set the logging level now. Usually, when we set logging to DEBUG, we want diagnostics about the model
-        # build itself, but not the tons of debug information that AzureML submissions create.
-        # Suppress the logging from all processes but the one for GPU 0 on each node, to make log files more readable
-        logging_to_stdout("INFO" if is_local_rank_zero() else "ERROR")
         health_ml_package_setup()
         prepare_amulet_job()
 
