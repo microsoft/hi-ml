@@ -113,7 +113,8 @@ class MultiImageEncoder(ImageEncoder):
 
         if previous_image is not None:
             assert current_image.shape == previous_image.shape
-            x = super().forward(torch.cat([current_image, previous_image], dim=0), return_patch_embeddings=True)[0]
+            x = torch.cat([current_image, previous_image], dim=0)
+            x = super().forward(x, return_patch_embeddings=True)[0]
             x = self.backbone_to_vit(x)
             patch_x, patch_x_previous = x[:batch_size], x[batch_size:]
             diff_x = self.vit_pooler(current_image=patch_x, previous_image=patch_x_previous)
