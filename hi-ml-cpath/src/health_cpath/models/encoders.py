@@ -192,6 +192,7 @@ class ResNetCheckpointingMixin:
 
 class Resnet18(ResNetCheckpointingMixin, ImageNetEncoder):
     """ResNet18 encoder with imagenet preprocessing."""
+
     def __init__(
         self,
         tile_size: int = 224,
@@ -225,6 +226,7 @@ class Resnet18(ResNetCheckpointingMixin, ImageNetEncoder):
 
 class Resnet18_NoPreproc(ResNetCheckpointingMixin, ImageNetEncoder):
     """ResNet18 encoder without imagenet preprocessing."""
+
     def __init__(
         self,
         tile_size: int = 224,

@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 from copy import deepcopy
 import os
-from pytorch_lightning import LightningDataModule, Trainer
+from pytorch_lightning import Trainer
 import torch
 import pytest
 from pathlib import Path
@@ -21,15 +21,25 @@ from health_cpath.configs.classification.BaseMIL import BaseMIL, BaseMILTiles
 
 from health_cpath.configs.classification.DeepSMILECrck import DeepSMILECrck, TcgaCrckSSLMIL
 from health_cpath.configs.classification.DeepSMILEPanda import (
-    BaseDeepSMILEPanda, DeepSMILETilesPanda, SlidesPandaSSLMIL, TilesPandaSSLMIL
+    BaseDeepSMILEPanda,
+    DeepSMILETilesPanda,
+    SlidesPandaSSLMIL,
+    TilesPandaSSLMIL,
 )
 from health_cpath.datamodules.base_module import HistoDataModule, TilesDataModule
 from health_cpath.datasets.base_dataset import DEFAULT_LABEL_COLUMN, TilesDataset
 from health_cpath.datasets.default_paths import PANDA_5X_TILES_DATASET_ID, TCGA_CRCK_DATASET_DIR
 from health_cpath.models.deepmil import DeepMILModule
-from health_cpath.models.encoders import IdentityEncoder, ImageNetEncoder, Resnet18, TileEncoder
+from health_cpath.models.encoders import (
+    IdentityEncoder,
+    ImageNetEncoder,
+    Resnet18,
+    Resnet50,
+    SwinTransformer_NoPreproc,
+    TileEncoder,
+)
 from health_cpath.utils.deepmil_utils import ClassifierParams, EncoderParams, PoolingParams
-from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey
+from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey, SlideKey
 from testhisto.mocks.base_data_generator import MockHistoDataType
 from testhisto.mocks.tiles_generator import MockPandaTilesGenerator
 from testhisto.mocks.container import MockDeepSMILETilesPanda, MockDeepSMILESlidesPanda
@@ -37,6 +47,8 @@ from health_ml.utils.common_utils import is_gpu_available
 from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_cpath.configs.run_ids import innereye_ssl_checkpoint_crck_4ws, innereye_ssl_checkpoint_binary
 from testhisto.models.test_encoders import TEST_SSL_RUN_ID
+from torch.utils.data import DataLoader
+
 
 no_gpu = not is_gpu_available()
 
@@ -66,7 +78,6 @@ def _test_lightningmodule(
     pool_out_dim: int,
     dropout_rate: Optional[float],
 ) -> None:
-
     assert n_classes > 0
 
     module = DeepMILModule(
@@ -723,11 +734,10 @@ def test_reset_encoder_to_identity_encoder(is_caching: bool) -> None:
 
 
 def validate_loss_with_activations_checkpointing(
-    data_module: LightningDataModule, module_ckpt_enc: DeepMILModule, module_no_ckpt_enc: DeepMILModule
+    dataloader: DataLoader, model_ckpt_enc: DeepMILModule, model_no_ckpt_enc: DeepMILModule, encoder_type: str,
 ) -> None:
-    train_data_loader = data_module.train_dataloader()
 
-    def _get_loss(module: DeepMILModule) -> Tensor:
+    def _get_loss(module: DeepMILModule, batch: Dict, batch_idx: int) -> Tensor:
         loss = module.training_step(batch, batch_idx)[ResultsKey.LOSS]
         loss.retain_grad()
         loss.backward()
@@ -736,35 +746,66 @@ def validate_loss_with_activations_checkpointing(
         assert isinstance(loss, Tensor)
         return loss
 
-    for batch_idx, batch in enumerate(train_data_loader):
-        batch = move_batch_to_expected_device(batch, use_gpu=False)
-        loss_ckpt_enc = _get_loss(module_ckpt_enc)
-        loss_no_ckpt_enc = _get_loss(module_no_ckpt_enc)
-        assert loss_ckpt_enc != loss_no_ckpt_enc
+    limit = 2
+
+    for batch_idx, batch in enumerate(dataloader):
+        if encoder_type == SwinTransformer_NoPreproc.__name__:
+            batch[SlideKey.IMAGE] = [torch.randint(0, 255, (4, 3, 224, 224), dtype=torch.uint8) / 255.] * 2
+        loss_ckpt_enc = _get_loss(model_ckpt_enc, batch, batch_idx)
+        loss_no_ckpt_enc = _get_loss(model_no_ckpt_enc, batch, batch_idx)
         assert torch.allclose(loss_ckpt_enc, loss_no_ckpt_enc, atol=1e-4)
+        assert torch.allclose(loss_ckpt_enc.grad, loss_no_ckpt_enc.grad, atol=1e-4)
+        if batch_idx == limit:
+            break
 
 
-def test_encoder_checkpoitning(mock_panda_tiles_root_dir: Path) -> None:
+@pytest.mark.parametrize(
+    "encoder_type, feature_dim",
+    [(Resnet18.__name__, 512), (Resnet50.__name__, 2048), (SwinTransformer_NoPreproc.__name__, 768)],
+)
+def test_encoder_checkpointning(encoder_type: str, feature_dim: int, mock_panda_tiles_root_dir: Path) -> None:
     container = MockDeepSMILETilesPanda(tmp_path=mock_panda_tiles_root_dir)
     container.setup()
+
     data_module = container.get_data_module()
+    train_dataloader = data_module.train_dataloader()
+    val_dataloader = data_module.val_dataloader()
 
-    def _get_module(checkpoint_encoder: bool) -> DeepMILModule:
-        container.use_encoder_checkpointing = checkpoint_encoder
-        model = container.create_model()
-        model.trainer = MagicMock(world_size=1)  # type: ignore
-        model.outputs_handler = MagicMock()
-        model.log = MagicMock()  # type: ignore
-        assert model.encoder_params.use_encoder_checkpointing == checkpoint_encoder
-        return model
+    container.encoder_type = encoder_type
 
-    module_ckpt_enc = _get_module(checkpoint_encoder=True)
-    module_no_ckpt_enc = _get_module(checkpoint_encoder=False)
+    model = container.create_model()
+    model.trainer = MagicMock(world_size=1)  # type: ignore
+    model.outputs_handler = MagicMock()
+    model.log = MagicMock()  # type: ignore
 
-    validate_loss_with_activations_checkpointing(data_module, module_ckpt_enc, module_no_ckpt_enc)
+    model_no_ckpt_enc = model
+    model_ckpt_enc = deepcopy(model)
+    model_ckpt_enc.encoder_params.checkpoint_encoder = True
+    model_ckpt_enc.encoder.checkpoint_activations = True
 
-    for param in module_ckpt_enc.encoder.parameters():
-        assert param.grad is None
+    # 1. Compare the loss and gradients of the encoder with and without checkpointing
+    validate_loss_with_activations_checkpointing(train_dataloader, model_ckpt_enc, model_no_ckpt_enc, encoder_type)
 
-    for param in module_no_ckpt_enc.encoder.parameters():
-        assert param.grad is not None
+    if encoder_type != SwinTransformer_NoPreproc.__name__:  # SwinT requires images of 224 input size, mock tiles are 28
+        # 2. Train the model with and without checkpointing and compare the encoder parameters
+        trainer_no_ckpt = Trainer(max_epochs=1, limit_train_batches=2, limit_val_batches=2, limit_test_batches=2)
+        trainer_no_ckpt.fit(model_no_ckpt_enc, train_dataloader, val_dataloader)
+
+        trainer_ckpt = Trainer(max_epochs=1, limit_train_batches=2, limit_val_batches=2, limit_test_batches=2)
+        trainer_ckpt.fit(model_ckpt_enc, train_dataloader, val_dataloader)
+
+        for param_no_ckpt, param in zip(model_no_ckpt_enc.encoder.parameters(), model_ckpt_enc.encoder.parameters()):
+            assert torch.allclose(param_no_ckpt, param, atol=1e-4)
+
+    # 3. Check that the custom forward is called only when checkpointing is enabled
+    sample = next(iter(train_dataloader))
+    if encoder_type == SwinTransformer_NoPreproc.__name__:
+        sample[SlideKey.IMAGE][0] = torch.randint(0, 255, (4, 3, 224, 224), dtype=torch.uint8) / 255.
+    with patch.object(model_no_ckpt_enc.encoder, "_custom_forward") as custom_forward:
+        _, _ = model_no_ckpt_enc(sample[SlideKey.IMAGE][0])
+        custom_forward.assert_not_called()
+
+    with patch.object(model_ckpt_enc.encoder, "_custom_forward") as custom_forward:
+        custom_forward.return_value = torch.zeros(container.max_bag_size, feature_dim)
+        _, _ = model_ckpt_enc(sample[SlideKey.IMAGE][0])
+        custom_forward.assert_called_once()
