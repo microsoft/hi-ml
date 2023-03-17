@@ -328,13 +328,14 @@ def run(project_root: Path) -> Tuple[LightningContainer, AzureRunInfo]:
     """
     if is_global_rank_zero():
         print(f"Project root: {project_root}")
-    if not is_running_in_azure_ml():
+    if is_running_in_azure_ml():
         # Create a timestamped filename. This will also ensure that all restarts after low-priority preemption create
         # a new log file, and we can fully trace back what happened in each rank in each restart.
         rank = os.getenv(ENV_GLOBAL_RANK, "0")
         timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H%M%S")
-        logging_filename = Path(OUTPUT_FOLDER) / f"logging_{timestamp}_rank{rank}.txt"
+        logging_filename = Path(OUTPUT_FOLDER) / "console_logs  " / f"logging_{timestamp}_rank{rank}.txt"
         logging_filename.parent.mkdir(parents=True, exist_ok=True)
+        print(f"Redirecting all console logs to {logging_filename}")
         with logging_filename.open("w") as logging_file:
             console_and_file = ConsoleAndFileOutput(logging_file)
             with contextlib.redirect_stdout(console_and_file):

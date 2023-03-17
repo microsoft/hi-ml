@@ -12,7 +12,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, Mapping, Optional, Union
+from typing import Any, Callable, Dict, Mapping, Optional, Union
 
 import torch
 from azureml.core import Run, Workspace
@@ -426,8 +426,8 @@ class ConsoleAndFileOutput(TextIOWrapper):
     def isatty(self) -> bool:
         return False
 
-    def read(self, size=-1):
+    def read(self, size=-1) -> None:
         raise NotImplementedError("Read is not supported")
 
-    def readline(self, size=-1):
+    def readline(self, size=-1) -> None:
         raise NotImplementedError("Readline is not supported")
