@@ -340,6 +340,10 @@ class SwinTransformerCheckpointingMixin:
 
     def custom_patch_embedding_forward(self, images: torch.Tensor) -> torch.Tensor:
         """Custom patch partchioning checkpoining"""
+        _, _, H, W = images.shape
+        img_size = self.feature_extractor_fn.patch_embed.img_size
+        assert H == img_size[0] and W == img_size[1], \
+            f"Input image size ({H}*{W}) doesn't match model ({img_size[0]}*{img_size[1]})."
         images = checkpoint(self.feature_extractor_fn.patch_embed.proj, images)
         images = images.flatten(2).transpose(1, 2)  # BCHW -> BNC
         images = checkpoint(self.feature_extractor_fn.patch_embed.norm, images)
