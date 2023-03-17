@@ -760,10 +760,17 @@ def validate_loss_with_activations_checkpointing(
 
 
 @pytest.mark.parametrize(
-    "encoder_type, feature_dim",
-    [(Resnet18.__name__, 512), (Resnet50.__name__, 2048), (SwinTransformer_NoPreproc.__name__, 768)],
+    "encoder_type, feature_dim, bn_momentum",
+    [
+        (Resnet18.__name__, 512, 0.1),
+        (Resnet18.__name__, 512, None),
+        (Resnet50.__name__, 2048, 0.1),
+        (SwinTransformer_NoPreproc.__name__, 768, 0.1),
+    ],
 )
-def test_encoder_checkpointning(encoder_type: str, feature_dim: int, mock_panda_tiles_root_dir: Path) -> None:
+def test_encoder_checkpointning(
+    encoder_type: str, feature_dim: int, bn_momentum: Optional[None], mock_panda_tiles_root_dir: Path
+) -> None:
     container = MockDeepSMILETilesPanda(tmp_path=mock_panda_tiles_root_dir)
     container.setup()
 
@@ -772,6 +779,7 @@ def test_encoder_checkpointning(encoder_type: str, feature_dim: int, mock_panda_
     val_dataloader = data_module.val_dataloader()
 
     container.encoder_type = encoder_type
+    container.batchnorm_momentum = bn_momentum
 
     model = container.create_model()
     model.trainer = MagicMock(world_size=1)  # type: ignore
@@ -800,12 +808,12 @@ def test_encoder_checkpointning(encoder_type: str, feature_dim: int, mock_panda_
     # 3. Check that the custom forward is called only when checkpointing is enabled
     sample = next(iter(train_dataloader))
     if encoder_type == SwinTransformer_NoPreproc.__name__:
-        sample[SlideKey.IMAGE][0] = torch.randint(0, 255, (4, 3, 224, 224), dtype=torch.uint8) / 255.
-    with patch.object(model_no_ckpt_enc.encoder, "_custom_forward") as custom_forward:
+        sample[SlideKey.IMAGE][0] = torch.randint(0, 255, (4, 3, 224, 224), dtype=torch.uint8) / 255.0
+    with patch.object(model_no_ckpt_enc.encoder, "custom_forward") as custom_forward:
         _, _ = model_no_ckpt_enc(sample[SlideKey.IMAGE][0])
         custom_forward.assert_not_called()
 
-    with patch.object(model_ckpt_enc.encoder, "_custom_forward") as custom_forward:
+    with patch.object(model_ckpt_enc.encoder, "custom_forward") as custom_forward:
         custom_forward.return_value = torch.zeros(container.max_bag_size, feature_dim)
         _, _ = model_ckpt_enc(sample[SlideKey.IMAGE][0])
         custom_forward.assert_called_once()

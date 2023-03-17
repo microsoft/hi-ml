@@ -106,7 +106,7 @@ def test_custom_forward_not_implemented() -> None:
         encoder = ImageNetEncoder(
             feature_extraction_model=MagicMock(),
             tile_size=TILE_SIZE,
-            checkpoint_activations=True,
+            use_activation_checkpointing=True,
         )
         encoder.forward(rand(1, *INPUT_DIMS, dtype=float32))
 
@@ -114,7 +114,7 @@ def test_custom_forward_not_implemented() -> None:
 @pytest.mark.parametrize("bn_momentum", [0.1, None])
 @pytest.mark.parametrize("encoder_class", [Resnet18, Resnet50])
 def test_resnet_checkpointing_bn_momentum(encoder_class: ImageNetEncoder, bn_momentum: Optional[float]) -> None:
-    encoder = encoder_class(tile_size=TILE_SIZE, checkpoint_activations=True, bn_momentum=bn_momentum)
+    encoder = encoder_class(tile_size=TILE_SIZE, use_activation_checkpointing=True, batchnorm_momentum=bn_momentum)
     bn_momentum = math.sqrt(0.1) if not bn_momentum else bn_momentum
 
     assert encoder.feature_extractor_fn.bn1.momentum == bn_momentum
@@ -130,12 +130,12 @@ def test_resnet_checkpointing_bn_momentum(encoder_class: ImageNetEncoder, bn_mom
     "encoder_class", [Resnet18, Resnet18_NoPreproc, Resnet50, Resnet50_NoPreproc, SwinTransformer_NoPreproc]
 )
 def test_custom_forward(encoder_class: ImageNetEncoder) -> None:
-    encoder = encoder_class(tile_size=TILE_SIZE, checkpoint_activations=True)
-    with patch.object(encoder, "_custom_forward") as custom_forward:
+    encoder = encoder_class(tile_size=TILE_SIZE, use_activation_checkpointing=True)
+    with patch.object(encoder, "custom_forward") as custom_forward:
         encoder(rand(1, *INPUT_DIMS, dtype=float32))
         custom_forward.assert_called_once()
 
     encoder.use_activation_checkpointing = False
-    with patch.object(encoder, "_custom_forward") as custom_forward:
+    with patch.object(encoder, "custom_forward") as custom_forward:
         encoder(rand(1, *INPUT_DIMS, dtype=float32))
         custom_forward.assert_not_called()
