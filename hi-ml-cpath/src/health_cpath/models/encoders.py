@@ -25,19 +25,21 @@ class TileEncoder(nn.Module):
 
     def __init__(
         self,
-        tile_size: int = 0,
+        tile_size: int = 224,
         n_channels: int = 3,
         input_dim: Optional[Sequence[int]] = None,
-        checkpoint_activations: bool = False,
+        use_activation_checkpointing: bool = False,
     ) -> None:
         """The `TileEncoder` constructor should be called after setting any attributes needed in
         `_get_preprocessing()` or `_get_encoder()`.
 
-        :param tile_size: Tile width/height, in pixels.
+        :param tile_size: Tile width/height, in pixels (default=224).
         :param n_channels: Number of channels in the tile (default=3).
         :param input_dim: Input shape, to override default of `(n_channels, tile_size, tile_size)`.
-        :param checkpoint_activations: Whether to checkpoint activations during forward pass. This can be used to trade
-            compute for memory. Note that this is only supported for some encoders.
+        :param use_activation_checkpointing: Whether to checkpoint activations during forward pass. This can be used
+            to reduce the memory required to store gradients by checkpointing the activations. Note that this is only
+            supported for Resnet and Swin Transformer encoders at the moment. The encoder class needs to override
+            `custom_forward()` to support checkpointing (default=False).
         """
         super().__init__()
         if input_dim is None:
@@ -48,7 +50,7 @@ class TileEncoder(nn.Module):
 
         self.preprocessing_fn = self._get_preprocessing()
         self.feature_extractor_fn, self.num_encoding = self._get_encoder()
-        self.checkpoint_activations = checkpoint_activations
+        self.use_activation_checkpointing = use_activation_checkpointing
 
     def _get_preprocessing(self) -> Callable:
         return Compose([])
@@ -56,14 +58,14 @@ class TileEncoder(nn.Module):
     def _get_encoder(self) -> Tuple[Callable, int]:
         raise NotImplementedError
 
-    def _custom_forward(self, images: torch.Tensor) -> torch.Tensor:
+    def custom_forward(self, images: torch.Tensor) -> torch.Tensor:
         """A custom forward pass that uses checkpointing to save memory."""
-        raise NotImplementedError("Checkpointing is not supported for this encoder")
+        raise NotImplementedError("Checkpointing is not supported for this encoder.")
 
     def forward(self, images: torch.Tensor) -> torch.Tensor:
         prep_images = self.preprocessing_fn(images)
-        if self.checkpoint_activations:
-            return self._custom_forward(prep_images)
+        if self.use_activation_checkpointing:
+            return self.custom_forward(prep_images)
         return self.feature_extractor_fn(prep_images)
 
 
@@ -80,23 +82,27 @@ class ImageNetEncoder(TileEncoder):
     def __init__(
         self,
         feature_extraction_model: Callable[..., nn.Module],
-        tile_size: int,
+        tile_size: int = 224,
         n_channels: int = 3,
         apply_imagenet_preprocessing: bool = True,
-        checkpoint_activations: bool = False,
+        use_activation_checkpointing: bool = False,
     ) -> None:
         """
         :param feature_extraction_model: A function accepting a `pretrained` keyword argument that
-        returns a classifier pretrained on ImageNet, such as the ones from `torchvision.models.*`.
-        :param tile_size: Tile width/height, in pixels.
+            returns a classifier pretrained on ImageNet, such as the ones from `torchvision.models.*`.
+        :param tile_size: Tile width/height, in pixels (default=224).
         :param n_channels: Number of channels in the tile (default=3).
-        :param apply_imagenet_preprocessing: Whether to apply ImageNet preprocessing to the input.
-        :param checkpoint_activations: Whether to checkpoint activations during forward pass. This can be used to trade
-            compute for memory. Note that this is only supported for some encoders.
+        :param apply_imagenet_preprocessing: Whether to apply ImageNet preprocessing to the input (default=True).
+        :param use_activation_checkpointing: Whether to checkpoint activations during forward pass. This can be used
+            to reduce the memory required to store gradients by checkpointing the activations. Note that this is only
+            supported for Resnet and Swin Transformer encoders at the moment. The encoder class needs to override
+            `custom_forward()` to support checkpointing (default=False).
         """
         self.create_feature_extractor_fn = feature_extraction_model
         self.apply_imagenet_preprocessing = apply_imagenet_preprocessing
-        super().__init__(tile_size=tile_size, n_channels=n_channels, checkpoint_activations=checkpoint_activations)
+        super().__init__(
+            tile_size=tile_size, n_channels=n_channels, use_activation_checkpointing=use_activation_checkpointing
+        )
 
     def _get_preprocessing(self) -> Callable:
         base_preprocessing = super()._get_preprocessing()
@@ -115,45 +121,46 @@ class ResNetCheckpointingMixin:
     def __init__(
         self,
         feature_extractor_fn: ResNet,
-        bn_momentum: Optional[float] = None,
+        batchnorm_momentum: Optional[float] = None,
         checkpoint_segments_size: int = 2,
-        checkpoint_activations: bool = False,
+        use_activation_checkpointing: bool = False,
     ) -> None:
         """
         :param feature_extractor_fn: A ResNet model.
-        :param bn_momentum: An optional momentum value to use for bn layers statistics updates when
-            checkpoint_activations is True. If None, sqrt of the default momentum is used.
+        :param batchnorm_momentum: An optional momentum value to use for batch norm layers statistics updates when
+            `use_activation_checkpointing` is True. If None (default), sqrt of the default momentum retrieved from the
+            model is used to avoid running statistics from going out of sync due to activations checkpointing.
         :param checkpoint_segments_size: If checkpointing, the size of checkpointed segments in sequential layers
             (default=2).
-        :param checkpoint_activations: Whether to checkpoint activations during forward pass. This can be used to trade
-            compute for memory. Note that this is only supported for some encoders.
+        :param use_activation_checkpointing: Whether to checkpoint activations during forward pass. This can be used
+            to reduce the memory required to store gradients by checkpointing the activations (default=False).
         """
         assert isinstance(feature_extractor_fn, ResNet), "Expected ResNet model for feature_extractor_fn argument."
         self.feature_extractor_fn = feature_extractor_fn
         self.checkpoint_segments_size = checkpoint_segments_size
-        self.bn_momentum = bn_momentum
-        if checkpoint_activations:
+        self.batchnorm_momentum = batchnorm_momentum
+        if use_activation_checkpointing:
             self._set_batch_norm_momentum()
 
     def _set_batch_norm_momentum(self) -> None:
         """Set the momentum of batch norm layers in the ResNet model to avoid running statistics from going out of
         sync due to activations checkpointing. The forward pass is applied twice which results in double updates of
-        these statistics. We can workaround that by using sqrt of default momentum.
+        these statistics. We can workaround that by using sqrt of default momentum retrieved from the
+        feature_extractor_fn.
         """
-        if self.bn_momentum is not None:
-            _momentum = self.bn_momentum
+        if self.batchnorm_momentum is not None:
+            _momentum = self.batchnorm_momentum
         else:
             _momentum = math.sqrt(self.feature_extractor_fn.bn1.momentum)
-            self.bn_momentum = _momentum
+            self.batchnorm_momentum = _momentum
 
         # Set momentum for the first batch norm layer
         self.feature_extractor_fn.bn1.momentum = _momentum
 
         def _set_bn_momentum(layer_block: nn.Sequential) -> None:
             for sub_layer in layer_block:
-                for key, layer in sub_layer._modules.items():
-                    if "bn" in key:
-                        assert isinstance(layer, nn.BatchNorm2d), "Expected BatchNorm2d layer."
+                for _, layer in sub_layer._modules.items():
+                    if isinstance(layer, nn.BatchNorm2d):
                         layer.momentum = _momentum
 
         # Fetch all nested batch norm layers and set momentum
@@ -162,7 +169,7 @@ class ResNetCheckpointingMixin:
         _set_bn_momentum(self.feature_extractor_fn.layer3)
         _set_bn_momentum(self.feature_extractor_fn.layer4)
 
-    def _custom_forward(self, images: torch.Tensor) -> torch.Tensor:
+    def custom_forward(self, images: torch.Tensor) -> torch.Tensor:
         """Custom forward pass that uses activation checkpointing to save memory."""
         segments = self.checkpoint_segments_size
         first_layers = [
@@ -176,7 +183,7 @@ class ResNetCheckpointingMixin:
         images = checkpoint_sequential(self.feature_extractor_fn.layer2, segments, images)
         images = checkpoint_sequential(self.feature_extractor_fn.layer3, segments, images)
         images = checkpoint_sequential(self.feature_extractor_fn.layer4, segments, images)
-
+        # checkpoint sequantial is used for nn.Sequential layers, we use checkpoint for nn.Module like fc and avgpool
         images = checkpoint(self.feature_extractor_fn.avgpool, images)
         images = torch.flatten(images, 1)
         images = checkpoint(self.feature_extractor_fn.fc, images)
@@ -187,30 +194,32 @@ class Resnet18(ResNetCheckpointingMixin, ImageNetEncoder):
     """ResNet18 encoder with imagenet preprocessing."""
     def __init__(
         self,
-        tile_size: int,
+        tile_size: int = 224,
         n_channels: int = 3,
-        checkpoint_activations: bool = False,
+        use_activation_checkpointing: bool = False,
         checkpoint_segments_size: int = 2,
-        bn_momentum: Optional[float] = None,
+        batchnorm_momentum: Optional[float] = None,
     ) -> None:
         """
-        :param tile_size: The size of the input tiles.
-        :param n_channels: The number of channels in the input tiles.
-        :param checkpoint_activations: Whether to checkpoint activations during forward pass.
-        :param checkpoint_segments_size: The size of checkpointed segments in sequential layers.
-        :param bn_momentum: An optional momentum value to use for bn layers statistics updates when
-            checkpoint_activations is True. If None, sqrt of the default momentum is used.
+        :param tile_size: The size of the input tiles (default=224).
+        :param n_channels: The number of channels in the input tiles (default=3).
+        :param use_activation_checkpointing: Whether to checkpoint activations during forward pass. This can be used
+            to reduce the memory required to store gradients by checkpointing the activations (default=False).
+        :param checkpoint_segments_size: The size of checkpointed segments in sequential layers (default=2).
+        :param batchnorm_momentum: An optional momentum value to use for batch norm layers statistics updates when
+            `use_activation_checkpointing` is True. If None (default), sqrt of the default momentum retrieved from the
+            model is used to avoid running statistics from going out of sync due to activations checkpointing.
         """
         ImageNetEncoder.__init__(
             self,
-            resnet18,
-            tile_size,
-            n_channels,
+            feature_extraction_model=resnet18,
+            tile_size=tile_size,
+            n_channels=n_channels,
             apply_imagenet_preprocessing=True,
-            checkpoint_activations=checkpoint_activations,
+            use_activation_checkpointing=use_activation_checkpointing,
         )
         ResNetCheckpointingMixin.__init__(
-            self, self.feature_extractor_fn, bn_momentum, checkpoint_segments_size, checkpoint_activations
+            self, self.feature_extractor_fn, batchnorm_momentum, checkpoint_segments_size, use_activation_checkpointing
         )
 
 
@@ -218,90 +227,96 @@ class Resnet18_NoPreproc(ResNetCheckpointingMixin, ImageNetEncoder):
     """ResNet18 encoder without imagenet preprocessing."""
     def __init__(
         self,
-        tile_size: int,
+        tile_size: int = 224,
         n_channels: int = 3,
-        checkpoint_activations: bool = False,
+        use_activation_checkpointing: bool = False,
         checkpoint_segments_size: int = 2,
-        bn_momentum: Optional[float] = None,
+        batchnorm_momentum: Optional[float] = None,
     ) -> None:
         """
-        :param tile_size: The size of the input tiles.
-        :param n_channels: The number of channels in the input tiles.
-        :param checkpoint_activations: Whether to checkpoint activations during forward pass.
-        :param checkpoint_segments_size: The size of checkpointed segments in sequential layers.
-        :param bn_momentum: An optional momentum value to use for bn layers statistics updates when
-            checkpoint_activations is True. If None, sqrt of the default momentum is used.
+        :param tile_size: The size of the input tiles (default=224).
+        :param n_channels: The number of channels in the input tiles (default=3).
+        :param use_activation_checkpointing: Whether to checkpoint activations during forward pass. This can be used
+            to reduce the memory required to store gradients by checkpointing the activations (default=False).
+        :param checkpoint_segments_size: The size of checkpointed segments in sequential layers (default=2).
+        :param batchnorm_momentum: An optional momentum value to use for batch norm layers statistics updates when
+            `use_activation_checkpointing` is True. If None (default), sqrt of the default momentum retrieved from the
+            model is used to avoid running statistics from going out of sync due to activations checkpointing.
         """
         ImageNetEncoder.__init__(
             self,
-            resnet18,
-            tile_size,
-            n_channels,
+            feature_extraction_model=resnet18,
+            tile_size=tile_size,
+            n_channels=n_channels,
             apply_imagenet_preprocessing=False,
-            checkpoint_activations=checkpoint_activations,
+            use_activation_checkpointing=use_activation_checkpointing,
         )
         ResNetCheckpointingMixin.__init__(
-            self, self.feature_extractor_fn, bn_momentum, checkpoint_segments_size, checkpoint_activations
+            self, self.feature_extractor_fn, batchnorm_momentum, checkpoint_segments_size, use_activation_checkpointing
         )
 
 
 class Resnet50(ResNetCheckpointingMixin, ImageNetEncoder):
     def __init__(
         self,
-        tile_size: int,
+        tile_size: int = 224,
         n_channels: int = 3,
-        checkpoint_activations: bool = False,
+        use_activation_checkpointing: bool = False,
         checkpoint_segments_size: int = 2,
-        bn_momentum: Optional[float] = None,
+        batchnorm_momentum: Optional[float] = None,
     ) -> None:
         """
-        :param tile_size: The size of the input tiles.
-        :param n_channels: The number of channels in the input tiles.
-        :param checkpoint_activations: Whether to checkpoint activations during forward pass.
-        :param checkpoint_segments_size: The size of checkpointed segments in sequential layers.
-        :param bn_momentum: An optional momentum value to use for bn layers statistics updates when
-            checkpoint_activations is True. If None, sqrt of the default momentum is used.
+        :param tile_size: The size of the input tiles (default=224).
+        :param n_channels: The number of channels in the input tiles (default=3).
+        :param use_activation_checkpointing: Whether to checkpoint activations during forward pass. This can be used
+            to reduce the memory required to store gradients by checkpointing the activations (default=False).
+        :param checkpoint_segments_size: The size of checkpointed segments in sequential layers (default=2).
+        :param batchnorm_momentum: An optional momentum value to use for batch norm layers statistics updates when
+            `use_activation_checkpointing` is True. If None (default), sqrt of the default momentum retrieved from the
+            model is used to avoid running statistics from going out of sync due to activations checkpointing.
         """
         ImageNetEncoder.__init__(
             self,
-            resnet50,
-            tile_size,
-            n_channels,
+            feature_extraction_model=resnet50,
+            tile_size=tile_size,
+            n_channels=n_channels,
             apply_imagenet_preprocessing=True,
-            checkpoint_activations=checkpoint_activations,
+            use_activation_checkpointing=use_activation_checkpointing,
         )
         ResNetCheckpointingMixin.__init__(
-            self, self.feature_extractor_fn, bn_momentum, checkpoint_segments_size, checkpoint_activations
+            self, self.feature_extractor_fn, batchnorm_momentum, checkpoint_segments_size, use_activation_checkpointing
         )
 
 
 class Resnet50_NoPreproc(ResNetCheckpointingMixin, ImageNetEncoder):
     def __init__(
         self,
-        tile_size: int,
+        tile_size: int = 224,
         n_channels: int = 3,
-        checkpoint_activations: bool = False,
+        use_activation_checkpointing: bool = False,
         checkpoint_segments_size: int = 2,
-        bn_momentum: Optional[float] = None,
+        batchnorm_momentum: Optional[float] = None,
     ) -> None:
         """
-        :param tile_size: The size of the input tiles.
-        :param n_channels: The number of channels in the input tiles.
-        :param checkpoint_activations: Whether to checkpoint activations during forward pass.
-        :param checkpoint_segments_size: The size of checkpointed segments in sequential layers.
-        :param bn_momentum: An optional momentum value to use for bn layers statistics updates when
-            checkpoint_activations is True. If None, sqrt of the default momentum is used.
+        :param tile_size: The size of the input tiles (default=224).
+        :param n_channels: The number of channels in the input tiles (default=3).
+        :param use_activation_checkpointing: Whether to checkpoint activations during forward pass. This can be used
+            to reduce the memory required to store gradients by checkpointing the activations (default=False).
+        :param checkpoint_segments_size: The size of checkpointed segments in sequential layers (default=2).
+        :param batchnorm_momentum: An optional momentum value to use for batch norm layers statistics updates when
+            `use_activation_checkpointing` is True. If None (default), sqrt of the default momentum retrieved from the
+            model is used to avoid running statistics from going out of sync due to activations checkpointing.
         """
         ImageNetEncoder.__init__(
             self,
-            resnet50,
-            tile_size,
-            n_channels,
+            feature_extraction_model=resnet50,
+            tile_size=tile_size,
+            n_channels=n_channels,
             apply_imagenet_preprocessing=False,
-            checkpoint_activations=checkpoint_activations,
+            use_activation_checkpointing=use_activation_checkpointing,
         )
         ResNetCheckpointingMixin.__init__(
-            self, self.feature_extractor_fn, bn_momentum, checkpoint_segments_size, checkpoint_activations
+            self, self.feature_extractor_fn, batchnorm_momentum, checkpoint_segments_size, use_activation_checkpointing
         )
 
 
@@ -314,15 +329,14 @@ class SwinTransformerCheckpointingMixin:
         checkpoint_segments_size: int = 2,
     ) -> None:
         """
-        :param feature_extractor_fn: A ResNet model.
-        :param checkpoint_segments_size: If checkpointing, the size of checkpointed segments in sequential layers
-            (default=2).
+        :param feature_extractor_fn: A SwinTransformer model.
+        :param checkpoint_segments_size: The size of checkpointed segments in sequential layers (default=2).
         """
-        assert isinstance(feature_extractor_fn, SwinTransformer), "Expected ResNet model"
+        assert isinstance(feature_extractor_fn, SwinTransformer), "Expected SwinTransformer model"
         self.feature_extractor_fn = feature_extractor_fn
         self.checkpoint_segments_size = checkpoint_segments_size
 
-    def _custom_forward(self, images: torch.Tensor) -> torch.Tensor:
+    def custom_forward(self, images: torch.Tensor) -> torch.Tensor:
         """Custom forward pass that uses activation checkpointing to save memory."""
         # patch embedding checkpointing
         images = checkpoint(self.feature_extractor_fn.patch_embed.proj, images)
@@ -345,24 +359,25 @@ class SwinTransformer_NoPreproc(SwinTransformerCheckpointingMixin, ImageNetEncod
 
     def __init__(
         self,
-        tile_size: int,
+        tile_size: int = 224,
         n_channels: int = 3,
-        checkpoint_activations: bool = False,
+        use_activation_checkpointing: bool = False,
         checkpoint_segments_size: int = 2
     ) -> None:
         """
-        :param tile_size: The size of the input tiles.
-        :param n_channels: The number of channels in the input tiles.
-        :param checkpoint_activations: Whether to checkpoint activations during forward pass.
-        :param checkpoint_segments_size: The size of checkpointed segments in sequential layers.
+        :param tile_size: The size of the input tiles (default=224).
+        :param n_channels: The number of channels in the input tiles (default=3).
+        :param use_activation_checkpointing: Whether to checkpoint activations during forward pass. This can be used
+            to reduce the memory required to store gradients by checkpointing the activations (default=False).
+        :param checkpoint_segments_size: The size of checkpointed segments in sequential layers (default=2).
         """
         ImageNetEncoder.__init__(
             self,
-            swin_tiny_patch4_window7_224,
-            tile_size,
-            n_channels,
+            feature_extraction_model=swin_tiny_patch4_window7_224,
+            tile_size=tile_size,
+            n_channels=n_channels,
             apply_imagenet_preprocessing=False,
-            checkpoint_activations=checkpoint_activations,
+            use_activation_checkpointing=use_activation_checkpointing,
         )
         SwinTransformerCheckpointingMixin.__init__(self, self.feature_extractor_fn, checkpoint_segments_size)
 

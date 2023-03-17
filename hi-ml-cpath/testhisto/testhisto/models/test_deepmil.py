@@ -750,12 +750,12 @@ def test_encoder_checkpoitning(mock_panda_tiles_root_dir: Path) -> None:
     data_module = container.get_data_module()
 
     def _get_module(checkpoint_encoder: bool) -> DeepMILModule:
-        container.checkpoint_encoder = checkpoint_encoder
+        container.use_encoder_checkpointing = checkpoint_encoder
         model = container.create_model()
         model.trainer = MagicMock(world_size=1)  # type: ignore
         model.outputs_handler = MagicMock()
         model.log = MagicMock()  # type: ignore
-        assert model.encoder_params.checkpoint_encoder == checkpoint_encoder
+        assert model.encoder_params.use_encoder_checkpointing == checkpoint_encoder
         return model
 
     module_ckpt_enc = _get_module(checkpoint_encoder=True)
