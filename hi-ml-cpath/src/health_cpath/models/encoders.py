@@ -327,7 +327,7 @@ class SwinTransformerCheckpointingMixin:
 
     def __init__(
         self,
-        feature_extractor_fn: ResNet,
+        feature_extractor_fn: SwinTransformer,
         checkpoint_segments_size: int = 2,
     ) -> None:
         """
@@ -338,12 +338,16 @@ class SwinTransformerCheckpointingMixin:
         self.feature_extractor_fn = feature_extractor_fn
         self.checkpoint_segments_size = checkpoint_segments_size
 
-    def custom_forward(self, images: torch.Tensor) -> torch.Tensor:
-        """Custom forward pass that uses activation checkpointing to save memory."""
-        # patch embedding checkpointing
+    def custom_patch_embedding_forward(self, images: torch.Tensor) -> None:
+        """Custom patch partchioning checkpoining"""
         images = checkpoint(self.feature_extractor_fn.patch_embed.proj, images)
         images = images.flatten(2).transpose(1, 2)  # BCHW -> BNC
         images = checkpoint(self.feature_extractor_fn.patch_embed.norm, images)
+        return images
+
+    def custom_forward(self, images: torch.Tensor) -> torch.Tensor:
+        """Custom forward pass that uses activation checkpointing to save memory."""
+        images = self.custom_patch_embedding_forward(images)
         # do not checkpoint dropout
         images = self.feature_extractor_fn.pos_drop(images)
         # sequential layers checkpointing
