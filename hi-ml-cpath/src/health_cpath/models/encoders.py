@@ -338,7 +338,7 @@ class SwinTransformerCheckpointingMixin:
         self.feature_extractor_fn = feature_extractor_fn
         self.checkpoint_segments_size = checkpoint_segments_size
 
-    def custom_patch_embedding_forward(self, images: torch.Tensor) -> None:
+    def custom_patch_embedding_forward(self, images: torch.Tensor) -> torch.Tensor:
         """Custom patch partchioning checkpoining"""
         images = checkpoint(self.feature_extractor_fn.patch_embed.proj, images)
         images = images.flatten(2).transpose(1, 2)  # BCHW -> BNC
