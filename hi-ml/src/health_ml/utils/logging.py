@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import argparse
+from io import TextIOWrapper
 import logging
 import math
 import numbers
@@ -11,7 +12,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, Mapping, Optional, Union
+from typing import Any, Callable, Dict, Iterable, Mapping, Optional, Union
 
 import torch
 from azureml.core import Run, Workspace
@@ -402,3 +403,31 @@ def log_learning_rate(module: LightningModule, name: str = "learning_rate") -> N
             full_name = name if singleton_lr else f"{name}/{i}/{j}"
             logged[full_name] = lr_j
     log_on_epoch(module, metrics=logged)
+
+
+class ConsoleAndFileOutput(TextIOWrapper):
+    """A file-like object that writes to both the console (sys.stdout) and a file.
+    The caller needs to ensure that the file is closed properly after using this object.
+
+    :param TextIOWrapper: The file to write to.
+    """
+    def __init__(self, file: TextIOWrapper) -> None:
+        self.file = file
+        self.sys_stdout = sys.stdout
+
+    def write(self, __buffer: Any) -> int:
+        self.file.write(__buffer)
+        return self.sys_stdout.write(__buffer)
+
+    def flush(self) -> None:
+        self.file.flush()
+        self.sys_stdout.flush()
+
+    def isatty(self) -> bool:
+        return False
+
+    def read(self, size=-1):
+        raise NotImplementedError("Read is not supported")
+
+    def readline(self, size=-1):
+        raise NotImplementedError("Readline is not supported")

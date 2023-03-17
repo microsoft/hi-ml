@@ -5,6 +5,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import argparse
+import contextlib
 from datetime import datetime
 import logging
 import os
@@ -28,7 +29,7 @@ from health_azure import AzureRunInfo, submit_to_azure_if_needed  # noqa: E402
 from health_azure.amulet import prepare_amulet_job, is_amulet_job  # noqa: E402
 from health_azure.datasets import create_dataset_configs  # noqa: E402
 from health_azure.himl import DEFAULT_DOCKER_BASE_IMAGE, OUTPUT_FOLDER  # noqa: E402
-from health_azure.logging import disable_logging_to_file, logging_to_stdout, logging_to_file   # noqa: E402
+from health_azure.logging import logging_to_stdout   # noqa: E402
 from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
 from health_azure.utils import (ENV_GLOBAL_RANK, get_workspace, get_ml_client, is_local_rank_zero,  # noqa: E402
                                 is_running_in_azure_ml, set_environment_variables_for_multi_node,
@@ -39,6 +40,7 @@ from health_ml.experiment_config import DEBUG_DDP_ENV_VAR, ExperimentConfig  # n
 from health_ml.lightning_container import LightningContainer  # noqa: E402
 from health_ml.run_ml import MLRunner  # noqa: E402
 from health_ml.utils import fixed_paths  # noqa: E402
+from health_ml.utils.logging import ConsoleAndFileOutput  # noqa: E402
 from health_ml.utils.common_utils import (check_conda_environment,  # noqa: E402
                                           choose_conda_env_file, is_linux)
 from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
@@ -173,19 +175,11 @@ class Runner:
         logging_to_stdout(log_level)
         # When running in Azure, also output logging to a file. This can help in particular when jobs
         # get preempted, but we don't get access to the logs from the previous incarnation of the job
-        try:
-            if is_running_in_azure_ml():
-                rank = os.getenv(ENV_GLOBAL_RANK, "0")
-                timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H%M%S")
-                filename = Path(OUTPUT_FOLDER) / f"logging_{timestamp}_rank{rank}.txt"
-                logging_to_file(filename, log_level)
-            initialize_rpdb()
-            self.parse_and_load_model()
-            self.validate()
-            azure_run_info = self.submit_to_azureml_if_needed()
-            self.run_in_situ(azure_run_info)
-        finally:
-            disable_logging_to_file()
+        initialize_rpdb()
+        self.parse_and_load_model()
+        self.validate()
+        azure_run_info = self.submit_to_azureml_if_needed()
+        self.run_in_situ(azure_run_info)
         return self.lightning_container, azure_run_info
 
     def submit_to_azureml_if_needed(self) -> AzureRunInfo:
@@ -325,15 +319,27 @@ def run(project_root: Path) -> Tuple[LightningContainer, AzureRunInfo]:
     """
     The main entry point for training and testing models from the commandline. This chooses a model to train
     via a commandline argument, runs training or testing, and writes all required info to disk and logs.
+    When running in Azure, this method also redirects the stdout stream, so that all console output is visible both on
+    the console and stored in a file. The filename is timestamped and contains the DDP rank of the current process.
 
     :param project_root: The root folder that contains all of the source code that should be executed.
     :return: If submitting to AzureML, returns the model configuration that was used for training,
-    including commandline overrides applied (if any). For details on the arguments, see the constructor of Runner.
+        including commandline overrides applied (if any). For details on the arguments, see the constructor of Runner.
     """
     if is_global_rank_zero():
-        print(f"project root: {project_root}")
-    runner = Runner(project_root)
-    return runner.run()
+        print(f"Project root: {project_root}")
+    if not is_running_in_azure_ml():
+        # Create a timestamped filename. This will also ensure that all restarts after low-priority preemption create
+        # a new log file, and we can fully trace back what happened in each rank in each restart.
+        rank = os.getenv(ENV_GLOBAL_RANK, "0")
+        timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H%M%S")
+        logging_filename = Path(OUTPUT_FOLDER) / f"logging_{timestamp}_rank{rank}.txt"
+        logging_filename.parent.mkdir(parents=True, exist_ok=True)
+        with logging_filename.open("w") as logging_file:
+            console_and_file = ConsoleAndFileOutput(logging_file)
+            with contextlib.redirect_stdout(console_and_file):
+                return Runner(project_root).run()
+    return Runner(project_root).run()
 
 
 def main() -> None:

@@ -46,38 +46,6 @@ def logging_to_stdout(log_level: Union[int, str] = logging.INFO) -> None:
     logger.setLevel(log_level)
 
 
-def logging_to_file(file_path: Path, log_level: Union[int, str] = logging.INFO) -> None:
-    """
-    Instructs the Python logging libraries to start writing logs to the given file.
-    If logging to a file has been set up previously, no new logging handler will be added.
-
-    :param file_path: The path and name of the file to write to.
-    :param log_level: The logging level. All logging message with a level at or above this level will be written to
-    """
-    # This function can be called multiple times, and should only add a handler during the first call.
-    global logging_to_file_handler
-    if not logging_to_file_handler:
-        global logging_stdout_handler
-        print(f"Setting up logging with level {log_level} to file {file_path}")
-        file_path.parent.mkdir(exist_ok=True, parents=True)
-        handler = logging.FileHandler(filename=str(file_path))
-        _add_formatter(handler)
-        handler.setLevel(log_level)
-        logging.getLogger().addHandler(handler)
-        logging_to_file_handler = handler
-
-
-def disable_logging_to_file() -> None:
-    """
-    If logging to a file has been enabled previously via logging_to_file, this call will remove that logging handler.
-    """
-    global logging_to_file_handler
-    if logging_to_file_handler:
-        logging_to_file_handler.close()
-        logging.getLogger().removeHandler(logging_to_file_handler)
-        logging_to_file_handler = None
-
-
 def standardize_log_level(log_level: Union[int, str]) -> int:
     """
 
