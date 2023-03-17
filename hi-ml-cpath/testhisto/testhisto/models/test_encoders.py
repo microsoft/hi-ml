@@ -123,7 +123,7 @@ def test_resnet_checkpointing_bn_momentum(encoder_class: ImageNetEncoder, bn_mom
     assert encoder.feature_extractor_fn.layer2[1].bn1.momentum == bn_momentum
     assert encoder.feature_extractor_fn.layer2[1].bn2.momentum == bn_momentum
 
-    assert encoder.bn_momentum == bn_momentum
+    assert encoder.batchnorm_momentum == bn_momentum
 
 
 @pytest.mark.parametrize(
@@ -135,7 +135,7 @@ def test_custom_forward(encoder_class: ImageNetEncoder) -> None:
         encoder(rand(1, *INPUT_DIMS, dtype=float32))
         custom_forward.assert_called_once()
 
-    encoder.checkpoint_activations = False
+    encoder.use_activation_checkpointing = False
     with patch.object(encoder, "_custom_forward") as custom_forward:
         encoder(rand(1, *INPUT_DIMS, dtype=float32))
         custom_forward.assert_not_called()

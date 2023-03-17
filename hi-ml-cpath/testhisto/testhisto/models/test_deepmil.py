@@ -780,8 +780,8 @@ def test_encoder_checkpointning(encoder_type: str, feature_dim: int, mock_panda_
 
     model_no_ckpt_enc = model
     model_ckpt_enc = deepcopy(model)
-    model_ckpt_enc.encoder_params.checkpoint_encoder = True
-    model_ckpt_enc.encoder.checkpoint_activations = True
+    model_ckpt_enc.encoder_params.use_encoder_checkpointing = True
+    model_ckpt_enc.encoder.use_activation_checkpointing = True
 
     # 1. Compare the loss and gradients of the encoder with and without checkpointing
     validate_loss_with_activations_checkpointing(train_dataloader, model_ckpt_enc, model_no_ckpt_enc, encoder_type)
