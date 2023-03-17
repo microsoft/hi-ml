@@ -9,6 +9,7 @@ import contextlib
 from datetime import datetime
 import logging
 import os
+import traceback
 import param
 import sys
 from pathlib import Path
@@ -336,13 +337,21 @@ def run(project_root: Path) -> Tuple[LightningContainer, AzureRunInfo]:
         # a new log file, and we can fully trace back what happened in each rank in each restart.
         rank = os.getenv(ENV_GLOBAL_RANK, "0")
         timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H%M%S")
-        logging_filename = Path(OUTPUT_FOLDER) / "console_logs  " / f"logging_{timestamp}_rank{rank}.txt"
+        logging_filename = Path(OUTPUT_FOLDER) / "console_logs" / f"logging_{timestamp}_rank{rank}.txt"
         logging_filename.parent.mkdir(parents=True, exist_ok=True)
         print(f"Rank {rank}: Redirecting all console logs to {logging_filename}")
         with logging_filename.open("w") as logging_file:
             console_and_file = ConsoleAndFileOutput(logging_file)
             with contextlib.redirect_stdout(console_and_file):
-                return Runner(project_root).run()
+                try:
+                    return Runner(project_root).run()
+                except:  # noqa
+                    # Exceptions would only be printed at the very top level, and so not be visible
+                    # in the log file. Hence, write here specifically.
+                    traceback.print_exc(file=logging_file)
+                    raise
+                finally:
+                    logging_file.flush()
     return Runner(project_root).run()
 
 
