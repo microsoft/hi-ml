@@ -339,7 +339,7 @@ class SwinTransformerCheckpointingMixin:
         self.checkpoint_segments_size = checkpoint_segments_size
 
     def custom_patch_embedding_forward(self, images: torch.Tensor) -> torch.Tensor:
-        """Custom patch partchioning checkpoining"""
+        """Custom patch partitioning checkpointing"""
         _, _, H, W = images.shape
         img_size = self.feature_extractor_fn.patch_embed.img_size
         assert H == img_size[0] and W == img_size[1], \
