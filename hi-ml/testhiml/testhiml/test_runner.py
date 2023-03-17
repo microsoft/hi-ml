@@ -42,6 +42,15 @@ def change_working_folder_and_add_environment(tmp_path: Path) -> Generator:
         yield
 
 
+class HelloWorldWithVariant(HelloWorld):
+    def set_model_variant(self, variant_name: str) -> None:
+        if variant_name == "var1":
+            self.max_epochs = 1
+        elif variant_name == "var2":
+            self.max_epochs = 2
+
+
+@pytest.mark.fast
 @pytest.mark.parametrize("model_name, cluster, num_nodes, should_raise_value_error", [
     ("HelloWorld", "dummyCluster", 1, False),
     ("", "", None, True),
@@ -82,6 +91,36 @@ def test_parse_and_load_model(mock_runner: Runner, model_name: Optional[str], cl
             assert isinstance(mock_runner.lightning_container, LightningContainer)
             assert mock_runner.lightning_container.initialized
             assert mock_runner.lightning_container.model_name == model_name
+
+
+@pytest.mark.fast
+def test_parse_and_load_model_with_variant(mock_runner: Runner) -> None:
+    """
+    Test that models are loaded correctly when using an argument for choosing the model variant.
+    """
+    variant = "var1"
+    args = [""]
+    args.append("--model=testhiml.test_runner.HelloWorldWithVariant")
+    args.append(f"--model_variant={variant}")
+
+    model = HelloWorldWithVariant()
+    assert model.max_epochs == 20
+    model.set_model_variant(variant)
+    epochs_after_variant = model.max_epochs
+
+    # Check if the model variant is really chosen
+    with patch.object(sys, "argv", new=args):
+        mock_runner.parse_and_load_model()
+        assert isinstance(mock_runner.lightning_container, HelloWorldWithVariant)
+        assert mock_runner.lightning_container.max_epochs == epochs_after_variant
+
+    # Any parameters specified on the commandline should have higher priority than what is done in the model variant
+    max_epochs = 123
+    args.append(f"--max_epochs={max_epochs}")
+    with patch.object(sys, "argv", new=args):
+        mock_runner.parse_and_load_model()
+        assert isinstance(mock_runner.lightning_container, HelloWorldWithVariant)
+        assert mock_runner.lightning_container.max_epochs == max_epochs
 
 
 @pytest.mark.parametrize("debug_ddp", ["OFF", "INFO", "DETAIL"])

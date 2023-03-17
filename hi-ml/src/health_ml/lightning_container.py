@@ -265,13 +265,23 @@ class LightningContainer(WorkflowParams,
             logging.warning("Hook `on_run_extra_validation_epoch` is not implemented by lightning module."
                             "The extra validation epoch won't produce any extra outputs.")
 
+    def set_model_variant(self, variant_name: str) -> None:
+        """Choose which variant of the model to use. A variant can for example have a different number of layers
+        compared to the base model. This method is called by the runner to set the variant that should be used, passing
+        in the variant name. A typical implement would set parameters of the object, based on the value of the
+        `variant_name` argument.
+
+        :param variant_name: The name of the model variant that should be set.
+        """
+        pass
+
 
 class LightningModuleWithOptimizer(LightningModule):
     """
     A base class that supplies a method to configure optimizers and LR schedulers. To use this in your model,
     inherit from this class instead of from LightningModule.
     If this class is used, all configuration options for the optimizers and LR schedulers will be also available as
-    commandline arguments (for example, you can supply the InnerEye runner with "--l_rate=1e-2" to change the learning
+    commandline arguments (for example, you can supply the hi-ml runner with "--l_rate=1e-2" to change the learning
     rate.
     """
     # These fields will be set by the LightningContainer when the model is created.

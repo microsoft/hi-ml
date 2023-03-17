@@ -40,7 +40,7 @@ def set_module_gradients_enabled(model: nn.Module, tuning_flag: bool) -> None:
 
 
 class EncoderParams(param.Parameterized):
-    """Parameters class to group all encoder specific attributes for deepmil module. """
+    """Parameters class to group all encoder specific attributes for deepmil module."""
 
     encoder_type: str = param.String(doc="Name of the encoder class to use.")
     tile_size: int = param.Integer(default=224, bounds=(1, None), doc="Tile width/height, in pixels.")
@@ -65,6 +65,24 @@ class EncoderParams(param.Parameterized):
     projection_dim: int = param.Integer(
         default=0, doc="If > 0, project the encoded tiles to this dimension. Otherwise, use identity projection."
     )
+    use_encoder_checkpointing: bool = param.Boolean(
+        default=False, doc="Whether to checkpoint activations during forward pass. This can be used to reduce the "
+        "memory required to store gradients by checkpointing the activations. Note that this is only supported for "
+        "Resnet18, Resnet50 and Swin Transformer encoders at the moment. The encoder class needs to override "
+        "`custom_forward()` to support checkpointing. Default: False."
+    )
+    checkpoint_segments_size: int = param.Integer(
+        default=2,
+        bounds=(1, None),
+        doc="The segments size to use for checkpointing the encoder's activations. Default: 2. "
+    )
+    batchnorm_momentum: Optional[float] = param.Number(
+        default=None,
+        bounds=(0, 1),
+        doc="An optional momentum value to use for batch norm layers statistics updates when`use_encoder_checkpointing`"
+        " is True. If None (default), sqrt of the default momentum retrieved from the model is used to avoid running "
+        "statistics from going out of sync due to activations checkpointing."
+    )
 
     def validate(self) -> None:
         """Validate the encoder parameters."""
@@ -82,19 +100,48 @@ class EncoderParams(param.Parameterized):
         """
         encoder: TileEncoder
         if self.encoder_type == Resnet18.__name__:
-            encoder = Resnet18(tile_size=self.tile_size, n_channels=self.n_channels)
+            encoder = Resnet18(
+                tile_size=self.tile_size,
+                n_channels=self.n_channels,
+                use_activation_checkpointing=self.use_encoder_checkpointing,
+                checkpoint_segments_size=self.checkpoint_segments_size,
+                batchnorm_momentum=self.batchnorm_momentum,
+            )
 
         elif self.encoder_type == Resnet18_NoPreproc.__name__:
-            encoder = Resnet18_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
+            encoder = Resnet18_NoPreproc(
+                tile_size=self.tile_size,
+                n_channels=self.n_channels,
+                use_activation_checkpointing=self.use_encoder_checkpointing,
+                checkpoint_segments_size=self.checkpoint_segments_size,
+                batchnorm_momentum=self.batchnorm_momentum,
+            )
 
         elif self.encoder_type == Resnet50.__name__:
-            encoder = Resnet50(tile_size=self.tile_size, n_channels=self.n_channels)
+            encoder = Resnet50(
+                tile_size=self.tile_size,
+                n_channels=self.n_channels,
+                use_activation_checkpointing=self.use_encoder_checkpointing,
+                checkpoint_segments_size=self.checkpoint_segments_size,
+                batchnorm_momentum=self.batchnorm_momentum,
+            )
 
         elif self.encoder_type == Resnet50_NoPreproc.__name__:
-            encoder = Resnet50_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
+            encoder = Resnet50_NoPreproc(
+                tile_size=self.tile_size,
+                n_channels=self.n_channels,
+                use_activation_checkpointing=self.use_encoder_checkpointing,
+                checkpoint_segments_size=self.checkpoint_segments_size,
+                batchnorm_momentum=self.batchnorm_momentum,
+            )
 
         elif self.encoder_type == SwinTransformer_NoPreproc.__name__:
-            encoder = SwinTransformer_NoPreproc(tile_size=self.tile_size, n_channels=self.n_channels)
+            encoder = SwinTransformer_NoPreproc(
+                tile_size=self.tile_size,
+                n_channels=self.n_channels,
+                use_activation_checkpointing=self.use_encoder_checkpointing,
+                checkpoint_segments_size=self.checkpoint_segments_size,
+            )
 
         elif self.encoder_type == ImageNetSimCLREncoder.__name__:
             encoder = ImageNetSimCLREncoder(tile_size=self.tile_size, n_channels=self.n_channels)
