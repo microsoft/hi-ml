@@ -411,6 +411,7 @@ class ConsoleAndFileOutput(TextIOWrapper):
 
     :param TextIOWrapper: The file to write to.
     """
+
     def __init__(self, file: TextIOWrapper) -> None:
         self.file = file
         self.sys_stdout = sys.stdout
