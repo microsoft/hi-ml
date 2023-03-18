@@ -427,8 +427,8 @@ class ConsoleAndFileOutput(TextIOWrapper):
     def isatty(self) -> bool:
         return False
 
-    def read(self, size=-1) -> None:
+    def read(self, size: int = -1) -> str:
         raise NotImplementedError("Read is not supported")
 
-    def readline(self, size=-1) -> None:
+    def readline(self, size: int = -1) -> str:
         raise NotImplementedError("Readline is not supported")

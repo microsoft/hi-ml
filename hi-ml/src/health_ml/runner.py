@@ -346,7 +346,7 @@ def run(project_root: Path) -> Tuple[LightningContainer, AzureRunInfo]:
                 try:
                     return Runner(project_root).run()
                 except:  # noqa
-                    # Exceptions would only be printed at the very top level, and so not be visible
+                    # Exceptions would only be printed to the console at the very top level, and would not be visible
                     # in the log file. Hence, write here specifically.
                     traceback.print_exc(file=logging_file)
                     raise
