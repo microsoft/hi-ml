@@ -32,7 +32,8 @@ from health_azure.datasets import create_dataset_configs  # noqa: E402
 from health_azure.himl import DEFAULT_DOCKER_BASE_IMAGE, OUTPUT_FOLDER  # noqa: E402
 from health_azure.logging import logging_to_stdout   # noqa: E402
 from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
-from health_azure.utils import (ENV_LOCAL_RANK, get_workspace, get_ml_client, is_local_rank_zero,  # noqa: E402
+from health_azure.utils import (ENV_LOCAL_RANK, ENV_NODE_RANK,  # noqa: E402
+                                get_workspace, get_ml_client, is_local_rank_zero,
                                 is_running_in_azure_ml, set_environment_variables_for_multi_node,
                                 create_argparser, parse_arguments, ParserResult, apply_overrides,
                                 filter_v2_input_output_args, is_global_rank_zero)
@@ -336,20 +337,19 @@ def run(project_root: Path) -> Tuple[LightningContainer, AzureRunInfo]:
         # Create a timestamped filename. This will also ensure that all restarts after low-priority preemption create
         # a new log file, and we can fully trace back what happened in each rank in each restart.
         rank = os.getenv(ENV_LOCAL_RANK, "0")
+        node = os.getenv(ENV_NODE_RANK, "0")
         timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H%M%S")
         cwd = Path.cwd()
         logging_filename = cwd
         if cwd.name != OUTPUT_FOLDER:
             logging_filename = logging_filename / Path(OUTPUT_FOLDER)
-        logging_filename = logging_filename / "console_logs" / f"logging_{timestamp}_rank{rank}.txt"
+        logging_filename = logging_filename / "console_logs" / f"logging_{timestamp}_node{node}_rank{rank}.txt"
         logging_filename.parent.mkdir(parents=True, exist_ok=True)
         print(f"Rank {rank}: Redirecting all console logs to {logging_filename}")
         with logging_filename.open("w") as logging_file:
             console_and_file = ConsoleAndFileOutput(logging_file)
             with contextlib.redirect_stdout(console_and_file):
                 try:
-                    for key, value in os.environ.items():
-                        print(f"{key}: {value}")
                     return Runner(project_root).run()
                 except:  # noqa
                     # Exceptions would only be printed to the console at the very top level, and would not be visible
