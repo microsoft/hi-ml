@@ -341,6 +341,7 @@ def run(project_root: Path) -> Tuple[LightningContainer, AzureRunInfo]:
         timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H%M%S")
         cwd = Path.cwd()
         logging_filename = cwd
+        # DDP subprocesses may already be running in the "outputs" folder. Add the "outputs" hence only if necessary.
         if cwd.name != OUTPUT_FOLDER:
             logging_filename = logging_filename / Path(OUTPUT_FOLDER)
         logging_filename = logging_filename / "console_logs" / f"logging_{timestamp}_node{node}_rank{rank}.txt"

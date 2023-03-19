@@ -406,7 +406,7 @@ def log_learning_rate(module: LightningModule, name: str = "learning_rate") -> N
 
 
 class ConsoleAndFileOutput(TextIOWrapper):
-    """A file-like object that writes to both the console (sys.stdout) and a file.
+    """A file-like object that writes to both the console (sys.stdout) and an output file.
     The caller needs to ensure that the file is closed properly after using this object.
 
     :param TextIOWrapper: The file to write to.
@@ -417,18 +417,25 @@ class ConsoleAndFileOutput(TextIOWrapper):
         self.sys_stdout = sys.stdout
 
     def write(self, __buffer: Any) -> int:
+        """Writes the buffer to both the file and to the console.
+
+        :param __buffer: The buffer to write.
+        :return: The number of bytes written to the console
+        """
         self.file.write(__buffer)
         return self.sys_stdout.write(__buffer)
 
     def flush(self) -> None:
+        """Flush both the output file and the console."""
         self.file.flush()
         self.sys_stdout.flush()
 
     def isatty(self) -> bool:
+        """Returns if the given file is a terminal. Since the class is writing to a file, this always returns False."""
         return False
 
-    def read(self, size: int = -1) -> str:
+    def read(self, size: int = -1) -> str:  # type: ignore
         raise NotImplementedError("Read is not supported")
 
-    def readline(self, size: int = -1) -> str:
+    def readline(self, size: int = -1) -> str:  # type: ignore
         raise NotImplementedError("Readline is not supported")
