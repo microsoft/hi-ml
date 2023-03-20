@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 import torch
-from _pytest.capture import SysCapture
+from pytest import CaptureFixture
 from _pytest.logging import LogCaptureFixture
 from azureml._restclient.constants import RunStatus
 from azureml.core import Run
@@ -372,7 +372,7 @@ def test_progress_bar_enable() -> None:
     assert bar.is_enabled
 
 
-def test_progress_bar(capsys: SysCapture) -> None:
+def test_progress_bar(capsys: CaptureFixture) -> None:
     bar = AzureMLProgressBar(refresh_rate=1)
     mock_module = mock.MagicMock(global_step=34)
     mock_trainer = mock.MagicMock(current_epoch=12,
@@ -386,7 +386,8 @@ def test_progress_bar(capsys: SysCapture) -> None:
     assert bar.trainer == mock_trainer
 
     def latest_message() -> str:
-        return capsys.readouterr().out.splitlines()[-1]  # type: ignore
+        out: str = capsys.readouterr().out
+        return out.splitlines()[-1]
 
     # Messages in training
     bar.on_train_epoch_start(mock_trainer, None)  # type: ignore
@@ -449,7 +450,7 @@ def test_progress_bar_to_logging(caplog: LogCaptureFixture) -> None:
 
 
 @pytest.mark.parametrize("print_timestamp", [True, False])
-def test_progress_bar_to_stdout(capsys: SysCapture, print_timestamp: bool) -> None:
+def test_progress_bar_to_stdout(capsys: CaptureFixture, print_timestamp: bool) -> None:
     """
     Check that the progress bar correctly writes to stdout, and that timestamps are generated if requested.
     """
@@ -457,7 +458,7 @@ def test_progress_bar_to_stdout(capsys: SysCapture, print_timestamp: bool) -> No
     today = datetime.utcnow().strftime("%Y-%m-%d")
     to_stdout = AzureMLProgressBar(write_to_logging_info=False, print_timestamp=print_timestamp)
     to_stdout._print(message)
-    stdout: str = capsys.readouterr().out  # type: ignore
+    stdout: str = capsys.readouterr().out
     print(f"Output: {stdout}")
     assert message in stdout
     assert stdout.startswith(today) == print_timestamp

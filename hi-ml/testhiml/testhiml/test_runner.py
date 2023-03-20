@@ -10,7 +10,7 @@ from typing import Any, Dict, Generator, List, Optional
 from unittest.mock import patch, MagicMock, DEFAULT, create_autospec
 
 import pytest
-from _pytest.capture import SysCapture
+from pytest import CaptureFixture
 from azureml.train.hyperdrive import HyperDriveConfig
 
 from health_azure import AzureRunInfo, DatasetConfig
@@ -369,14 +369,14 @@ def test_submit_to_azure_docker(mock_runner: Runner) -> None:
             assert call_kwargs["docker_shm_size"] == docker_shm_size
 
 
-def test_runner_help(mock_runner: Runner, capsys: SysCapture) -> None:
+def test_runner_help(mock_runner: Runner, capsys: CaptureFixture) -> None:
     """Test if the runner outputs default values correctly then using --help
     """
     arguments = ["", "--help"]
     with pytest.raises(SystemExit):
         with patch.object(sys, "argv", arguments):
             mock_runner.run()
-    stdout: str = capsys.readouterr().out  # type: ignore
+    stdout: str = capsys.readouterr().out
     # There are at least 3 parameters in ExperimentConfig that should print with defaults
     assert stdout.count("(default: ") > 3
 
