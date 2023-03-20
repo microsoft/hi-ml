@@ -13,7 +13,7 @@ from torchvision.transforms import Compose
 
 from health_multimodal.image.data.io import load_image
 from health_multimodal.image.data.transforms import infer_resize_params
-from health_multimodal.image.model.model import ImageModel
+from health_multimodal.image.model.model import BaseImageModel
 
 TypeShape2D = Tuple[int, int]
 
@@ -23,14 +23,14 @@ class ImageInferenceEngine:
     Encapsulate inference-time operations on an image model.
     """
 
-    def __init__(self, image_model: ImageModel, transform: Compose):
+    def __init__(self, image_model: BaseImageModel, transform: Compose):
         """
         :param img_model: Trained image model
         :param transform: Transform to apply to the image after loading. Must return a torch.Tensor that can be
             input directly to the image model.
         """
 
-        assert isinstance(image_model, ImageModel), f"Expected an ImageModel, got {type(image_model)}"
+        assert isinstance(image_model, BaseImageModel), f"Expected a BaseImageModel, got {type(image_model)}"
 
         self.model = image_model
         self.transform = transform
