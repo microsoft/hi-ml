@@ -9,7 +9,7 @@ from torchvision.datasets.utils import check_integrity
 from health_multimodal.image import ImageInferenceEngine
 from health_multimodal.image.data.transforms import create_chest_xray_transform_for_inference
 from health_multimodal.image.model.pretrained import get_biovil_resnet
-from health_multimodal.text.utils import get_cxr_bert_inference
+from health_multimodal.text.utils import get_bert_inference
 from health_multimodal.vlp.inference_engine import ImageTextInferenceEngine
 
 RESIZE = 512
@@ -29,7 +29,7 @@ def _get_vlp_inference_engine() -> ImageTextInferenceEngine:
         transform=create_chest_xray_transform_for_inference(resize=RESIZE, center_crop_size=CENTER_CROP_SIZE))
     img_txt_inference = ImageTextInferenceEngine(
         image_inference_engine=image_inference,
-        text_inference_engine=get_cxr_bert_inference(),
+        text_inference_engine=get_bert_inference(),
     )
     return img_txt_inference
 

@@ -13,7 +13,7 @@ import torch
 from health_multimodal.image import ImageInferenceEngine, ImageModel, ImageEncoderType
 from health_multimodal.image.data.transforms import create_chest_xray_transform_for_inference
 from health_multimodal.image.model.pretrained import JOINT_FEATURE_SIZE
-from health_multimodal.text.utils import get_cxr_bert_inference
+from health_multimodal.text.utils import get_bert_inference
 from health_multimodal.vlp.inference_engine import ImageTextInferenceEngine
 from PIL import Image
 
@@ -28,7 +28,7 @@ def _get_vlp_inference_engine() -> ImageTextInferenceEngine:
         transform=create_chest_xray_transform_for_inference(resize=512, center_crop_size=CENTER_CROP_SIZE))
     img_txt_inference = ImageTextInferenceEngine(
         image_inference_engine=image_inference,
-        text_inference_engine=get_cxr_bert_inference(),
+        text_inference_engine=get_bert_inference(),
     )
 
     return img_txt_inference
