@@ -12,7 +12,7 @@ from unittest import mock
 from unittest.mock import patch, MagicMock, DEFAULT, create_autospec
 
 import pytest
-from _pytest.capture import SysCapture
+from pytest import CaptureFixture
 from azureml.train.hyperdrive import HyperDriveConfig
 
 from health_azure import AzureRunInfo, DatasetConfig
@@ -373,7 +373,7 @@ def test_submit_to_azure_docker(mock_runner: Runner) -> None:
             assert call_kwargs["docker_shm_size"] == docker_shm_size
 
 
-def test_runner_help(mock_runner: Runner, capsys: SysCapture) -> None:
+def test_runner_help(mock_runner: Runner, capsys: CaptureFixture) -> None:
     """Test if the runner outputs default values correctly then using --help
     """
     arguments = ["", "--help"]
@@ -438,17 +438,19 @@ def test_custom_datastore_outside_aml(mock_runner: Runner) -> None:
         assert mock_submit_to_azure_if_needed.call_args[1]["default_datastore"] == datastore
 
 
+@pytest.mark.fast
 def test_logging_filename_default(tmp_path: Path) -> None:
     """Creating a logging filename without node/rank information"""
     with change_working_directory(tmp_path):
         result = create_logging_filename()
-        assert result.is_relative_to(tmp_path)
+        assert result.is_relative_to(tmp_path)  # type: ignore
         assert result.name.endswith("node0_rank0.txt")
         assert result.parents[0].name == "console_logs"
         assert result.parents[1].name == OUTPUT_FOLDER
         assert result.parent.is_dir()
 
 
+@pytest.mark.fast
 def test_logging_filename_noderank() -> None:
     """Creating a logging filename with node/rank information"""
     with patch.dict(os.environ, {ENV_LOCAL_RANK: "1", ENV_NODE_RANK: "2"}):
@@ -456,24 +458,26 @@ def test_logging_filename_noderank() -> None:
         assert result.name.endswith("node2_rank1.txt")
 
 
+@pytest.mark.fast
 def test_logging_filename_outputs(tmp_path: Path) -> None:
     """Creating a logging filename when already in the outputs folder should not add an output folder"""
     folder = tmp_path / OUTPUT_FOLDER
     folder.mkdir()
     with change_working_directory(folder):
         result = create_logging_filename()
-        assert result.is_relative_to(folder)
+        assert result.is_relative_to(folder)  # type: ignore
         assert result.parents[0].name == "console_logs"
         assert result.parents[1].name == OUTPUT_FOLDER
         assert result.parents[2].name != OUTPUT_FOLDER
 
 
-def test_run_with_logging(tmp_path: Path, capsys: SysCapture) -> None:
+@pytest.mark.fast
+def test_run_with_logging(tmp_path: Path, capsys: CaptureFixture) -> None:
     """Test wheter log file creation works and handles exceptions correctly"""
     logging_filename = tmp_path / "file.txt"
     something = "something"
 
-    def print_something(_: Any):
+    def print_something(_: Any) -> None:
         print(something)
 
     with mock.patch("health_ml.runner.create_logging_filename", return_value=logging_filename):
@@ -500,6 +504,7 @@ def test_run_with_logging(tmp_path: Path, capsys: SysCapture) -> None:
                 assert "ValueError" in contents
 
 
+@pytest.mark.fast
 def test_run_without_logging(tmp_path: Path) -> None:
     """When not running in AzureML, console output should not be redirected"""
     with mock.patch("health_ml.runner.is_running_in_azure_ml", return_value=False):
