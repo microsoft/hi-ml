@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  -------------------------------------------------------------------------------------------
+from enum import Enum
 import logging
 import math
 import numpy as np
@@ -21,6 +22,15 @@ UNDERSCORE = "_"
 TIFF_EXTENSION = ".tiff"
 
 
+class ResolutionUnit(str, Enum):
+    """The unit of the resolution of the tiff file. This is used to calculate the resolution of the tiff file."""
+
+    INCH = "inch"
+    CENTIMETER = "centimeter"
+    MILLIMETER = "millimeter"
+    MICROMETER = "micrometer"
+
+
 class ConvertWSIToTiffd(MapTransform):
     """Converts a wsi file to a tiff file. The tiff file is saved in the output_folder with the same name as the src
     file but with the tiff extension. Ampersands are replaced by the replace_ampersand_by string. The tiff file
@@ -31,7 +41,7 @@ class ConvertWSIToTiffd(MapTransform):
     """
     OBJECTIVE_POWER_KEY = "openslide.objective-power"
     RESOLUTION_UNIT_KEY = "tiff.ResolutionUnit"
-    RESOLUTION_UNIT = "centimeter"
+    RESOLUTION_UNIT = ResolutionUnit.CENTIMETER
     SOFTWARE = "tifffile"
 
     def __init__(
@@ -230,6 +240,7 @@ class ConvertWSIToTiffd(MapTransform):
     def __call__(self, data: Dict) -> Dict:
         src_path = Path(data[self.image_key])
         tiff_path = self.get_tiff_path(src_path)
-        if not tiff_path.exists():
+        # if the tiff file does not exist or if it exists but is empty, we convert the wsi to tiff
+        if not tiff_path.exists() or (tiff_path.exists() and tiff_path.stat().st_size == 0):
             self.convert_wsi(src_path, tiff_path)
         return data

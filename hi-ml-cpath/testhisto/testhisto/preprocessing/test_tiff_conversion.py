@@ -10,14 +10,19 @@ from pathlib import Path
 from monai.data.wsi_reader import WSIReader
 from health_cpath.datasets.panda_dataset import PandaDataset
 from health_cpath.preprocessing.loading import WSIBackend
-from health_cpath.preprocessing.tiff_conversion import AMPERSAND, TIFF_EXTENSION, UNDERSCORE, ConvertWSIToTiffd
+from health_cpath.preprocessing.tiff_conversion import (
+    AMPERSAND,
+    ResolutionUnit,
+    TIFF_EXTENSION,
+    UNDERSCORE,
+    ConvertWSIToTiffd,
+)
 from health_cpath.utils.naming import SlideKey
 from health_cpath.utils.tiff_conversion_config import TiffConversionConfig
 from typing import Any, List, Dict
 from unittest.mock import MagicMock
-
 from testhisto.utils.utils_testhisto import skipif_no_gpu
-
+from tifffile.tifffile import TiffWriter
 
 WSISamplesType = List[Dict[SlideKey, Any]]
 
@@ -36,7 +41,7 @@ def wsi_samples(mock_panda_slides_root_dir: Path) -> WSISamplesType:
 
 
 @pytest.mark.parametrize("replace_ampersand_by", [UNDERSCORE, ""])
-@pytest.mark.parametrize("src_format", ['ndpi', 'tiff'])
+@pytest.mark.parametrize("src_format", ["ndpi", "tiff"])
 def test_get_tiff_path(src_format: str, replace_ampersand_by: str) -> None:
     output_folder = Path("foo")
     transform = ConvertWSIToTiffd(
@@ -99,7 +104,7 @@ def test_get_taget_levels(wsi_samples: WSISamplesType) -> None:
 
 def test_get_options(wsi_samples: WSISamplesType) -> None:
     transform = ConvertWSIToTiffd(output_folder=Path("foo"), tile_size=16)
-    assert transform.RESOLUTION_UNIT == "centimeter"
+    assert transform.RESOLUTION_UNIT == ResolutionUnit.CENTIMETER
 
     # wrong resolution unit
     mock_wsi_obj = MagicMock(properties={transform.RESOLUTION_UNIT_KEY: "micrometer"})
@@ -204,6 +209,27 @@ def test_convert_wsi_to_tiff(add_low_mag: bool, wsi_samples: WSISamplesType, tmp
     validate_tiff_conversion(converted_files, original_files, transform, same_format=True, backend=WSIBackend.OPENSLIDE)
     # Make sure we can read the new tiff files with cucim backend as well
     validate_tiff_conversion(converted_files, original_files, transform, same_format=True, backend=WSIBackend.CUCIM)
+
+
+@pytest.mark.gpu
+@skipif_no_gpu()  # cucim is not available on cpu
+def test_convert_wsi_to_tiff_existing_empty_file(wsi_samples: WSISamplesType, tmp_path: Path) -> None:
+    target_mag = 2.5
+    transform = ConvertWSIToTiffd(
+        output_folder=tmp_path,
+        target_magnifications=[target_mag],
+        default_base_objective_power=target_mag,
+        tile_size=16,
+    )
+    tiff_path = transform.get_tiff_path(wsi_samples[0][SlideKey.IMAGE])
+    # Create an empty file
+    _ = TiffWriter(tiff_path, bigtiff=True)
+    # Check that the file is empty
+    assert tiff_path.exists()
+    assert tiff_path.stat().st_size == 0
+    for sample in wsi_samples:
+        transform(sample)
+    assert tiff_path.stat().st_size > 0
 
 
 def test_tiff_conversion_config(mock_panda_slides_root_dir: Path, tmp_path: Path) -> None:

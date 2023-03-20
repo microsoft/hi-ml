@@ -20,7 +20,7 @@ sys.path.insert(0, str(health_azure_root))
 
 from health_ml.utils.common_utils import df_to_json  # noqa: E402
 from health_azure import aggregate_hyperdrive_metrics  # NOQA: E402
-from health_azure.utils import get_aml_run_from_run_id, get_metrics_for_childless_run  # NOQA: E402
+from health_azure.utils import get_aml_run_from_run_id, get_metrics_for_run  # NOQA: E402
 
 
 def print_metrics(metrics_list: List[str], metrics_df: pd.DataFrame) -> None:
@@ -59,7 +59,7 @@ def get_metrics_from_run(run: Run, metrics_list: List[str]) -> pd.DataFrame:
             run=run,
             keep_metrics=metrics_list)
     else:
-        metrics_df = get_metrics_for_childless_run(
+        metrics_df = get_metrics_for_run(
             run=run,
             keep_metrics=metrics_list)
     print_metrics(metrics_list, metrics_df)

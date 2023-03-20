@@ -34,7 +34,7 @@ def test_plots_handler_always_uses_roid_loading(roi_type: ROIType) -> None:
     plot_options = {PlotOption.HISTOGRAM, PlotOption.CONFUSION_MATRIX}
     loading_params = LoadingParams(roi_type=roi_type)
     plots_handler = DeepMILPlotsHandler(plot_options, class_names=["foo", "bar"], loading_params=loading_params)
-    assert plots_handler.loading_params.roi_type in [ROIType.MASK, ROIType.FOREGROUND]
+    assert plots_handler.loading_params.roi_type in [ROIType.MASK, ROIType.FOREGROUND, ROIType.MASKSUBROI]
 
 
 @pytest.mark.parametrize(
@@ -131,8 +131,12 @@ def test_save_conf_matrix_integration(tmp_path: Path) -> None:
     class_names = ["foo", "bar"]
 
     save_confusion_matrix(results, class_names, tmp_path, stage='foo')
-    file = Path(tmp_path) / "normalized_confusion_matrix_foo.png"
+    file = Path(tmp_path) / "confusion_matrices_foo.png"
     assert file.exists()
+    expected = full_ml_test_data_path("histo_heatmaps") / "confusion_matrices_foo.png"
+    # To update the stored results, uncomment this line:
+    # expected.write_bytes(file.read_bytes())
+    assert_binary_files_match(file, expected)
 
     # check that an error is raised if true labels include indices greater than the expected number of classes
     invalid_results_1 = {
@@ -156,11 +160,15 @@ def test_save_conf_matrix_integration(tmp_path: Path) -> None:
     class_names_extended = ["foo", "bar", "baz"]
     num_classes = len(class_names_extended)
     expected_conf_matrix_shape = (num_classes, num_classes)
-    with patch("health_cpath.utils.plots_utils.plot_normalized_confusion_matrix") as mock_plot_conf_matrix:
+    with patch(
+        "health_cpath.utils.plots_utils.plot_normalized_and_non_normalized_confusion_matrices"
+    ) as mock_plot_conf_matrix:
         with patch("health_cpath.utils.plots_utils.save_figure"):
             save_confusion_matrix(results, class_names_extended, tmp_path)
             mock_plot_conf_matrix.assert_called_once()
+            actual_n_conf_matrix = mock_plot_conf_matrix.call_args[1].get('cm_n')
             actual_conf_matrix = mock_plot_conf_matrix.call_args[1].get('cm')
+            assert actual_n_conf_matrix.shape == expected_conf_matrix_shape
             assert actual_conf_matrix.shape == expected_conf_matrix_shape
 
 

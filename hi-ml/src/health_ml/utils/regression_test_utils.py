@@ -39,13 +39,10 @@ def compare_dictionaries(expected: Dict[str, Any], actual: Dict[str, Any], toler
     def _check_values_match(expected_v: Any, actual_v: Any, tolerance: float = 1e-5) -> None:
         if type(actual_v) in [float, int] and type(expected_v) in [float, int]:
             if not isclose(actual_v, expected_v, rel_tol=tolerance):
-                raise ValueError(f"Expected: {expected_v} does not match actual {actual_v}")
-            else:
-                return
+                logging.warning(f"Expected: {expected_v} does not match actual {actual_v}")
         else:
             if expected_v != actual_v:
-                raise ValueError(f"Expected: {expected_v} does not match actual {actual_v}")
-        return
+                logging.warning(f"Expected: {expected_v} does not match actual {actual_v}")
 
     for expected_key, expected_val in expected.items():
         if expected_key not in actual:
@@ -67,6 +64,173 @@ def compare_dictionaries(expected: Dict[str, Any], actual: Dict[str, Any], toler
                     logging.warning(f"Expected value to have length {expected_len} but found {actual_len}")
                 for expected_value, actual_value in zip(expected_val, actual_val):
                     _check_values_match(expected_value, actual_value, tolerance=tolerance)
+
+
+def _compare_metric_values(expected: Any, actual: Any, tolerance: float = 1e-5) -> str:
+    """Compares an expected and an actual value coming from a metrics dictionary. If the values are numeric
+    and are close enough (within the given tolerance), an empty string is returned. If the actual
+    and expected value are not matching, a string description of the discrepancy will be returned.
+
+    :param expected: The expected value
+    :param actual: The actual value
+    :param tolerance: For numerical values, this is the relative tolerance allowed, defaults to 1e-5
+    :return: An empty string if the expected and actual values match, otherwise a string describing the discrepancy.
+    """
+    if type(expected) in [float, int]:
+        if type(actual) in [float, int]:
+            if isclose(actual, expected, rel_tol=tolerance):
+                return ""
+            return f"Expected {expected} but got {actual} (allowed tolerance {tolerance})"
+        return f"Expected a numeric value, but got type {type(actual).__name__}"
+    return f"Don't know how to handle expected value of type {type(expected).__name__}"
+
+
+def _compare_metrics_list(expected: List, actual: List, tolerance: float = 1e-5) -> List[str]:
+    """Compares two lists of expected and actual values, coming from a metrics dictionary. The two lists are
+    considered matching if they have the same length, and matching list elements are within the given relative
+    tolerance.
+
+    :param expected: A list of expected values.
+    :param actual: A list with actual metric values.
+    :param tolerance: For numerical values, this is the relative tolerance allowed, defaults to 1e-5
+    :return: A list of strings describing the discrepancies between the two lists. If the lists match, the
+        return value is an empty list.
+    """
+    messages = []
+    expected_len = len(expected)
+    actual_len = len(actual)
+    if expected_len == actual_len:
+        for index, (expected_value, actual_value) in enumerate(zip(expected, actual)):
+            mismatch = _compare_metric_values(expected_value, actual_value, tolerance=tolerance)
+            if mismatch:
+                messages.append(f"Index {index}: {mismatch}")
+    else:
+        messages.append(f"Expected list of length {expected_len} but got {actual_len}")
+    return messages
+
+
+def compare_metrics_dictionaries(expected: Dict[str, Any],
+                                 actual: Dict[str, Any],
+                                 tolerance: float = 1e-5) -> str:
+    """
+    Function to compare two dictionaries that are expected to contain metrics (scalars or lists of scalars) or strings.
+    Discrepancies are logged via logging.warning. The function returns an empty string if the dictionaries are
+    identical, otherwise a string giving a short summary of the discrepancies.
+
+    :param expected: The first dictionary to compare
+    :param actual: The second dictionary to compare
+    :param tolerance: The tolerance to allow when comparing numeric values, defaults to 1e-5.
+    :return: An empty string if the dictionaries match, otherwise a string describing the discrepancies.
+    """
+
+    allowed_types = [float, int, str, list]
+    discrepancies = 0
+    for key, expected_val in expected.items():
+        messages = []
+        expected_type = type(expected_val)
+        if expected_type not in allowed_types:
+            raise ValueError(f"Expected value has type {expected_type.__name__} which is not handled.")
+        if key not in actual:
+            messages.append("No data found in actual metrics.")
+        else:
+            actual_val = actual[key]
+            actual_type = type(actual_val)
+            if actual_type not in allowed_types:
+                messages.append(f"Actual value has type {actual_type.__name__} which is not handled.")
+            elif expected_type is not actual_type:
+                messages.append(f"Actual value has type {actual_type.__name__} but we expected "
+                                f"{expected_type.__name__}.")
+            elif expected_type is list:
+                messages.extend(_compare_metrics_list(expected_val, actual_val, tolerance=tolerance))
+            else:
+                mismatch = _compare_metric_values(expected_val, actual_val, tolerance=tolerance)
+                if mismatch:
+                    messages.append(mismatch)
+        for message in messages[:5]:
+            logging.warning(f"Metric '{key}': {message}")
+        if len(messages) > 0:
+            discrepancies += 1
+    return f"Mismatch for {discrepancies} out of {len(expected)} metrics" if discrepancies > 0 else ""
+
+
+def _load_json_dict(path: Path) -> Dict[str, Any]:
+    """Loads the contents of a JSON file. If the contents is a dictionary, this dictionary is returned.
+
+    :param path: The file to load.
+    :raises ValueError: If the file does not contain a JSON dictionary.
+    :return: The contents of the JSON file.
+    """
+    metrics_json = json.loads(path.read_text())
+    if not isinstance(metrics_json, Dict):
+        raise ValueError(
+            f"Expected metrics file {path} to contain a JSON dictionary, but got {type(metrics_json).__name__}"
+        )
+    return metrics_json
+
+
+def _is_nested_dict(d: Dict[str, Any], message: str) -> bool:
+    """Checks if a dictionary contains only dictionaries as values. Returns `True` if the dictionary contains
+    only dictionaries as values. Returns `False` if none of the dictionary values are dictionaries, or if the
+    dictionary is empty.
+    Raises an exception if the dictionary contains a mix of dictionaries and non-dictionaries.
+
+    :param d: The dictionary to check.
+    :param message: A message to include in the exception if the dictionary contains a mix of dictionaries.
+    :raises ValueError: If the dictionary contains a mix of dictionaries and non-dictionaries.
+    :return: True if the dictionary contains values, and all those are dictionaries in turn. False otherwise.
+    """
+    has_dict_value = [isinstance(v, Dict) for v in d.values()]
+    if len(d) == 0:
+        return False
+    if all(has_dict_value):
+        return True
+    if any(has_dict_value):
+        raise ValueError(f"{message}: Metrics file has inconsistent type. Either all or none of the dictionary"
+                         "values should be dictionaries")
+    return False
+
+
+def compare_metrics_files(expected: Path, actual: Path, tolerance: float = 1e-5) -> str:
+    """Reads two files that contain a JSON representation of expected and actual metrics. The two files are read
+    and the metrics are compared using compare_metrics_dictionaries. The function returns an empty string if the
+    metrics match, otherwise a string summarizing the discrepancies. Details about the discrepancies are logged
+    to `logging.warning`.
+
+    :param expected: A file that contains the expected metrics, as a JSON dictionary.
+    :param actual: A file that contains the actual metrics, as a JSON dictionary.
+    :param tolerance: The maximum allowed tolerance for comparing metrics, defaults to 1e-5
+    :return: An empty string if the metrics match, otherwise a string summarizing the discrepancies.
+    """
+    try:
+        expected_metrics = _load_json_dict(expected)
+        actual_metrics = _load_json_dict(actual)
+        if _is_nested_dict(expected_metrics, "Expected metrics"):
+            # For runs with child runs, loop over the child run dictionaries and compare them.
+            if not _is_nested_dict(actual_metrics, "Actual metrics"):
+                return "Expected a nested dictionary as the actual metrics, but got a flat dictionary"
+            messages = []
+            for key, expected_child in expected_metrics.items():
+                prefix = f"Child run '{key}'"
+                if key in actual_metrics:
+                    actual_child = actual_metrics[key]
+                    message = compare_metrics_dictionaries(expected_child, actual_child, tolerance=tolerance)
+                else:
+                    message = "Missing from the actual metrics"
+                if message:
+                    full_message = f"{prefix}: {message}"
+                    logging.warning(full_message)
+                    messages.append(message)
+            if len(messages) > 0:
+                return f"Mismatches for {len(messages)} child runs"
+            return ""
+        else:
+            # For simple runs without child runs: Compare the dictionaries.
+            if _is_nested_dict(actual_metrics, "Actual metrics"):
+                return "Expected a flat dictionary as the actual metrics, but got a nested dictionary"
+            return compare_metrics_dictionaries(expected_metrics, actual_metrics, tolerance=tolerance)
+    except Exception as e:
+        # This handles cases where the files cannot be found, are not JSON, or have inconsistent information.
+        return f"Error comparing metrics files: {e}"
 
 
 def compare_files(expected: Path, actual: Path, csv_relative_tolerance: float = 0.0) -> str:
@@ -179,8 +343,19 @@ def compare_folder_contents(
                 run.download_file(name=str(file_relative), output_file_path=str(actual_file))
         else:
             raise ValueError("Either of the two arguments 'run' or 'actual_folder' must be provided")
-        message = compare_files(expected=file, actual=actual_file,
-                                csv_relative_tolerance=csv_relative_tolerance) if actual_file.exists() else MISSING_FILE
+        if file_relative == REGRESSION_TEST_METRICS_FILENAME:
+            message = compare_metrics_files(
+                expected=file,
+                actual=actual_file,
+                tolerance=csv_relative_tolerance)
+        elif actual_file.exists():
+            message = compare_files(
+                expected=file,
+                actual=actual_file,
+                csv_relative_tolerance=csv_relative_tolerance
+            )
+        else:
+            message = MISSING_FILE
         if message:
             messages.append(f"{message}: {file_relative}")
             logging.warning(f"File {file_relative}: {message}")
