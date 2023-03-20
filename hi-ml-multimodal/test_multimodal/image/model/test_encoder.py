@@ -85,6 +85,7 @@ def test_multi_image_encoder_forward_pass() -> None:
         patch_emb, global_emb = encoder(current_image=current_image,
                                         previous_image=previous_image,
                                         return_patch_embeddings=True)
+        # Model output dimension is fixed to 512 (see MultiImageEncoder.__init__())
         assert global_emb.shape == (batch_size, 512)
         assert patch_emb.shape == (batch_size, 512, 14, 14)
 
@@ -93,5 +94,6 @@ def test_multi_image_encoder_forward_pass() -> None:
         patch_emb, global_emb = encoder(current_image=current_image,
                                         previous_image=None,
                                         return_patch_embeddings=True)
+        # Model output dimension is fixed to 512 (see MultiImageEncoder.__init__())
         assert global_emb.shape == (batch_size, 512)
         assert patch_emb.shape == (batch_size, 512, 14, 14)
