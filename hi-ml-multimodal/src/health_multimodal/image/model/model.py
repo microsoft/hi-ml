@@ -120,7 +120,7 @@ class ImageModel(BaseImageModel):
 
         logits = self.classifier(pooled_x) if self.classifier else None
         return ImageModelOutput(img_embedding=pooled_x,
-                                patch_embedding=patch_x,
+                                patch_embeddings=patch_x,
                                 class_logits=logits,
                                 projected_patch_embeddings=projected_patch_embeddings,
                                 projected_global_embedding=projected_global_embedding)

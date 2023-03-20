@@ -16,7 +16,7 @@ import torch
 @dataclass
 class ImageModelOutput():
     img_embedding: torch.Tensor
-    patch_embedding: torch.Tensor
+    patch_embeddings: torch.Tensor
     projected_global_embedding: torch.Tensor
     class_logits: torch.Tensor
     projected_patch_embeddings: torch.Tensor
