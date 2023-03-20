@@ -7,14 +7,9 @@ from dataclasses import fields
 
 import pytest
 import torch
-
-from health_multimodal.image.model.model import ImageModel
-from health_multimodal.image.model.model import ImageEncoder
-from health_multimodal.image.model.model import ImageModelOutput
-from health_multimodal.image.model.model import get_biovil_resnet
-from health_multimodal.image.model.model import restore_training_mode
+from health_multimodal.image.model.model import ImageModel, get_biovil_resnet, MultiImageModel
 from health_multimodal.image.model.modules import MultiTaskModel
-from health_multimodal.image.model.resnet import resnet50
+from health_multimodal.image.model.types import ImageEncoderType, ImageModelOutput
 
 
 def test_frozen_cnn_model() -> None:
@@ -22,7 +17,7 @@ def test_frozen_cnn_model() -> None:
     Checks if the mode of module parameters is set correctly.
     """
 
-    model = ImageModel(img_model_type='resnet18',
+    model = ImageModel(img_encoder_type=ImageEncoderType.RESNET18,
                        joint_feature_size=4,
                        num_classes=2,
                        freeze_encoder=True,
@@ -46,7 +41,7 @@ def test_frozen_cnn_model() -> None:
     assert isinstance(model.classifier, MultiTaskModel)
     assert not model.classifier.training
 
-    model = ImageModel(img_model_type='resnet18',
+    model = ImageModel(img_encoder_type='resnet18',
                        joint_feature_size=4,
                        num_classes=2,
                        freeze_encoder=False,
@@ -57,7 +52,8 @@ def test_frozen_cnn_model() -> None:
     assert model.classifier.training  # type: ignore
 
 
-def test_image_get_patchwise_projected_embeddings() -> None:
+@pytest.mark.parametrize("img_encoder_type", [ImageEncoderType.RESNET18, ImageEncoderType.RESNET18_MULTI_IMAGE])
+def test_image_get_patchwise_projected_embeddings(img_encoder_type: str) -> None:
     """
     Checks if the image patch embeddings are correctly computed and projected to the latent space.
     """
@@ -65,7 +61,7 @@ def test_image_get_patchwise_projected_embeddings() -> None:
     num_classes = 2
     num_tasks = 1
     joint_feature_size = 4
-    model = ImageModel(img_model_type='resnet18',
+    model = ImageModel(img_encoder_type=img_encoder_type,
                        joint_feature_size=joint_feature_size,
                        num_classes=num_classes,
                        freeze_encoder=True,
@@ -78,8 +74,9 @@ def test_image_get_patchwise_projected_embeddings() -> None:
     model.eval()
 
     batch_size = 2
-    image = torch.rand(size=(batch_size, 3, 64, 64))
-    encoder_output, _ = model.encoder.forward(image, return_patch_embeddings=True)
+    image = torch.rand(size=(batch_size, 3, 448, 448))
+    with torch.no_grad():
+        encoder_output, _ = model.encoder.forward(image, return_patch_embeddings=True)
     h, w = encoder_output.shape[2:]
 
     # First check the model output is in the expected shape,
@@ -104,41 +101,8 @@ def test_image_get_patchwise_projected_embeddings() -> None:
     assert torch.all(torch.abs(norm - 1.0) < 1e-5)
 
 
-def test_reload_resnet_with_dilation() -> None:
-    """
-    Tests if the resnet model can be switched from pooling to dilated convolutions.
-    """
-
-    replace_stride_with_dilation = [False, False, True]
-
-    # resnet18 does not support dilation
-    model_with_dilation = ImageEncoder(img_model_type="resnet18")
-    with pytest.raises(NotImplementedError):
-        model_with_dilation.reload_encoder_with_dilation(replace_stride_with_dilation)
-
-    # resnet50
-    original_model = ImageEncoder(img_model_type="resnet50").eval()
-    model_with_dilation = ImageEncoder(img_model_type="resnet50").eval()
-    model_with_dilation.reload_encoder_with_dilation(replace_stride_with_dilation)
-    assert not model_with_dilation.training
-
-    batch_size = 2
-    image = torch.rand(size=(batch_size, 3, 64, 64))
-
-    with torch.no_grad():
-        outputs_dilation, _ = model_with_dilation(image, return_patch_embeddings=True)
-        outputs_original, _ = original_model(image, return_patch_embeddings=True)
-        assert outputs_original.shape[2] * \
-            2 == outputs_dilation.shape[2], "The dilation model should return larger feature maps."
-
-    expected_model = resnet50(pretrained=True, replace_stride_with_dilation=replace_stride_with_dilation)
-
-    expected_model.eval()
-    with torch.no_grad():
-        expected_output = expected_model(image)
-        assert torch.allclose(outputs_dilation, expected_output)
-
-
+@pytest.mark.skip(
+    reason="Torch hub models are not supported yet since BioViL and BioViL-T require the hi-ml-multimodal package")
 @torch.no_grad()
 def test_hubconf() -> None:
     """Test that instantiating the image model using the PyTorch Hub is consistent with older methods."""
@@ -159,20 +123,20 @@ def test_hubconf() -> None:
         assert torch.allclose(value_hub, value_himl)
 
 
-def test_restore_training_mode() -> None:
-    model = torch.nn.Conv2d(3, 2, 3)
-    assert model.training
+def test_multi_image_model() -> None:
+    joint_feature_size = 4
+    with pytest.raises(AssertionError, match="MultiImageModel only supports MultiImageEncoder"):
+        MultiImageModel(img_encoder_type=ImageEncoderType.RESNET18, joint_feature_size=joint_feature_size)
 
-    with restore_training_mode(model):
-        assert model.training
-        model.eval()
-        assert not model.training
-    assert model.training
+    model = MultiImageModel(img_encoder_type=ImageEncoderType.RESNET18_MULTI_IMAGE,
+                            joint_feature_size=joint_feature_size)
+    assert model.encoder.training
+    assert model.projector.training
 
-    model.eval()
-    assert not model.training
-    with restore_training_mode(model):
-        assert not model.training
-        model.train()
-        assert model.training
-    assert not model.training
+    # run inference with a dummy input and check the output
+    batch_size = 2
+    image = torch.rand(size=(batch_size, 3, 448, 448))
+    previous_image = torch.rand(size=(batch_size, 3, 448, 448))
+    model_output = model.forward(image, previous_image)
+    assert model_output.projected_patch_embeddings.shape == (batch_size, joint_feature_size, 14, 14)
+    assert model_output.projected_global_embedding.shape == (batch_size, joint_feature_size)

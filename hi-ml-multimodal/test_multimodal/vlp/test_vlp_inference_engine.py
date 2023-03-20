@@ -10,7 +10,7 @@ from typing import List, Union
 import numpy as np
 import pytest
 import torch
-from health_multimodal.image import ImageInferenceEngine, ImageModel, ResnetType
+from health_multimodal.image import ImageInferenceEngine, ImageModel, ImageEncoderType
 from health_multimodal.image.data.transforms import create_chest_xray_transform_for_inference
 from health_multimodal.image.model.model import JOINT_FEATURE_SIZE
 from health_multimodal.text.utils import get_cxr_bert_inference
@@ -24,7 +24,7 @@ CENTER_CROP_SIZE = 480
 def _get_vlp_inference_engine() -> ImageTextInferenceEngine:
 
     image_inference = ImageInferenceEngine(
-        image_model=ImageModel(img_model_type=ResnetType.RESNET50.value, joint_feature_size=JOINT_FEATURE_SIZE),
+        image_model=ImageModel(img_encoder_type=ImageEncoderType.RESNET50.value, joint_feature_size=JOINT_FEATURE_SIZE),
         transform=create_chest_xray_transform_for_inference(resize=512, center_crop_size=CENTER_CROP_SIZE))
     img_txt_inference = ImageTextInferenceEngine(
         image_inference_engine=image_inference,
