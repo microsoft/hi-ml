@@ -443,10 +443,10 @@ def test_logging_filename_default(tmp_path: Path) -> None:
     """Creating a logging filename without node/rank information"""
     with change_working_directory(tmp_path):
         result = create_logging_filename()
-        assert result.is_relative_to(tmp_path)  # type: ignore
         assert result.name.endswith("node0_rank0.txt")
         assert result.parents[0].name == "console_logs"
         assert result.parents[1].name == OUTPUT_FOLDER
+        assert result.parents[2] == tmp_path
         assert result.parent.is_dir()
 
 
@@ -465,10 +465,9 @@ def test_logging_filename_outputs(tmp_path: Path) -> None:
     folder.mkdir()
     with change_working_directory(folder):
         result = create_logging_filename()
-        assert result.is_relative_to(folder)  # type: ignore
         assert result.parents[0].name == "console_logs"
         assert result.parents[1].name == OUTPUT_FOLDER
-        assert result.parents[2].name != OUTPUT_FOLDER
+        assert result.parents[2] == tmp_path
 
 
 @pytest.mark.fast
