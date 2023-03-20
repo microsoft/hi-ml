@@ -5,23 +5,23 @@
 
 from __future__ import annotations
 
-import enum
 import tempfile
+from abc import ABC, abstractmethod
 from pathlib import Path
-from contextlib import contextmanager
-from dataclasses import dataclass
-from typing import Any, Generator, Optional, Tuple, Union, Sequence
+from typing import Any, Optional, Union
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from health_multimodal.common.device import get_module_device
 from torchvision.datasets.utils import download_url
 
-from .resnet import resnet18, resnet50
+from .encoder import get_encoder_from_type, get_encoder_output_dim, MultiImageEncoder
 from .modules import MLP, MultiTaskModel
+from .types import ImageEncoderType, ImageModelOutput
 
-TypeImageEncoder = Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
-MODEL_TYPE = "resnet50"
+
+MODEL_TYPE = ImageEncoderType.RESNET50
 JOINT_FEATURE_SIZE = 128
 
 BIOMED_VLP_CXR_BERT_SPECIALIZED = "microsoft/BiomedVLP-CXR-BERT-specialized"
@@ -53,33 +53,29 @@ def get_biovil_resnet(pretrained: bool = True) -> ImageModel:
     resnet_checkpoint_path = _download_biovil_image_model_weights() if pretrained else None
 
     image_model = ImageModel(
-        img_model_type=MODEL_TYPE,
+        img_encoder_type=MODEL_TYPE,
         joint_feature_size=JOINT_FEATURE_SIZE,
         pretrained_model_path=resnet_checkpoint_path,
     )
     return image_model
 
 
-@enum.unique
-class ResnetType(str, enum.Enum):
-    RESNET18 = "resnet18"
-    RESNET50 = "resnet50"
+class BaseImageModel(nn.Module, ABC):
+    """Abstract class for image models."""
+    @abstractmethod
+    def forward(self, *args: Any, **kwargs: Any) -> ImageModelOutput:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_patchwise_projected_embeddings(self, input_img: torch.Tensor, normalize: bool) -> torch.Tensor:
+        raise NotImplementedError
 
 
-@dataclass
-class ImageModelOutput():
-    img_embedding: torch.Tensor
-    patch_embedding: torch.Tensor
-    projected_global_embedding: torch.Tensor
-    class_logits: torch.Tensor
-    projected_patch_embeddings: torch.Tensor
-
-
-class ImageModel(nn.Module):
+class ImageModel(BaseImageModel):
     """Image encoder module"""
 
     def __init__(self,
-                 img_model_type: str,
+                 img_encoder_type: str,
                  joint_feature_size: int,
                  freeze_encoder: bool = False,
                  pretrained_model_path: Optional[Union[str, Path]] = None,
@@ -87,8 +83,8 @@ class ImageModel(nn.Module):
         super().__init__()
 
         # Initiate encoder, projector, and classifier
-        self.encoder = ImageEncoder(img_model_type)
-        self.feature_size = get_encoder_output_dim(self.encoder)
+        self.encoder = get_encoder_from_type(img_encoder_type)
+        self.feature_size = get_encoder_output_dim(self.encoder, device=get_module_device(self.encoder))
         self.projector = MLP(input_dim=self.feature_size, output_dim=joint_feature_size,
                              hidden_dim=joint_feature_size, use_1x1_convs=True)
         self.downstream_classifier_kwargs = downstream_classifier_kwargs
@@ -112,15 +108,19 @@ class ImageModel(nn.Module):
             self.projector.train(mode=False)
         return self
 
-    def forward(self, x: torch.Tensor) -> ImageModelOutput:
+    def forward(self, x: torch.Tensor) -> ImageModelOutput:  # type: ignore[override]
         with torch.set_grad_enabled(not self.freeze_encoder):
             patch_x, pooled_x = self.encoder(x, return_patch_embeddings=True)
+        return self.forward_post_encoder(patch_x, pooled_x)
+
+    def forward_post_encoder(self, patch_x: torch.Tensor, pooled_x: torch.Tensor) -> ImageModelOutput:
+        with torch.set_grad_enabled(not self.freeze_encoder):
             projected_patch_embeddings = self.projector(patch_x)
             projected_global_embedding = torch.mean(projected_patch_embeddings, dim=(2, 3))
 
         logits = self.classifier(pooled_x) if self.classifier else None
         return ImageModelOutput(img_embedding=pooled_x,
-                                patch_embedding=patch_x,
+                                patch_embeddings=patch_x,
                                 class_logits=logits,
                                 projected_patch_embeddings=projected_patch_embeddings,
                                 projected_global_embedding=projected_global_embedding)
@@ -147,84 +147,17 @@ class ImageModel(nn.Module):
         return projected_embeddings
 
 
-class ImageEncoder(nn.Module):
-    """Image encoder trunk module for the ``ImageModel`` class.
+class MultiImageModel(ImageModel):
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        assert isinstance(self.encoder, MultiImageEncoder), "MultiImageModel only supports MultiImageEncoder"
 
-    :param img_model_type: Type of image model to use: either ``"resnet18"`` or ``"resnet50"``.
-    """
+    def forward(self,  # type: ignore[override]
+                current_image: torch.Tensor,
+                previous_image: Optional[torch.Tensor] = None) -> ImageModelOutput:
 
-    def __init__(self, img_model_type: str):
-        super().__init__()
-        self.img_model_type = img_model_type
-        self.encoder = self._create_encoder()
-
-    def _create_encoder(self, **kwargs: Any) -> nn.Module:
-        supported = ResnetType.RESNET18, ResnetType.RESNET50
-        if self.img_model_type not in supported:
-            raise NotImplementedError(f"Image model type \"{self.img_model_type}\" must be in {supported}")
-        encoder_class = resnet18 if self.img_model_type == ResnetType.RESNET18 else resnet50
-        encoder = encoder_class(pretrained=True, **kwargs)
-        return encoder
-
-    def forward(self, x: torch.Tensor, return_patch_embeddings: bool = False) -> TypeImageEncoder:
-        """Image encoder forward pass."""
-
-        x = self.encoder(x)
-        avg_pooled_emb = torch.flatten(torch.nn.functional.adaptive_avg_pool2d(x, (1, 1)), 1)
-        if return_patch_embeddings:
-            return x, avg_pooled_emb
-
-        return avg_pooled_emb
-
-    def reload_encoder_with_dilation(self, replace_stride_with_dilation: Optional[Sequence[bool]] = None) -> None:
-        """Workaround for enabling dilated convolutions after model initialization.
-
-        :param replace_stride_with_dilation: for each layer to replace the 2x2 stride with a dilated convolution
-        """
-        if self.img_model_type == "resnet18":
-            # resnet18 uses BasicBlock implementation, which does not support dilated convolutions.
-            raise NotImplementedError("resnet18 does not support dilated convolutions")
-
-        if replace_stride_with_dilation is None:
-            replace_stride_with_dilation = False, False, True
-
-        device = next(self.encoder.parameters()).device
-        new_encoder = self._create_encoder(replace_stride_with_dilation=replace_stride_with_dilation).to(device)
-
-        if self.encoder.training:
-            new_encoder.train()
-        else:
-            new_encoder.eval()
-
-        new_encoder.load_state_dict(self.encoder.state_dict())
-        self.encoder = new_encoder
-
-
-@torch.no_grad()
-def get_encoder_output_dim(module: torch.nn.Module) -> int:
-    """Calculate the output dimension of ssl encoder by making a single forward pass.
-
-    :param module: Encoder module.
-    """
-    # Target device
-    device = next(module.parameters()).device  # type: ignore
-    assert isinstance(device, torch.device)
-
-    x = torch.rand((1, 3, 448, 448)).to(device)
-
-    # Extract the number of output feature dimensions
-    with restore_training_mode(module):
-        module.eval()
-        representations = module(x)
-    return representations.shape[1]
-
-
-@contextmanager
-def restore_training_mode(module: nn.Module) -> Generator[None, None, None]:
-    """Restore the training mode of a module after some operation.
-
-    :param module: PyTorch module.
-    """
-    training_mode = module.training
-    yield
-    module.train(mode=training_mode)
+        with torch.set_grad_enabled(not self.freeze_encoder):
+            patch_x, pooled_x = self.encoder(current_image=current_image,
+                                             previous_image=previous_image,
+                                             return_patch_embeddings=True)
+        return self.forward_post_encoder(patch_x, pooled_x)
