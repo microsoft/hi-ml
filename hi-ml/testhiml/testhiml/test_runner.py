@@ -468,7 +468,7 @@ def test_logging_filename_outputs(tmp_path: Path) -> None:
         assert result.parents[2].name != OUTPUT_FOLDER
 
 
-def test_run_with_logging(tmp_path: Path) -> None:
+def test_run_with_logging(tmp_path: Path, capsys: SysCapture) -> None:
     """Test wheter log file creation works and handles exceptions correctly"""
     logging_filename = tmp_path / "file.txt"
     something = "something"
@@ -483,8 +483,11 @@ def test_run_with_logging(tmp_path: Path) -> None:
                 mock_run.side_effect = print_something
                 run_with_logging(tmp_path)
                 assert logging_filename.is_file()
+                # The printed string should be in both the output file and in the captured stdout
                 contents = logging_filename.read_text()
                 assert something in contents
+                stdout: str = capsys.readouterr().out
+                assert something in stdout
 
                 logging_filename.unlink()
                 # An exception in the runner should be written to the output file and only then raised
