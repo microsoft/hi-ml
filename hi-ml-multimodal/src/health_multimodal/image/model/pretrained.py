@@ -74,7 +74,7 @@ def get_biovil_resnet(pretrained: bool = True) -> ImageModel:
     return image_model
 
 
-def get_biovilt_image_encoder() -> ImageModel:
+def get_biovil_t_image_encoder() -> ImageModel:
     """Download weights from Hugging Face and instantiate the image model."""
 
     biovilt_checkpoint_path = _download_biovil_t_image_model_weights()

@@ -6,11 +6,9 @@
 from .types import ImageEncoderType
 from .model import BaseImageModel
 from .model import ImageModel
-from .pretrained import get_biovil_resnet
 
 __all__ = [
     "BaseImageModel",
     "ImageEncoderType",
     "ImageModel",
-    "get_biovil_resnet",
 ]
