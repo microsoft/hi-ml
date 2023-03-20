@@ -324,8 +324,6 @@ def run(project_root: Path) -> Tuple[LightningContainer, AzureRunInfo]:
     """
     The main entry point for training and testing models from the commandline. This chooses a model to train
     via a commandline argument, runs training or testing, and writes all required info to disk and logs.
-    When running in Azure, this method also redirects the stdout stream, so that all console output is visible both on
-    the console and stored in a file. The filename is timestamped and contains the DDP rank of the current process.
 
     :param project_root: The root folder that contains all of the source code that should be executed.
     :return: If submitting to AzureML, returns the model configuration that was used for training,
@@ -333,25 +331,47 @@ def run(project_root: Path) -> Tuple[LightningContainer, AzureRunInfo]:
     """
     if is_global_rank_zero():
         print(f"Project root: {project_root}")
+    return Runner(project_root).run()
+
+
+def create_logging_filename() -> Path:
+    """Creates a file name for console logs, based on the current time and the DDP rank.
+    The filename is timestamped to seconds level, so that we also get a full history of all
+    low-priority preemptions, because each restart will create a logfile afresh.
+
+    :return: A full path to a file for console logs.
+    """
+    rank = os.getenv(ENV_LOCAL_RANK, "0")
+    node = os.getenv(ENV_NODE_RANK, "0")
+    timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H%M%S")
+    cwd = Path.cwd()
+    logging_filename = cwd
+    # DDP subprocesses may already be running in the "outputs" folder. Add the "outputs" hence only if necessary.
+    if cwd.name != OUTPUT_FOLDER:
+        logging_filename = logging_filename / Path(OUTPUT_FOLDER)
+    logging_filename = logging_filename / "console_logs" / f"logging_{timestamp}_node{node}_rank{rank}.txt"
+    logging_filename.parent.mkdir(parents=True, exist_ok=True)
+    print(f"Rank {rank}: Redirecting all console logs to {logging_filename}")
+    return logging_filename
+
+
+def run_with_logging(project_root: Path) -> Tuple[LightningContainer, AzureRunInfo]:
+    """
+    Start the main main entry point for training and testing models from the commandline.
+    When running in Azure, this method also redirects the stdout stream, so that all console output is visible both on
+    the console and stored in a file. The filename is timestamped and contains the DDP rank of the current process.
+
+    :param project_root: The root folder that contains all of the source code that should be executed.
+    :return: If submitting to AzureML, returns the model configuration that was used for training,
+        including commandline overrides applied (if any). For details on the arguments, see the constructor of Runner.
+    """
     if is_running_in_azure_ml():
-        # Create a timestamped filename. This will also ensure that all restarts after low-priority preemption create
-        # a new log file, and we can fully trace back what happened in each rank in each restart.
-        rank = os.getenv(ENV_LOCAL_RANK, "0")
-        node = os.getenv(ENV_NODE_RANK, "0")
-        timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H%M%S")
-        cwd = Path.cwd()
-        logging_filename = cwd
-        # DDP subprocesses may already be running in the "outputs" folder. Add the "outputs" hence only if necessary.
-        if cwd.name != OUTPUT_FOLDER:
-            logging_filename = logging_filename / Path(OUTPUT_FOLDER)
-        logging_filename = logging_filename / "console_logs" / f"logging_{timestamp}_node{node}_rank{rank}.txt"
-        logging_filename.parent.mkdir(parents=True, exist_ok=True)
-        print(f"Rank {rank}: Redirecting all console logs to {logging_filename}")
+        logging_filename = create_logging_filename()
         with logging_filename.open("w") as logging_file:
             console_and_file = ConsoleAndFileOutput(logging_file)
             with contextlib.redirect_stdout(console_and_file):
                 try:
-                    return Runner(project_root).run()
+                    return run(project_root)
                 except:  # noqa
                     # Exceptions would only be printed to the console at the very top level, and would not be visible
                     # in the log file. Hence, write here specifically.
@@ -359,11 +379,12 @@ def run(project_root: Path) -> Tuple[LightningContainer, AzureRunInfo]:
                     raise
                 finally:
                     logging_file.flush()
-    return Runner(project_root).run()
+    return run(project_root)
 
 
 def main() -> None:
-    run(project_root=fixed_paths.repository_root_directory() if is_himl_used_from_git_repo() else Path.cwd())
+    project_root = fixed_paths.repository_root_directory() if is_himl_used_from_git_repo() else Path.cwd()
+    run_with_logging(project_root)
 
 
 if __name__ == '__main__':
