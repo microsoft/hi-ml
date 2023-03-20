@@ -102,7 +102,7 @@ def test_image_get_patchwise_projected_embeddings(img_encoder_type: str) -> None
 
 
 @pytest.mark.skip(
-        reason="Torch hub models are not supported yet since BioViL and BioViL-T require the hi-ml-multimodal package")
+    reason="Torch hub models are not supported yet since BioViL and BioViL-T require the hi-ml-multimodal package")
 @torch.no_grad()
 def test_hubconf() -> None:
     """Test that instantiating the image model using the PyTorch Hub is consistent with older methods."""
