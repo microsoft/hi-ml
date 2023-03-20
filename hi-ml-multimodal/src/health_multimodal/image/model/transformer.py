@@ -69,7 +69,7 @@ class VisionTransformerPooler(nn.Module):
         B, C, H, W = current_image.shape
         assert H == self.grid_shape[0] and W == self.grid_shape[1], "Input and grid shapes do not match"
 
-        # Flatten patch embeddings
+        # Flatten patch embeddings to have shape (B x L x C), L = H * W
         if previous_image is not None:
             assert previous_image.shape == current_image.shape, "current_image and previous_image shapes do not match"
             previous_image = previous_image.view(B, C, H * W).transpose(1, 2)
