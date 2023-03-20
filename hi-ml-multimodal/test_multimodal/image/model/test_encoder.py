@@ -4,20 +4,21 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  -------------------------------------------------------------------------------------------
 
+from typing import Sequence
+
 import pytest
 import torch
-
-from health_multimodal.image.model.encoder import ImageEncoder, MultiImageEncoder, restore_training_mode
+from health_multimodal.image.model.encoder import (DEFAULT_DILATION_VALUES_FOR_RESNET, ImageEncoder, MultiImageEncoder,
+                                                   restore_training_mode)
 from health_multimodal.image.model.resnet import resnet50
 from health_multimodal.image.model.types import ImageEncoderType
 
 
-def test_reload_resnet_with_dilation() -> None:
+@pytest.mark.parametrize("replace_stride_with_dilation", [None, [False, False, True]])
+def test_reload_resnet_with_dilation(replace_stride_with_dilation: Sequence[bool]) -> None:
     """
     Tests if the resnet model can be switched from pooling to dilated convolutions.
     """
-
-    replace_stride_with_dilation = [False, False, True]
 
     # resnet18 does not support dilation
     model_with_dilation = ImageEncoder(img_encoder_type=ImageEncoderType.RESNET18)
@@ -39,11 +40,17 @@ def test_reload_resnet_with_dilation() -> None:
         assert outputs_original.shape[2] * \
             2 == outputs_dilation.shape[2], "The dilation model should return larger feature maps."
 
-    expected_model = resnet50(pretrained=True, replace_stride_with_dilation=replace_stride_with_dilation)
+    resnet50_kwargs = {"pretrained": True,
+                       "replace_stride_with_dilation": replace_stride_with_dilation \
+                            if replace_stride_with_dilation else DEFAULT_DILATION_VALUES_FOR_RESNET}
+    expected_model = resnet50(**resnet50_kwargs)
+
 
     expected_model.eval()
     with torch.no_grad():
         expected_output = expected_model(image)
+        print(expected_output.shape)
+        print(outputs_dilation.shape)
         assert torch.allclose(outputs_dilation, expected_output)
 
 

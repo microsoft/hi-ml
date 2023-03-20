@@ -17,6 +17,7 @@ from .resnet import resnet18, resnet50
 from .transformer import VisionTransformerPooler
 from .types import ImageEncoderType
 
+DEFAULT_DILATION_VALUES_FOR_RESNET = (False, False, True)
 ImageEncoderOutputType = Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
 
 
@@ -68,7 +69,7 @@ class ImageEncoder(nn.Module):
             raise NotImplementedError("resnet18 does not support dilated convolutions")
 
         if replace_stride_with_dilation is None:
-            replace_stride_with_dilation = False, False, True
+            replace_stride_with_dilation = DEFAULT_DILATION_VALUES_FOR_RESNET
 
         device = next(self.encoder.parameters()).device
         new_encoder = self._create_encoder(replace_stride_with_dilation=replace_stride_with_dilation).to(device)
