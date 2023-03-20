@@ -127,8 +127,11 @@ class MultiHeadAttentionLayer(nn.Module):
     """
     Multi-head self attention module
 
-    The content is derived from TIMM library -- Please do not replace it until we derive
-    a more meaningful design and implementation based on our needs.
+    The content builds on top of the TIMM library (vision_transformer.py) and differs by the following:
+        - Defines a custom `MultiHeadAttentionLayer` which does not only apply `self-attention` but it can be
+            generalised to arbitrary (query, key, value) input tuples. This feature can be valuable to process
+            more than 2 scans at a time.
+        - `Self-attention` specific use-case can still be invoked by calling the `forward_as_mhsa` method.
     """
 
     def __init__(self,
@@ -181,8 +184,11 @@ class Block(nn.Module):
     """
     Encapsulates multi-layer perceptron and multi-head self attention modules into a block.
 
-    The content is derived from TIMM library -- Please do not replace it until we derive
-    a more meaningful design and implementation based on our needs.
+    The content builds on top of the TIMM library (vision_transformer.py) and differs by the following:
+        - This implementation uses spatio-temporal positional embeddings instead of 2D positional embeddings only,
+            and they are taken into account within the forward pass of each ViT block.
+        - Utilises the custom defined `MultiHeadAttentionLayer` which does not apply `self-attention` only but can be
+            generalised to arbitrary (query, key, value) tuples. This can be valuable to process more than 2 scans.
 
     Positional and type embeddings are handled in a similar fashion as DETR object localisation paper
     https://alcinos.github.io/detr_page/, where a fixed set of sine/cos positional embeddings are used

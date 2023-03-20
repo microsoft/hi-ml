@@ -86,6 +86,7 @@ class ImageEncoder(nn.Module):
 class MultiImageEncoder(ImageEncoder):
     """Multi-image encoder trunk module for the ``ImageModel`` class.
     It can be used to encode multiple images into combined latent representation.
+    Currently it only supports two input images but can be extended to support more in future.
 
     :param img_encoder_type: Type of image encoder model to use: either ``"resnet18"`` or ``"resnet50"``.
     """
