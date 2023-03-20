@@ -18,7 +18,7 @@ JOINT_FEATURE_SIZE = 128
 
 BIOMED_VLP_CXR_BERT_SPECIALIZED = "microsoft/BiomedVLP-CXR-BERT-specialized"
 BIOMED_VLP_BIOVIL_T = "microsoft/BiomedVLP-BioViL-T"
-HF_URL = f"https://huggingface.co/"
+HF_URL = f"https://huggingface.co"
 
 CXR_BERT_COMMIT_TAG = "v1.1"
 BIOVIL_T_COMMIT_TAG = "v1.0"
@@ -48,6 +48,10 @@ def _download_biovil_image_model_weights() -> Path:
 
 
 def _download_biovil_t_image_model_weights() -> Path:
+    """Download image model weights from Hugging Face.
+
+    More information available at https://huggingface.co/microsoft/microsoft/BiomedVLP-BioViL-T.
+    """
     root_dir = tempfile.gettempdir()
     download_url(
         BIOVIL_T_IMAGE_WEIGHTS_URL,
@@ -71,8 +75,8 @@ def get_biovil_resnet(pretrained: bool = True) -> ImageModel:
 
 
 def get_biovilt_image_encoder() -> ImageModel:
-    """
-    """
+    """Download weights from Hugging Face and instantiate the image model."""
+
     biovilt_checkpoint_path = _download_biovil_t_image_model_weights()
     model_type = ImageEncoderType.RESNET50_MULTI_IMAGE
     image_model = ImageModel(img_encoder_type=model_type,

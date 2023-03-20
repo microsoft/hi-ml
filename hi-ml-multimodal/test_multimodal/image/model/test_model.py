@@ -13,7 +13,7 @@ from health_multimodal.image.model.pretrained import get_biovil_resnet, get_biov
 from health_multimodal.image.model.types import ImageEncoderType, ImageModelOutput
 
 
-def test_biovilt_pretrained_model() -> None:
+def test_loading_biovilt_pretrained_model() -> None:
     model = get_biovilt_image_encoder()
 
 
