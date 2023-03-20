@@ -76,10 +76,11 @@ def test_multi_image_encoder_forward_pass() -> None:
     encoder = MultiImageEncoder(img_encoder_type=ImageEncoderType.RESNET18_MULTI_IMAGE)
     assert encoder.training
 
-    # Multi-image run
     batch_size = 2
     current_image = torch.rand(size=(batch_size, 3, 448, 448))
     previous_image = torch.rand(size=(batch_size, 3, 448, 448))
+
+    # Multi-image run
     with torch.no_grad():
         patch_emb, global_emb = encoder(current_image=current_image,
                                         previous_image=previous_image,
