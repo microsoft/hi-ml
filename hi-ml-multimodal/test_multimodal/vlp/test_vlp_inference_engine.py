@@ -12,7 +12,7 @@ import pytest
 import torch
 from health_multimodal.image import ImageInferenceEngine, ImageModel, ImageEncoderType
 from health_multimodal.image.data.transforms import create_chest_xray_transform_for_inference
-from health_multimodal.image.model.model import JOINT_FEATURE_SIZE
+from health_multimodal.image.model.pretrained import JOINT_FEATURE_SIZE
 from health_multimodal.text.utils import get_cxr_bert_inference
 from health_multimodal.vlp.inference_engine import ImageTextInferenceEngine
 from PIL import Image

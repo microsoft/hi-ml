@@ -7,9 +7,14 @@ from dataclasses import fields
 
 import pytest
 import torch
-from health_multimodal.image.model.model import ImageModel, get_biovil_resnet, MultiImageModel
+from health_multimodal.image.model.model import ImageModel, MultiImageModel
 from health_multimodal.image.model.modules import MultiTaskModel
+from health_multimodal.image.model.pretrained import get_biovil_resnet, get_biovilt_image_encoder
 from health_multimodal.image.model.types import ImageEncoderType, ImageModelOutput
+
+
+def test_biovilt_pretrained_model() -> None:
+    model = get_biovilt_image_encoder()
 
 
 def test_frozen_cnn_model() -> None:

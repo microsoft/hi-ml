@@ -6,9 +6,9 @@
 from .types import ImageEncoderType
 from .model import BaseImageModel
 from .model import ImageModel
-from .model import get_biovil_resnet
-from .model import CXR_BERT_COMMIT_TAG
-from .model import BIOMED_VLP_CXR_BERT_SPECIALIZED
+from .pretrained import BIOMED_VLP_CXR_BERT_SPECIALIZED
+from .pretrained import CXR_BERT_COMMIT_TAG
+from .pretrained import get_biovil_resnet
 
 __all__ = [
     "BaseImageModel",
