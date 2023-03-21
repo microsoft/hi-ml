@@ -3,23 +3,27 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from contextlib import contextmanager
+import os
 import shutil
 import sys
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional
+from unittest import mock
 from unittest.mock import patch, MagicMock, DEFAULT, create_autospec
 
 import pytest
-from _pytest.capture import SysCapture
+from pytest import CaptureFixture
 from azureml.train.hyperdrive import HyperDriveConfig
 
 from health_azure import AzureRunInfo, DatasetConfig
+from health_azure.himl import OUTPUT_FOLDER
+from health_azure.utils import ENV_LOCAL_RANK, ENV_NODE_RANK
 from health_azure.paths import ENVIRONMENT_YAML_FILE_NAME
 from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.deep_learning_config import WorkflowParams
 from health_ml.experiment_config import DEBUG_DDP_ENV_VAR, DebugDDPOptions
 from health_ml.lightning_container import LightningContainer
-from health_ml.runner import Runner
+from health_ml.runner import Runner, create_logging_filename, run_with_logging
 from health_ml.utils.common_utils import change_working_directory
 from health_ml.utils.fixed_paths import repository_root_directory
 
@@ -369,7 +373,7 @@ def test_submit_to_azure_docker(mock_runner: Runner) -> None:
             assert call_kwargs["docker_shm_size"] == docker_shm_size
 
 
-def test_runner_help(mock_runner: Runner, capsys: SysCapture) -> None:
+def test_runner_help(mock_runner: Runner, capsys: CaptureFixture) -> None:
     """Test if the runner outputs default values correctly then using --help
     """
     arguments = ["", "--help"]
@@ -432,3 +436,79 @@ def test_custom_datastore_outside_aml(mock_runner: Runner) -> None:
                     mock_runner.run()
         mock_submit_to_azure_if_needed.assert_called_once()
         assert mock_submit_to_azure_if_needed.call_args[1]["default_datastore"] == datastore
+
+
+@pytest.mark.fast
+def test_logging_filename_default(tmp_path: Path) -> None:
+    """Creating a logging filename without node/rank information"""
+    with change_working_directory(tmp_path):
+        result = create_logging_filename()
+        assert result.name.endswith("node0_rank0.txt")
+        assert result.parents[0].name == "console_logs"
+        assert result.parents[1].name == OUTPUT_FOLDER
+        assert result.parents[2] == tmp_path
+        assert result.parent.is_dir()
+
+
+@pytest.mark.fast
+def test_logging_filename_noderank() -> None:
+    """Creating a logging filename with node/rank information"""
+    with patch.dict(os.environ, {ENV_LOCAL_RANK: "1", ENV_NODE_RANK: "2"}):
+        result = create_logging_filename()
+        assert result.name.endswith("node2_rank1.txt")
+
+
+@pytest.mark.fast
+def test_logging_filename_outputs(tmp_path: Path) -> None:
+    """Creating a logging filename when already in the outputs folder should not add an output folder"""
+    folder = tmp_path / OUTPUT_FOLDER
+    folder.mkdir()
+    with change_working_directory(folder):
+        result = create_logging_filename()
+        assert result.parents[0].name == "console_logs"
+        assert result.parents[1].name == OUTPUT_FOLDER
+        assert result.parents[2] == tmp_path
+
+
+@pytest.mark.fast
+def test_run_with_logging(tmp_path: Path, capsys: CaptureFixture) -> None:
+    """Test wheter log file creation works and handles exceptions correctly"""
+    logging_filename = tmp_path / "file.txt"
+    something = "something"
+
+    def print_something(_: Any) -> None:
+        print(something)
+
+    with mock.patch("health_ml.runner.create_logging_filename", return_value=logging_filename):
+        with mock.patch("health_ml.runner.is_running_in_azure_ml", return_value=True):
+            with mock.patch("health_ml.runner.run") as mock_run:
+                # Anything that is printed to the console should be contained in the output file
+                mock_run.side_effect = print_something
+                run_with_logging(tmp_path)
+                assert logging_filename.is_file()
+                # The printed string should be in both the output file and in the captured stdout
+                contents = logging_filename.read_text()
+                assert something in contents
+                stdout: str = capsys.readouterr().out
+                assert something in stdout
+
+                logging_filename.unlink()
+                # An exception in the runner should be written to the output file and only then raised
+                mock_run.side_effect = ValueError
+                with pytest.raises(ValueError):
+                    run_with_logging(tmp_path)
+                assert logging_filename.is_file()
+                contents = logging_filename.read_text()
+                assert contents.startswith("Traceback")
+                assert "ValueError" in contents
+
+
+@pytest.mark.fast
+def test_run_without_logging(tmp_path: Path) -> None:
+    """When not running in AzureML, console output should not be redirected"""
+    with mock.patch("health_ml.runner.is_running_in_azure_ml", return_value=False):
+        with mock.patch("health_ml.runner.create_logging_filename") as mock_create_filename:
+            with mock.patch("health_ml.runner.run") as mock_run:
+                run_with_logging(tmp_path)
+                mock_create_filename.assert_not_called()
+                mock_run.assert_called_once()
