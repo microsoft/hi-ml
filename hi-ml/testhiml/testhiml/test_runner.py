@@ -380,7 +380,7 @@ def test_runner_help(mock_runner: Runner, capsys: CaptureFixture) -> None:
     with pytest.raises(SystemExit):
         with patch.object(sys, "argv", arguments):
             mock_runner.run()
-    stdout: str = capsys.readouterr().out  # type: ignore
+    stdout: str = capsys.readouterr().out
     # There are at least 3 parameters in ExperimentConfig that should print with defaults
     assert stdout.count("(default: ") > 3
 

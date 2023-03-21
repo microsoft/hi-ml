@@ -8,7 +8,7 @@ from pathlib import Path
 import time
 from typing import Any, Callable, Dict, Sequence, Union
 import numpy as np
-from _pytest.capture import SysCapture
+from pytest import CaptureFixture
 import pytest
 import torch
 from monai.data.meta_tensor import MetaTensor
@@ -376,7 +376,7 @@ def test_metatensor_to_tensor_d_transform() -> None:
         _ = transform(new_sample)
 
 
-def test_timer_wrapper_transform(capsys: SysCapture) -> None:
+def test_timer_wrapper_transform(capsys: CaptureFixture) -> None:
     sample = {"a": 1, SlideKey.SLIDE_ID: "0"}
 
     class DummyTransform:
@@ -387,7 +387,7 @@ def test_timer_wrapper_transform(capsys: SysCapture) -> None:
     transform = TimerWrapper(DummyTransform())
     out = transform(sample)
     assert out == sample
-    message = capsys.readouterr().out  # type: ignore
+    message = capsys.readouterr().out
     assert "Rank " in message
     assert "DummyTransform, Slide 0 took 0.10 seconds" in message
 
