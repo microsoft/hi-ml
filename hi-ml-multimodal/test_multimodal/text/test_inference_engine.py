@@ -12,12 +12,12 @@ from health_multimodal.text.inference_engine import TextInferenceEngine
 from health_multimodal.text.utils import get_biovil_t_bert, get_cxr_bert
 
 
-@pytest.mark.parametrize("text_model_inst_callable", [get_cxr_bert, get_biovil_t_bert])
-def test_text_inference_init_model_type(text_model_inst_callable: Callable) -> None:
+@pytest.mark.parametrize("create_text_model_and_tokenizer", [get_cxr_bert, get_biovil_t_bert])
+def test_text_inference_init_model_type(create_text_model_and_tokenizer: Callable) -> None:
     """
     Test that init fails if the wrong model type is passed in
     """
-    tokenizer, _ = text_model_inst_callable()
+    tokenizer, _ = create_text_model_and_tokenizer()
     false_model = torch.nn.Linear(4, 4)
     with pytest.raises(AssertionError) as ex:
         TextInferenceEngine(tokenizer=tokenizer, text_model=false_model)  # type: ignore[arg-type]
@@ -37,12 +37,12 @@ def test_l2_normalization() -> None:
     assert torch.allclose(norm, torch.ones_like(norm))
 
 
-@pytest.mark.parametrize("text_model_inst_callable", [get_cxr_bert, get_biovil_t_bert])
-def test_sentence_semantic_similarity(text_model_inst_callable: Callable) -> None:
+@pytest.mark.parametrize("create_text_model_and_tokenizer", [get_cxr_bert, get_biovil_t_bert])
+def test_sentence_semantic_similarity(create_text_model_and_tokenizer: Callable) -> None:
     """
     Test that the sentence embedding similarity computed by the text model is meaningful.
     """
-    tokenizer, text_model = text_model_inst_callable()
+    tokenizer, text_model = create_text_model_and_tokenizer()
 
     # CLS token has no dedicated meaning, but we can expect vector similarity due to token overlap between the sentences
     text_inference = TextInferenceEngine(tokenizer=tokenizer, text_model=text_model)
