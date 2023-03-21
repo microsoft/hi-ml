@@ -19,7 +19,6 @@ from .modules import MLP, MultiTaskModel
 from .types import ImageModelOutput
 
 
-
 class BaseImageModel(nn.Module, ABC):
     """Abstract class for image models."""
     @abstractmethod
