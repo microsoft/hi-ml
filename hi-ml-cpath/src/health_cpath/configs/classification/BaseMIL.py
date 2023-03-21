@@ -208,6 +208,9 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
         random see. See `SlidesDataModule` for an example how to achieve that."""
         return None
 
+    def get_encoder_params(self) -> EncoderParams:
+        return create_from_matching_params(self, EncoderParams)
+
     def create_model(self) -> DeepMILModule:
         self.data_module = self.get_data_module()
         outputs_handler = self.get_outputs_handler()
@@ -216,7 +219,7 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
                                        class_names=self.class_names,
                                        class_weights=self.data_module.class_weights,
                                        outputs_folder=self.outputs_folder,
-                                       encoder_params=create_from_matching_params(self, EncoderParams),
+                                       encoder_params=self.get_encoder_params(),
                                        pooling_params=create_from_matching_params(self, PoolingParams),
                                        classifier_params=create_from_matching_params(self, ClassifierParams),
                                        optimizer_params=create_from_matching_params(self, OptimizerParams),

@@ -94,7 +94,6 @@ class EncoderParams(param.Parameterized):
         """Given the current encoder parameters, returns the encoder object.
 
         :param outputs_folder: The output folder where SSL checkpoint should be saved.
-        :param encoder_params: The encoder arguments that define the encoder class object depending on the encoder type.
         :raises ValueError: If the encoder type is not supported.
         :return: A TileEncoder instance for deepmil module.
         """
