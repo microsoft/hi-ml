@@ -57,23 +57,8 @@ If you use our code or models in your research, please cite our recent ECCV and 
 
 ```bibtex
 @InProceedings{10.1007/978-3-031-20059-5_1,
-    author="Boecking, Benedikt
-        and Usuyama, Naoto
-        and Bannur, Shruthi
-        and Castro, Daniel C.
-        and Schwaighofer, Anton
-        and Hyland, Stephanie
-        and Wetscherek, Maria
-        and Naumann, Tristan
-        and Nori, Aditya
-        and Alvarez-Valle, Javier
-        and Poon, Hoifung
-        and Oktay, Ozan",
-    editor="Avidan, Shai
-        and Brostow, Gabriel
-        and Ciss{\'e}, Moustapha
-        and Farinella, Giovanni Maria
-        and Hassner, Tal",
+    author="Boecking, Benedikt and Usuyama, Naoto and Bannur, Shruthi and Castro, Daniel C. and Schwaighofer, Anton and Hyland, Stephanie and Wetscherek, Maria and Naumann, Tristan and Nori, Aditya and Alvarez-Valle, Javier and Poon, Hoifung and Oktay, Ozan",
+    editor="Avidan, Shai and Brostow, Gabriel and Ciss{\'e}, Moustapha and Farinella, Giovanni Maria and Hassner, Tal",
     title="Making the Most of Text Semantics to Improve Biomedical Vision--Language Processing",
     booktitle="Computer Vision -- ECCV 2022",
     year="2022",
@@ -86,22 +71,7 @@ If you use our code or models in your research, please cite our recent ECCV and 
 @inproceedings{bannur2023learning,
     title={Learning to Exploit Temporal Structure for Biomedical Vision{\textendash}Language Processing},
     author={
-        Shruthi Bannur
-        and Stephanie Hyland
-        and Qianchu Liu
-        and Fernando Pérez-García
-        and Maximilian Ilse
-        and Daniel C. Castro
-        and Benedikt Boecking
-        and Harshita Sharma
-        and Kenza Bouzid
-        and Anja Thieme
-        and Anton Schwaighofer
-        and Maria Wetscherek
-        and Matthew P. Lungren
-        and Aditya Nori
-        and Javier Alvarez-Valle
-        and Ozan Oktay},
+        Shruthi Bannur and Stephanie Hyland and Qianchu Liu and Fernando Pérez-García and Maximilian Ilse and Daniel C. Castro and Benedikt Boecking and Harshita Sharma and Kenza Bouzid and Anja Thieme and Anton Schwaighofer and Maria Wetscherek and Matthew P. Lungren and Aditya Nori and Javier Alvarez-Valle and Ozan Oktay},
     booktitle={Conference on Computer Vision and Pattern Recognition 2023},
     year={2023},
     url={https://openreview.net/forum?id=5jScn5xsbo}
@@ -115,6 +85,6 @@ If you use our code or models in your research, please cite our recent ECCV and 
 [5]: https://docs.conda.io/en/latest/miniconda.html
 [6]: https://aka.ms/biovil-models
 [7]: https://doi.org/10.1007/978-3-031-20059-5_1
-[8]: https://openreview.net/forum?id=5jScn5xsbo
+[8]: https://arxiv.org/abs/2301.04558
 [9]: https://hi-ml.readthedocs.io/en/latest/api/multimodal.html
 [10]: https://openi.nlm.nih.gov/faq
