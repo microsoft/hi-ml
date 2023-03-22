@@ -8,7 +8,7 @@ multimodal_src_dir = repo_dir / "hi-ml-multimodal" / "src" / "health_multimodal"
 sys.path.append(str(multimodal_src_dir))
 
 from model import ImageModel
-from model import get_biovil_resnet as _biovil_resnet
+from model import get_biovil_image_encoder as _biovil_resnet
 # autopep8: on
 
 

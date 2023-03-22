@@ -62,7 +62,7 @@ def _download_biovil_t_image_model_weights() -> Path:
     return Path(root_dir, BIOVIL_T_IMAGE_WEIGHTS_NAME)
 
 
-def get_biovil_resnet(pretrained: bool = True) -> ImageModel:
+def get_biovil_image_encoder(pretrained: bool = True) -> ImageModel:
     """Download weights from Hugging Face and instantiate the image model."""
     resnet_checkpoint_path = _download_biovil_image_model_weights() if pretrained else None
 

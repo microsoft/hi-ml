@@ -9,8 +9,10 @@ import pytest
 import torch
 from health_multimodal.image.model.model import ImageModel, MultiImageModel
 from health_multimodal.image.model.modules import MultiTaskModel
-from health_multimodal.image.model.pretrained import get_biovil_resnet, get_biovil_t_image_encoder
-from health_multimodal.image.model.types import ImageEncoderType, ImageModelOutput
+from health_multimodal.image.model.pretrained import get_biovil_image_encoder
+from health_multimodal.image.model.pretrained import get_biovil_t_image_encoder
+from health_multimodal.image.model.types import ImageEncoderType
+from health_multimodal.image.model.types import ImageModelOutput
 
 
 def test_loading_biovilt_pretrained_model() -> None:
@@ -115,7 +117,7 @@ def test_hubconf() -> None:
 
     github = 'microsoft/hi-ml:main'
     model_hub = torch.hub.load(github, 'biovil_resnet', pretrained=True)
-    model_himl = get_biovil_resnet()
+    model_himl = get_biovil_image_encoder()
 
     output_hub: ImageModelOutput = model_hub(image)
     output_himl: ImageModelOutput = model_himl(image)
