@@ -70,7 +70,7 @@ If you use our code or models in your research, please cite our recent ECCV and 
 
 @inproceedings{bannur2023learning,
     title={Learning to Exploit Temporal Structure for Biomedical Vision{\textendash}Language Processing},
-    author={Shruthi Bannur and Stephanie Hyland and Qianchu Liu and Fernando Pérez-García and Maximilian Ilse and Daniel C. Castro and Benedikt Boecking and Harshita Sharma and Kenza Bouzid and Anja Thieme and Anton Schwaighofer and Maria Wetscherek and Matthew P. Lungren and Aditya Nori and Javier Alvarez-Valle and Ozan Oktay},
+    author={Shruthi Bannur and Stephanie Hyland and Qianchu Liu and Fernando P\'{e}rez-Garc\'{i}a and Maximilian Ilse and Daniel C. Castro and Benedikt Boecking and Harshita Sharma and Kenza Bouzid and Anja Thieme and Anton Schwaighofer and Maria Wetscherek and Matthew P. Lungren and Aditya Nori and Javier Alvarez-Valle and Ozan Oktay},
     booktitle={Conference on Computer Vision and Pattern Recognition 2023},
     year={2023},
     url={https://openreview.net/forum?id=5jScn5xsbo}
