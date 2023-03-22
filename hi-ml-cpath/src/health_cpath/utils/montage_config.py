@@ -9,6 +9,7 @@ from typing import Optional
 import param
 
 from health_azure.utils import create_argparser
+from health_ml.utils.fixed_paths import repository_root_directory
 
 
 class AzureRunConfig(param.Parameterized):
@@ -37,6 +38,9 @@ class AzureRunConfig(param.Parameterized):
         param.ClassSelector(class_=Path, default=None, allow_None=True,
                             doc="The path to the AzureML workspace configuration file. If not specified, the "
                                 "configuration file in the current folder or one of its parents will be used.")
+    display_name: str = \
+        param.String(default="",
+                     doc="The display name of the AzureML run. If not specified, a default name will be used.")
 
 
 class MontageConfig(AzureRunConfig):
