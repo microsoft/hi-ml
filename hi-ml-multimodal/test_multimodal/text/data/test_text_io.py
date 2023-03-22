@@ -6,9 +6,9 @@
 import pytest
 
 from health_multimodal.text import TypePrompts
-from health_multimodal.text.utils import get_cxr_bert_inference
+from health_multimodal.text.utils import get_bert_inference
 
-text_inference = get_cxr_bert_inference()
+text_inference = get_bert_inference()
 
 
 @pytest.mark.parametrize("prompts", ("", "hello", "this is a test", ["this is", "also a test"]))

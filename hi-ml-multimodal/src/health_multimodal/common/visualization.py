@@ -4,12 +4,13 @@
 #  -------------------------------------------------------------------------------------------
 
 from pathlib import Path
-from typing import Union, Optional
+from typing import List, Optional, Tuple, Union
 
-import numpy as np
-from PIL import Image
+import matplotlib.patches as patches
 import matplotlib.pyplot as plt
+import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from PIL import Image
 
 from health_multimodal.image.data.io import load_image
 
@@ -106,15 +107,40 @@ def _plot_heatmap(
         axis.set_title(title)
 
 
-def plot_phrase_grounding_similarity_map(image_path: Path, similarity_map: np.ndarray) -> plt.Figure:
+def plot_phrase_grounding_similarity_map(
+        image_path: Path,
+        similarity_map: np.ndarray,
+        bboxes: Optional[List[Tuple[float, float, float, float]]] = None) -> plt.Figure:
     """Plot visualization of the input image, the similarity heatmap and the heatmap isolines.
 
     :param image_path: Path to the input image.
     :param similarity_map: Phase grounding similarity map of the same size as the image.
+    :param bboxes: Optional list of bounding boxes to plot on the image.
     """
     fig, axes = plt.subplots(1, 3, figsize=(15, 6))
     image = load_image(image_path).convert("RGB")
     _plot_image(image, axis=axes[0], title="Input image")
     _plot_isolines(image, similarity_map, axis=axes[1], title="Similarity isolines")
     _plot_heatmap(image, similarity_map, figure=fig, axis=axes[2], title="Similarity heatmap")
+    if bboxes is not None:
+        _plot_bounding_boxes(ax=axes[1], bboxes=bboxes)
     return fig
+
+
+def _plot_bounding_boxes(ax: plt.Axes,
+                         bboxes: List[Tuple[float, float, float, float]],
+                         linewidth: float = 1.5,
+                         alpha: float = 0.45) -> None:
+    """
+    Plot bounding boxes on an existing axes object.
+
+    :param ax: The axes object to plot the bounding boxes on.
+    :param bboxes: A list of bounding box coordinates as (x, y, width, height) tuples.
+    :param linewidth: Optional line width for the bounding box edges (default is 2).
+    :param alpha: Optional opacity for the bounding box edges (default is 1.0).
+    """
+    for bbox in bboxes:
+        x, y, width, height = bbox
+        rect = patches.Rectangle((x, y), width, height, linewidth=linewidth, edgecolor='k',
+                                 facecolor='none', linestyle='--', alpha=alpha)
+        ax.add_patch(rect)

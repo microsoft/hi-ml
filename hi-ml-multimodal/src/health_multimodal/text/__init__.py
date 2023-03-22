@@ -33,7 +33,7 @@
 """
 
 from .data.io import TypePrompts
-from .utils import get_cxr_bert_inference
+from .utils import get_bert_inference
 from .inference_engine import TextInferenceEngine
 from .model import CXRBertModel
 from .model import CXRBertOutput
@@ -48,5 +48,5 @@ __all__ = [
     "CXRBertTokenizer",
     "CXRBertModel",
     "CXRBertOutput",
-    "get_cxr_bert_inference",
+    "get_bert_inference",
 ]
