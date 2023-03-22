@@ -9,7 +9,6 @@ from typing import Optional
 import param
 
 from health_azure.utils import create_argparser
-from health_ml.utils.fixed_paths import repository_root_directory
 
 
 class AzureRunConfig(param.Parameterized):
