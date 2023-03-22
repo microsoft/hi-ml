@@ -1,3 +1,4 @@
+ipyannotations==0.5.1
 huggingface-hub==0.6.0
 pillow==9.3.0
 pydicom==2.2.2
