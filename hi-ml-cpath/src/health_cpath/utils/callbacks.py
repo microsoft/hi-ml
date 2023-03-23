@@ -23,7 +23,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import Callback
 
 from health_cpath.models.deepmil import DeepMILModule
-from health_cpath.utils.naming import ModelKey, ResultsKey
+from health_cpath.utils.naming import ModelKey, ResultsKey, SlideKey
 from health_cpath.utils.output_utils import BatchResultsType
 from health_cpath.utils.hooks import ActivationHook
 
@@ -564,7 +564,7 @@ class LossAnalysisCallback(Callback):
 
 class MILGradCamCallback(Callback):
     """
-    Callback for computing Grad-CAM on the output of a MIL model during training.
+    Callback for computing Grad-CAM on the output of a MIL model during evaluation.
     """
     def __init__(self, layer_name: str = 'layer4') -> None:
         super().__init__()
@@ -584,27 +584,30 @@ class MILGradCamCallback(Callback):
             Tuple: A tuple containing the class activation map (CAM) and the top-k indices.
         """
         # Compute the gradients of the predicted probability with respect to the layer activations
-        grads = torch.autograd.grad(prob, activations)[0].detach()
+        grads = torch.autograd.grad(prob, activations)
 
-        # Filter the activations and gradients by top attention scores
-        topk_idx = torch.topk(attentions[0, 0], k=10).indices
+        grads = grads[0].detach()
+        activations = activations.detach()
+        attentions = attentions[0][0].detach()
+
+        # Filter by top activations
+        topk_idx = torch.topk(attentions, 10).indices
         activations = activations[topk_idx]
         grads = grads[topk_idx]
 
-        # Compute the class activation map (CAM)
+        # Compute class activation map
         pooled_grads = torch.mean(grads, dim=[2, 3], keepdim=True)
-        cam = (pooled_grads * activations).sum(dim=0, keepdim=True)
-        cam = nn.functional.relu(cam)
-
-        # Normalize the CAM by the maximum activation value in each spatial location
-        max_per_tile, _ = torch.max(cam, dim=(2, 3), keepdim=True)
-        cam /= max_per_tile
+        cam = activations * pooled_grads
+        cam = torch.mean(cam, dim=1)
+        cam = nn.ReLU()(cam)
+        max_per_tile = torch.amax(cam, dim=[1, 2], keepdim=True)
+        cam = cam / max_per_tile
 
         return cam.cpu().numpy(), topk_idx.cpu().numpy()
 
     @staticmethod
     def plot_cam(cams: np.ndarray, tiles: torch.Tensor, topk_idx: np.ndarray, slide_id: str, true_label: str,
-                 pred_label: str) -> None:
+                 pred_label: str, layer_name:str) -> None:
         """
         Plot CAM images for each of the top k tiles.
 
@@ -623,6 +626,10 @@ class MILGradCamCallback(Callback):
             image_pil = Image.fromarray(image)
             image_interp = image_pil.resize(size=size, resample=Image.BILINEAR)
             return np.array(image_interp)
+
+        slide_id = slide_id[0][0]
+        true_label = true_label[0].cpu().numpy()
+        pred_label = pred_label[0][0].cpu().numpy()
 
         # Get topk tiles
         tiles = tiles[0][topk_idx].cpu()
@@ -652,7 +659,7 @@ class MILGradCamCallback(Callback):
             ax_heatmap.axis('off')
 
         plt.tight_layout()
-        file_name = f"slide_{slide_id}_true_label_{true_label}_pred_label_{pred_label}.png"
+        file_name = f"slide_{slide_id}_layer_name_{layer_name}_true_label_{true_label}_pred_label_{pred_label}.png"
         plt.savefig(file_name)
 
     def on_validation_epoch_start(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
@@ -688,12 +695,6 @@ class MILGradCamCallback(Callback):
                                                self.activation_hook.acts_of_selected_layer,
                                                outputs[ResultsKey.BAG_ATTN])
 
-        # Clear GPU memory
-        self.activation_hook.acts_of_selected_layer = None
-        torch.cuda.empty_cache()
-
         # Plot CAM
-        slide_id = batch['slide_id'][0][0]
-        true_label = batch['label'][0].cpu().numpy()
-        pred_label = outputs['pred_label'][0][0].cpu().numpy()
-        self.plot_cam(cams, batch['image'], topk_idx, slide_id, true_label, pred_label)
+        self.plot_cam(cams, batch[SlideKey.IMAGE], topk_idx, batch[ResultsKey.SLIDE_ID],
+                      outputs[ResultsKey.TRUE_LABEL], outputs[ResultsKey.PRED_LABEL], self.layer_name)
