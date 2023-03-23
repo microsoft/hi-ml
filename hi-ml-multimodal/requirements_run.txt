@@ -1,4 +1,5 @@
 huggingface-hub
+matplotlib
 pillow
 pydicom
 scikit-image
