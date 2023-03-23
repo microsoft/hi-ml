@@ -5,5 +5,5 @@ scikit-image
 SimpleITK
 timm
 torch
-torchvision
+torchvision<=0.13
 transformers
