@@ -15,8 +15,7 @@ from torchvision.datasets import VisionDataset
 from SSL.data.io_util import is_dicom_file_path, load_dicom_image
 from health_azure.utils import PathOrString
 
-from health_cpath.datasets.dataset_return_index import DatasetWithReturnIndex, \
-    OptionalIndexInputAndLabel
+from health_cpath.datasets.dataset_return_index import DatasetWithReturnIndex, OptionalIndexInputAndLabel
 
 
 class CxrDatasetBase(VisionDataset):
@@ -25,11 +24,7 @@ class CxrDatasetBase(VisionDataset):
     Implements reading of dicom files as well as png.
     """
 
-    def __init__(self,
-                 root: str,
-                 train: bool,
-                 transform: Optional[Callable] = None,
-                 **kwargs: Any) -> None:
+    def __init__(self, root: str, train: bool, transform: Optional[Callable] = None, **kwargs: Any) -> None:
         """
 
         :param root: path to the data directory
@@ -39,8 +34,7 @@ class CxrDatasetBase(VisionDataset):
         super().__init__(root=root, transforms=transform)
         self.root = Path(self.root)  # type: ignore
         if not self.root.exists():
-            logging.error(
-                f"The data directory {self.root} does not exist. Make sure to download the data first.")
+            logging.error(f"The data directory {self.root} does not exist. Make sure to download the data first.")
         self.train = train
         self.targets: Optional[List[int]] = None
         self._prepare_dataset()
@@ -61,7 +55,7 @@ class CxrDatasetBase(VisionDataset):
             scan_image = load_dicom_image(filename)
             # Dicom files have arbitrary pixel intensities, convert to [0,255] range so that PIL can
             # read the array into an Image object.
-            scan_image = (scan_image - scan_image.min()) * 255. / (scan_image.max() - scan_image.min())
+            scan_image = (scan_image - scan_image.min()) * 255.0 / (scan_image.max() - scan_image.min())
             # Load as PIL Image in grey-scale (convert("L") step), yields a 1-channel image.
             scan_image = Image.fromarray(scan_image).convert("L")
         else:
@@ -84,6 +78,7 @@ class CxrDatasetWithReturnIndex(DatasetWithReturnIndex, CxrDatasetBase):
     Any dataset used in SSL needs to inherit from DatasetWithReturnIndex as well as VisionData.
     This class is just a shorthand notation for this double inheritance.
     """
+
     pass
 
 
@@ -124,10 +119,7 @@ class NIHCXR(CxrDatasetWithReturnIndex):
     False when you initialize the class.
     """
 
-    def __init__(self,
-                 root: str,
-                 use_full_dataset_for_train_and_val: bool = True,
-                 **kwargs: Any) -> None:
+    def __init__(self, root: str, use_full_dataset_for_train_and_val: bool = True, **kwargs: Any) -> None:
         self.use_full_dataset_for_train_and_val = use_full_dataset_for_train_and_val
         super().__init__(root=root, **kwargs)
 
@@ -156,10 +148,7 @@ class CheXpert(CxrDatasetWithReturnIndex):
     setting remove_lateral_scans_from_dataset to False when you initialize your dataset class.
     """
 
-    def __init__(self,
-                 root: str,
-                 remove_lateral_scans_from_dataset: bool = True,
-                 **kwargs: Any) -> None:
+    def __init__(self, root: str, remove_lateral_scans_from_dataset: bool = True, **kwargs: Any) -> None:
         self.remove_lateral_scans_from_dataset = remove_lateral_scans_from_dataset
         super().__init__(root=root, **kwargs)
 
@@ -210,9 +199,8 @@ class CovidDataset(CxrDatasetWithReturnIndex):
         shuffled_subject_ids = np.random.RandomState(seed).permutation(np.unique(self.subject_ids))
         n_val = int(len(shuffled_subject_ids) * val_split)
         val_subjects, train_subjects = shuffled_subject_ids[:n_val], shuffled_subject_ids[n_val:]
-        train_ids, val_ids = np.where(
-            np.isin(self.subject_ids, train_subjects)
-        )[0], np.where(
-            np.isin(self.subject_ids, val_subjects)
-        )[0]
+        train_ids, val_ids = (
+            np.where(np.isin(self.subject_ids, train_subjects))[0],
+            np.where(np.isin(self.subject_ids, val_subjects))[0],
+        )
         return Subset(self, train_ids), Subset(self, val_ids)

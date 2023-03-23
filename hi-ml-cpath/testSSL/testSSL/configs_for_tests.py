@@ -84,10 +84,7 @@ class DummyRegressionPlainLightning(LightningModuleWithOptimizer):
         super().__init__(*args, **kwargs)
         self.l_rate = 1e-1
         activation = Identity()
-        layers = [
-            torch.nn.Linear(in_features=in_features, out_features=1, bias=True),
-            activation
-        ]
+        layers = [torch.nn.Linear(in_features=in_features, out_features=1, bias=True), activation]
         self.model = torch.nn.Sequential(*layers)  # type: ignore
 
     def forward(self, x: Tensor) -> Tensor:  # type: ignore
@@ -119,10 +116,7 @@ class DummyRegression(DummyRegressionPlainLightning):
         self.l_rate = 1e-1
         self.dataset_split = ModelExecutionMode.TRAIN
         activation = Identity()
-        layers = [
-            torch.nn.Linear(in_features=in_features, out_features=1, bias=True),
-            activation
-        ]
+        layers = [torch.nn.Linear(in_features=in_features, out_features=1, bias=True), activation]
         self.model = torch.nn.Sequential(*layers)  # type: ignore
 
     def forward(self, x: Tensor) -> Tensor:  # type: ignore
@@ -158,8 +152,9 @@ class DummyRegression(DummyRegressionPlainLightning):
 
     def on_inference_end(self) -> None:
         Path("on_inference_end.txt").touch()
-        df = pd.DataFrame(columns=["Split", "MSE"],
-                          data=[[split.value, mse] for split, mse in self.inference_mse.items()])
+        df = pd.DataFrame(
+            columns=["Split", "MSE"], data=[[split.value, mse] for split, mse in self.inference_mse.items()]
+        )
         df.to_csv("metrics_per_split.csv", index=False)
 
 
@@ -195,7 +190,6 @@ class FixedRegressionData(LightningDataModule):
 
 
 class DummyContainerWithModel(LightningContainer):
-
     def __init__(self) -> None:
         super().__init__()
         self.inference_on_train_set = True
@@ -218,7 +212,6 @@ class DummyContainerWithModel(LightningContainer):
 
 
 class DummyContainerWithInvalidTrainerArguments(LightningContainer):
-
     def create_model(self) -> LightningModule:
         return DummyRegression()
 
@@ -240,7 +233,6 @@ class DummyContainerWithPlainLightning(LightningContainer):
 
 
 class DummyContainerWithHooks(LightningContainer):
-
     def __init__(self) -> None:
         super().__init__()
         self.num_epochs = 1
@@ -278,16 +270,14 @@ class DummySimCLRData(VisionDataset):
     """
 
     def __init__(
-            self,
-            root: str,
-            train: bool = True,
-            transform: Optional[Callable] = None,
-            target_transform: Optional[Callable] = None,
-            download: bool = False,
+        self,
+        root: str,
+        train: bool = True,
+        transform: Optional[Callable] = None,
+        target_transform: Optional[Callable] = None,
+        download: bool = False,
     ) -> None:
-        super(DummySimCLRData, self).__init__(root,
-                                              transform=transform,
-                                              target_transform=target_transform)
+        super(DummySimCLRData, self).__init__(root, transform=transform, target_transform=target_transform)
 
         self.train = train
         self.data = torch.ones(20, 1, 1, 3)
@@ -328,25 +318,27 @@ class DummySimCLR(SSLContainer):
     """
     This module trains an SSL encoder using SimCLR on the DummySimCLRData and finetunes a linear head too.
     """
+
     SSLContainer.DatasetToClassMapping.update({SSL_Dataset_Dummy: DummySimCLRHimlData})
 
     def __init__(self) -> None:
-        super().__init__(ssl_training_dataset_name=SSL_Dataset_Dummy,
-                         linear_head_dataset_name=SSL_Dataset_Dummy,
-                         # Train with as little data as possible for the test
-                         ssl_training_batch_size=2,
-                         linear_head_batch_size=2,
-                         ssl_encoder=EncoderName.resnet50,  # This gets overwritten by the test itself
-                         ssl_training_type=SSLTrainingType.SimCLR,
-                         random_seed=0,
-                         num_epochs=20,
-                         num_workers=0,
-                         max_num_gpus=1)
+        super().__init__(
+            ssl_training_dataset_name=SSL_Dataset_Dummy,
+            linear_head_dataset_name=SSL_Dataset_Dummy,
+            # Train with as little data as possible for the test
+            ssl_training_batch_size=2,
+            linear_head_batch_size=2,
+            ssl_encoder=EncoderName.resnet50,  # This gets overwritten by the test itself
+            ssl_training_type=SSLTrainingType.SimCLR,
+            random_seed=0,
+            num_epochs=20,
+            num_workers=0,
+            max_num_gpus=1,
+        )
 
-    def _get_transforms(self, augmentation_config: Optional[CfgNode],
-                        dataset_name: str,
-                        is_ssl_encoder_module: bool) -> Tuple[Any, Any]:
-
+    def _get_transforms(
+        self, augmentation_config: Optional[CfgNode], dataset_name: str, is_ssl_encoder_module: bool
+    ) -> Tuple[Any, Any]:
         # is_ssl_encoder_module will be True for ssl training, False for linear head training
         train_transforms = ImageTransformationPipeline([Lambda(lambda x: x)])  # do nothing
         val_transforms = ImageTransformationPipeline([Lambda(lambda x: x + 1)])  # add 1

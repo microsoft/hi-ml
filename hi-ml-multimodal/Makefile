@@ -46,6 +46,10 @@ build:
 flake8:
 	flake8 --count --statistics .
 
+# run black check
+black:
+	black . --check --diff
+
 # run mypy, assuming test requirements already installed
 mypy:
 	mypy --install-types --show-error-codes --non-interactive setup.py
@@ -75,7 +79,7 @@ pyright:
 	pyright
 
 # run basic checks
-check: flake8 mypy pyright
+check: flake8 mypy pyright black
 
 # bump version from specified part (major, minor or patch) (dry run). Usage:
 # $ make bump_version_dry part=patch

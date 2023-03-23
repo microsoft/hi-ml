@@ -16,22 +16,22 @@ GPU_TESTING_INSTANCE_NAME = "testing-standard-nc6"
 
 here = Path(__file__).parent.resolve()
 
-workspace = get_workspace(aml_workspace=None,
-                          workspace_config_path=here / WORKSPACE_CONFIG_JSON)
+workspace = get_workspace(aml_workspace=None, workspace_config_path=here / WORKSPACE_CONFIG_JSON)
 
-environment = Environment.from_dockerfile(name='image_load_env',
-                                          dockerfile='./Dockerfile',
-                                          conda_specification='./environment.yml')
+environment = Environment.from_dockerfile(
+    name='image_load_env', dockerfile='./Dockerfile', conda_specification='./environment.yml'
+)
 
 compute_target = ComputeTarget(workspace=workspace, name=GPU_TESTING_INSTANCE_NAME)
 
-config = ScriptRunConfig(source_directory='./src',
-                         script='profile_load_image.py',
-                         compute_target=compute_target,
-                         environment=environment)
+config = ScriptRunConfig(
+    source_directory='./src', script='profile_load_image.py', compute_target=compute_target, environment=environment
+)
 
-run = submit_run(workspace=workspace,
-                 experiment_name='image_load_exp',
-                 script_run_config=config,
-                 wait_for_completion=True,
-                 wait_for_completion_show_output=True)
+run = submit_run(
+    workspace=workspace,
+    experiment_name='image_load_exp',
+    script_run_config=config,
+    wait_for_completion=True,
+    wait_for_completion_show_output=True,
+)

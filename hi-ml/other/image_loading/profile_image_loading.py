@@ -102,8 +102,9 @@ def read_image_opencv(input_filename: Path) -> torch.Tensor:
     # numpy_array is a numpy.ndarray, in BGR format.
     numpy_array = cv2.imread(str(input_filename))
     numpy_array = cv2.cvtColor(numpy_array, cv2.COLOR_BGR2RGB)
-    is_greyscale = False not in \
-        ((numpy_array[:, :, 0] == numpy_array[:, :, 1]) == (numpy_array[:, :, 1] == numpy_array[:, :, 2]))
+    is_greyscale = False not in (
+        (numpy_array[:, :, 0] == numpy_array[:, :, 1]) == (numpy_array[:, :, 1] == numpy_array[:, :, 2])
+    )
     if is_greyscale:
         numpy_array = numpy_array[:, :, 0]
     if len(numpy_array.shape) == 2:
@@ -127,8 +128,9 @@ def read_image_opencv2(input_filename: Path) -> torch.Tensor:
     # numpy_array is a numpy.ndarray, in BGR format.
     numpy_array = cv2.imread(str(input_filename))
     numpy_array = cv2.cvtColor(numpy_array, cv2.COLOR_BGR2RGB)
-    is_greyscale = False not in \
-        ((numpy_array[:, :, 0] == numpy_array[:, :, 1]) == (numpy_array[:, :, 1] == numpy_array[:, :, 2]))
+    is_greyscale = False not in (
+        (numpy_array[:, :, 0] == numpy_array[:, :, 1]) == (numpy_array[:, :, 1] == numpy_array[:, :, 2])
+    )
     if is_greyscale:
         numpy_array = numpy_array[:, :, 0]
     torch_tensor = TF.to_tensor(numpy_array)
@@ -323,10 +325,11 @@ def check_loaded_image2(type: str, image_file: Path, im2: np.ndarray) -> None:
 
 
 def mount_and_convert_source_files(
-        dataset: FileDataset,
-        output_folder: Path,
-        source_options: List[Tuple[str, bool, bool]],
-        bin_libs: List[Tuple[str, str, Callable[[torch.Tensor, Path], None], Callable[[Path], torch.Tensor]]]) -> None:
+    dataset: FileDataset,
+    output_folder: Path,
+    source_options: List[Tuple[str, bool, bool]],
+    bin_libs: List[Tuple[str, str, Callable[[torch.Tensor, Path], None], Callable[[Path], torch.Tensor]]],
+) -> None:
     """
     Mount the dataset, and loop through all the png files creating cropped/greyscale pngs from them.
     Also create torch.Tensor and numpy array versions.
@@ -356,17 +359,20 @@ def mount_and_convert_source_files(
                     target_file = target_folder / image_file.with_suffix(suffix).name
                     write_op(tensor, target_file)
 
-                print(f"Converted file: {image_file}, format: {im.format} -> {im2.format}, "
-                      f"size: {im.size} -> {im2.size}, mode: {im.mode} -> {im2.mode}")
+                print(
+                    f"Converted file: {image_file}, format: {im.format} -> {im2.format}, "
+                    f"size: {im.size} -> {im2.size}, mode: {im.mode} -> {im2.mode}"
+                )
 
 
 def run_profiling(
-        repeats: int,
-        output_folder: Path,
-        source_options: List[str],
-        png_libs: List[Tuple[str, Callable[[Path], torch.Tensor]]],
-        png2_libs: List[Tuple[str, Callable[[Path], np.array]]],  # type: ignore
-        bin_libs: List[Tuple[str, str, Callable[[torch.Tensor, Path], None], Callable[[Path], torch.Tensor]]]) -> None:
+    repeats: int,
+    output_folder: Path,
+    source_options: List[str],
+    png_libs: List[Tuple[str, Callable[[Path], torch.Tensor]]],
+    png2_libs: List[Tuple[str, Callable[[Path], np.array]]],  # type: ignore
+    bin_libs: List[Tuple[str, str, Callable[[torch.Tensor, Path], None], Callable[[Path], torch.Tensor]]],
+) -> None:
     """
     Loop through multiple repeats of each source type, loading the image file and processing it with each
     library.
@@ -401,13 +407,14 @@ def run_profiling(
 
 
 def wrap_run_profiling(
-        repeats: int,
-        output_folder: Path,
-        png_libs: List[Tuple[str, Callable[[Path], torch.Tensor]]],
-        png2_libs: List[Tuple[str, Callable[[Path], np.array]]],  # type: ignore
-        bin_libs: List[Tuple[str, str, Callable[[torch.Tensor, Path], None], Callable[[Path], torch.Tensor]]],
-        profile_name: str,
-        profile_source_options: List[str]) -> None:
+    repeats: int,
+    output_folder: Path,
+    png_libs: List[Tuple[str, Callable[[Path], torch.Tensor]]],
+    png2_libs: List[Tuple[str, Callable[[Path], np.array]]],  # type: ignore
+    bin_libs: List[Tuple[str, str, Callable[[torch.Tensor, Path], None], Callable[[Path], torch.Tensor]]],
+    profile_name: str,
+    profile_source_options: List[str],
+) -> None:
     """
     Setup lineProfiler and call run_profiling.
 
@@ -419,18 +426,14 @@ def wrap_run_profiling(
     :param profile_source_options: List of source folders to test.
     :return: None.
     """
+
     def curry_run_profiling() -> None:
         """
         Create a new parameterless function by applying all the options, for ease of profiling.
 
         :return: None.
         """
-        run_profiling(repeats,
-                      output_folder,
-                      profile_source_options,
-                      png_libs,
-                      png2_libs,
-                      bin_libs)
+        run_profiling(repeats, output_folder, profile_source_options, png_libs, png2_libs, bin_libs)
 
     """
     Create a LineProfiler and time calls to convert_image, writing results to a text file.
@@ -495,9 +498,9 @@ def main() -> None:
 
     workspace = get_workspace(aml_workspace=None, workspace_config_path=None)
 
-    dataset = get_or_create_dataset(workspace=workspace,
-                                    datastore_name='himldatasets',
-                                    dataset_name='panda_tiles_small')
+    dataset = get_or_create_dataset(
+        workspace=workspace, datastore_name='himldatasets', dataset_name='panda_tiles_small'
+    )
 
     output_folder = Path("outputs")
     output_folder.mkdir(exist_ok=True)
@@ -506,17 +509,11 @@ def main() -> None:
 
     profile_sets: Dict[str, List[str]] = {
         "rgb": [source_options[0][0], source_options[2][0]],
-        "grey": [source_options[1][0], source_options[3][0]]
+        "grey": [source_options[1][0], source_options[3][0]],
     }
 
     for profile_name, profile_source_options in profile_sets.items():
-        wrap_run_profiling(10,
-                           output_folder,
-                           png_libs,
-                           png2_libs,
-                           bin_libs,
-                           profile_name,
-                           profile_source_options)
+        wrap_run_profiling(10, output_folder, png_libs, png2_libs, bin_libs, profile_name, profile_source_options)
 
 
 if __name__ == '__main__':

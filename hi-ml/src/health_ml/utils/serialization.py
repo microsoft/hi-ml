@@ -25,8 +25,8 @@ def _dump_to_stream(o: Any) -> BytesIO:
 
 
 class ModelInfo:
-    """Stores a model, its example input, and metadata that describes how the model was trained.
-    """
+    """Stores a model, its example input, and metadata that describes how the model was trained."""
+
     MODEL = "model"
     MODEL_EXAMPLE_INPUT = "model_example_input"
     MODEL_CONFIG_YAML = "model_config_yaml"
@@ -41,21 +41,22 @@ class ModelInfo:
     OTHER_INFO = "other_info"
     OTHER_DESCRIPTION = "other_description"
 
-    def __init__(self,
-                 model: Optional[Union[torch.nn.Module, torch.jit.ScriptModule]] = None,
-                 model_example_input: Optional[torch.Tensor] = None,
-                 model_config: Any = None,
-                 git_repository: str = "",
-                 git_commit_hash: str = "",
-                 dataset_name: str = "",
-                 azure_ml_workspace: str = "",
-                 azure_ml_run_id: str = "",
-                 text_tokenizer: Any = None,
-                 image_pre_processing: Optional[Callable] = None,
-                 image_dimensions: str = "",
-                 other_info: Any = None,
-                 other_description: str = "",
-                 ):
+    def __init__(
+        self,
+        model: Optional[Union[torch.nn.Module, torch.jit.ScriptModule]] = None,
+        model_example_input: Optional[torch.Tensor] = None,
+        model_config: Any = None,
+        git_repository: str = "",
+        git_commit_hash: str = "",
+        dataset_name: str = "",
+        azure_ml_workspace: str = "",
+        azure_ml_run_id: str = "",
+        text_tokenizer: Any = None,
+        image_pre_processing: Optional[Callable] = None,
+        image_dimensions: str = "",
+        other_info: Any = None,
+        other_description: str = "",
+    ):
         """
         :param model: The model that should be serialized, or the deserialized model, defaults to None
         :param model_example_input: A tensor that can be input to the forward pass of the model, defaults to None
@@ -109,6 +110,7 @@ class ModelInfo:
 
         :param strict: The setting for the 'strict' flag in the call to torch.jit.trace.
         """
+
         def bytes_or_none(o: Any) -> Optional[bytes]:
             return _dump_to_stream(o).getvalue() if o is not None else None
 
@@ -137,7 +139,7 @@ class ModelInfo:
             ModelInfo.IMAGE_PRE_PROCESSING: bytes_or_none(self.image_pre_processing),
             ModelInfo.IMAGE_DIMENSIONS: self.image_dimensions,
             ModelInfo.OTHER_INFO: bytes_or_none(self.other_info),
-            ModelInfo.OTHER_DESCRIPTION: self.other_description
+            ModelInfo.OTHER_DESCRIPTION: self.other_description,
         }
 
     def load_state_dict(self, state_dict: Dict[str, Any]) -> None:
@@ -145,6 +147,7 @@ class ModelInfo:
 
         :param state_dict: The dictionary to load from.
         """
+
         def unpickle_from_bytes(field: str) -> Any:
             if field not in state_dict:
                 raise KeyError(f"State_dict does not contain a field '{field}'")

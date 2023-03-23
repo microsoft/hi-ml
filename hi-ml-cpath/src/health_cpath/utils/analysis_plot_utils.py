@@ -163,13 +163,14 @@ def format_pr_or_roc_axes(plot_type: str, ax: Axes) -> None:
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.set_aspect(1)
-    ax.set_xlim(-.05, 1.05)
-    ax.set_ylim(-.05, 1.05)
+    ax.set_xlim(-0.05, 1.05)
+    ax.set_ylim(-0.05, 1.05)
     ax.grid(color='0.9')
 
 
-def _plot_hyperdrive_roc_and_pr_curves(hyperdrive_dfs: Dict[int, pd.DataFrame], roc_ax: Axes, pr_ax: Axes,
-                                       scores_column: str = ResultsKey.PROB) -> None:
+def _plot_hyperdrive_roc_and_pr_curves(
+    hyperdrive_dfs: Dict[int, pd.DataFrame], roc_ax: Axes, pr_ax: Axes, scores_column: str = ResultsKey.PROB
+) -> None:
     """Plot ROC and precision-recall curves for multiple hyperdrive runs onto provided axes.
 
     This is called by :py:func:`plot_hyperdrive_roc_and_pr_curves()`, which additionally creates a figure and the axes.
@@ -188,11 +189,14 @@ def _plot_hyperdrive_roc_and_pr_curves(hyperdrive_dfs: Dict[int, pd.DataFrame], 
         labels = tile_labels.first()
 
         tile_scores = slides_groupby[scores_column]
-        non_unique_slides = [slide_id for slide_id, unique_slide_score in tile_scores.unique().items()
-                             if len(unique_slide_score) > 1]
+        non_unique_slides = [
+            slide_id for slide_id, unique_slide_score in tile_scores.unique().items() if len(unique_slide_score) > 1
+        ]
         if non_unique_slides:
-            warnings.warn(f"Found {len(non_unique_slides)}/{len(slides_groupby)} non-unique slides in fold {k}: "
-                          f"{sorted(non_unique_slides)}")
+            warnings.warn(
+                f"Found {len(non_unique_slides)}/{len(slides_groupby)} non-unique slides in fold {k}: "
+                f"{sorted(non_unique_slides)}"
+            )
         # TODO: Re-enable assertion once we can guarantee uniqueness of slides during validation
         # assert len(non_unique_slides) == 0
         scores = tile_scores.first()
@@ -206,8 +210,9 @@ def _plot_hyperdrive_roc_and_pr_curves(hyperdrive_dfs: Dict[int, pd.DataFrame], 
     format_pr_or_roc_axes('pr', pr_ax)
 
 
-def plot_hyperdrive_roc_and_pr_curves(hyperdrive_dfs: Dict[int, pd.DataFrame],
-                                      scores_column: str = ResultsKey.PROB) -> Figure:
+def plot_hyperdrive_roc_and_pr_curves(
+    hyperdrive_dfs: Dict[int, pd.DataFrame], scores_column: str = ResultsKey.PROB
+) -> Figure:
     """Plot ROC and precision-recall curves for multiple hyperdrive child runs.
 
     This will create a new figure with two subplots (left: ROC, right: PR).
@@ -221,8 +226,14 @@ def plot_hyperdrive_roc_and_pr_curves(hyperdrive_dfs: Dict[int, pd.DataFrame],
     return fig
 
 
-def plot_hyperdrive_training_curves(metrics_df: pd.DataFrame, train_metric: str, val_metric: str, ax: Axes,
-                                    best_epochs: Optional[Dict[int, int]] = None, ylabel: Optional[str] = None) -> None:
+def plot_hyperdrive_training_curves(
+    metrics_df: pd.DataFrame,
+    train_metric: str,
+    val_metric: str,
+    ax: Axes,
+    best_epochs: Optional[Dict[int, int]] = None,
+    ylabel: Optional[str] = None,
+) -> None:
     """Plot paired training and validation metrics for every training epoch of hyperdrive child runs.
 
     :param metrics_df: Metrics dataframe, as returned by :py:func:`collect_hyperdrive_metrics()` and
@@ -237,7 +248,7 @@ def plot_hyperdrive_training_curves(metrics_df: pd.DataFrame, train_metric: str,
         train_values = metrics_df.loc[train_metric, k]
         val_values = metrics_df.loc[val_metric, k]
         if train_values is not None:
-            line, = ax.plot(train_values, **TRAIN_STYLE, label=f"Child {k}")
+            (line,) = ax.plot(train_values, **TRAIN_STYLE, label=f"Child {k}")
             color = line.get_color()
         if val_values is not None:
             ax.plot(val_values, color=color, **VAL_STYLE)
@@ -260,24 +271,39 @@ def add_training_curves_legend(fig: Figure, include_best_epoch: bool = False) ->
     :param include_best_epoch: If `True`, adds legend items for the best epoch indicators from
         :py:func:`plot_hyperdrive_training_curves()`.
     """
-    legend_kwargs = dict(edgecolor='none', fontsize='small', borderpad=.2)
+    legend_kwargs = dict(edgecolor='none', fontsize='small', borderpad=0.2)
 
     # Add primary legend for main lines (hyperdrive runs)
     handles, labels = plt.gca().get_legend_handles_labels()
     by_label = dict(zip(labels, handles))
-    fig.legend(by_label.values(), by_label.keys(), **legend_kwargs, loc='lower center',
-               bbox_to_anchor=(0.5, -0.06), ncol=len(by_label))
+    fig.legend(
+        by_label.values(),
+        by_label.keys(),
+        **legend_kwargs,
+        loc='lower center',
+        bbox_to_anchor=(0.5, -0.06),
+        ncol=len(by_label),
+    )
 
     # Add secondary legend for line styles
-    legend_handles = [Line2D([], [], **TRAIN_STYLE, color='k', label="Training"),
-                      Line2D([], [], **VAL_STYLE, color='k', label="Validation")]
+    legend_handles = [
+        Line2D([], [], **TRAIN_STYLE, color='k', label="Training"),
+        Line2D([], [], **VAL_STYLE, color='k', label="Validation"),
+    ]
     if include_best_epoch:
-        legend_handles.append(Line2D([], [], **BEST_EPOCH_LINE_STYLE, **BEST_TRAIN_MARKER_STYLE,
-                                     color='k', label="Best epoch (train)"),)
-        legend_handles.append(Line2D([], [], **BEST_EPOCH_LINE_STYLE, **BEST_VAL_MARKER_STYLE,
-                                     color='k', label="Best epoch (val.)"),)
-    fig.legend(handles=legend_handles, **legend_kwargs, loc='lower center',
-               bbox_to_anchor=(0.5, -0.1), ncol=len(legend_handles))
+        legend_handles.append(
+            Line2D([], [], **BEST_EPOCH_LINE_STYLE, **BEST_TRAIN_MARKER_STYLE, color='k', label="Best epoch (train)"),
+        )
+        legend_handles.append(
+            Line2D([], [], **BEST_EPOCH_LINE_STYLE, **BEST_VAL_MARKER_STYLE, color='k', label="Best epoch (val.)"),
+        )
+    fig.legend(
+        handles=legend_handles,
+        **legend_kwargs,
+        loc='lower center',
+        bbox_to_anchor=(0.5, -0.1),
+        ncol=len(legend_handles),
+    )
 
 
 def plot_confusion_matrices(hyperdrive_dfs: Dict[int, pd.DataFrame], class_names: List[str]) -> Figure:
@@ -299,16 +325,28 @@ def plot_confusion_matrices(hyperdrive_dfs: Dict[int, pd.DataFrame], class_names
         labels_true = tile_labels_true.first()
 
         tile_labels_pred = slides_groupby[ResultsKey.PRED_LABEL]
-        non_unique_slides = [slide_id for slide_id, unique_slide_label in tile_labels_pred.unique().items()
-                             if len(unique_slide_label) > 1]
+        non_unique_slides = [
+            slide_id
+            for slide_id, unique_slide_label in tile_labels_pred.unique().items()
+            if len(unique_slide_label) > 1
+        ]
         if non_unique_slides:
-            warnings.warn(f"Found {len(non_unique_slides)}/{len(slides_groupby)} non-unique slides in fold {k}: "
-                          f"{sorted(non_unique_slides)}")
+            warnings.warn(
+                f"Found {len(non_unique_slides)}/{len(slides_groupby)} non-unique slides in fold {k}: "
+                f"{sorted(non_unique_slides)}"
+            )
         labels_pred = tile_labels_pred.first()
 
         cf_matrix_n = confusion_matrix(y_true=labels_true, y_pred=labels_pred, normalize='true')
-        sns.heatmap(cf_matrix_n, annot=True, cmap='Blues', fmt=".2%", ax=axs[ax_index],
-                    xticklabels=class_names, yticklabels=class_names)
+        sns.heatmap(
+            cf_matrix_n,
+            annot=True,
+            cmap='Blues',
+            fmt=".2%",
+            ax=axs[ax_index],
+            xticklabels=class_names,
+            yticklabels=class_names,
+        )
         axs[ax_index].set_xlabel('Predicted')
         axs[ax_index].set_ylabel('True')
         axs[ax_index].set_title(f'Child {k}')

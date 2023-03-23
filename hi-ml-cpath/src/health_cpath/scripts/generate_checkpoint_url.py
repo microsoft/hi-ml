@@ -32,25 +32,36 @@ def get_checkpoint_url_from_aml_run(
     blob_name = f'ExperimentRun/dcid.{run_id}/{DEFAULT_AML_CHECKPOINT_DIR}/{checkpoint_filename}'
 
     if not sas_token:
-        sas_token = generate_blob_sas(account_name=datastore.account_name,
-                                      container_name=container_name,
-                                      blob_name=blob_name,
-                                      account_key=datastore.account_key,
-                                      permission=BlobSasPermissions(read=True),
-                                      expiry=datetime.utcnow() + timedelta(days=expiry_days))
+        sas_token = generate_blob_sas(
+            account_name=datastore.account_name,
+            container_name=container_name,
+            blob_name=blob_name,
+            account_key=datastore.account_key,
+            permission=BlobSasPermissions(read=True),
+            expiry=datetime.utcnow() + timedelta(days=expiry_days),
+        )
 
     return f'https://{account_name}.blob.core.windows.net/{container_name}/{blob_name}?{sas_token}'
 
 
 if __name__ == '__main__':
     import argparse
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--run_id', type=str, help='The run id of the model checkpoint')
     parser.add_argument('--workspace_config', type=str, help='The path to the workspace config file.')
-    parser.add_argument('--checkpoint_filename', type=str, default='last.ckpt',
-                        help='The filename of the model checkpoint. Default: last.ckpt')
-    parser.add_argument('--expiry_days', type=int, default=30,
-                        help='The number of hours for which the SAS token is valid. Default: 30 for 1 month')
+    parser.add_argument(
+        '--checkpoint_filename',
+        type=str,
+        default='last.ckpt',
+        help='The filename of the model checkpoint. Default: last.ckpt',
+    )
+    parser.add_argument(
+        '--expiry_days',
+        type=int,
+        default=30,
+        help='The number of hours for which the SAS token is valid. Default: 30 for 1 month',
+    )
     args = parser.parse_args()
     workspace_config_path = Path(args.workspace_config) if args.workspace_config else None
     url = get_checkpoint_url_from_aml_run(

@@ -22,8 +22,7 @@ from health_cpath.preprocessing.loading import LoadROId, WSIBackend, segment_for
 from health_cpath.utils.naming import SlideKey, TileKey
 
 
-def select_tiles(foreground_mask: np.ndarray, occupancy_threshold: float) \
-        -> Tuple[np.ndarray, np.ndarray]:
+def select_tiles(foreground_mask: np.ndarray, occupancy_threshold: float) -> Tuple[np.ndarray, np.ndarray]:
     """Exclude tiles that are mostly background based on estimated occupancy.
 
     :param foreground_mask: Boolean array of shape (*, H, W).
@@ -31,7 +30,7 @@ def select_tiles(foreground_mask: np.ndarray, occupancy_threshold: float) \
     :return: A tuple containing which tiles were selected and the estimated occupancies. These will
     be boolean and float arrays of shape (*,), or scalars if `foreground_mask` is a single tile.
     """
-    if occupancy_threshold < 0. or occupancy_threshold > 1.:
+    if occupancy_threshold < 0.0 or occupancy_threshold > 1.0:
         raise ValueError("Tile occupancy threshold must be between 0 and 1")
     occupancy = foreground_mask.mean(axis=(-2, -1))
     return (occupancy > occupancy_threshold).squeeze(), occupancy.squeeze()  # type: ignore
@@ -58,8 +57,9 @@ def save_image(array_chw: np.ndarray, path: Path) -> PIL.Image:
     return pil_image
 
 
-def generate_tiles(slide_image: np.ndarray, tile_size: int, foreground_threshold: float,
-                   occupancy_threshold: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray, int]:
+def generate_tiles(
+    slide_image: np.ndarray, tile_size: int, foreground_threshold: float, occupancy_threshold: float
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, int]:
     """Split the foreground of an input slide image into tiles.
 
     :param slide_image: The RGB image array in (C, H, W) format.
@@ -69,8 +69,7 @@ def generate_tiles(slide_image: np.ndarray, tile_size: int, foreground_threshold
     :return: A tuple containing the image tiles (N, C, H, W), tile coordinates (N, 2), occupancies
     (N,), and total number of discarded empty tiles.
     """
-    image_tiles, tile_locations = tiling.tile_array_2d(slide_image, tile_size=tile_size,
-                                                       constant_values=255)
+    image_tiles, tile_locations = tiling.tile_array_2d(slide_image, tile_size=tile_size, constant_values=255)
     foreground_mask, _ = segment_foreground(image_tiles, foreground_threshold)
 
     selected, occupancies = select_tiles(foreground_mask, occupancy_threshold)
@@ -84,8 +83,7 @@ def generate_tiles(slide_image: np.ndarray, tile_size: int, foreground_threshold
     return image_tiles, tile_locations, occupancies, n_discarded
 
 
-def get_tile_info(sample: Dict[SlideKey, Any], occupancy: float, tile_box: Box,
-                  rel_slide_dir: Path) -> dict:
+def get_tile_info(sample: Dict[SlideKey, Any], occupancy: float, tile_box: Box, rel_slide_dir: Path) -> dict:
     """Map slide information and tiling outputs into tile-specific information dictionary.
 
     :param sample: Slide dictionary.
@@ -108,14 +106,12 @@ def get_tile_info(sample: Dict[SlideKey, Any], occupancy: float, tile_box: Box,
         TileKey.TILE_RIGHT.value: tile_box.x + tile_box.w,
         TileKey.TILE_BOTTOM.value: tile_box.y + tile_box.h,
         TileKey.OCCUPANCY: occupancy,
-        TileKey.SLIDE_METADATA: {key: value
-                                 for key, value in sample[SlideKey.METADATA].items()}
+        TileKey.SLIDE_METADATA: {key: value for key, value in sample[SlideKey.METADATA].items()},
     }
     return tile_info
 
 
-def format_csv_row(tile_info: Dict[TileKey, Any], keys_to_save: Iterable[TileKey],
-                   metadata_keys: Iterable[str]) -> str:
+def format_csv_row(tile_info: Dict[TileKey, Any], keys_to_save: Iterable[TileKey], metadata_keys: Iterable[str]) -> str:
     """Format tile information dictionary as a row to write to a dataset CSV tile.
 
     :param tile_info: Tile information dictionary.
@@ -133,9 +129,16 @@ def format_csv_row(tile_info: Dict[TileKey, Any], keys_to_save: Iterable[TileKey
     return dataset_row
 
 
-def process_slide(sample: Dict[SlideKey, Any], level: int, margin: int, tile_size: int,
-                  foreground_threshold: Optional[float], occupancy_threshold: float, output_dir: Path,
-                  tile_progress: bool = False) -> None:
+def process_slide(
+    sample: Dict[SlideKey, Any],
+    level: int,
+    margin: int,
+    tile_size: int,
+    foreground_threshold: Optional[float],
+    occupancy_threshold: float,
+    output_dir: Path,
+    tile_progress: bool = False,
+) -> None:
     """Load and process a slide, saving tile images and information to a CSV file.
 
     :param sample: Slide information dictionary, returned by the input slide dataset.
@@ -150,8 +153,17 @@ def process_slide(sample: Dict[SlideKey, Any], level: int, margin: int, tile_siz
     :param tile_progress: Whether to display a progress bar in the terminal.
     """
     slide_metadata: Dict[str, Any] = sample[SlideKey.METADATA]
-    keys_to_save = (TileKey.SLIDE_ID, TileKey.TILE_ID, TileKey.IMAGE, TileKey.LABEL,
-                    TileKey.TILE_LEFT, TileKey.TILE_TOP, TileKey.TILE_RIGHT, TileKey.TILE_BOTTOM, TileKey.OCCUPANCY)
+    keys_to_save = (
+        TileKey.SLIDE_ID,
+        TileKey.TILE_ID,
+        TileKey.IMAGE,
+        TileKey.LABEL,
+        TileKey.TILE_LEFT,
+        TileKey.TILE_TOP,
+        TileKey.TILE_RIGHT,
+        TileKey.TILE_BOTTOM,
+        TileKey.OCCUPANCY,
+    )
     metadata_keys = tuple(key for key in slide_metadata)
     csv_columns: Tuple[str, ...] = (*keys_to_save, *metadata_keys)
 
@@ -176,18 +188,19 @@ def process_slide(sample: Dict[SlideKey, Any], level: int, margin: int, tile_siz
             failed_tiles_file.write('tile_id' + '\n')
 
             print(f"Loading slide {slide_id} ...")
-            loader = LoadROId(backend=WSIBackend.CUCIM, level=level, margin=margin,
-                              foreground_threshold=foreground_threshold)
+            loader = LoadROId(
+                backend=WSIBackend.CUCIM, level=level, margin=margin, foreground_threshold=foreground_threshold
+            )
             sample = loader(sample)  # load 'image' from disk
 
             print(f"Tiling slide {slide_id} ...")
-            image_tiles, rel_tile_locations, occupancies, _ = \
-                generate_tiles(sample[SlideKey.IMAGE], tile_size,
-                               sample[SlideKey.FOREGROUND_THRESHOLD],
-                               occupancy_threshold)
+            image_tiles, rel_tile_locations, occupancies, _ = generate_tiles(
+                sample[SlideKey.IMAGE], tile_size, sample[SlideKey.FOREGROUND_THRESHOLD], occupancy_threshold
+            )
 
-            tile_locations = (sample[SlideKey.SCALE] * rel_tile_locations
-                              + sample[SlideKey.ORIGIN]).astype(int)  # noqa: W503
+            tile_locations = (sample[SlideKey.SCALE] * rel_tile_locations + sample[SlideKey.ORIGIN]).astype(
+                int
+            )  # noqa: W503
             tile_size_scaled = int(tile_size * sample[SlideKey.SCALE])
             tile_boxes = [Box(x, y, tile_size_scaled, tile_size_scaled) for x, y in tile_locations]
 
@@ -205,8 +218,9 @@ def process_slide(sample: Dict[SlideKey, Any], level: int, margin: int, tile_siz
                     descriptor = get_tile_descriptor(tile_boxes[i])
                     failed_tiles_file.write(descriptor + '\n')
                     traceback.print_exc()
-                    warnings.warn(f"An error occurred while saving tile "
-                                  f"{get_tile_id(slide_id, tile_boxes[i])}: {e}")
+                    warnings.warn(
+                        f"An error occurred while saving tile " f"{get_tile_id(slide_id, tile_boxes[i])}: {e}"
+                    )
 
             dataset_csv_file.close()
             failed_tiles_file.close()
@@ -233,16 +247,25 @@ def merge_dataset_csv_files(dataset_dir: Path) -> Path:
             print(f"Merging slide {slide_csv}")
             content = slide_csv.read_text()
             if not first_file:
-                content = content[content.index('\n') + 1:]  # discard header row for all but the first file
+                content = content[content.index('\n') + 1 :]  # discard header row for all but the first file
             full_csv_file.write(content)
             first_file = False
     return full_csv
 
 
-def main(slides_dataset: SlidesDataset, root_output_dir: Union[str, Path],
-         level: int, tile_size: int, margin: int, foreground_threshold: Optional[float],
-         occupancy_threshold: float, parallel: bool = False, overwrite: bool = False,
-         n_slides: Optional[int] = 0, only: Optional[str] = None) -> None:
+def main(
+    slides_dataset: SlidesDataset,
+    root_output_dir: Union[str, Path],
+    level: int,
+    tile_size: int,
+    margin: int,
+    foreground_threshold: Optional[float],
+    occupancy_threshold: float,
+    parallel: bool = False,
+    overwrite: bool = False,
+    n_slides: Optional[int] = 0,
+    only: Optional[str] = None,
+) -> None:
     """Process a slides dataset to produce a tiles dataset.
 
     :param slides_dataset: Input tiles dataset object.
@@ -271,17 +294,25 @@ def main(slides_dataset: SlidesDataset, root_output_dir: Union[str, Path],
 
     output_dir = Path(root_output_dir)
 
-    print(f"Creating dataset of level-{level} {tile_size}x{tile_size} "
-          f"{slides_dataset.__class__.__name__} tiles at: {output_dir}")
+    print(
+        f"Creating dataset of level-{level} {tile_size}x{tile_size} "
+        f"{slides_dataset.__class__.__name__} tiles at: {output_dir}"
+    )
 
     if overwrite and output_dir.exists():
         shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True, exist_ok=not overwrite)
 
-    func = functools.partial(process_slide, level=level, margin=margin, tile_size=tile_size,
-                             foreground_threshold=foreground_threshold,
-                             occupancy_threshold=occupancy_threshold, output_dir=output_dir,
-                             tile_progress=not parallel)
+    func = functools.partial(
+        process_slide,
+        level=level,
+        margin=margin,
+        tile_size=tile_size,
+        foreground_threshold=foreground_threshold,
+        occupancy_threshold=occupancy_threshold,
+        output_dir=output_dir,
+        tile_progress=not parallel,
+    )
 
     if parallel:
         import multiprocessing
@@ -304,14 +335,16 @@ if __name__ == '__main__':
     from health_cpath.datasets.tcga_prad_dataset import TcgaPradDataset
 
     # Example set up for an existing slides dataset:
-    main(slides_dataset=TcgaPradDataset("/tmp/datasets/TCGA-PRAD_20220712"),
-         root_output_dir="/tmp/datasets/TCGA-PRAD_10X_tiles_level1_224",
-         n_slides=2,
-         only=None,
-         level=0,
-         tile_size=224,
-         margin=0,
-         foreground_threshold=None,
-         occupancy_threshold=0.05,
-         parallel=True,
-         overwrite=True)
+    main(
+        slides_dataset=TcgaPradDataset("/tmp/datasets/TCGA-PRAD_20220712"),
+        root_output_dir="/tmp/datasets/TCGA-PRAD_10X_tiles_level1_224",
+        n_slides=2,
+        only=None,
+        level=0,
+        tile_size=224,
+        margin=0,
+        foreground_threshold=None,
+        occupancy_threshold=0.05,
+        parallel=True,
+        overwrite=True,
+    )

@@ -28,12 +28,9 @@ def test_cosine_loss() -> None:
 @pytest.mark.fast
 def test_module_param_eq() -> None:
     """Test if initial set of parameters are equal between student and teacher."""
-    byol = BootstrapYourOwnLatent(num_samples=16,
-                                  learning_rate=1e-3,
-                                  batch_size=4,
-                                  encoder_name="resnet50",
-                                  warmup_epochs=10,
-                                  max_epochs=100)
+    byol = BootstrapYourOwnLatent(
+        num_samples=16, learning_rate=1e-3, batch_size=4, encoder_name="resnet50", warmup_epochs=10, max_epochs=100
+    )
     pars1 = byol.online_network.parameters()
     pars2 = byol.target_network.parameters()
     for par1, par2 in zip(pars1, pars2):
@@ -44,23 +41,17 @@ def test_module_param_eq() -> None:
 @pytest.mark.parametrize("encoder_name", ["resnet18", "resnet50", "resnet101", "densenet121"])
 def test_encoder_init(encoder_name: str) -> None:
     """Test initialisation with different encoder types."""
-    BootstrapYourOwnLatent(num_samples=16,
-                           learning_rate=1e-3,
-                           batch_size=4,
-                           warmup_epochs=10,
-                           encoder_name=encoder_name,
-                           max_epochs=100)
+    BootstrapYourOwnLatent(
+        num_samples=16, learning_rate=1e-3, batch_size=4, warmup_epochs=10, encoder_name=encoder_name, max_epochs=100
+    )
 
 
 @pytest.mark.fast
 def test_shared_forward_step() -> None:
     """Test shared step - loss should be bounded between some value and cannot be outside that value."""
-    byol = BootstrapYourOwnLatent(num_samples=16,
-                                  learning_rate=1e-3,
-                                  batch_size=4,
-                                  warmup_epochs=10,
-                                  encoder_name="resnet50",
-                                  max_epochs=100)
+    byol = BootstrapYourOwnLatent(
+        num_samples=16, learning_rate=1e-3, batch_size=4, warmup_epochs=10, encoder_name="resnet50", max_epochs=100
+    )
     imgs = torch.rand((4, 3, 32, 32))
     lbls = torch.rand((4,))
     batch = ([imgs, imgs], lbls)
@@ -74,12 +65,8 @@ def test_shared_forward_step() -> None:
 def test_output_spatial_pooling() -> None:
     """Check if output pooling works"""
     byol = BootstrapYourOwnLatent(
-        num_samples=16,
-        learning_rate=1e-3,
-        batch_size=4,
-        warmup_epochs=10,
-        encoder_name="resnet50",
-        max_epochs=100)
+        num_samples=16, learning_rate=1e-3, batch_size=4, warmup_epochs=10, encoder_name="resnet50", max_epochs=100
+    )
     imgs = torch.rand((4, 3, 32, 32))
 
     embeddings = byol(imgs)

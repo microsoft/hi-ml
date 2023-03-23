@@ -36,8 +36,13 @@ from health_azure.logging import logging_to_stdout
 from health_azure.utils import get_aml_run_from_run_id
 
 from health_cpath.utils.naming import ResultsKey
-from health_cpath.utils.output_utils import (AML_OUTPUTS_DIR, EXTRA_VAL_OUTPUTS_SUBDIR,
-                                             OUTPUTS_CSV_FILENAME, TEST_OUTPUTS_SUBDIR, VAL_OUTPUTS_SUBDIR)
+from health_cpath.utils.output_utils import (
+    AML_OUTPUTS_DIR,
+    EXTRA_VAL_OUTPUTS_SUBDIR,
+    OUTPUTS_CSV_FILENAME,
+    TEST_OUTPUTS_SUBDIR,
+    VAL_OUTPUTS_SUBDIR,
+)
 
 
 TypeRectangleJSON = Dict[str, Union[str, float, Dict[str, str]]]
@@ -56,6 +61,7 @@ class Color:
     `documentation <https://github.com/girder/large_image/blob/master/girder_annotation/docs/annotations.rst#colors>`_
     for more information.
     """
+
     red: int
     green: int
     blue: int
@@ -84,6 +90,7 @@ TRANSPARENT = Color(0, 0, 0, 0)
 @dataclass
 class Element:
     """Base class for annotations elements such as points or rectangles."""
+
     label: str
     fill_color: Color
     line_color: Color
@@ -96,6 +103,7 @@ class Element:
 @dataclass
 class Coordinates:
     """Helper class to represent x and y coordinates."""
+
     x: float
     y: float
 
@@ -117,6 +125,7 @@ class Rectangle(Element):
     More information can be found in the
     `DSA documentation <https://github.com/girder/large_image/blob/master/girder_annotation/docs/annotations.rst#rectangle>`_.
     """  # noqa: E501
+
     left: float
     top: float
     right: float
@@ -161,6 +170,7 @@ class Point(Element):
     More information can be found in the
     `DSA documentation <https://github.com/girder/large_image/blob/master/girder_annotation/docs/annotations.rst#point>`_.
     """  # noqa: E501
+
     center: Coordinates
 
     def __post_init__(self) -> None:
@@ -183,7 +193,8 @@ class Annotation:
 
     An example can be found in the
     `DSA documentation <https://github.com/girder/large_image/blob/master/girder_annotation/docs/annotations.rst#a-sample-annotation>`_.
-    """  # noqa: E501
+    """  # noqa: B950
+
     name: str
     elements: Sequence[Element]
     description: str = ""
@@ -211,6 +222,7 @@ class DigitalSlideArchive:
         perform allowed operations. If not given, it must be defined in an environment
         variable ``DSA_API_KEY``.
     """
+
     URL_ENV_NAME = "DSA_URL"
     API_KEY_ENV_NAME = "DSA_API_KEY"
 
@@ -278,8 +290,10 @@ class DigitalSlideArchive:
         try:
             result = self.get(api_path, parameters=parameters)
         except HttpError as ex:
-            raise ValueError(f"API '{api_path}' does not exist or cannot be accessed. Please check "
-                             f"the path and the access permissions of your API key. Exception: {ex}")
+            raise ValueError(
+                f"API '{api_path}' does not exist or cannot be accessed. Please check "
+                f"the path and the access permissions of your API key. Exception: {ex}"
+            )
         if result_field:
             if result_field in result:
                 return result[result_field]
@@ -387,7 +401,7 @@ class RunOutputs:
         run_id: str,
         workspace_config_path: Optional[Path] = None,
         overwrite_csv: bool = False,
-        split: str = "test"
+        split: str = "test",
     ):
         logging.info("Getting run \"%s\"...", run_id)
         run = get_aml_run_from_run_id(run_id, workspace_config_path=workspace_config_path)
@@ -616,7 +630,7 @@ if __name__ == "__main__":
         action="store_false",
         default=True,
         help="Do not rescale attention values. By default, attention values are scaled such that the range "
-             "between min and max fills the colormap.",
+        "between min and max fills the colormap.",
     )
     parser.add_argument(
         "--colormap",
@@ -630,7 +644,7 @@ if __name__ == "__main__":
         type=str,
         default="",
         help="The folder in DSA where uploads should go to. Use this if there are multiple slides with the same ID"
-             "in DSA. The folder name must contain the collection, like `Collection1/foo`",
+        "in DSA. The folder name must contain the collection, like `Collection1/foo`",
     )
     parser.add_argument(
         "--split",
@@ -647,7 +661,7 @@ if __name__ == "__main__":
         help=(
             "If \"full\", the slide ID must match the DSA file name with or without extension."
             " If \"prefix\", all files whose name starts with the slide ID will be matched"
-        )
+        ),
     )
     args = parser.parse_args()
 

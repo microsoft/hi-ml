@@ -118,29 +118,28 @@ class HistoDataModule(LightningDataModule, Generic[_SlidesOrTilesDataset]):
                 logging.info("pl_replace_sampler_ddp is False, setting DistributedSampler for training dataloader.")
                 return DistributedSampler(dataset, shuffle=True, seed=self.seed)
             else:
-                logging.info("pl_replace_sampler_ddp is False, setting UnrepeatedDistributedSampler for validation and "
-                             "test dataloaders. This will ensure that each process gets a unique set of samples. "
-                             "If you want to use DistributedSampler, set pl_replace_sampler_ddp to True.")
+                logging.info(
+                    "pl_replace_sampler_ddp is False, setting UnrepeatedDistributedSampler for validation and "
+                    "test dataloaders. This will ensure that each process gets a unique set of samples. "
+                    "If you want to use DistributedSampler, set pl_replace_sampler_ddp to True."
+                )
                 return UnrepeatedDistributedSampler(dataset, shuffle=False, seed=self.seed)
         return None
 
     def train_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.train_dataset,  # type: ignore
-                                    shuffle=True,
-                                    stage=ModelKey.TRAIN,
-                                    **self.dataloader_kwargs)
+        return self._get_dataloader(
+            self.train_dataset, shuffle=True, stage=ModelKey.TRAIN, **self.dataloader_kwargs  # type: ignore
+        )
 
     def val_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.val_dataset,  # type: ignore
-                                    shuffle=False,
-                                    stage=ModelKey.VAL,
-                                    **self.dataloader_kwargs)
+        return self._get_dataloader(
+            self.val_dataset, shuffle=False, stage=ModelKey.VAL, **self.dataloader_kwargs  # type: ignore
+        )
 
     def test_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.test_dataset,  # type: ignore
-                                    shuffle=False,
-                                    stage=ModelKey.TEST,
-                                    **self.dataloader_kwargs)
+        return self._get_dataloader(
+            self.test_dataset, shuffle=False, stage=ModelKey.TEST, **self.dataloader_kwargs  # type: ignore
+        )
 
 
 class TilesDataModule(HistoDataModule[TilesDataset]):
@@ -254,8 +253,9 @@ class TilesDataModule(HistoDataModule[TilesDataset]):
 
         return transformed_bag_dataset
 
-    def _get_dataloader(self, dataset: TilesDataset, stage: ModelKey, shuffle: bool,
-                        **dataloader_kwargs: Any) -> DataLoader:
+    def _get_dataloader(
+        self, dataset: TilesDataset, stage: ModelKey, shuffle: bool, **dataloader_kwargs: Any
+    ) -> DataLoader:
         transformed_bag_dataset = self._load_dataset(dataset, stage=stage, shuffle=shuffle)
         bag_dataset: BagDataset = transformed_bag_dataset.data  # type: ignore
         generator = bag_dataset.bag_sampler.generator
@@ -305,8 +305,9 @@ class SlidesDataModule(HistoDataModule[SlidesDataset]):
         transforms.set_random_state(seed=self.seed)
         return Dataset(slides_dataset, transforms)
 
-    def _get_dataloader(self, dataset: SlidesDataset, stage: ModelKey, shuffle: bool,
-                        **dataloader_kwargs: Any) -> DataLoader:
+    def _get_dataloader(
+        self, dataset: SlidesDataset, stage: ModelKey, shuffle: bool, **dataloader_kwargs: Any
+    ) -> DataLoader:
         transformed_slides_dataset = self._load_dataset(dataset, stage)
         generator = _create_generator(self.seed)
         sampler = self._get_ddp_sampler(transformed_slides_dataset, stage)

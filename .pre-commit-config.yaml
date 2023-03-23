@@ -49,8 +49,9 @@ repos:
     files: ^hi-ml-multimodal/
     args: [--config, hi-ml-multimodal/.flake8]
 
-- repo: https://github.com/pre-commit/mirrors-autopep8
-  rev: v2.0.2
+- repo: https://github.com/psf/black
+  rev: 23.1.0
   hooks:
-  - id: autopep8
-    args: [--in-place, --max-line-length, "120"]
+  - id: black
+    extend-exclude: ^docs/source/amulet/amulet_script.py
+    args: [--line-length, "120", --skip-string-normalization]

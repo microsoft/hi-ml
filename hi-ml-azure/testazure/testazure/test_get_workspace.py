@@ -14,20 +14,23 @@ from _pytest.logging import LogCaptureFixture
 import pytest
 from unittest.mock import MagicMock, patch
 
-from health_azure.utils import (find_file_in_parent_folders,
-                                find_file_in_parent_to_pythonpath,
-                                get_authentication,
-                                get_secret_from_environment,
-                                get_workspace)
-from health_azure.utils import (WORKSPACE_CONFIG_JSON,
-                                ENV_SERVICE_PRINCIPAL_ID,
-                                ENV_SERVICE_PRINCIPAL_PASSWORD,
-                                ENV_TENANT_ID,
-                                ENV_WORKSPACE_NAME,
-                                ENV_SUBSCRIPTION_ID,
-                                ENV_RESOURCE_GROUP)
-from testazure.utils_testazure import (change_working_directory,
-                                       himl_azure_root)
+from health_azure.utils import (
+    find_file_in_parent_folders,
+    find_file_in_parent_to_pythonpath,
+    get_authentication,
+    get_secret_from_environment,
+    get_workspace,
+)
+from health_azure.utils import (
+    WORKSPACE_CONFIG_JSON,
+    ENV_SERVICE_PRINCIPAL_ID,
+    ENV_SERVICE_PRINCIPAL_PASSWORD,
+    ENV_TENANT_ID,
+    ENV_WORKSPACE_NAME,
+    ENV_SUBSCRIPTION_ID,
+    ENV_RESOURCE_GROUP,
+)
+from testazure.utils_testazure import change_working_directory, himl_azure_root
 
 
 @pytest.mark.fast
@@ -68,10 +71,7 @@ def test_find_file_in_parent_folders(caplog: LogCaptureFixture) -> None:
     himl_azure_test_root = himl_az_root / "testazure" / "testazure"
     with patch("health_azure.utils.Path.cwd", return_value=himl_azure_test_root):
         # current_working_directory = Path.cwd()
-        found_file_path = find_file_in_parent_folders(
-            file_name=current_file_path.name,
-            stop_at_path=[himl_az_root]
-        )
+        found_file_path = find_file_in_parent_folders(file_name=current_file_path.name, stop_at_path=[himl_az_root])
         last_caplog_msg = caplog.messages[-1]
         assert found_file_path == current_file_path
         assert f"Searching for file {current_file_path.name} in {himl_azure_test_root}" in last_caplog_msg
@@ -79,27 +79,22 @@ def test_find_file_in_parent_folders(caplog: LogCaptureFixture) -> None:
         # Now try to search for a nonexistent path in the same folder. This should return None
         nonexistent_path = himl_az_root / "idontexist.py"
         assert not nonexistent_path.is_file()
-        assert find_file_in_parent_folders(
-            file_name=nonexistent_path.name,
-            stop_at_path=[himl_az_root]
-        ) is None
+        assert find_file_in_parent_folders(file_name=nonexistent_path.name, stop_at_path=[himl_az_root]) is None
 
         # Try to find the first path (i.e. current file name) when starting in a different folder.
         # This should not work
-        assert find_file_in_parent_folders(
-            file_name=current_file_path.name,
-            stop_at_path=[himl_az_root],
-            start_at_path=himl_az_root
-        ) is None
+        assert (
+            find_file_in_parent_folders(
+                file_name=current_file_path.name, stop_at_path=[himl_az_root], start_at_path=himl_az_root
+            )
+            is None
+        )
 
     # Try to find the first path (i.e. current file name) when current working directory is not the testazure
     # folder. This should not work
     with patch("health_azure.utils.Path.cwd", return_value=himl_az_root):
         assert not (himl_az_root / current_file_path.name).is_file()
-        assert find_file_in_parent_folders(
-            file_name=current_file_path.name,
-            stop_at_path=[himl_az_root.parent]
-        ) is None
+        assert find_file_in_parent_folders(file_name=current_file_path.name, stop_at_path=[himl_az_root.parent]) is None
 
 
 @pytest.mark.fast
@@ -112,13 +107,14 @@ def test_get_authentication(mock_interactive_authentication: MagicMock) -> None:
     tenant_id = "2"
     service_principal_password = "3"
     with patch.dict(
-            os.environ,
-            {
-                ENV_SERVICE_PRINCIPAL_ID: service_principal_id,
-                ENV_TENANT_ID: tenant_id,
-                ENV_SERVICE_PRINCIPAL_PASSWORD: service_principal_password
-            },
-            clear=True):
+        os.environ,
+        {
+            ENV_SERVICE_PRINCIPAL_ID: service_principal_id,
+            ENV_TENANT_ID: tenant_id,
+            ENV_SERVICE_PRINCIPAL_PASSWORD: service_principal_password,
+        },
+        clear=True,
+    ):
         spa = get_authentication()
         assert isinstance(spa, ServicePrincipalAuthentication)
         assert spa._service_principal_id == service_principal_id
@@ -167,25 +163,20 @@ def test_get_workspace_loads_env_variables() -> None:
     workspace = MagicMock(name="workspace")
     mock_workspace_get = MagicMock(return_value=workspace)
     mock_workspace = MagicMock(get=mock_workspace_get)
-    with patch.dict(os.environ,
-                    {
-                        ENV_WORKSPACE_NAME: workspace_name,
-                        ENV_SUBSCRIPTION_ID: subscription,
-                        ENV_RESOURCE_GROUP: group
-                    }):
+    with patch.dict(
+        os.environ, {ENV_WORKSPACE_NAME: workspace_name, ENV_SUBSCRIPTION_ID: subscription, ENV_RESOURCE_GROUP: group}
+    ):
         with patch.multiple(
             "health_azure.utils",
             find_file_in_parent_to_pythonpath=MagicMock(return_value=None),
             get_authentication=mock_auth,
-            Workspace=mock_workspace
+            Workspace=mock_workspace,
         ):
             assert get_workspace(None, None) == workspace
             mock_auth.assert_called_once_with()
             mock_workspace_get.assert_called_once_with(
-                name=workspace_name,
-                auth=auth,
-                subscription_id=subscription,
-                resource_group=group)
+                name=workspace_name, auth=auth, subscription_id=subscription, resource_group=group
+            )
 
 
 @pytest.mark.fast
@@ -199,7 +190,7 @@ def test_get_workspace_env_variables_missing() -> None:
         find_file_in_parent_to_pythonpath=MagicMock(return_value=None),
         # This ensures that no environment variables are found
         get_secret_from_environment=MagicMock(return_value=None),
-        get_authentication=MagicMock(return_value="auth")
+        get_authentication=MagicMock(return_value="auth"),
     ):
         with pytest.raises(ValueError, match="Tried all ways of identifying the workspace, but failed"):
             get_workspace()
@@ -216,13 +207,7 @@ def test_get_workspace_from_existing_file(tmp_path: Path) -> None:
     workspace = MagicMock(name="workspace")
     mock_workspace_from_config = MagicMock(return_value=workspace)
     mock_workspace = MagicMock(from_config=mock_workspace_from_config)
-    with patch.multiple(
-        "health_azure.utils",
-        get_authentication=mock_auth,
-        Workspace=mock_workspace
-    ):
+    with patch.multiple("health_azure.utils", get_authentication=mock_auth, Workspace=mock_workspace):
         assert get_workspace(workspace_config_path=config_file) == workspace
         mock_auth.assert_called_once_with()
-        mock_workspace_from_config.assert_called_once_with(
-            path=str(config_file),
-            auth=auth)
+        mock_workspace_from_config.assert_called_once_with(path=str(config_file), auth=auth)

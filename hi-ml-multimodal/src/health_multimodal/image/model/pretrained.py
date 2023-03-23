@@ -28,7 +28,9 @@ BIOVIL_IMAGE_WEIGHTS_URL = f"{HF_URL}/{BIOMED_VLP_CXR_BERT_SPECIALIZED}/resolve/
 BIOVIL_IMAGE_WEIGHTS_MD5 = "02ce6ee460f72efd599295f440dbb453"
 
 BIOVIL_T_IMAGE_WEIGHTS_NAME = "biovil_t_image_model_proj_size_128.pt"
-BIOVIL_T_IMAGE_WEIGHTS_URL = f"{HF_URL}/{BIOMED_VLP_BIOVIL_T}/resolve/{BIOVIL_T_COMMIT_TAG}/{BIOVIL_T_IMAGE_WEIGHTS_NAME}"  # noqa: E501
+BIOVIL_T_IMAGE_WEIGHTS_URL = (
+    f"{HF_URL}/{BIOMED_VLP_BIOVIL_T}/resolve/{BIOVIL_T_COMMIT_TAG}/{BIOVIL_T_IMAGE_WEIGHTS_NAME}"  # noqa: E501
+)
 BIOVIL_T_IMAGE_WEIGHTS_MD5 = "a83080e2f23aa584a4f2b24c39b1bb64"
 
 
@@ -54,10 +56,7 @@ def _download_biovil_t_image_model_weights() -> Path:
     """
     root_dir = tempfile.gettempdir()
     download_url(
-        BIOVIL_T_IMAGE_WEIGHTS_URL,
-        root=root_dir,
-        filename=BIOVIL_T_IMAGE_WEIGHTS_NAME,
-        md5=BIOVIL_T_IMAGE_WEIGHTS_MD5
+        BIOVIL_T_IMAGE_WEIGHTS_URL, root=root_dir, filename=BIOVIL_T_IMAGE_WEIGHTS_NAME, md5=BIOVIL_T_IMAGE_WEIGHTS_MD5
     )
     return Path(root_dir, BIOVIL_T_IMAGE_WEIGHTS_NAME)
 
@@ -79,7 +78,9 @@ def get_biovil_t_image_encoder() -> ImageModel:
 
     biovilt_checkpoint_path = _download_biovil_t_image_model_weights()
     model_type = ImageEncoderType.RESNET50_MULTI_IMAGE
-    image_model = ImageModel(img_encoder_type=model_type,
-                             joint_feature_size=JOINT_FEATURE_SIZE,
-                             pretrained_model_path=biovilt_checkpoint_path)
+    image_model = ImageModel(
+        img_encoder_type=model_type,
+        joint_feature_size=JOINT_FEATURE_SIZE,
+        pretrained_model_path=biovilt_checkpoint_path,
+    )
     return image_model

@@ -23,13 +23,15 @@ from health_azure.utils import (
     get_run_file_names,
     is_running_in_azure_ml,
     is_local_rank_zero,
-    download_files_by_suffix)
+    download_files_by_suffix,
+)
 from health_ml.utils.common_utils import (
     AUTOSAVE_CHECKPOINT_CANDIDATES,
     CHECKPOINT_FOLDER,
     DEFAULT_AML_CHECKPOINT_DIR,
     CHECKPOINT_SUFFIX,
-    DEFAULT_AML_UPLOAD_DIR)
+    DEFAULT_AML_UPLOAD_DIR,
+)
 from health_ml.utils.type_annotations import PathOrString
 
 # This is a constant that must match a filename defined in pytorch_lightning.ModelCheckpoint, but we don't want
@@ -55,9 +57,9 @@ def get_best_checkpoint_path(path: Path) -> Path:
     return path / LAST_CHECKPOINT_FILE_NAME
 
 
-def download_folder_from_run_to_temp_folder(folder: str,
-                                            run: Optional[Run] = None,  # type: ignore
-                                            run_barrier: bool = True) -> Path:
+def download_folder_from_run_to_temp_folder(
+    folder: str, run: Optional[Run] = None, run_barrier: bool = True  # type: ignore
+) -> Path:
     """
     Downloads all files from a run that have the given prefix to a temporary folder.
     For example, if the run contains files "foo/bar.txt" and "nothing.txt", and this function is called with
@@ -84,10 +86,7 @@ def download_folder_from_run_to_temp_folder(folder: str,
     if len(existing_checkpoints) > 0:
         try:
             logging.info(f"Downloading checkpoints to {temp_folder}")
-            _download_files_from_run(
-                run=run,  # type: ignore
-                output_dir=temp_folder,
-                prefix=cleaned_prefix)
+            _download_files_from_run(run=run, output_dir=temp_folder, prefix=cleaned_prefix)  # type: ignore
         except Exception as ex:
             logging.warning(f"Unable to download checkpoints from AzureML. Error: {str(ex)}")
     # Checkpoint downloads preserve the full folder structure, point the caller directly to the folder where the
@@ -144,10 +143,8 @@ def download_highest_epoch_checkpoint(run: Run, checkpoint_suffix: str, output_f
         was found, or if the epoch information could not be extracted.
     """
     files_from_run = download_files_by_suffix(
-        run=run,
-        suffix=str(checkpoint_suffix),
-        output_folder=output_folder,
-        validate_checksum=True)
+        run=run, suffix=str(checkpoint_suffix), output_folder=output_folder, validate_checksum=True
+    )
     return find_checkpoint_with_highest_epoch(files_from_run, delete_files=True)
 
 
@@ -163,7 +160,8 @@ def find_recovery_checkpoint_on_disk_or_cloud(path: Path) -> Optional[Path]:
     recovery_checkpoint = find_local_recovery_checkpoint(path)
     if recovery_checkpoint is None and is_running_in_azure_ml():
         logging.info(
-            "No recovery checkpoints available in the checkpoint folder. Trying to find checkpoints in AzureML.")
+            "No recovery checkpoints available in the checkpoint folder. Trying to find checkpoints in AzureML."
+        )
         # Download checkpoints from AzureML, then try to find recovery checkpoints among those.
         # Downloads should go to a temporary folder because downloading the files to the checkpoint
         # folder might cause artifact conflicts later.
@@ -195,9 +193,7 @@ def find_checkpoint_with_highest_epoch(files: Iterable[Path], delete_files: bool
     :return: The checkpoint file with the highest epoch number, or None if no such file was found."""
 
     def update_file_with_highest_epoch(
-        file: Path,
-        highest_epoch: Optional[int],
-        file_with_highest_epoch: Optional[Path]
+        file: Path, highest_epoch: Optional[int], file_with_highest_epoch: Optional[Path]
     ) -> Tuple[int, Path]:
         """Reads the epoch number from the given `file`, and returns updated information about which file
         has been found to have the highest epoch number.
@@ -223,8 +219,9 @@ def find_checkpoint_with_highest_epoch(files: Iterable[Path], delete_files: bool
     for file in files:
         if file.is_file():
             try:
-                highest_epoch, file_with_highest_epoch = \
-                    update_file_with_highest_epoch(file, highest_epoch, file_with_highest_epoch)
+                highest_epoch, file_with_highest_epoch = update_file_with_highest_epoch(
+                    file, highest_epoch, file_with_highest_epoch
+                )
             except Exception as ex:
                 logging.warning(f"Unable to handle checkpoint file {file}: {ex}")
     return file_with_highest_epoch
@@ -338,7 +335,7 @@ class CheckpointDownloader:
         return self.local_checkpoint_dir / self.remote_checkpoint_path
 
     def download_checkpoint_if_necessary(self) -> None:
-        """Downloads the specified checkpoint if it does not already exist. """
+        """Downloads the specified checkpoint if it does not already exist."""
 
         if not self.local_checkpoint_path.exists():
             workspace = get_workspace()
@@ -351,24 +348,31 @@ class CheckpointDownloader:
 
 class CheckpointParser:
     """Wrapper class for parsing checkpoint arguments. A checkpoint can be specified in one of the following ways:
-        1. A local checkpoint file path
-        2. A remote checkpoint file path
-        3. A run ID from which to download the checkpoint file
+    1. A local checkpoint file path
+    2. A remote checkpoint file path
+    3. A run ID from which to download the checkpoint file
     """
-    AML_RUN_ID_FORMAT = (f"<AzureML_run_id>:<optional/custom/path/to/checkpoints/><filename{CHECKPOINT_SUFFIX}>"
-                         f"If no custom path is provided (e.g., <AzureML_run_id>:<filename{CHECKPOINT_SUFFIX}>)"
-                         "the checkpoint will be downloaded from the default checkpoint folder "
-                         f"(e.g., '{DEFAULT_AML_CHECKPOINT_DIR}') If no filename is provided, "
-                         "(e.g., `src_checkpoint=<AzureML_run_id>`) the latest checkpoint "
-                         f"({LAST_CHECKPOINT_FILE_NAME}) will be downloaded.")
-    INFO_MESSAGE = ("Please provide a valid checkpoint path, URL or AzureML run ID. For custom checkpoint paths "
-                    f"within an azureml run, provide a checkpoint in the format {AML_RUN_ID_FORMAT}.")
-    DOC = ("We currently support three types of checkpoints: "
-           "    a. A local checkpoint folder that contains a checkpoint file."
-           "    b. A URL to a remote checkpoint to be downloaded."
-           "    c. A previous azureml run id where the checkpoint is supposed to be "
-           "       saved ('outputs/checkpoints/' folder by default.)"
-           f"For the latter case 'c' : src_checkpoint should be in the format of {AML_RUN_ID_FORMAT}")
+
+    AML_RUN_ID_FORMAT = (
+        f"<AzureML_run_id>:<optional/custom/path/to/checkpoints/><filename{CHECKPOINT_SUFFIX}>"
+        f"If no custom path is provided (e.g., <AzureML_run_id>:<filename{CHECKPOINT_SUFFIX}>)"
+        "the checkpoint will be downloaded from the default checkpoint folder "
+        f"(e.g., '{DEFAULT_AML_CHECKPOINT_DIR}') If no filename is provided, "
+        "(e.g., `src_checkpoint=<AzureML_run_id>`) the latest checkpoint "
+        f"({LAST_CHECKPOINT_FILE_NAME}) will be downloaded."
+    )
+    INFO_MESSAGE = (
+        "Please provide a valid checkpoint path, URL or AzureML run ID. For custom checkpoint paths "
+        f"within an azureml run, provide a checkpoint in the format {AML_RUN_ID_FORMAT}."
+    )
+    DOC = (
+        "We currently support three types of checkpoints: "
+        "    a. A local checkpoint folder that contains a checkpoint file."
+        "    b. A URL to a remote checkpoint to be downloaded."
+        "    c. A previous azureml run id where the checkpoint is supposed to be "
+        "       saved ('outputs/checkpoints/' folder by default.)"
+        f"For the latter case 'c' : src_checkpoint should be in the format of {AML_RUN_ID_FORMAT}"
+    )
 
     def __init__(self, checkpoint: str = "") -> None:
         self.checkpoint = checkpoint

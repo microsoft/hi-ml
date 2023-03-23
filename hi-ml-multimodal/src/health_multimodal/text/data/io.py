@@ -39,10 +39,9 @@ class TextInput:
         self.assert_special_tokens_not_present(" ".join(prompts))
 
         prompts = [prompt.rstrip("!?.") for prompt in prompts]  # removes punctuation from end of prompt
-        tokenizer_output = self.tokenizer.batch_encode_plus(batch_text_or_text_pairs=prompts,
-                                                            add_special_tokens=True,
-                                                            padding='longest',
-                                                            return_tensors='pt')
+        tokenizer_output = self.tokenizer.batch_encode_plus(
+            batch_text_or_text_pairs=prompts, add_special_tokens=True, padding='longest', return_tensors='pt'
+        )
         if verbose:
             for prompt in tokenizer_output.input_ids:
                 input_tokens = self.tokenizer.convert_ids_to_tokens(prompt.tolist())

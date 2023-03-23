@@ -101,8 +101,7 @@ def _get_trainer_arguments_custom_profiler() -> Dict[str, Any]:
 
 
 def test_custom_profiler() -> None:
-    """Test that we can specify a custom profiler.
-    """
+    """Test that we can specify a custom profiler."""
 
     container = LightningContainer()
     container.get_trainer_arguments = _get_trainer_arguments_custom_profiler  # type: ignore
@@ -113,8 +112,7 @@ def test_custom_profiler() -> None:
 
 
 def test_pl_profiler_argument_overrides_custom_profiler() -> None:
-    """Test that pl_profiler argument overrides any custom profiler ser in get_trainer_arguments of the container.
-    """
+    """Test that pl_profiler argument overrides any custom profiler ser in get_trainer_arguments of the container."""
 
     container = LightningContainer()
     container.pl_profiler = "advanced"
@@ -125,8 +123,7 @@ def test_pl_profiler_argument_overrides_custom_profiler() -> None:
 
 @pytest.mark.parametrize("pl_profiler", ["", "simple", "advanced", "pytorch"])
 def test_pl_profiler_properly_instantiated(pl_profiler: str) -> None:
-    """Test that profiler is properly instantiated for all supported options.
-    """
+    """Test that profiler is properly instantiated for all supported options."""
 
     pl_profilers = {
         "": PassThroughProfiler,

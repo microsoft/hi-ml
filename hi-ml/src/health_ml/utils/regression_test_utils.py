@@ -36,6 +36,7 @@ def compare_dictionaries(expected: Dict[str, Any], actual: Dict[str, Any], toler
     :param actual: The second dictionary to compare
     :param tolerance: The tolerance to allow when comparing numeric values, defaults to 1e-5
     """
+
     def _check_values_match(expected_v: Any, actual_v: Any, tolerance: float = 1e-5) -> None:
         if type(actual_v) in [float, int] and type(expected_v) in [float, int]:
             if not isclose(actual_v, expected_v, rel_tol=tolerance):
@@ -109,9 +110,7 @@ def _compare_metrics_list(expected: List, actual: List, tolerance: float = 1e-5)
     return messages
 
 
-def compare_metrics_dictionaries(expected: Dict[str, Any],
-                                 actual: Dict[str, Any],
-                                 tolerance: float = 1e-5) -> str:
+def compare_metrics_dictionaries(expected: Dict[str, Any], actual: Dict[str, Any], tolerance: float = 1e-5) -> str:
     """
     Function to compare two dictionaries that are expected to contain metrics (scalars or lists of scalars) or strings.
     Discrepancies are logged via logging.warning. The function returns an empty string if the dictionaries are
@@ -138,8 +137,9 @@ def compare_metrics_dictionaries(expected: Dict[str, Any],
             if actual_type not in allowed_types:
                 messages.append(f"Actual value has type {actual_type.__name__} which is not handled.")
             elif expected_type is not actual_type:
-                messages.append(f"Actual value has type {actual_type.__name__} but we expected "
-                                f"{expected_type.__name__}.")
+                messages.append(
+                    f"Actual value has type {actual_type.__name__} but we expected " f"{expected_type.__name__}."
+                )
             elif expected_type is list:
                 messages.extend(_compare_metrics_list(expected_val, actual_val, tolerance=tolerance))
             else:
@@ -185,8 +185,10 @@ def _is_nested_dict(d: Dict[str, Any], message: str) -> bool:
     if all(has_dict_value):
         return True
     if any(has_dict_value):
-        raise ValueError(f"{message}: Metrics file has inconsistent type. Either all or none of the dictionary"
-                         "values should be dictionaries")
+        raise ValueError(
+            f"{message}: Metrics file has inconsistent type. Either all or none of the dictionary"
+            "values should be dictionaries"
+        )
     return False
 
 
@@ -249,6 +251,7 @@ def compare_files(expected: Path, actual: Path, csv_relative_tolerance: float = 
     :return: An empty string if the files appear identical, or otherwise a brief error message. If there is a
     mismatch, details about the mismatch are printed via logging.warning.
     """
+
     def print_lines(prefix: str, lines: List[str]) -> None:
         num_lines = len(lines)
         count = min(5, num_lines)
@@ -287,7 +290,7 @@ def compare_files(expected: Path, actual: Path, csv_relative_tolerance: float = 
                 compare_dictionaries(
                     _load_json_from_text_lines(expected_lines),
                     _load_json_from_text_lines(actual_lines),
-                    tolerance=csv_relative_tolerance
+                    tolerance=csv_relative_tolerance,
                 )
             return CONTENTS_MISMATCH
     else:
@@ -344,16 +347,9 @@ def compare_folder_contents(
         else:
             raise ValueError("Either of the two arguments 'run' or 'actual_folder' must be provided")
         if file_relative == REGRESSION_TEST_METRICS_FILENAME:
-            message = compare_metrics_files(
-                expected=file,
-                actual=actual_file,
-                tolerance=csv_relative_tolerance)
+            message = compare_metrics_files(expected=file, actual=actual_file, tolerance=csv_relative_tolerance)
         elif actual_file.exists():
-            message = compare_files(
-                expected=file,
-                actual=actual_file,
-                csv_relative_tolerance=csv_relative_tolerance
-            )
+            message = compare_files(expected=file, actual=actual_file, csv_relative_tolerance=csv_relative_tolerance)
         else:
             message = MISSING_FILE
         if message:
@@ -386,24 +382,25 @@ def compare_folders_and_run_outputs(expected: Path, actual: Path, csv_relative_t
     folders_to_check = [
         (REGRESSION_TEST_OUTPUT_FOLDER, "run output files", actual, None),
         (REGRESSION_TEST_AZUREML_FOLDER, "AzureML outputs in present run", None, RUN_CONTEXT),
-        (REGRESSION_TEST_AZUREML_PARENT_FOLDER, "AzureML outputs in parent run", None, PARENT_RUN_CONTEXT)
+        (REGRESSION_TEST_AZUREML_PARENT_FOLDER, "AzureML outputs in parent run", None, PARENT_RUN_CONTEXT),
     ]
-    for (subfolder, message_prefix, actual_folder, run_to_compare) in folders_to_check:
+    for subfolder, message_prefix, actual_folder, run_to_compare in folders_to_check:
         folder = expected / subfolder
         if folder.is_dir():
             logging.info(f"Comparing results in {folder} against {message_prefix}:")
             if actual_folder is None and run_to_compare is None:
                 logging.info("No AzureML run to compare against. Skipping")
                 continue
-            new_messages = compare_folder_contents(folder,
-                                                   actual_folder=actual_folder,
-                                                   run=run_to_compare,
-                                                   csv_relative_tolerance=csv_relative_tolerance)
+            new_messages = compare_folder_contents(
+                folder, actual_folder=actual_folder, run=run_to_compare, csv_relative_tolerance=csv_relative_tolerance
+            )
             if new_messages:
                 messages.append(f"Issues in {message_prefix}:")
                 messages.extend(new_messages)
         else:
             logging.info(f"Folder {subfolder} not found, skipping comparison against {message_prefix}")
     if messages:
-        raise ValueError(f"Some expected files were missing or did not have the expected contents:{os.linesep}"
-                         f"{os.linesep.join(messages)}")
+        raise ValueError(
+            f"Some expected files were missing or did not have the expected contents:{os.linesep}"
+            f"{os.linesep.join(messages)}"
+        )

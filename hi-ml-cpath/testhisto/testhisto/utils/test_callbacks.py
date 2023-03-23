@@ -149,8 +149,12 @@ def test_on_train_and_val_batch_end(tmp_path: Path, mock_panda_tiles_root_dir: P
 
 
 def test_on_train_and_val_epoch_end(
-    tmp_path: Path, duplicate: bool = False, uneven_samples: bool = False, rank: int = 0, world_size: int = 1,
-    device: str = "cpu"
+    tmp_path: Path,
+    duplicate: bool = False,
+    uneven_samples: bool = False,
+    rank: int = 0,
+    world_size: int = 1,
+    device: str = "cpu",
 ) -> None:
     current_epoch = 2
     n_slides_per_process = 4
@@ -277,8 +281,11 @@ def test_log_exceptions_flag(log_exceptions: bool, tmp_path: Path, caplog: pytes
     trainer = MagicMock(current_epoch=max_epochs - 1)
     pl_module = MagicMock(global_rank=0, _on_extra_val_epoch=False)
     loss_callback = LossAnalysisCallback(
-        outputs_folder=tmp_path, max_epochs=max_epochs,
-        num_slides_heatmap=2, num_slides_scatter=2, log_exceptions=log_exceptions
+        outputs_folder=tmp_path,
+        max_epochs=max_epochs,
+        num_slides_heatmap=2,
+        num_slides_scatter=2,
+        log_exceptions=log_exceptions,
     )
     stages = [ModelKey.TRAIN, ModelKey.VAL]
     hooks = [loss_callback.on_train_end, loss_callback.on_validation_end]

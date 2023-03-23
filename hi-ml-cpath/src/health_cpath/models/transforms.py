@@ -47,9 +47,9 @@ def load_image_as_tensor(image_path: PathOrString, scale_intensity: bool = True)
         return torch.from_numpy(pil_image.transpose((2, 0, 1))).contiguous()  # only transpose to [C, H, W]
 
 
-def load_image_stack_as_tensor(image_paths: Sequence[PathOrString],
-                               progress: bool = False,
-                               scale_intensity: bool = True) -> torch.Tensor:
+def load_image_stack_as_tensor(
+    image_paths: Sequence[PathOrString], progress: bool = False, scale_intensity: bool = True
+) -> torch.Tensor:
     """Load a batch of images of the same size as a tensor from the given paths
 
     :param image_paths: paths to the images
@@ -62,15 +62,15 @@ def load_image_stack_as_tensor(image_paths: Sequence[PathOrString],
     loading_generator = (load_image_as_tensor(path, scale_intensity) for path in image_paths)
     if progress:
         from tqdm import tqdm
-        loading_generator = tqdm(loading_generator, desc="Loading image stack",
-                                 total=len(image_paths), leave=False)
+
+        loading_generator = tqdm(loading_generator, desc="Loading image stack", total=len(image_paths), leave=False)
     image_tensors = list(loading_generator)
     return torch.stack(image_tensors, dim=0)
 
 
-def transform_dict_adaptor(function: Callable,
-                           k_input: Optional[str] = None,
-                           k_output: Optional[str] = None) -> Callable:
+def transform_dict_adaptor(
+    function: Callable, k_input: Optional[str] = None, k_output: Optional[str] = None
+) -> Callable:
     """Adapt transformations to work with an input dictionary (rather than a tensor).
        We can't reuse monai.transforms.adaptors because it is only compatible with transformations that accept
        a dict as input.
@@ -83,6 +83,7 @@ def transform_dict_adaptor(function: Callable,
 
     :return: adapted transformation
     """
+
     def _inner(ditems: dict) -> Dict:
         if k_input is None:
             dinputs = ditems
@@ -95,9 +96,11 @@ def transform_dict_adaptor(function: Callable,
             if isinstance(ret, type(ditems[k_output])):
                 ditems[k_output] = ret
             else:
-                raise ValueError("The transformation is not expect to change the type."
-                                 "Check input and output are used correctly ")
+                raise ValueError(
+                    "The transformation is not expect to change the type. Check input and output are used correctly "
+                )
         return ditems
+
     return _inner
 
 
@@ -123,8 +126,13 @@ class LoadTilesBatchd(MapTransform):
     """Dictionary transform to load a batch of image tiles as a tensor from a list of input paths"""
 
     # Cannot reuse MONAI readers because they support stacking only images with no channels
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False,
-                 progress: bool = False, scale_intensity: bool = True) -> None:
+    def __init__(
+        self,
+        keys: KeysCollection,
+        allow_missing_keys: bool = False,
+        progress: bool = False,
+        scale_intensity: bool = True,
+    ) -> None:
         """
         :param keys: Key(s) for the image path(s) in the input dictionary.
         :param allow_missing_keys: If `False` (default), raises an exception when an input
@@ -151,11 +159,9 @@ class LoadTilesBatchd(MapTransform):
 class EncodeTilesBatchd(MapTransform):
     """Dictionary transform to extract features from a batch tensor of image tiles"""
 
-    def __init__(self,
-                 keys: KeysCollection,
-                 encoder: TileEncoder,
-                 allow_missing_keys: bool = False,
-                 chunk_size: int = 0) -> None:
+    def __init__(
+        self, keys: KeysCollection, encoder: TileEncoder, allow_missing_keys: bool = False, chunk_size: int = 0
+    ) -> None:
         """
         :param keys: Key(s) for the image tensor(s) in the input dictionary.
         :param encoder: The tile encoder to use for feature extraction.
@@ -207,8 +213,7 @@ def take_indices(data: Sequence, indices: np.ndarray) -> Sequence:
 class Subsampled(MapTransform, Randomizable):
     """Dictionary transform to randomly subsample the data down to a fixed maximum length"""
 
-    def __init__(self, keys: KeysCollection, max_size: int,
-                 allow_missing_keys: bool = False) -> None:
+    def __init__(self, keys: KeysCollection, max_size: int, allow_missing_keys: bool = False) -> None:
         """
         :param keys: Key(s) for all batch elements that must be subsampled.
         :param max_size: Each specified array, tensor, or sequence will be subsampled uniformly at
@@ -347,14 +352,18 @@ class NormalizeBackgroundd(MapTransform):
         if self.background_keys:
             if SlideKey.METADATA not in data:
                 # background keys are in the metadata dict
-                raise AssertionError("Background keys are expected to be in `SlideKey.METADATA` field. \
-                    But `SlideKey.METADATA` is not present in the data dictionary.")
+                raise AssertionError(
+                    "Background keys are expected to be in `SlideKey.METADATA` field. \
+                    But `SlideKey.METADATA` is not present in the data dictionary."
+                )
             if not all(key in data[SlideKey.METADATA] for key in self.background_keys):
-                raise AssertionError(f"Not all background keys present in data dictionary. \
-                    background_keys: {self.background_keys}, data keys: {list(data[SlideKey.METADATA].keys())}")
-            background_vals = torch.tensor(
-                [data[SlideKey.METADATA][key] for key in self.background_keys]
-            )[:, None, None]
+                raise AssertionError(
+                    f"Not all background keys present in data dictionary. \
+                    background_keys: {self.background_keys}, data keys: {list(data[SlideKey.METADATA].keys())}"
+                )
+            background_vals = torch.tensor([data[SlideKey.METADATA][key] for key in self.background_keys])[
+                :, None, None
+            ]
         else:
             assert self.q_percentile is not None
             background_vals = torch.tensor(

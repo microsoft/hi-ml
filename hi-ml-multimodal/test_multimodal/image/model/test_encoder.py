@@ -1,4 +1,3 @@
-
 #  -------------------------------------------------------------------------------------------
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
@@ -8,8 +7,12 @@ from typing import Sequence
 
 import pytest
 import torch
-from health_multimodal.image.model.encoder import (DEFAULT_DILATION_VALUES_FOR_RESNET, ImageEncoder, MultiImageEncoder,
-                                                   restore_training_mode)
+from health_multimodal.image.model.encoder import (
+    DEFAULT_DILATION_VALUES_FOR_RESNET,
+    ImageEncoder,
+    MultiImageEncoder,
+    restore_training_mode,
+)
 from health_multimodal.image.model.resnet import resnet50
 from health_multimodal.image.model.types import ImageEncoderType
 
@@ -37,12 +40,16 @@ def test_reload_resnet_with_dilation(replace_stride_with_dilation: Sequence[bool
     with torch.no_grad():
         outputs_dilation, _ = model_with_dilation(image, return_patch_embeddings=True)
         outputs_original, _ = original_model(image, return_patch_embeddings=True)
-        assert outputs_original.shape[2] * \
-            2 == outputs_dilation.shape[2], "The dilation model should return larger feature maps."
+        assert (
+            outputs_original.shape[2] * 2 == outputs_dilation.shape[2]
+        ), "The dilation model should return larger feature maps."
 
-    resnet50_kwargs = {"pretrained": True,
-                       "replace_stride_with_dilation": replace_stride_with_dilation
-                       if replace_stride_with_dilation else DEFAULT_DILATION_VALUES_FOR_RESNET}
+    resnet50_kwargs = {
+        "pretrained": True,
+        "replace_stride_with_dilation": replace_stride_with_dilation
+        if replace_stride_with_dilation
+        else DEFAULT_DILATION_VALUES_FOR_RESNET,
+    }
     expected_model = resnet50(**resnet50_kwargs)
 
     expected_model.eval()
@@ -82,18 +89,16 @@ def test_multi_image_encoder_forward_pass() -> None:
 
     # Multi-image run
     with torch.no_grad():
-        patch_emb, global_emb = encoder(current_image=current_image,
-                                        previous_image=previous_image,
-                                        return_patch_embeddings=True)
+        patch_emb, global_emb = encoder(
+            current_image=current_image, previous_image=previous_image, return_patch_embeddings=True
+        )
         # Model output dimension is fixed to 512 (see MultiImageEncoder.__init__())
         assert global_emb.shape == (batch_size, 512)
         assert patch_emb.shape == (batch_size, 512, 14, 14)
 
     # Single-image run
     with torch.no_grad():
-        patch_emb, global_emb = encoder(current_image=current_image,
-                                        previous_image=None,
-                                        return_patch_embeddings=True)
+        patch_emb, global_emb = encoder(current_image=current_image, previous_image=None, return_patch_embeddings=True)
         # Model output dimension is fixed to 512 (see MultiImageEncoder.__init__())
         assert global_emb.shape == (batch_size, 512)
         assert patch_emb.shape == (batch_size, 512, 14, 14)

@@ -12,8 +12,12 @@ from typing import Dict, Generator, Optional
 
 from azure.ai.ml import MLClient
 from azureml.core import Run
-from health_azure.utils import (ENV_EXPERIMENT_NAME, WORKSPACE_CONFIG_JSON, UnitTestWorkspaceWrapper,
-                                to_azure_friendly_string)
+from health_azure.utils import (
+    ENV_EXPERIMENT_NAME,
+    WORKSPACE_CONFIG_JSON,
+    UnitTestWorkspaceWrapper,
+    to_azure_friendly_string,
+)
 from health_azure import create_aml_run_object
 from health_azure.himl import effective_experiment_name
 from health_azure.utils import get_ml_client, get_workspace
@@ -32,8 +36,17 @@ USER_IDENTITY_TEST_FILE = "test_identity_based_file.txt"
 FALLBACK_SINGLE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538212_d2b07afd"
 
 # List of root folders to add to .amlignore
-DEFAULT_IGNORE_FOLDERS = [".config", ".git", ".github", ".idea", ".mypy_cache", ".pytest_cache", ".vscode",
-                          "docs", "node_modules"]
+DEFAULT_IGNORE_FOLDERS = [
+    ".config",
+    ".git",
+    ".github",
+    ".idea",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".vscode",
+    "docs",
+    "node_modules",
+]
 
 DEFAULT_WORKSPACE = UnitTestWorkspaceWrapper()
 
@@ -91,9 +104,11 @@ def get_shared_config_json() -> Path:
 
 
 def create_unittest_run_object(snapshot_directory: Optional[Path] = None) -> Run:
-    return create_aml_run_object(experiment_name=effective_experiment_name("himl-tests"),
-                                 workspace=DEFAULT_WORKSPACE.workspace,
-                                 snapshot_directory=snapshot_directory)
+    return create_aml_run_object(
+        experiment_name=effective_experiment_name("himl-tests"),
+        workspace=DEFAULT_WORKSPACE.workspace,
+        snapshot_directory=snapshot_directory,
+    )
 
 
 def get_test_ml_client() -> MLClient:

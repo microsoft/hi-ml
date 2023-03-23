@@ -26,15 +26,15 @@ def main() -> None:
 
     workspace = get_workspace()
 
-    datastore: Datastore = get_datastore(workspace=workspace,
-                                         datastore_name="himldatasets")
+    datastore: Datastore = get_datastore(workspace=workspace, datastore_name="himldatasets")
 
     datastore.upload_files(
         [str(X_csv), str(y_csv)],
         relative_root=str(inputs),
         target_path='himl_sample7_input',
         overwrite=True,
-        show_progress=True)
+        show_progress=True,
+    )
 
     X_csv.unlink()
     y_csv.unlink()

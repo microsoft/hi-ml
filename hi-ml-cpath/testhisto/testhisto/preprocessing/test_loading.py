@@ -16,7 +16,13 @@ from PIL import Image
 from health_cpath.datasets.default_paths import PANDA_DATASET_ID
 from health_cpath.datasets.panda_dataset import PandaDataset
 from health_cpath.preprocessing.loading import (
-    BaseLoadROId, LoadingParams, ROIType, WSIBackend, LoadROId, LoadMaskROId, LoadMaskSubROId
+    BaseLoadROId,
+    LoadingParams,
+    ROIType,
+    WSIBackend,
+    LoadROId,
+    LoadMaskROId,
+    LoadMaskSubROId,
 )
 from health_cpath.scripts.mount_azure_dataset import mount_dataset
 from health_cpath.utils.naming import SlideKey
@@ -33,7 +39,9 @@ def test_get_load_roid_transform(backend: WSIBackend, roi_type: ROIType) -> None
     loading_params = LoadingParams(backend=backend, roi_type=roi_type)
     transform = loading_params.get_load_roid_transform()
     transform_type = {
-        ROIType.MASK: LoadMaskROId, ROIType.FOREGROUND: LoadROId, ROIType.WHOLE: LoadImaged,
+        ROIType.MASK: LoadMaskROId,
+        ROIType.FOREGROUND: LoadROId,
+        ROIType.WHOLE: LoadImaged,
         ROIType.MASKSUBROI: LoadMaskSubROId,
     }
     assert isinstance(transform, transform_type[roi_type])

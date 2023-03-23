@@ -14,7 +14,6 @@ import torch
 from health_azure import download_files_from_run_id, create_aml_run_object
 
 if __name__ == "__main__":
-
     root_folder = Path.cwd()
 
     # This is the run from which we want to download checkpoints
@@ -30,8 +29,12 @@ if __name__ == "__main__":
 
     # Download all checkpoints in the run
     checkpoint_folder = "outputs/checkpoints"
-    download_files_from_run_id(run_id=old_run, workspace_config_path=workspace_config_json,
-                               output_folder=download_folder, prefix=checkpoint_folder)
+    download_files_from_run_id(
+        run_id=old_run,
+        workspace_config_path=workspace_config_json,
+        output_folder=download_folder,
+        prefix=checkpoint_folder,
+    )
 
     for file in download_folder.rglob("*.ckpt"):
         checkpoint = torch.load(file)

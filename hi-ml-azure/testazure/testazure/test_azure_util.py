@@ -26,7 +26,7 @@ import param
 import pytest
 from _pytest.capture import CaptureFixture
 from _pytest.logging import LogCaptureFixture
-from azure.identity import (ClientSecretCredential, DeviceCodeCredential, DefaultAzureCredential)
+from azure.identity import ClientSecretCredential, DeviceCodeCredential, DefaultAzureCredential
 from azure.storage.blob import ContainerClient
 from azureml._restclient.constants import RunStatus
 from azureml.core import Experiment, Run, ScriptRunConfig, Workspace
@@ -37,21 +37,25 @@ from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
 import health_azure.utils as util
 from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore, effective_experiment_name
-from health_azure.utils import (ENV_MASTER_ADDR,
-                                ENV_MASTER_PORT,
-                                MASTER_PORT_DEFAULT,
-                                PackageDependency,
-                                create_argparser,
-                                download_files_by_suffix,
-                                get_credential,
-                                download_file_if_necessary)
+from health_azure.utils import (
+    ENV_MASTER_ADDR,
+    ENV_MASTER_PORT,
+    MASTER_PORT_DEFAULT,
+    PackageDependency,
+    create_argparser,
+    download_files_by_suffix,
+    get_credential,
+    download_file_if_necessary,
+)
 from testazure.test_himl import RunTarget, render_and_run_test_script
-from testazure.utils_testazure import (DEFAULT_IGNORE_FOLDERS,
-                                       DEFAULT_WORKSPACE,
-                                       MockRun,
-                                       create_unittest_run_object,
-                                       experiment_for_unittests,
-                                       repository_root)
+from testazure.utils_testazure import (
+    DEFAULT_IGNORE_FOLDERS,
+    DEFAULT_WORKSPACE,
+    MockRun,
+    create_unittest_run_object,
+    experiment_for_unittests,
+    repository_root,
+)
 
 RUN_ID = uuid4().hex
 RUN_NUMBER = 42
@@ -154,17 +158,20 @@ def test_split_recovery_id_fails() -> None:
         assert str(e.value) == f"The recovery ID was not in the expected format: {id}"
 
 
-@pytest.mark.parametrize(["id", "expected1", "expected2"],
-                         [("foo:bar", "foo", "bar"),
-                          ("foo:bar_ab_cd", "foo", "bar_ab_cd"),
-                          ("a_b_c_00_123", "a_b_c", "a_b_c_00_123"),
-                          ("baz_00_123", "baz", "baz_00_123"),
-                          ("foo_bar_abc_123_456", "foo_bar_abc", "foo_bar_abc_123_456"),
-                          # This is the run ID of a hyperdrive parent run. It only has one numeric part at the end
-                          ("foo_bar_123", "foo_bar", "foo_bar_123"),
-                          # This is a hyperdrive child run
-                          ("foo_bar_123_3", "foo_bar", "foo_bar_123_3"),
-                          ])
+@pytest.mark.parametrize(
+    ["id", "expected1", "expected2"],
+    [
+        ("foo:bar", "foo", "bar"),
+        ("foo:bar_ab_cd", "foo", "bar_ab_cd"),
+        ("a_b_c_00_123", "a_b_c", "a_b_c_00_123"),
+        ("baz_00_123", "baz", "baz_00_123"),
+        ("foo_bar_abc_123_456", "foo_bar_abc", "foo_bar_abc_123_456"),
+        # This is the run ID of a hyperdrive parent run. It only has one numeric part at the end
+        ("foo_bar_123", "foo_bar", "foo_bar_123"),
+        # This is a hyperdrive child run
+        ("foo_bar_123_3", "foo_bar", "foo_bar_123_3"),
+    ],
+)
 def test_split_recovery_id(id: str, expected1: str, expected2: str) -> None:
     """
     Check that run recovery ids are correctly parsed into experiment and run id.
@@ -179,14 +186,26 @@ def test_split_dependency() -> None:
     assert util._split_dependency("foo.bar>=1.0") == ("foo.bar", ">=", "1.0")
     assert util._split_dependency("foo.bar<=1.0") == ("foo.bar", "<=", "1.0")
     assert util._split_dependency("foo.bar=1.0") == ("foo.bar", "=", "1.0")
-    assert util._split_dependency("foo=1.0; platform_system=='Linux'") ==\
-        ("foo", "=", "1.0", ";", "platform_system", "==", "'Linux'")
+    assert util._split_dependency("foo=1.0; platform_system=='Linux'") == (
+        "foo",
+        "=",
+        "1.0",
+        ";",
+        "platform_system",
+        "==",
+        "'Linux'",
+    )
 
 
 @pytest.fixture
 def dummy_pip_dep_list_one_pinned() -> List[PackageDependency]:
-    return [PackageDependency("a==0.1"), PackageDependency("a>=0.2"), PackageDependency("a=0.3"),
-            PackageDependency("a=0.4; platform_system='Linux'"), PackageDependency("a")]
+    return [
+        PackageDependency("a==0.1"),
+        PackageDependency("a>=0.2"),
+        PackageDependency("a=0.3"),
+        PackageDependency("a=0.4; platform_system='Linux'"),
+        PackageDependency("a"),
+    ]
 
 
 @pytest.fixture
@@ -200,10 +219,11 @@ def dummy_pip_dep_list_none_pinned() -> List[PackageDependency]:
 
 
 @pytest.mark.fast
-def test_resolve_pip_package_clash(dummy_pip_dep_list_one_pinned: List[PackageDependency],
-                                   dummy_pip_dep_list_two_pinned: List[PackageDependency],
-                                   dummy_pip_dep_list_none_pinned: List[PackageDependency]
-                                   ) -> None:
+def test_resolve_pip_package_clash(
+    dummy_pip_dep_list_one_pinned: List[PackageDependency],
+    dummy_pip_dep_list_two_pinned: List[PackageDependency],
+    dummy_pip_dep_list_none_pinned: List[PackageDependency],
+) -> None:
     pin_pip_operator = util.PinnedOperator.PIP
     # if only one pinned version, that should be returned
     expected_keep_dep = PackageDependency("a==0.1")
@@ -225,10 +245,11 @@ def test_resolve_pip_package_clash(dummy_pip_dep_list_one_pinned: List[PackageDe
 
 
 @pytest.mark.fast
-def test_resolve_pip_dependencies(dummy_pip_dep_list_one_pinned: List[PackageDependency],
-                                  dummy_pip_dep_list_two_pinned: List[PackageDependency],
-                                  dummy_pip_dep_list_none_pinned: List[PackageDependency]
-                                  ) -> None:
+def test_resolve_pip_dependencies(
+    dummy_pip_dep_list_one_pinned: List[PackageDependency],
+    dummy_pip_dep_list_two_pinned: List[PackageDependency],
+    dummy_pip_dep_list_none_pinned: List[PackageDependency],
+) -> None:
     pin_pip_operator = util.PinnedOperator.PIP
 
     # if only one pinned version, a list containing only that should be returned
@@ -265,9 +286,11 @@ def test_resolve_pip_dependencies(dummy_pip_dep_list_one_pinned: List[PackageDep
 def test_retrieve_unique_pip_deps() -> None:
     pin_pip_operator = util.PinnedOperator.PIP
     # if one pinned package is found, that should be retained
-    deps_with_one_pinned = ["package==1.0",
-                            "git+https:www.github.com/something.git",
-                            "foo=1.0; platform_system='Linux'"]
+    deps_with_one_pinned = [
+        "package==1.0",
+        "git+https:www.github.com/something.git",
+        "foo=1.0; platform_system='Linux'",
+    ]
     dedup_deps = util._retrieve_unique_deps(deps_with_one_pinned, pin_pip_operator)  # type: ignore
     assert dedup_deps == [d.replace(" ", "") for d in deps_with_one_pinned]
 
@@ -306,10 +329,11 @@ def dummy_conda_dep_list_none_pinned() -> List[PackageDependency]:
 
 
 @pytest.mark.fast
-def test_resolve_conda_package_clash(dummy_conda_dep_list_one_pinned: List[PackageDependency],
-                                     dummy_conda_dep_list_two_pinned: List[PackageDependency],
-                                     dummy_conda_dep_list_none_pinned: List[PackageDependency]
-                                     ) -> None:
+def test_resolve_conda_package_clash(
+    dummy_conda_dep_list_one_pinned: List[PackageDependency],
+    dummy_conda_dep_list_two_pinned: List[PackageDependency],
+    dummy_conda_dep_list_none_pinned: List[PackageDependency],
+) -> None:
     pin_conda_operator = util.PinnedOperator.CONDA
     # if only one pinned version, that should be returned
     expected_keep_dep = PackageDependency("a=0.1")
@@ -331,10 +355,11 @@ def test_resolve_conda_package_clash(dummy_conda_dep_list_one_pinned: List[Packa
 
 
 @pytest.mark.fast
-def test_resolve_conda_dependencies(dummy_conda_dep_list_one_pinned: List[PackageDependency],
-                                    dummy_conda_dep_list_two_pinned: List[PackageDependency],
-                                    dummy_conda_dep_list_none_pinned: List[PackageDependency]
-                                    ) -> None:
+def test_resolve_conda_dependencies(
+    dummy_conda_dep_list_one_pinned: List[PackageDependency],
+    dummy_conda_dep_list_two_pinned: List[PackageDependency],
+    dummy_conda_dep_list_none_pinned: List[PackageDependency],
+) -> None:
     pin_conda_operator = util.PinnedOperator.CONDA
 
     # if only one pinned version, a list containing only that should be returned
@@ -395,9 +420,14 @@ def test_retrieve_unique_conda_deps() -> None:
 
 
 def _generate_conda_env_lines(channels: List[str], conda_packages: List[str], pip_packages: List[str]) -> List[str]:
-    return ["channels:"] + [f"- {ch}" for ch in channels] +\
-           ["dependencies:"] + [f"- {cp}" for cp in conda_packages] +\
-           ["- pip:"] + [f"  - {pp}" for pp in pip_packages]
+    return (
+        ["channels:"]
+        + [f"- {ch}" for ch in channels]
+        + ["dependencies:"]
+        + [f"- {cp}" for cp in conda_packages]
+        + ["- pip:"]
+        + [f"  - {pp}" for pp in pip_packages]
+    )
 
 
 def _generate_conda_env_str(channels: List[str], conda_packages: List[str], pip_packages: List[str]) -> str:
@@ -416,8 +446,7 @@ def _create_and_write_env_file(env_definition: str, temp_folder: Path, file_name
 
 
 def assert_pip_length(yaml: Any, expected_length: int) -> None:
-    """Checks if the pip dependencies section of a Conda YAML file has the expected number of entries
-    """
+    """Checks if the pip dependencies section of a Conda YAML file has the expected number of entries"""
     pip = util._get_pip_dependencies(yaml)
     assert pip is not None
     assert len(pip[1]) == expected_length
@@ -452,8 +481,7 @@ dependencies:
 
 @pytest.mark.fast
 def test_pip_include_2(tmp_path: Path) -> None:
-    """Test if Conda files that use PIP include are recognized.
-    """
+    """Test if Conda files that use PIP include are recognized."""
     # Environment file without a "-r" include statement
     conda_str = """name: simple-envpip
 dependencies:
@@ -480,14 +508,16 @@ dependencies:
     assert util._get_pip_dependencies(modified_yaml) == (0, ["any_package"])
 
 
-@pytest.mark.parametrize(["s", "expected"],
-                         [
-                             ("1s", 1),
-                             ("0.5m", 30),
-                             ("1.5h", 90 * 60),
-                             ("1.0d", 24 * 3600),
-                             ("", None),
-                         ])  # NOQA
+@pytest.mark.parametrize(
+    ["s", "expected"],
+    [
+        ("1s", 1),
+        ("0.5m", 30),
+        ("1.5h", 90 * 60),
+        ("1.0d", 24 * 3600),
+        ("", None),
+    ],
+)  # NOQA
 @pytest.mark.fast
 def test_run_duration(s: str, expected: Optional[float]) -> None:
     actual = util.run_duration_string_to_seconds(s)
@@ -541,8 +571,8 @@ def test_generate_unique_environment_name() -> None:
 
 @patch("health_azure.utils.Workspace")
 def test_create_python_environment(
-        mock_workspace: mock.MagicMock,
-        random_folder: Path,
+    mock_workspace: mock.MagicMock,
+    random_folder: Path,
 ) -> None:
     conda_str = """name: simple-env
 dependencies:
@@ -572,7 +602,8 @@ dependencies:
     env = util.create_python_environment(
         conda_environment_file=conda_environment_file,
         pip_extra_index_url=pip_extra_index_url,
-        docker_base_image=docker_base_image)
+        docker_base_image=docker_base_image,
+    )
     assert env.docker.base_image == docker_base_image
 
     private_pip_wheel_url = "https://some.blob/private/wheel"
@@ -581,7 +612,8 @@ dependencies:
         env = util.create_python_environment(
             conda_environment_file=conda_environment_file,
             workspace=mock_workspace,
-            private_pip_wheel_path=Path(__file__))
+            private_pip_wheel_path=Path(__file__),
+        )
     envs_pip_packages = list(env.python.conda_dependencies.pip_packages)
     assert "hi-ml-azure" in envs_pip_packages
     assert private_pip_wheel_url in envs_pip_packages
@@ -589,8 +621,8 @@ dependencies:
 
 @patch("health_azure.utils.Workspace")
 def test_create_python_environment_v2(
-        mock_workspace: mock.MagicMock,
-        random_folder: Path,
+    mock_workspace: mock.MagicMock,
+    random_folder: Path,
 ) -> None:
     conda_str = """name: simple-env
 dependencies:
@@ -618,7 +650,8 @@ dependencies:
     env = util.create_python_environment_v2(
         conda_environment_file=conda_environment_file,
         pip_extra_index_url=pip_extra_index_url,
-        docker_base_image=docker_base_image)
+        docker_base_image=docker_base_image,
+    )
 
     assert env.image == docker_base_image
 
@@ -647,13 +680,11 @@ dependencies:
     assert env1.name != env2.name
 
     # Using a different PIP index URL can lead to different package resolution, so this should change name too
-    env3 = util.create_python_environment(conda_environment_file=conda_environment_file,
-                                          pip_extra_index_url="foo")
+    env3 = util.create_python_environment(conda_environment_file=conda_environment_file, pip_extra_index_url="foo")
     assert env3.name != env2.name
 
     # Docker base image
-    env5 = util.create_python_environment(conda_environment_file=conda_environment_file,
-                                          docker_base_image="docker")
+    env5 = util.create_python_environment(conda_environment_file=conda_environment_file, docker_base_image="docker")
     assert env5.name != env2.name
 
     # PIP wheel
@@ -662,7 +693,8 @@ dependencies:
         env6 = util.create_python_environment(
             conda_environment_file=conda_environment_file,
             workspace=DEFAULT_WORKSPACE.workspace,
-            private_pip_wheel_path=Path(__file__))
+            private_pip_wheel_path=Path(__file__),
+        )
         assert env6.name != env2.name
 
     all_names = [env1.name, env2.name, env3.name, env5.name, env6.name]
@@ -683,13 +715,15 @@ dependencies:
     conda_environment_file.write_text(conda_str)
     # Wheel file does not exist at all:
     with pytest.raises(FileNotFoundError) as ex1:
-        util.create_python_environment(conda_environment_file=conda_environment_file,
-                                       private_pip_wheel_path=Path("does_not_exist"))
+        util.create_python_environment(
+            conda_environment_file=conda_environment_file, private_pip_wheel_path=Path("does_not_exist")
+        )
         assert "Cannot add private wheel" in str(ex1)
     # Wheel exists, but no workspace provided:
     with pytest.raises(ValueError) as ex2:
-        util.create_python_environment(conda_environment_file=conda_environment_file,
-                                       private_pip_wheel_path=Path(__file__))
+        util.create_python_environment(
+            conda_environment_file=conda_environment_file, private_pip_wheel_path=Path(__file__)
+        )
         assert "AzureML workspace must be provided" in str(ex2)
 
 
@@ -702,9 +736,9 @@ class MockEnvironment:
 @patch("health_azure.utils.Environment")
 @patch("health_azure.utils.Workspace")
 def test_register_environment(
-        mock_workspace: mock.MagicMock,
-        mock_environment: mock.MagicMock,
-        caplog: LogCaptureFixture,
+    mock_workspace: mock.MagicMock,
+    mock_environment: mock.MagicMock,
+    caplog: LogCaptureFixture,
 ) -> None:
     def _mock_env_get(workspace: Workspace, name: str = "", version: Optional[str] = None) -> MockEnvironment:
         if version is None:
@@ -725,8 +759,10 @@ def test_register_environment(
         mock_environment.get.side_effect = oh_no
         _ = util.register_environment(mock_workspace, mock_environment)
         caplog_text = caplog.text  # for mypy
-        assert f"environment '{env_name}' does not yet exist, creating and registering it with version" \
-               f" '{env_version}'" in caplog_text
+        assert (
+            f"environment '{env_name}' does not yet exist, creating and registering it with version"
+            f" '{env_version}'" in caplog_text
+        )
 
         # test that environment version equals ENVIRONMENT_VERSION when exception is triggered
         # rather than default value of "autosave"
@@ -741,9 +777,9 @@ def test_register_environment(
 @patch("azure.ai.ml.entities.Environment")
 @patch("azure.ai.ml.MLClient")
 def test_register_environment_v2(
-        mock_ml_client: MagicMock,
-        mock_environment_v2: MagicMock,
-        caplog: LogCaptureFixture,
+    mock_ml_client: MagicMock,
+    mock_environment_v2: MagicMock,
+    caplog: LogCaptureFixture,
 ) -> None:
     def _mock_cant_find_env(env_name: str, label_or_version: str) -> None:
         raise ResourceNotFoundError("Does not exist")
@@ -770,7 +806,7 @@ def test_set_environment_variables_for_multi_node(caplog: LogCaptureFixture) -> 
     # single node training job
     with caplog.at_level(logging.INFO):  # type: ignore
         util.set_environment_variables_for_multi_node()
-        assert "No settings for the MPI central node found" in caplog.messages[-1]   # type: ignore
+        assert "No settings for the MPI central node found" in caplog.messages[-1]  # type: ignore
         assert "Assuming that this is a single node training job" in caplog.text  # type: ignore
 
     # If all of ENV_MASTER_IP, AZ_BATCHAI_MPI_MASTER_NODE and AZ_BATCH_MASTER_NODE are set, the latter should
@@ -803,8 +839,10 @@ def test_set_environment_variables_for_multi_node(caplog: LogCaptureFixture) -> 
         with mock.patch.dict(os.environ, env_dict_with_master_var, clear=True):
             util.set_environment_variables_for_multi_node()
             out = caplog.messages[-1]
-            assert (f"Distributed training: MASTER_ADDR = {master_addr_mock}, MASTER_PORT = "
-                    f"{port_mock}, NODE_RANK = {node_rank_mock}") in out
+            assert (
+                f"Distributed training: MASTER_ADDR = {master_addr_mock}, MASTER_PORT = "
+                f"{port_mock}, NODE_RANK = {node_rank_mock}"
+            ) in out
             assert os.environ[ENV_MASTER_ADDR] == master_addr_mock
             assert os.environ[ENV_MASTER_PORT] == port_mock
 
@@ -825,8 +863,10 @@ def test_set_environment_variables_for_multi_node(caplog: LogCaptureFixture) -> 
         with mock.patch.dict(os.environ, env_dict_with_mpi_master_var, clear=True):
             util.set_environment_variables_for_multi_node()
             out = caplog.messages[-1]
-            assert (f"Distributed training: MASTER_ADDR = {mpi_master_addr_mock}, MASTER_PORT = "
-                    f"{port_mock}, NODE_RANK = {node_rank_mock}") in out
+            assert (
+                f"Distributed training: MASTER_ADDR = {mpi_master_addr_mock}, MASTER_PORT = "
+                f"{port_mock}, NODE_RANK = {node_rank_mock}"
+            ) in out
             assert os.environ[ENV_MASTER_ADDR] == mpi_master_addr_mock
             assert os.environ[ENV_MASTER_PORT] == port_mock
 
@@ -846,8 +886,10 @@ def test_set_environment_variables_for_multi_node(caplog: LogCaptureFixture) -> 
         with mock.patch.dict(os.environ, env_dict_with_env_master_ip_var, clear=True):
             util.set_environment_variables_for_multi_node()
             out = caplog.messages[-1]
-            assert (f"Distributed training: MASTER_ADDR = {master_ip_mock}, MASTER_PORT = "
-                    f"{port_mock}, NODE_RANK = {node_rank_mock}") in out
+            assert (
+                f"Distributed training: MASTER_ADDR = {master_ip_mock}, MASTER_PORT = "
+                f"{port_mock}, NODE_RANK = {node_rank_mock}"
+            ) in out
             assert os.environ[ENV_MASTER_ADDR] == master_ip_mock
             assert os.environ[ENV_MASTER_PORT] == port_mock
 
@@ -866,8 +908,10 @@ def test_set_environment_variables_for_multi_node(caplog: LogCaptureFixture) -> 
         with mock.patch.dict(os.environ, env_dict_with_mpi_master_var_no_master_port, clear=True):
             util.set_environment_variables_for_multi_node()
             out = caplog.messages[-1]
-            assert (f"Distributed training: MASTER_ADDR = {mpi_master_addr_mock}, MASTER_PORT = "
-                    f"{MASTER_PORT_DEFAULT}, NODE_RANK = {node_rank_mock}") in out
+            assert (
+                f"Distributed training: MASTER_ADDR = {mpi_master_addr_mock}, MASTER_PORT = "
+                f"{MASTER_PORT_DEFAULT}, NODE_RANK = {node_rank_mock}"
+            ) in out
             assert os.environ[ENV_MASTER_ADDR] == mpi_master_addr_mock
             assert os.environ[ENV_MASTER_PORT] == str(MASTER_PORT_DEFAULT)
 
@@ -901,16 +945,21 @@ def test_set_environment_variables_for_multi_node(caplog: LogCaptureFixture) -> 
     with mock.patch.dict(os.environ, env_dict_with_mpi_master_localhost, clear=True):
         with caplog.at_level(logging.INFO):  # type: ignore
             util.set_environment_variables_for_multi_node()
-            assert "No settings for the MPI central node found" in caplog.messages[-1]   # type: ignore
+            assert "No settings for the MPI central node found" in caplog.messages[-1]  # type: ignore
             assert "Assuming that this is a single node training job" in caplog.text  # type: ignore
 
 
-@pytest.mark.parametrize("master_node_mock, addr, port, should_pass", [
-    ("1234.0.0.0", "1234.0.0.0", "6105", True),
-    ("1234.0.0.0:4444", "1234.0.0.0", "4444", True),
-    ("1234.0.0.0:4444:1", "1234.0.0.0", "4444", False)])
+@pytest.mark.parametrize(
+    "master_node_mock, addr, port, should_pass",
+    [
+        ("1234.0.0.0", "1234.0.0.0", "6105", True),
+        ("1234.0.0.0:4444", "1234.0.0.0", "4444", True),
+        ("1234.0.0.0:4444:1", "1234.0.0.0", "4444", False),
+    ],
+)
 def test_set_env_vars_multi_node_split_master_addr(
-        master_node_mock: str, addr: str, port: str, should_pass: Boolean, caplog: LogCaptureFixture) -> None:
+    master_node_mock: str, addr: str, port: str, should_pass: Boolean, caplog: LogCaptureFixture
+) -> None:
     # Accepted formats of AZ_BATCH_MASTER_NODE are "ip:port" and "ip". Check these are parsed correctly
     node_rank_mock = "1"
     env_dict_with_master_var = {
@@ -923,8 +972,10 @@ def test_set_env_vars_multi_node_split_master_addr(
             with mock.patch.dict(os.environ, env_dict_with_master_var, clear=True):
                 util.set_environment_variables_for_multi_node()
                 out = caplog.messages[-1]
-                assert (f"Distributed training: MASTER_ADDR = {addr}, MASTER_PORT = "
-                        f"{port}, NODE_RANK = {node_rank_mock}") in out
+                assert (
+                    f"Distributed training: MASTER_ADDR = {addr}, MASTER_PORT = "
+                    f"{port}, NODE_RANK = {node_rank_mock}"
+                ) in out
     else:
         with pytest.raises(ValueError) as ex:
             with mock.patch.dict(os.environ, env_dict_with_master_var, clear=True):
@@ -956,21 +1007,20 @@ def _get_experiment_runs(tags: Dict[str, str]) -> List[MockRun]:
 
 
 @pytest.mark.fast
-@pytest.mark.parametrize("num_runs, tags, expected_num_returned", [
-    (1, {"completed": "True"}, 1),
-    (3, {}, 3),
-    (2, {"Completed: False"}, 0)
-])
+@pytest.mark.parametrize(
+    "num_runs, tags, expected_num_returned", [(1, {"completed": "True"}, 1), (3, {}, 3), (2, {"Completed: False"}, 0)]
+)
 def test_get_latest_aml_run_from_experiment(num_runs: int, tags: Dict[str, str], expected_num_returned: int) -> None:
     mock_experiment_name = "MockExperiment"
 
     with mock.patch("health_azure.utils.Experiment") as mock_experiment:
-        with mock.patch("health_azure.utils.Workspace",
-                        experiments={mock_experiment_name: mock_experiment}
-                        ) as mock_workspace:
+        with mock.patch(
+            "health_azure.utils.Workspace", experiments={mock_experiment_name: mock_experiment}
+        ) as mock_workspace:
             mock_experiment.get_runs.return_value = _get_experiment_runs(tags)
-            aml_runs = util.get_latest_aml_runs_from_experiment(mock_experiment_name, num_runs=num_runs,
-                                                                tags=tags, aml_workspace=mock_workspace)
+            aml_runs = util.get_latest_aml_runs_from_experiment(
+                mock_experiment_name, num_runs=num_runs, tags=tags, aml_workspace=mock_workspace
+            )
             assert len(aml_runs) == expected_num_returned
 
 
@@ -985,14 +1035,10 @@ def test_get_latest_aml_run_from_experiment_remote() -> None:
 
     experiment = Experiment(ws, experiment_for_unittests())
     config = ScriptRunConfig(
-        source_directory=".",
-        command=["cd ."],  # command that does nothing
-        compute_target="local"
+        source_directory=".", command=["cd ."], compute_target="local"  # command that does nothing
     )
     # Create first run and tag
-    with append_to_amlignore(
-            amlignore=Path("") / AML_IGNORE_FILE,
-            lines_to_append=DEFAULT_IGNORE_FOLDERS):
+    with append_to_amlignore(amlignore=Path("") / AML_IGNORE_FILE, lines_to_append=DEFAULT_IGNORE_FOLDERS):
         first_run = experiment.submit(config)
         first_run.diplay_name = "test_get_latest_aml_run_from_experiment_remote"
     tags = {"experiment_type": "great_experiment"}
@@ -1000,9 +1046,7 @@ def test_get_latest_aml_run_from_experiment_remote() -> None:
     first_run.wait_for_completion()
 
     # Create second run and ensure no tags
-    with append_to_amlignore(
-            amlignore=Path("") / AML_IGNORE_FILE,
-            lines_to_append=DEFAULT_IGNORE_FOLDERS):
+    with append_to_amlignore(amlignore=Path("") / AML_IGNORE_FILE, lines_to_append=DEFAULT_IGNORE_FOLDERS):
         second_run = experiment.submit(config)
     if any(second_run.get_tags()):
         second_run.remove_tags(tags)
@@ -1055,8 +1099,9 @@ def test_get_run_file_names() -> None:
         assert all([f.startswith(prefix) for f in run_paths])
 
 
-def _mock_download_file(filename: str, output_file_path: Optional[Path] = None,
-                        _validate_checksum: bool = False) -> None:
+def _mock_download_file(
+    filename: str, output_file_path: Optional[Path] = None, _validate_checksum: bool = False
+) -> None:
     """
     Creates an empty file at the given output_file_path
     """
@@ -1096,9 +1141,9 @@ def test_download_run_files(tmp_path: Path, dummy_env_vars: Dict[Optional[str], 
 @patch("health_azure.utils.get_workspace")
 @patch("health_azure.utils.get_aml_run_from_run_id")
 @patch("health_azure.utils._download_files_from_run")
-def test_download_files_from_run_id(mock_download_run_files: MagicMock,
-                                    mock_get_aml_run_from_run_id: MagicMock,
-                                    mock_workspace: MagicMock) -> None:
+def test_download_files_from_run_id(
+    mock_download_run_files: MagicMock, mock_get_aml_run_from_run_id: MagicMock, mock_workspace: MagicMock
+) -> None:
     mock_run = {"id": "run123"}
     mock_get_aml_run_from_run_id.return_value = mock_run
     util.download_files_from_run_id("run123", Path(__file__))
@@ -1120,8 +1165,9 @@ def test_download_file_from_run(tmp_path: Path, dummy_env_vars: Dict[str, str], 
         _ = util._download_file_from_run(mock_run, dummy_filename, expected_file_path)
 
         if expect_file_downloaded:
-            mock_run.download_file.assert_called_with(dummy_filename, output_file_path=str(expected_file_path),
-                                                      _validate_checksum=False)
+            mock_run.download_file.assert_called_with(
+                dummy_filename, output_file_path=str(expected_file_path), _validate_checksum=False
+            )
             assert expected_file_path.exists()
         else:
             assert not expected_file_path.exists()
@@ -1132,13 +1178,9 @@ def test_download_file_from_run_remote(tmp_path: Path) -> None:
     ws = DEFAULT_WORKSPACE.workspace
     experiment = Experiment(ws, experiment_for_unittests())
     config = ScriptRunConfig(
-        source_directory=".",
-        command=["cd ."],  # command that does nothing
-        compute_target="local"
+        source_directory=".", command=["cd ."], compute_target="local"  # command that does nothing
     )
-    with append_to_amlignore(
-            amlignore=Path("") / AML_IGNORE_FILE,
-            lines_to_append=DEFAULT_IGNORE_FOLDERS):
+    with append_to_amlignore(amlignore=Path("") / AML_IGNORE_FILE, lines_to_append=DEFAULT_IGNORE_FOLDERS):
         run = experiment.submit(config)
         run.diplay_name = "test_download_file_from_run_remote"
 
@@ -1171,8 +1213,10 @@ def test_download_file_from_run_remote(tmp_path: Path) -> None:
     assert output_file_path.exists()
     assert output_file_path.read_text() == file_contents
 
-    logging.info(f"Time to download file without checksum: {time_dont_validate_checksum} vs time with"
-                 f"validation {time_validate_checksum}.")
+    logging.info(
+        f"Time to download file without checksum: {time_dont_validate_checksum} vs time with"
+        f"validation {time_validate_checksum}."
+    )
 
 
 def test_download_run_file_during_run(tmp_path: Path) -> None:
@@ -1182,8 +1226,9 @@ def test_download_run_file_during_run(tmp_path: Path) -> None:
     """
     # Create a run that contains a simple txt file
     experiment_name = effective_experiment_name("himl-tests")
-    run_to_download_from = util.create_aml_run_object(experiment_name=experiment_name,
-                                                      workspace=DEFAULT_WORKSPACE.workspace)
+    run_to_download_from = util.create_aml_run_object(
+        experiment_name=experiment_name, workspace=DEFAULT_WORKSPACE.workspace
+    )
     file_contents = "Hello World!"
     file_name = "hello.txt"
     full_file_path = tmp_path / file_name
@@ -1223,15 +1268,12 @@ from health_azure.utils import download_files_from_run_id""",
     }
     # Run the script locally first, then in the cloud. In local runs, the workspace should be picked up from the
     # config.json file, in AzureML runs it should be read off the run context.
-    render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options,
-                               extra_args=[], expected_pass=True)
+    render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options, extra_args=[], expected_pass=True)
     print("Local run finished")
-    render_and_run_test_script(tmp_path / "foo", RunTarget.AZUREML, extra_options,
-                               extra_args=[], expected_pass=True)
+    render_and_run_test_script(tmp_path / "foo", RunTarget.AZUREML, extra_options, extra_args=[], expected_pass=True)
 
 
 def test_replace_directory(tmp_path: Path) -> None:
-
     extra_options = {
         "imports": """
 import sys
@@ -1239,7 +1281,6 @@ import shutil
 from pathlib import Path
 from health_azure.utils import replace_directory
 """,
-
         "body": """
     output_dir = Path("outputs/test_outputs")
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -1255,12 +1296,10 @@ from health_azure.utils import replace_directory
 """,
     }
 
-    render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options,
-                               extra_args=[], expected_pass=True)
+    render_and_run_test_script(tmp_path, RunTarget.LOCAL, extra_options, extra_args=[], expected_pass=True)
     print("Local run finished")
 
-    render_and_run_test_script(tmp_path / "foo", RunTarget.AZUREML, extra_options,
-                               extra_args=[], expected_pass=True)
+    render_and_run_test_script(tmp_path / "foo", RunTarget.AZUREML, extra_options, extra_args=[], expected_pass=True)
 
 
 def test_is_global_rank_zero() -> None:
@@ -1283,17 +1322,15 @@ def test_is_local_rank_zero() -> None:
         assert not util.is_local_rank_zero()
 
 
-@pytest.mark.parametrize("dummy_recovery_id", [
-    "expt:run_abc_1234",
-    "['expt:abc_432','expt2:def_111']",
-    "run_ghi_1234",
-    "['run_jkl_1234','run_mno_7654']"
-])
-def test_get_run_source(dummy_recovery_id: str,
-                        ) -> None:
+@pytest.mark.parametrize(
+    "dummy_recovery_id",
+    ["expt:run_abc_1234", "['expt:abc_432','expt2:def_111']", "run_ghi_1234", "['run_jkl_1234','run_mno_7654']"],
+)
+def test_get_run_source(
+    dummy_recovery_id: str,
+) -> None:
     arguments = ["", "--run", dummy_recovery_id]
     with patch.object(sys, "argv", arguments):
-
         script_config = util.AmlRunScriptConfig()
         script_config = util.parse_args_and_update_config(script_config, arguments)
 
@@ -1367,8 +1404,14 @@ def test_download_from_datastore(tmp_path: Path, overwrite: bool) -> None:
         assert not downloaded_data_path.exists()
 
         # Now attempt to download
-        util.download_from_datastore(default_datastore.name, test_data_path_remote, downloaded_data_path,
-                                     aml_workspace=ws, overwrite=overwrite, show_progress=True)
+        util.download_from_datastore(
+            default_datastore.name,
+            test_data_path_remote,
+            downloaded_data_path,
+            aml_workspace=ws,
+            overwrite=overwrite,
+            show_progress=True,
+        )
         expected_local_download_dir = downloaded_data_path / test_data_path_remote
         assert expected_local_download_dir.exists()
         expected_download_paths = [expected_local_download_dir / dummy_filename for dummy_filename in dummy_filenames]
@@ -1401,8 +1444,14 @@ def test_upload_to_datastore(tmp_path: Path, overwrite: bool) -> None:
         data_to_upload_path.parent.mkdir(exist_ok=True, parents=True)
         data_to_upload_path.write_text(dummy_file_content)
 
-        util.upload_to_datastore(default_datastore.name, data_to_upload_path.parent, Path(remote_data_dir),
-                                 aml_workspace=ws, overwrite=overwrite, show_progress=True)
+        util.upload_to_datastore(
+            default_datastore.name,
+            data_to_upload_path.parent,
+            Path(remote_data_dir),
+            aml_workspace=ws,
+            overwrite=overwrite,
+            show_progress=True,
+        )
         # Wait a bit because there seem to be spurious errors with files not yet existing at this point
         time.sleep(0.1)
 
@@ -1412,11 +1461,14 @@ def test_upload_to_datastore(tmp_path: Path, overwrite: bool) -> None:
         delete_blobs_in_datastore(datastore=default_datastore, prefix=str(expected_remote_path.as_posix()))
 
 
-@pytest.mark.parametrize("arguments, run_id", [
-    (["", "--run", "run_abc_123"], "run_abc_123"),
-    (["", "--run", "run_abc_123,run_def_456"], ["run_abc_123", "run_def_456"]),
-    (["", "--run", "expt_name:run_abc_123"], "expt_name:run_abc_123"),
-])
+@pytest.mark.parametrize(
+    "arguments, run_id",
+    [
+        (["", "--run", "run_abc_123"], "run_abc_123"),
+        (["", "--run", "run_abc_123,run_def_456"], ["run_abc_123", "run_def_456"]),
+        (["", "--run", "expt_name:run_abc_123"], "expt_name:run_abc_123"),
+    ],
+)
 def test_script_config_run_src(arguments: List[str], run_id: Union[str, List[str]]) -> None:
     with patch.object(sys, "argv", arguments):
         script_config = util.AmlRunScriptConfig()
@@ -1441,8 +1493,9 @@ def test_checkpoint_download(mock_get_workspace: MagicMock, mock_download_files:
     prefix = "path/to/file"
     output_file_dir = Path("my_ouputs")
     util.download_checkpoints_from_run_id(dummy_run_id, prefix, output_file_dir, aml_workspace=mock_workspace)
-    mock_download_files.assert_called_once_with(dummy_run_id, output_file_dir, prefix=prefix,
-                                                workspace=mock_workspace, validate_checksum=True)
+    mock_download_files.assert_called_once_with(
+        dummy_run_id, output_file_dir, prefix=prefix, workspace=mock_workspace, validate_checksum=True
+    )
 
 
 @pytest.mark.slow
@@ -1457,13 +1510,9 @@ def test_checkpoint_download_remote(tmp_path: Path) -> None:
     ws = DEFAULT_WORKSPACE.workspace
     experiment = Experiment(ws, experiment_for_unittests())
     config = ScriptRunConfig(
-        source_directory=".",
-        command=["cd ."],  # command that does nothing
-        compute_target="local"
+        source_directory=".", command=["cd ."], compute_target="local"  # command that does nothing
     )
-    with append_to_amlignore(
-            amlignore=Path("") / AML_IGNORE_FILE,
-            lines_to_append=DEFAULT_IGNORE_FOLDERS):
+    with append_to_amlignore(amlignore=Path("") / AML_IGNORE_FILE, lines_to_append=DEFAULT_IGNORE_FOLDERS):
         run = experiment.submit(config)
         run.display_name = "test_checkpoint_download_remote"
 
@@ -1521,15 +1570,12 @@ def test_checkpoint_download_remote(tmp_path: Path) -> None:
     assert found_file_contents == file_contents
 
 
-@pytest.mark.parametrize(("available", "initialized", "expected_barrier_called"),
-                         [(False, True, False),
-                          (True, False, False),
-                          (False, False, False),
-                          (True, True, True)])
+@pytest.mark.parametrize(
+    ("available", "initialized", "expected_barrier_called"),
+    [(False, True, False), (True, False, False), (False, False, False), (True, True, True)],
+)
 @pytest.mark.fast
-def test_torch_barrier(available: bool,
-                       initialized: bool,
-                       expected_barrier_called: bool) -> None:
+def test_torch_barrier(available: bool, initialized: bool, expected_barrier_called: bool) -> None:
     distributed = mock.MagicMock()
     distributed.is_available.return_value = available
     distributed.is_initialized.return_value = initialized
@@ -1543,7 +1589,7 @@ def test_torch_barrier(available: bool,
 
 
 class ParamEnum(Enum):
-    EnumValue1 = "1",
+    EnumValue1 = ("1",)
     EnumValue2 = "2"
 
 
@@ -1711,56 +1757,62 @@ def test_parser_defaults(parameterized_config_and_parser: Tuple[ParamClass, Argu
     # upon errors.
 
 
-def check_parsing_succeeds(parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser],
-                           arg: List[str],
-                           expected_key: str,
-                           expected_value: Any) -> None:
+def check_parsing_succeeds(
+    parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser],
+    arg: List[str],
+    expected_key: str,
+    expected_value: Any,
+) -> None:
     parameterized_config, parser = parameterized_config_and_parser
     parser_result = util.parse_arguments(parser, args=arg)
     assert parser_result.args.get(expected_key) == expected_value
 
 
-def check_parsing_fails(parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser],
-                        arg: List[str]) -> None:
+def check_parsing_fails(parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser], arg: List[str]) -> None:
     parameterized_config, parser = parameterized_config_and_parser
     with pytest.raises(Exception):
         util.parse_arguments(parser, args=arg, fail_on_unknown_args=True)
 
 
 @pytest.mark.fast
-@pytest.mark.parametrize("args, expected_key, expected_value, expected_pass", [
-    (["--name=foo"], "name", "foo", True),
-    (["--seed", "42"], "seed", 42, True),
-    (["--seed", ""], "seed", 42, True),
-    (["--number", "2.17"], "number", 2.17, True),
-    (["--number", ""], "number", 3.14, True),
-    (["--integers", "1,2,3"], "integers", [1, 2, 3], True),
-    (["--optional_int", ""], "optional_int", None, True),
-    (["--optional_int", "2"], "optional_int", 2, True),
-    (["--optional_float", ""], "optional_float", None, True),
-    (["--optional_float", "3.14"], "optional_float", 3.14, True),
-    (["--tuple1", "1,2"], "tuple1", (1, 2.0), True),
-    (["--int_tuple", "1,2,3"], "int_tuple", (1, 2, 3), True),
-    (["--enum=2"], "enum", ParamEnum.EnumValue2, True),
-    (["--floats=1,2,3.14"], "floats", [1., 2., 3.14], True),
-    (["--integers=1,2,3"], "integers", [1, 2, 3], True),
-    (["--flag"], "flag", True, True),
-    (["--no-flag"], None, None, False),
-    (["--not_flag"], None, None, False),
-    (["--no-not_flag"], "not_flag", False, True),
-    (["--not_flag=false", "--no-not_flag"], None, None, False),
-    (["--flag=Falsf"], None, None, False),
-    (["--flag=Truf"], None, None, False),
-    (["--other_args={'learning_rate': 0.5}"], "other_args", {'learning_rate': 0.5}, True),
-    (["--other_args=['foo']"], "other_args", ["foo"], True),
-    (["--other_args={'learning':3"], None, None, False),
-    (["--other_args=['foo','bar'"], None, None, False)
-])
-def test_create_parser(parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser],
-                       args: List[str],
-                       expected_key: str,
-                       expected_value: Any,
-                       expected_pass: bool) -> None:
+@pytest.mark.parametrize(
+    "args, expected_key, expected_value, expected_pass",
+    [
+        (["--name=foo"], "name", "foo", True),
+        (["--seed", "42"], "seed", 42, True),
+        (["--seed", ""], "seed", 42, True),
+        (["--number", "2.17"], "number", 2.17, True),
+        (["--number", ""], "number", 3.14, True),
+        (["--integers", "1,2,3"], "integers", [1, 2, 3], True),
+        (["--optional_int", ""], "optional_int", None, True),
+        (["--optional_int", "2"], "optional_int", 2, True),
+        (["--optional_float", ""], "optional_float", None, True),
+        (["--optional_float", "3.14"], "optional_float", 3.14, True),
+        (["--tuple1", "1,2"], "tuple1", (1, 2.0), True),
+        (["--int_tuple", "1,2,3"], "int_tuple", (1, 2, 3), True),
+        (["--enum=2"], "enum", ParamEnum.EnumValue2, True),
+        (["--floats=1,2,3.14"], "floats", [1.0, 2.0, 3.14], True),
+        (["--integers=1,2,3"], "integers", [1, 2, 3], True),
+        (["--flag"], "flag", True, True),
+        (["--no-flag"], None, None, False),
+        (["--not_flag"], None, None, False),
+        (["--no-not_flag"], "not_flag", False, True),
+        (["--not_flag=false", "--no-not_flag"], None, None, False),
+        (["--flag=Falsf"], None, None, False),
+        (["--flag=Truf"], None, None, False),
+        (["--other_args={'learning_rate': 0.5}"], "other_args", {'learning_rate': 0.5}, True),
+        (["--other_args=['foo']"], "other_args", ["foo"], True),
+        (["--other_args={'learning':3"], None, None, False),
+        (["--other_args=['foo','bar'"], None, None, False),
+    ],
+)
+def test_create_parser(
+    parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser],
+    args: List[str],
+    expected_key: str,
+    expected_value: Any,
+    expected_pass: bool,
+) -> None:
     """
     Check that parse_args works as expected, with both non default and default values.
     """
@@ -1771,39 +1823,43 @@ def test_create_parser(parameterized_config_and_parser: Tuple[ParamClass, Argume
 
 
 @pytest.mark.fast
-@pytest.mark.parametrize("flag, expected_value", [
-    ('on', True), ('t', True), ('true', True), ('y', True), ('yes', True), ('1', True),
-    ('off', False), ('f', False), ('false', False), ('n', False), ('no', False), ('0', False)
-])
-def test_parsing_bools(parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser],
-                       flag: str,
-                       expected_value: bool) -> None:
+@pytest.mark.parametrize(
+    "flag, expected_value",
+    [
+        ('on', True),
+        ('t', True),
+        ('true', True),
+        ('y', True),
+        ('yes', True),
+        ('1', True),
+        ('off', False),
+        ('f', False),
+        ('false', False),
+        ('n', False),
+        ('no', False),
+        ('0', False),
+    ],
+)
+def test_parsing_bools(
+    parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser], flag: str, expected_value: bool
+) -> None:
     """
     Check all the ways of passing in True and False, with and without the first letter capitialized
     """
-    check_parsing_succeeds(parameterized_config_and_parser,
-                           [f"--flag={flag}"],
-                           "flag",
-                           expected_value)
-    check_parsing_succeeds(parameterized_config_and_parser,
-                           [f"--flag={flag.capitalize()}"],
-                           "flag",
-                           expected_value)
-    check_parsing_succeeds(parameterized_config_and_parser,
-                           [f"--not_flag={flag}"],
-                           "not_flag",
-                           expected_value)
-    check_parsing_succeeds(parameterized_config_and_parser,
-                           [f"--not_flag={flag.capitalize()}"],
-                           "not_flag",
-                           expected_value)
+    check_parsing_succeeds(parameterized_config_and_parser, [f"--flag={flag}"], "flag", expected_value)
+    check_parsing_succeeds(parameterized_config_and_parser, [f"--flag={flag.capitalize()}"], "flag", expected_value)
+    check_parsing_succeeds(parameterized_config_and_parser, [f"--not_flag={flag}"], "not_flag", expected_value)
+    check_parsing_succeeds(
+        parameterized_config_and_parser, [f"--not_flag={flag.capitalize()}"], "not_flag", expected_value
+    )
 
 
 def test_argparse_usage(capsys: CaptureFixture) -> None:
-    """Test if the auto-generated argument parser prints out defaults and usage information.
-    """
+    """Test if the auto-generated argument parser prints out defaults and usage information."""
+
     class SimpleClass(param.Parameterized):
         name: str = param.String(default="name_default", doc="Name description")
+
     config = SimpleClass()
     parser = create_argparser(config, usage="my_usage", description="my_description", epilog="my_epilog")
     arguments = ["", "--help"]
@@ -1821,28 +1877,37 @@ def test_argparse_usage(capsys: CaptureFixture) -> None:
 
 
 @pytest.mark.fast
-@pytest.mark.parametrize("args, expected_key, expected_value", [
-    (["--strings=[]"], "strings", ['[]']),
-    (["--strings=['']"], "strings", ["['']"]),
-    (["--strings=None"], "strings", ['None']),
-    (["--strings='None'"], "strings", ["'None'"]),
-    (["--strings=','"], "strings", ["'", "'"]),
-    (["--strings=''"], "strings", ["''"]),
-    (["--strings=,"], "strings", []),
-    (["--strings="], "strings", []),
-    (["--integers="], "integers", []),
-    (["--floats="], "floats", [])])
-def test_override_list(parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser],
-                       args: List[str], expected_key: str, expected_value: Any) -> None:
+@pytest.mark.parametrize(
+    "args, expected_key, expected_value",
+    [
+        (["--strings=[]"], "strings", ['[]']),
+        (["--strings=['']"], "strings", ["['']"]),
+        (["--strings=None"], "strings", ['None']),
+        (["--strings='None'"], "strings", ["'None'"]),
+        (["--strings=','"], "strings", ["'", "'"]),
+        (["--strings=''"], "strings", ["''"]),
+        (["--strings=,"], "strings", []),
+        (["--strings="], "strings", []),
+        (["--integers="], "integers", []),
+        (["--floats="], "floats", []),
+    ],
+)
+def test_override_list(
+    parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser],
+    args: List[str],
+    expected_key: str,
+    expected_value: Any,
+) -> None:
     """Test different options of overriding a non-empty list parameter to get an empty list"""
     check_parsing_succeeds(parameterized_config_and_parser, args, expected_key, expected_value)
 
 
 def test_argparse_usage_empty(capsys: CaptureFixture) -> None:
-    """Test if the auto-generated argument parser prints out defaults and auto-generated usage information.
-    """
+    """Test if the auto-generated argument parser prints out defaults and auto-generated usage information."""
+
     class SimpleClass(param.Parameterized):
         name: str = param.String(default="name_default", doc="Name description")
+
     config = SimpleClass()
     parser = create_argparser(config)
     arguments = ["", "--help"]
@@ -1884,24 +1949,25 @@ def test_apply_overrides(parameterized_config_and_parser: Tuple[ParamClass, Argu
         # Check the call count of mock_validate and check it doesn't increase if should_validate is set to False
         # and that setting this flag doesn't affect on the outputs
         # mock_validate_call_count = mock_validate.call_count
-        actual_overrides = util.apply_overrides(parameterized_config,
-                                                overrides_to_apply=overrides,
-                                                should_validate=False)
+        actual_overrides = util.apply_overrides(
+            parameterized_config, overrides_to_apply=overrides, should_validate=False
+        )
         assert actual_overrides == overrides
         # assert mock_validate.call_count == mock_validate_call_count
 
         # Check that report_on_overrides has not yet been called, but is called if keys_to_ignore is not None
         # and that setting this flag doesn't affect on the outputs
         assert mock_report_on_overrides.call_count == 0
-        actual_overrides = util.apply_overrides(parameterized_config,
-                                                overrides_to_apply=overrides,
-                                                keys_to_ignore={"name"})
+        actual_overrides = util.apply_overrides(
+            parameterized_config, overrides_to_apply=overrides, keys_to_ignore={"name"}
+        )
         assert actual_overrides == overrides
         assert mock_report_on_overrides.call_count == 1
 
 
-def test_report_on_overrides(parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser],
-                             caplog: LogCaptureFixture) -> None:
+def test_report_on_overrides(
+    parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser], caplog: LogCaptureFixture
+) -> None:
     caplog.set_level(logging.WARNING)
     parameterized_config = parameterized_config_and_parser[0]
     old_logs = caplog.messages
@@ -1923,8 +1989,12 @@ def test_report_on_overrides(parameterized_config_and_parser: Tuple[ParamClass, 
 @pytest.mark.parametrize("value_idx_0", [1.0, 1])
 @pytest.mark.parametrize("value_idx_1", [2.0, 2])
 @pytest.mark.parametrize("value_idx_2", [3.0, 3])
-def test_int_tuple_validation(value_idx_0: Any, value_idx_1: Any, value_idx_2: Any,
-                              parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser]) -> None:
+def test_int_tuple_validation(
+    value_idx_0: Any,
+    value_idx_1: Any,
+    value_idx_2: Any,
+    parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser],
+) -> None:
     """
     Test integer tuple parameter is validated correctly.
     """
@@ -1972,7 +2042,7 @@ def test_create_v2_job_command_line_args_from_params() -> None:
     v2_command_line_args = util.create_v2_job_command_line_args_from_params(test_params)
     assert v2_command_line_args == expected_command_line_arg_str
 
-    with pytest.raises(ValueError,  match="cannot contain both single and double quotes"):
+    with pytest.raises(ValueError, match="cannot contain both single and double quotes"):
         test_params = ["--azureml", "'--test_arg_1=[\"test_arg_1_value_1\", \'test_arg_1_value_2\']'"]
         util.create_v2_job_command_line_args_from_params(test_params)
 
@@ -2014,7 +2084,7 @@ def test_cant_parse_param_type() -> None:
 
 # Another custom type (from docs/source/conmmandline_tools.md)
 class EvenNumberParam(util.CustomTypeParam):
-    """ Our custom type param for even numbers """
+    """Our custom type param for even numbers"""
 
     def _validate(self, val: Any) -> None:
         if (not self.allow_None) and val is None:
@@ -2039,8 +2109,9 @@ def test_parse_args_and_apply_overrides() -> None:
 
     new_even_number = config.even_number * 2
     new_string = config.simple_string + "something_new"
-    config_w_results = util.parse_args_and_update_config(config, ["--even_number", str(new_even_number),
-                                                                  "--simple_string", new_string])
+    config_w_results = util.parse_args_and_update_config(
+        config, ["--even_number", str(new_even_number), "--simple_string", new_string]
+    )
     assert config_w_results.even_number == new_even_number
     assert config_w_results.simple_string == new_string
 
@@ -2057,6 +2128,7 @@ def test_parse_args_and_apply_overrides() -> None:
     # Mock from_string to check test _validate
     def mock_from_string_none(a: Any, b: Any) -> None:
         return None  # type: ignore
+
     with patch.object(EvenNumberParam, "from_string", new=mock_from_string_none):
         # Check that _validate fails with None value
         with pytest.raises(ValueError) as e:
@@ -2079,7 +2151,7 @@ class MockChildRun:
             "val/loss": [np.random.rand() for _ in range(num_epochs)],
             "val/recall": [np.random.rand() for _ in range(num_epochs)],
             "test/f1score": np.random.rand(),
-            "test/accuracy": np.random.rand()
+            "test/accuracy": np.random.rand(),
         }
 
 
@@ -2098,7 +2170,7 @@ class MockRunWithMetrics:
         self.metrics: Dict[str, Union[float, List[float]]] = {
             "test/accuracy": 0.8,
             "test/auroc": 0.7,
-            "val/loss": [1.0, 0.8, 0.75]
+            "val/loss": [1.0, 0.8, 0.75],
         }
 
     def get_metrics(self) -> Dict[str, Union[List[float], float]]:
@@ -2131,8 +2203,9 @@ def test_download_files_from_hyperdrive_children(tmp_path: Path) -> None:
     with patch("health_azure.utils.download_files_from_run_id", new=_mock_download_file):
         with patch("health_azure.utils.get_tags_from_hyperdrive_run", new=_mock_get_tags):
             mock_run.get_children.return_value = [mock_run_1, mock_run_2]
-            util.download_files_from_hyperdrive_children(mock_run, remote_file_path, local_download_folder,
-                                                         hyperparam_name=hyperparam_name)
+            util.download_files_from_hyperdrive_children(
+                mock_run, remote_file_path, local_download_folder, hyperparam_name=hyperparam_name
+            )
 
     assert len(list(local_download_folder.iterdir())) == num_child_runs
     assert (local_download_folder / str(mock_run_1.id)).is_dir()
@@ -2155,12 +2228,11 @@ def test_get_metrics_for_hyperdrive_run(use_run_id: bool) -> None:
                 run_id=run_id,
                 child_run_arg_name=child_run_arg_name,
                 aml_workspace=DEFAULT_WORKSPACE.workspace,
-                workspace_config_path=workspace_config_path
+                workspace_config_path=workspace_config_path,
             )
             mock_get_run.assert_called_once_with(
-                run_id,
-                aml_workspace=DEFAULT_WORKSPACE.workspace,
-                workspace_config_path=workspace_config_path)
+                run_id, aml_workspace=DEFAULT_WORKSPACE.workspace, workspace_config_path=workspace_config_path
+            )
     else:
         with patch("health_azure.utils.get_aml_run_from_run_id") as mock_get_run:
             metrics_dict = util.get_metrics_for_hyperdrive_run(
@@ -2210,7 +2282,7 @@ def test_aggregate_hyperdrive_metrics() -> None:
         run = MockHyperDriveRun(num_children=2)
         run_id = "run_id"
         child_run_arg_name = "crossval_index"
-        aml_workspace = DEFAULT_WORKSPACE.workspace,
+        aml_workspace = (DEFAULT_WORKSPACE.workspace,)
         workspace_config_path = Path("config")
         keep_metrics = [metric_name]
         df = util.aggregate_hyperdrive_metrics(
@@ -2343,18 +2415,16 @@ def test_get_metrics_for_run_not_completed(caplog: LogCaptureFixture) -> None:
     with caplog.at_level(logging.WARNING):
         metrics = util.get_metrics_for_run(run=run)
     assert len(caplog.messages) == 1
-    assert caplog.messages[0] == ("Run run_id is not completed, but has status 'not_completed'. "
-                                  "Metrics may be incomplete.")
+    assert caplog.messages[0] == (
+        "Run run_id is not completed, but has status 'not_completed'. Metrics may be incomplete."
+    )
     assert metrics == run.get_metrics()
 
 
 @pytest.mark.fast
 @pytest.mark.parametrize(
-    "metrics",
-    [
-        {"metric1": [1.234], "metric2": [2.345, 3.456]},
-        {"metric1": [2.345, 3.456], "metric2": [1.234]}
-    ])
+    "metrics", [{"metric1": [1.234], "metric2": [2.345, 3.456]}, {"metric1": [2.345, 3.456], "metric2": [1.234]}]
+)
 def test_get_metrics_for_run_2(metrics: Dict[str, List[float]]) -> None:
     """
     Test if we can get metrics for a run with no children, and that the order in which metrics are read does
@@ -2363,9 +2433,7 @@ def test_get_metrics_for_run_2(metrics: Dict[str, List[float]]) -> None:
     run_name = "test_get_metrics_for_run_2"
     experiment_name = effective_experiment_name("himl-tests")
     run = util.create_aml_run_object(
-        experiment_name=experiment_name,
-        run_name=run_name,
-        workspace=DEFAULT_WORKSPACE.workspace
+        experiment_name=experiment_name, run_name=run_name, workspace=DEFAULT_WORKSPACE.workspace
     )
     try:
         for metric_name, metric_values in metrics.items():
@@ -2394,8 +2462,9 @@ def test_create_run() -> None:
     experiment_name = effective_experiment_name("himl-tests")
     run: Optional[Run] = None
     try:
-        run = util.create_aml_run_object(experiment_name=experiment_name, run_name=run_name,
-                                         workspace=DEFAULT_WORKSPACE.workspace)
+        run = util.create_aml_run_object(
+            experiment_name=experiment_name, run_name=run_name, workspace=DEFAULT_WORKSPACE.workspace
+        )
         assert run is not None
         assert run.display_name == run_name
         assert run.experiment.name == experiment_name
@@ -2413,11 +2482,12 @@ def test_create_run() -> None:
 def test_get_credential() -> None:
     def _mock_validation_error() -> None:
         raise ClientAuthenticationError("")
+
     # test the case where service principal credentials are set as environment variables
     mock_env_vars = {
         util.ENV_SERVICE_PRINCIPAL_ID: "foo",
         util.ENV_TENANT_ID: "bar",
-        util.ENV_SERVICE_PRINCIPAL_PASSWORD: "baz"
+        util.ENV_SERVICE_PRINCIPAL_PASSWORD: "baz",
     }
 
     with patch.object(os.environ, "get", return_value=mock_env_vars):
@@ -2428,7 +2498,7 @@ def test_get_credential() -> None:
             _get_legitimate_service_principal_credential=DEFAULT,
             _get_legitimate_device_code_credential=DEFAULT,
             _get_legitimate_default_credential=DEFAULT,
-            _get_legitimate_interactive_browser_credential=DEFAULT
+            _get_legitimate_interactive_browser_credential=DEFAULT,
         ) as mocks:
             mocks["is_running_in_azure_ml"].return_value = False
             mocks["is_running_on_azure_agent"].return_value = False
@@ -2448,7 +2518,7 @@ def test_get_credential() -> None:
             _get_legitimate_service_principal_credential=DEFAULT,
             _get_legitimate_device_code_credential=DEFAULT,
             _get_legitimate_default_credential=DEFAULT,
-            _get_legitimate_interactive_browser_credential=DEFAULT
+            _get_legitimate_interactive_browser_credential=DEFAULT,
         ) as mocks:
             mock_get_sp_cred = mocks["_get_legitimate_service_principal_credential"]
             mock_get_device_cred = mocks["_get_legitimate_device_code_credential"]
@@ -2483,8 +2553,10 @@ def test_get_credential() -> None:
             mock_get_browser_cred.return_value = None
             with pytest.raises(Exception) as e:
                 get_credential()
-                assert "Unable to generate and validate a credential. Please see Azure ML documentation"\
-                       "for instructions on different options to get a credential" in str(e)
+                assert (
+                    "Unable to generate and validate a credential. Please see Azure ML documentation"
+                    "for instructions on different options to get a credential" in str(e)
+                )
 
 
 def test_get_legitimate_service_principal_credential() -> None:
@@ -2496,14 +2568,16 @@ def test_get_legitimate_service_principal_credential() -> None:
     expected_error_msg = f"Found environment variables for {util.ENV_SERVICE_PRINCIPAL_ID}, "
     f"{util.ENV_SERVICE_PRINCIPAL_PASSWORD}, and {util.ENV_TENANT_ID} but was not able to authenticate"
     with pytest.raises(Exception) as e:
-        util._get_legitimate_service_principal_credential(mock_tenant_id, mock_service_principal_id,
-                                                          mock_service_principal_password)
+        util._get_legitimate_service_principal_credential(
+            mock_tenant_id, mock_service_principal_id, mock_service_principal_password
+        )
         assert expected_error_msg in str(e)
 
     # now mock the case where validating the credential succeeds and check the value of that
     with patch("health_azure.utils._validate_credential"):
-        cred = util._get_legitimate_service_principal_credential(mock_tenant_id, mock_service_principal_id,
-                                                                 mock_service_principal_password)
+        cred = util._get_legitimate_service_principal_credential(
+            mock_tenant_id, mock_service_principal_id, mock_service_principal_password
+        )
         assert isinstance(cred, ClientSecretCredential)
 
 
@@ -2584,7 +2658,7 @@ def test_download_from_run(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize('overwrite', [False, True])
 def test_download_from_run_if_necessary(tmp_path: Path, overwrite: bool) -> None:
-    """Test if downloading a file from a run works. """
+    """Test if downloading a file from a run works."""
     filename = "test_output.csv"
     download_dir = tmp_path
     remote_filename = "outputs/" + filename
@@ -2629,16 +2703,17 @@ def test_download_from_run_if_necessary_rank_nonzero(tmp_path: Path) -> None:
         run.download_file.assert_not_called()
 
 
-@pytest.mark.parametrize(['files', 'expected_downloaded'], [
-    ([], []),
-    (["a.txt", "b.txt"], ["a.txt", "b.txt"]),
-    (["e.txt", "f.csv"], ["e.txt"])])
+@pytest.mark.parametrize(
+    ['files', 'expected_downloaded'],
+    [([], []), (["a.txt", "b.txt"], ["a.txt", "b.txt"]), (["e.txt", "f.csv"], ["e.txt"])],
+)
 def test_download_files_by_suffix(tmp_path: Path, files: List[str], expected_downloaded: List[str]) -> None:
     """Test downloading files from a run returning a Generator
 
     :param files: The files that should be available in the mocked run.
     :param expected_downloaded: The names of the files that should be downloaded (filtered)
     """
+
     def mock_download(run: Run, file: str, output_file: Path, validate_checksum: bool) -> None:
         output_file.write_text("mock content")
 

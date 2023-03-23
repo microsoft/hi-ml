@@ -21,6 +21,7 @@ from .types import ImageModelOutput
 
 class BaseImageModel(nn.Module, ABC):
     """Abstract class for image models."""
+
     @abstractmethod
     def forward(self, *args: Any, **kwargs: Any) -> ImageModelOutput:
         raise NotImplementedError
@@ -33,19 +34,25 @@ class BaseImageModel(nn.Module, ABC):
 class ImageModel(BaseImageModel):
     """Image encoder module"""
 
-    def __init__(self,
-                 img_encoder_type: str,
-                 joint_feature_size: int,
-                 freeze_encoder: bool = False,
-                 pretrained_model_path: Optional[Union[str, Path]] = None,
-                 **downstream_classifier_kwargs: Any):
+    def __init__(
+        self,
+        img_encoder_type: str,
+        joint_feature_size: int,
+        freeze_encoder: bool = False,
+        pretrained_model_path: Optional[Union[str, Path]] = None,
+        **downstream_classifier_kwargs: Any,
+    ):
         super().__init__()
 
         # Initiate encoder, projector, and classifier
         self.encoder = get_encoder_from_type(img_encoder_type)
         self.feature_size = get_encoder_output_dim(self.encoder, device=get_module_device(self.encoder))
-        self.projector = MLP(input_dim=self.feature_size, output_dim=joint_feature_size,
-                             hidden_dim=joint_feature_size, use_1x1_convs=True)
+        self.projector = MLP(
+            input_dim=self.feature_size,
+            output_dim=joint_feature_size,
+            hidden_dim=joint_feature_size,
+            use_1x1_convs=True,
+        )
         self.downstream_classifier_kwargs = downstream_classifier_kwargs
         self.classifier = self.create_downstream_classifier() if downstream_classifier_kwargs else None
 
@@ -78,11 +85,13 @@ class ImageModel(BaseImageModel):
             projected_global_embedding = torch.mean(projected_patch_embeddings, dim=(2, 3))
 
         logits = self.classifier(pooled_x) if self.classifier else None
-        return ImageModelOutput(img_embedding=pooled_x,
-                                patch_embeddings=patch_x,
-                                class_logits=logits,
-                                projected_patch_embeddings=projected_patch_embeddings,
-                                projected_global_embedding=projected_global_embedding)
+        return ImageModelOutput(
+            img_embedding=pooled_x,
+            patch_embeddings=patch_x,
+            class_logits=logits,
+            projected_patch_embeddings=projected_patch_embeddings,
+            projected_global_embedding=projected_global_embedding,
+        )
 
     def create_downstream_classifier(self, **kwargs: Any) -> MultiTaskModel:
         """Create the classification module for the downstream task."""
@@ -111,12 +120,11 @@ class MultiImageModel(ImageModel):
         super().__init__(**kwargs)
         assert isinstance(self.encoder, MultiImageEncoder), "MultiImageModel only supports MultiImageEncoder"
 
-    def forward(self,  # type: ignore[override]
-                current_image: torch.Tensor,
-                previous_image: Optional[torch.Tensor] = None) -> ImageModelOutput:
-
+    def forward(  # type: ignore[override]
+        self, current_image: torch.Tensor, previous_image: Optional[torch.Tensor] = None
+    ) -> ImageModelOutput:
         with torch.set_grad_enabled(not self.freeze_encoder):
-            patch_x, pooled_x = self.encoder(current_image=current_image,
-                                             previous_image=previous_image,
-                                             return_patch_embeddings=True)
+            patch_x, pooled_x = self.encoder(
+                current_image=current_image, previous_image=previous_image, return_patch_embeddings=True
+            )
         return self.forward_post_encoder(patch_x, pooled_x)

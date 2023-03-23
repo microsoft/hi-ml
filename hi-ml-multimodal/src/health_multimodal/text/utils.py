@@ -7,8 +7,12 @@
 from enum import Enum, unique
 from typing import Tuple
 
-from ..image.model.pretrained import (BIOMED_VLP_BIOVIL_T, BIOMED_VLP_CXR_BERT_SPECIALIZED, BIOVIL_T_COMMIT_TAG,
-                                      CXR_BERT_COMMIT_TAG)
+from ..image.model.pretrained import (
+    BIOMED_VLP_BIOVIL_T,
+    BIOMED_VLP_CXR_BERT_SPECIALIZED,
+    BIOVIL_T_COMMIT_TAG,
+    CXR_BERT_COMMIT_TAG,
+)
 from .inference_engine import TextInferenceEngine
 from .model import CXRBertModel, CXRBertTokenizer
 
@@ -20,14 +24,14 @@ class BertEncoderType(str, Enum):
 
 
 def get_biovil_t_bert() -> Tuple[CXRBertTokenizer, CXRBertModel]:
-    """Load the BioViL-T Bert model and tokenizer from the `Hugging Face Hub <https://huggingface.co/microsoft/BiomedVLP-BioViL-T>`_."""  # noqa: E501
+    """Load the BioViL-T Bert model and tokenizer from the `Hugging Face Hub <https://huggingface.co/microsoft/BiomedVLP-BioViL-T>`_."""  # noqa: B950
     tokenizer = CXRBertTokenizer.from_pretrained(BIOMED_VLP_BIOVIL_T, revision=BIOVIL_T_COMMIT_TAG)
     text_model = CXRBertModel.from_pretrained(BIOMED_VLP_BIOVIL_T, revision=BIOVIL_T_COMMIT_TAG)
     return tokenizer, text_model
 
 
 def get_cxr_bert() -> Tuple[CXRBertTokenizer, CXRBertModel]:
-    """Load the CXR-BERT model and tokenizer from the `Hugging Face Hub <https://huggingface.co/microsoft/BiomedVLP-CXR-BERT-specialized>`_."""  # noqa: E501
+    """Load the CXR-BERT model and tokenizer from the `Hugging Face Hub <https://huggingface.co/microsoft/BiomedVLP-CXR-BERT-specialized>`_."""  # noqa: B950
     tokenizer = CXRBertTokenizer.from_pretrained(BIOMED_VLP_CXR_BERT_SPECIALIZED, revision=CXR_BERT_COMMIT_TAG)
     text_model = CXRBertModel.from_pretrained(BIOMED_VLP_CXR_BERT_SPECIALIZED, revision=CXR_BERT_COMMIT_TAG)
     return tokenizer, text_model

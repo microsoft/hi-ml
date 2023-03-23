@@ -27,15 +27,15 @@ def test_run_tensorboard_args() -> None:
     # if no required args are passed, will fail
     with pytest.raises(Exception) as e:
         subprocess.Popen(["python", TENSORBOARD_SCRIPT_PATH])
-        assert "One of latest_run_file, experiment, run_recovery_ids" \
-               " or run_ids must be provided" in str(e)
+        assert "One of latest_run_file, experiment, run_recovery_ids or run_ids must be provided" in str(e)
 
 
 def test_run_tensorboard_no_runs(tmp_path: Path) -> None:
     # if no such run exists, will fail
     with pytest.raises(Exception) as e:
-        subprocess.Popen(["python", TENSORBOARD_SCRIPT_PATH, "--run_recovery_ids", "madeuprun",
-                          "--log_dir", str(tmp_path)])
+        subprocess.Popen(
+            ["python", TENSORBOARD_SCRIPT_PATH, "--run_recovery_ids", "madeuprun", "--log_dir", str(tmp_path)]
+        )
         assert "No runs were found" in str(e)
 
 
@@ -73,7 +73,6 @@ def test_wrapped_tensorboard_remote_logs(tmp_path: Path) -> None:
         "imports": """
 import sys
 """,
-
         "body": """
     import torch
     from torch.utils.tensorboard import SummaryWriter
@@ -102,11 +101,11 @@ import sys
     extra_args: List[str] = []
     # For this test, do not use the latest package for the AzureML run. The script only uses torch, the logic
     # that should be tested is not in AzureML. This saves one Docker image build.
-    render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args,
-                               expected_pass=True, upload_package=False)
+    render_and_run_test_script(
+        tmp_path, RunTarget.AZUREML, extra_options, extra_args, expected_pass=True, upload_package=False
+    )
 
-    run = azure_util.get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE,
-                                         workspace=ws)
+    run = azure_util.get_most_recent_run(run_recovery_file=tmp_path / himl.RUN_RECOVERY_FILE, workspace=ws)
     run.wait_for_completion()
 
     log_dir = "outputs"

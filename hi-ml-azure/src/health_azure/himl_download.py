@@ -11,18 +11,25 @@ from health_azure.himl import download_job_outputs_logs
 
 
 class HimlDownloadConfig(azure_util.AmlRunScriptConfig):
-    output_dir: Path = param.ClassSelector(class_=Path, default=Path("outputs"), instantiate=False,
-                                           doc="Path to directory to store files downloaded from the AML Run")
-    config_file: Path = param.ClassSelector(class_=Path, default=None, instantiate=False,
-                                            doc="Path to config.json where Workspace name is defined. If not provided, "
-                                                "the code will try to locate a config.json file in any of the parent "
-                                                "folders of the current working directory")
+    output_dir: Path = param.ClassSelector(
+        class_=Path,
+        default=Path("outputs"),
+        instantiate=False,
+        doc="Path to directory to store files downloaded from the AML Run",
+    )
+    config_file: Path = param.ClassSelector(
+        class_=Path,
+        default=None,
+        instantiate=False,
+        doc="Path to config.json where Workspace name is defined. If not provided, "
+        "the code will try to locate a config.json file in any of the parent "
+        "folders of the current working directory",
+    )
 
     files_to_download: str = param.String(default=None, allow_None=True, doc="Path to the file to download")
 
 
 def main() -> None:  # pragma: no cover
-
     download_config = HimlDownloadConfig()
     download_config = azure_util.parse_args_and_update_config(download_config, sys.argv[1:])
 
@@ -35,7 +42,7 @@ def main() -> None:  # pragma: no cover
     ml_client = azure_util.get_ml_client(
         subscription_id=workspace.subscription_id,
         resource_group=workspace.resource_group,
-        workspace_name=workspace.name
+        workspace_name=workspace.name,
     )
     for run_id in download_config.run:
         download_job_outputs_logs(ml_client, run_id, file_to_download_path=files_to_download, download_dir=output_dir)

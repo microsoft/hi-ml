@@ -63,6 +63,7 @@ def make_output_dirs_for_test() -> Path:
 def tmp_path_to_pathmnist_dataset(tmp_path_factory: pytest.TempPathFactory) -> Generator:
     from testhisto.mocks.utils import download_azure_dataset
     from testhisto.mocks.base_data_generator import MockHistoDataType
+
     tmp_dir = tmp_path_factory.mktemp(MockHistoDataType.PATHMNIST.value)
     download_azure_dataset(tmp_dir, dataset_id=MockHistoDataType.PATHMNIST.value)
     yield tmp_dir
@@ -105,7 +106,7 @@ def mock_panda_slides_root_dir(
         n_levels=3,
         tile_size=28,
         background_val=255,
-        tiles_pos_type=TilesPositioningType.RANDOM
+        tiles_pos_type=TilesPositioningType.RANDOM,
     )
     logging.info("Generating temporary mock slides that will be deleted at the end of the session.")
     wsi_generator.generate_mock_histo_data()

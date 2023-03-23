@@ -18,19 +18,21 @@ from SSL.utils import SSLDataModuleType
 
 
 class HimlVisionDataModule(VisionDataModule):
-
-    def __init__(self,
-                 dataset_cls: type,
-                 return_index: bool,
-                 train_transforms: Optional[Callable],
-                 val_transforms: Optional[Callable],
-                 data_dir: Optional[str] = None,
-                 val_split: Union[int, float] = 0.2,
-                 num_workers: int = 6,
-                 batch_size: int = 32,
-                 seed: int = 42,
-                 drop_last: bool = True,
-                 *args: Any, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        dataset_cls: type,
+        return_index: bool,
+        train_transforms: Optional[Callable],
+        val_transforms: Optional[Callable],
+        data_dir: Optional[str] = None,
+        val_split: Union[int, float] = 0.2,
+        num_workers: int = 6,
+        batch_size: int = 32,
+        seed: int = 42,
+        drop_last: bool = True,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         """
         Wrapper around VisionDatamodule to load torchvision dataset into a pytorch-lightning module.
 
@@ -49,16 +51,18 @@ class HimlVisionDataModule(VisionDataModule):
         :param drop_last: bool, if true it drops the last incomplete batch
         """
         data_dir = data_dir if data_dir is not None else os.getcwd()
-        super().__init__(data_dir=data_dir,
-                         val_split=val_split,
-                         num_workers=num_workers,
-                         batch_size=batch_size,
-                         drop_last=drop_last,
-                         train_transforms=train_transforms,
-                         val_transforms=val_transforms,
-                         seed=seed,
-                         *args,
-                         **kwargs)
+        super().__init__(
+            data_dir=data_dir,
+            val_split=val_split,
+            num_workers=num_workers,
+            batch_size=batch_size,
+            drop_last=drop_last,
+            train_transforms=train_transforms,
+            val_transforms=val_transforms,
+            seed=seed,
+            *args,
+            **kwargs,
+        )
         self.dataset_cls = dataset_cls
         self.class_weights: Optional[torch.Tensor] = None
         # In setup() VisionDataModule expects the extra arguments to be passed to the dataset class init
@@ -80,8 +84,9 @@ class HimlVisionDataModule(VisionDataModule):
         if hasattr(dataset, "_split_dataset"):
             # If the dataset implements a more complex logic than just splitting randomly by index.
             # The dataset class can implements its own _split_dataset function.
-            dataset_train, dataset_val = dataset._split_dataset(val_split=self.val_split,  # type: ignore
-                                                                seed=self.seed)
+            dataset_train, dataset_val = dataset._split_dataset(
+                val_split=self.val_split, seed=self.seed  # type: ignore
+            )
             return dataset_train if train else dataset_val
         else:
             return super()._split_dataset(dataset, train)
@@ -98,13 +103,14 @@ class HimlVisionDataModule(VisionDataModule):
 
 
 class CombinedDataModule(LightningDataModule):
-
-    def __init__(self,
-                 encoder_module: HimlVisionDataModule,
-                 linear_head_module: HimlVisionDataModule,
-                 use_balanced_loss_linear_head: bool,
-                 *args: Any,
-                 **kwargs: Any) -> None:
+    def __init__(
+        self,
+        encoder_module: HimlVisionDataModule,
+        linear_head_module: HimlVisionDataModule,
+        use_balanced_loss_linear_head: bool,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         """
         Combined data module to use different datamodules for training SSL encoder and finetuning the linear head.
         Each batch returned by this data module, will be a dictionary of type Dict[SSLDataModuleType, Any].
@@ -155,10 +161,7 @@ class CombinedDataModule(LightningDataModule):
         :param linear_head_loader: The dataloader to use for the linear head.
         """
         mode = self._cycle_mode(len(encoder_loader), len(linear_head_loader))
-        dataloaders = {
-            SSLDataModuleType.ENCODER: encoder_loader,
-            SSLDataModuleType.LINEAR_HEAD: linear_head_loader
-        }
+        dataloaders = {SSLDataModuleType.ENCODER: encoder_loader, SSLDataModuleType.LINEAR_HEAD: linear_head_loader}
         return CombinedLoader(dataloaders, mode=mode)
 
     def train_dataloader(self, *args: Any, **kwargs: Any) -> Dict[SSLDataModuleType, DataLoader]:  # type: ignore
@@ -167,15 +170,17 @@ class CombinedDataModule(LightningDataModule):
         """
         return {
             SSLDataModuleType.ENCODER: self.encoder_module.train_dataloader(),
-            SSLDataModuleType.LINEAR_HEAD: self.linear_head_module.train_dataloader()
+            SSLDataModuleType.LINEAR_HEAD: self.linear_head_module.train_dataloader(),
         }
 
     def val_dataloader(self, *args: Any, **kwargs: Any) -> CombinedLoader:  # type: ignore
         """
         The val dataloader
         """
-        return self.get_combined_loader(encoder_loader=self.encoder_module.val_dataloader(),
-                                        linear_head_loader=self.linear_head_module.val_dataloader())
+        return self.get_combined_loader(
+            encoder_loader=self.encoder_module.val_dataloader(),
+            linear_head_loader=self.linear_head_module.val_dataloader(),
+        )
 
     @property
     def num_train_samples(self) -> int:

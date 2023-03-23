@@ -14,17 +14,21 @@ from torch.testing import assert_close
 from torchmetrics.metric import Metric
 
 from health_cpath.utils.naming import MetricsKey, ModelKey, ResultsKey
-from health_cpath.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType, OutputsPolicy,
-                                             collate_results_on_cpu, gather_results)
+from health_cpath.utils.output_utils import (
+    BatchResultsType,
+    DeepMILOutputsHandler,
+    EpochResultsType,
+    OutputsPolicy,
+    collate_results_on_cpu,
+    gather_results,
+)
 
 _PRIMARY_METRIC_KEY = MetricsKey.ACC
 _RANK_KEY = 'rank'
 
 
 def _create_outputs_policy(outputs_root: Path) -> OutputsPolicy:
-    return OutputsPolicy(outputs_root=outputs_root,
-                         primary_val_metric=_PRIMARY_METRIC_KEY,
-                         maximise=True)
+    return OutputsPolicy(outputs_root=outputs_root, primary_val_metric=_PRIMARY_METRIC_KEY, maximise=True)
 
 
 def _create_outputs_handler(outputs_root: Path) -> DeepMILOutputsHandler:
@@ -88,7 +92,7 @@ def test_outputs_policy_persistence(tmp_path: Path) -> None:
 
 def test_overwriting_val_outputs(tmp_path: Path, rank: int = 0, world_size: int = 1, device: str = 'cpu') -> None:
     mock_output_filename = "mock_output.txt"
-    is_rank_zero = (rank == 0)
+    is_rank_zero = rank == 0
 
     def mock_save_outputs(epoch_results: List, outputs_dir: Path, stage: ModelKey) -> None:
         assert rank == 0, f"Expected to save only on rank 0, got rank {rank}"
@@ -107,11 +111,14 @@ def test_overwriting_val_outputs(tmp_path: Path, rank: int = 0, world_size: int 
     previous_mock_output_file = outputs_handler.previous_validation_outputs_dir / mock_output_filename
 
     def save_validation_outputs(handler: DeepMILOutputsHandler, metric_value: float, epoch: int) -> None:
-        handler.save_validation_outputs(epoch_results=[{_PRIMARY_METRIC_KEY: metric_value,  # type: ignore
-                                                        _RANK_KEY: rank}],  # type: ignore
-                                        metrics_dict=_get_mock_metrics_dict(metric_value),
-                                        epoch=epoch,
-                                        is_global_rank_zero=is_rank_zero)
+        handler.save_validation_outputs(
+            epoch_results=[
+                {_PRIMARY_METRIC_KEY: metric_value, _RANK_KEY: rank}  # type: ignore
+            ],  # type: ignore
+            metrics_dict=_get_mock_metrics_dict(metric_value),
+            epoch=epoch,
+            is_global_rank_zero=is_rank_zero,
+        )
 
     assert not outputs_handler.validation_outputs_dir.exists()
     assert not outputs_handler.previous_validation_outputs_dir.exists()
@@ -164,14 +171,16 @@ def test_overwriting_val_outputs_distributed(tmp_path: Path) -> None:
     run_distributed(test_overwriting_val_outputs, args=(tmp_path,), world_size=2)
 
 
-def _create_batch_results(batch_idx: int, batch_size: int, num_batches: int, rank: int,
-                          device: str) -> BatchResultsType:
+def _create_batch_results(
+    batch_idx: int, batch_size: int, num_batches: int, rank: int, device: str
+) -> BatchResultsType:
     bag_sizes = [(rank * num_batches + batch_idx) * batch_size + slide_idx + 1 for slide_idx in range(batch_size)]
     print(rank, bag_sizes)
     results: BatchResultsType = {
         ResultsKey.SLIDE_ID: [[bag_size] * bag_size for bag_size in bag_sizes],
-        ResultsKey.TILE_ID: [[bag_size * bag_size + tile_idx for tile_idx in range(bag_size)]
-                             for bag_size in bag_sizes],
+        ResultsKey.TILE_ID: [
+            [bag_size * bag_size + tile_idx for tile_idx in range(bag_size)] for bag_size in bag_sizes
+        ],
         ResultsKey.BAG_ATTN: [torch.rand(1, bag_size, device=device) for bag_size in bag_sizes],
         ResultsKey.TRUE_LABEL: torch.randint(2, size=(batch_size,), device=device),
         ResultsKey.LOSS: torch.randn(1, device=device),
@@ -213,8 +222,7 @@ def test_gather_results(uneven_samples: bool = False, rank: int = 0, world_size:
 
     rank_offset = rank * num_batches
     for batch_idx in range(num_batches):
-        assert_close(actual=gathered_results[batch_idx + rank_offset],
-                     expected=epoch_results[batch_idx])
+        assert_close(actual=gathered_results[batch_idx + rank_offset], expected=epoch_results[batch_idx])
 
 
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
@@ -256,8 +264,9 @@ def test_collate_results_cpu() -> None:
 def test_collate_results_multigpu(uneven_samples: bool) -> None:
     num_batches = 5
     batch_size = 3
-    epoch_results = _create_epoch_results(batch_size, num_batches, uneven_samples, rank=0, device='cuda:0') \
-        + _create_epoch_results(batch_size, num_batches, uneven_samples, rank=1, device='cuda:1')
+    epoch_results = _create_epoch_results(
+        batch_size, num_batches, uneven_samples, rank=0, device='cuda:0'
+    ) + _create_epoch_results(batch_size, num_batches, uneven_samples, rank=1, device='cuda:1')
     _test_collate_results(epoch_results, total_num_samples=2 * num_batches * batch_size - int(uneven_samples))
 
 
@@ -281,7 +290,8 @@ def test_results_gather_only_if_necessary(save_intermediate_outputs: bool, tmp_p
                             metrics_dict=_get_mock_metrics_dict(metric_value),
                             epoch=0,
                             is_global_rank_zero=rank == 0,
-                            on_extra_val=False)
+                            on_extra_val=False,
+                        )
                         assert mock_gather_results.called == save_intermediate_outputs
                         assert mock_gather_tiles.called == save_intermediate_outputs
                         mock_clear_cache.assert_called()
@@ -291,7 +301,8 @@ def test_results_gather_only_if_necessary(save_intermediate_outputs: bool, tmp_p
                         metrics_dict=_get_mock_metrics_dict(metric_value),
                         epoch=1,
                         is_global_rank_zero=True,
-                        on_extra_val=True)
+                        on_extra_val=True,
+                    )
                     mock_gather_results.assert_called()
                     mock_gather_tiles.assert_called()
                     mock_clear_cache.assert_called()

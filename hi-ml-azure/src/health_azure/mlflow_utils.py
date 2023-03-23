@@ -33,8 +33,7 @@ def get_last_metrics_from_mlflow_run(mlflow_run: Run) -> Dict[str, Any]:
     return metrics
 
 
-def get_metric_from_mlflow_run(mlflow_client: MlflowClient, run_id: str, metric_name: str
-                               ) -> List[Metric]:
+def get_metric_from_mlflow_run(mlflow_client: MlflowClient, run_id: str, metric_name: str) -> List[Metric]:
     """
     For a given metric name, get the entire history of logged values from an mlflow Run
 

@@ -35,7 +35,7 @@ GITHUB_REF_TAG_COMMIT = "refs/tags/v"
 
 github_ref = os.getenv("GITHUB_REF")
 if github_ref and github_ref.startswith(GITHUB_REF_TAG_COMMIT):
-    version = github_ref[len(GITHUB_REF_TAG_COMMIT):]
+    version = github_ref[len(GITHUB_REF_TAG_COMMIT) :]
 
 # Otherwise, if running from a GitHub Action, but not a tagged commit then GITHUB_RUN_NUMBER will be populated.
 # Use this as a post release number. For example if GITHUB_RUN_NUMBER = 124 then the version string will be
@@ -78,7 +78,7 @@ setup(
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Medical Science Apps.",
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.7"
+        "Programming Language :: Python :: 3.7",
     ],
     keywords="Health Futures, Health Intelligence, Computational Pathology, AzureML",
     license="MIT License",

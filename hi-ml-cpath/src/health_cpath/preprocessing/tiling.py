@@ -16,8 +16,9 @@ def get_1d_padding(length: int, tile_size: int) -> Tuple[int, int]:
     return (pad // 2, pad - pad // 2)
 
 
-def pad_for_tiling_2d(array: np.ndarray, tile_size: int, channels_first: Optional[bool] = True,
-                      **pad_kwargs: Any) -> Tuple[np.ndarray, np.ndarray]:
+def pad_for_tiling_2d(
+    array: np.ndarray, tile_size: int, channels_first: Optional[bool] = True, **pad_kwargs: Any
+) -> Tuple[np.ndarray, np.ndarray]:
     """Symmetrically pads a 2D `array` such that both dimensions are divisible by `tile_size`.
 
     :param array: 2D image array.
@@ -40,8 +41,9 @@ def pad_for_tiling_2d(array: np.ndarray, tile_size: int, channels_first: Optiona
     return padded_array, np.array(offset)
 
 
-def tile_array_2d(array: np.ndarray, tile_size: int, channels_first: Optional[bool] = True,
-                  **pad_kwargs: Any) -> Tuple[np.ndarray, np.ndarray]:
+def tile_array_2d(
+    array: np.ndarray, tile_size: int, channels_first: Optional[bool] = True, **pad_kwargs: Any
+) -> Tuple[np.ndarray, np.ndarray]:
     """Split an image array into square non-overlapping tiles.
 
     The array will be padded symmetrically if its dimensions are not exact multiples of `tile_size`.
@@ -84,8 +86,9 @@ def tile_array_2d(array: np.ndarray, tile_size: int, channels_first: Optional[bo
     return tiles, coords
 
 
-def assemble_tiles_2d(tiles: np.ndarray, coords: np.ndarray, fill_value: Optional[float] = np.nan,
-                      channels_first: Optional[bool] = True) -> Tuple[np.ndarray, np.ndarray]:
+def assemble_tiles_2d(
+    tiles: np.ndarray, coords: np.ndarray, fill_value: Optional[float] = np.nan, channels_first: Optional[bool] = True
+) -> Tuple[np.ndarray, np.ndarray]:
     """Assembles a 2D array from sequences of tiles and coordinates.
 
     :param tiles: Stack of tiles with batch dimension first.
@@ -100,8 +103,9 @@ def assemble_tiles_2d(tiles: np.ndarray, coords: np.ndarray, fill_value: Optiona
         indices for the assembled array.
     """
     if coords.shape[0] != tiles.shape[0]:
-        raise ValueError(f"Tile coordinates and values must have the same length, "
-                         f"got {coords.shape[0]} and {tiles.shape[0]}")
+        raise ValueError(
+            f"Tile coordinates and values must have the same length, " f"got {coords.shape[0]} and {tiles.shape[0]}"
+        )
 
     if channels_first:
         n_tiles, channels, tile_size, _ = tiles.shape
@@ -121,8 +125,8 @@ def assemble_tiles_2d(tiles: np.ndarray, coords: np.ndarray, fill_value: Optiona
         row = coords[idx, 1] + offset[1]
         col = coords[idx, 0] + offset[0]
         if channels_first:
-            array[:, row:row + tile_size, col:col + tile_size] = tiles[idx]
+            array[:, row : row + tile_size, col : col + tile_size] = tiles[idx]
         else:
-            array[row:row + tile_size, col:col + tile_size, :] = tiles[idx]
+            array[row : row + tile_size, col : col + tile_size, :] = tiles[idx]
 
     return array, offset

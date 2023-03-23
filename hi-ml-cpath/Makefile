@@ -70,8 +70,12 @@ mypy:
 	mypy --install-types --show-error-codes --non-interactive --package testhisto
 	mypy --install-types --show-error-codes --non-interactive --package testSSL
 
+# run black check
+black:
+	black . --check --diff
+
 # run basic checks
-check: flake8 mypy
+check: flake8 mypy black
 
 # run pytest on package, assuming test requirements already installed
 pytest:

@@ -81,22 +81,24 @@ class CXRBertModel(BertForMaskedLM):
         return_dict: Optional[bool] = None,
         **kwargs: Any
     ) -> Union[BERTTupleOutput, CXRBertOutput]:
-
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        bert_for_masked_lm_output = super().forward(input_ids=input_ids,
-                                                    attention_mask=attention_mask,
-                                                    token_type_ids=token_type_ids,
-                                                    position_ids=position_ids,
-                                                    head_mask=head_mask,
-                                                    inputs_embeds=inputs_embeds,
-                                                    output_attentions=output_attentions,
-                                                    output_hidden_states=True,
-                                                    return_dict=True)
+        bert_for_masked_lm_output = super().forward(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=True,
+            return_dict=True,
+        )
 
         last_hidden_state = bert_for_masked_lm_output.hidden_states[-1]
-        cls_projected_embedding = self.cls_projection_head(
-            last_hidden_state[:, 0, :]) if output_cls_projected_embedding else None
+        cls_projected_embedding = (
+            self.cls_projection_head(last_hidden_state[:, 0, :]) if output_cls_projected_embedding else None
+        )
 
         if return_dict:
             return CXRBertOutput(
@@ -112,12 +114,12 @@ class CXRBertModel(BertForMaskedLM):
                 bert_for_masked_lm_output.logits,
                 cls_projected_embedding,
                 bert_for_masked_lm_output.hidden_states,
-                bert_for_masked_lm_output.attentions,)
+                bert_for_masked_lm_output.attentions,
+            )
 
-    def get_projected_text_embeddings(self,
-                                      input_ids: torch.Tensor,
-                                      attention_mask: torch.Tensor,
-                                      normalize_embeddings: bool = True) -> torch.Tensor:
+    def get_projected_text_embeddings(
+        self, input_ids: torch.Tensor, attention_mask: torch.Tensor, normalize_embeddings: bool = True
+    ) -> torch.Tensor:
         """
         Returns l2-normalised projected cls token embeddings for the given input token ids and attention mask.
         The joint latent space is trained using a contrastive objective between image and text data modalities.
@@ -128,8 +130,9 @@ class CXRBertModel(BertForMaskedLM):
         :return: (batch_size, projection_size)
         """
 
-        outputs = self.forward(input_ids=input_ids, attention_mask=attention_mask,
-                               output_cls_projected_embedding=True, return_dict=True)
+        outputs = self.forward(
+            input_ids=input_ids, attention_mask=attention_mask, output_cls_projected_embedding=True, return_dict=True
+        )
         assert isinstance(outputs, CXRBertOutput)
 
         cls_projected_embedding = outputs.cls_projected_embedding

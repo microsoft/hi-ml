@@ -30,8 +30,7 @@ from health_ml.utils.fixed_paths import repository_root_directory
 
 @pytest.fixture
 def mock_runner(tmp_path: Path) -> Runner:
-    """A test fixture that creates a Runner object in a temporary folder.
-    """
+    """A test fixture that creates a Runner object in a temporary folder."""
 
     return Runner(project_root=tmp_path)
 
@@ -55,16 +54,24 @@ class HelloWorldWithVariant(HelloWorld):
 
 
 @pytest.mark.fast
-@pytest.mark.parametrize("model_name, cluster, num_nodes, should_raise_value_error", [
-    ("HelloWorld", "dummyCluster", 1, False),
-    ("", "", None, True),
-    ("HelloWorld", "", None, False),
-    ("a", None, 0, True),
-    (None, "b", 10, True),
-    ("HelloWorld", "b", 10, False)
-])
-def test_parse_and_load_model(mock_runner: Runner, model_name: Optional[str], cluster: Optional[str],
-                              num_nodes: Optional[int], should_raise_value_error: bool) -> None:
+@pytest.mark.parametrize(
+    "model_name, cluster, num_nodes, should_raise_value_error",
+    [
+        ("HelloWorld", "dummyCluster", 1, False),
+        ("", "", None, True),
+        ("HelloWorld", "", None, False),
+        ("a", None, 0, True),
+        (None, "b", 10, True),
+        ("HelloWorld", "b", 10, False),
+    ],
+)
+def test_parse_and_load_model(
+    mock_runner: Runner,
+    model_name: Optional[str],
+    cluster: Optional[str],
+    num_nodes: Optional[int],
+    should_raise_value_error: bool,
+) -> None:
     """
     Test that command line args are parsed, a LightningContainer is instantiated with the expected attributes
     and a ParserResult object is returned, with the expected attributes. If model_name cannot be found in the
@@ -199,23 +206,26 @@ def test_run(mock_runner: Runner) -> None:
 @patch("health_ml.runner.choose_conda_env_file")
 @patch("health_ml.runner.get_workspace")
 @pytest.mark.fast
-def test_submit_to_azureml_if_needed(mock_get_workspace: MagicMock,
-                                     mock_get_env_files: MagicMock,
-                                     mock_runner: Runner
-                                     ) -> None:
-    def _mock_dont_submit_to_aml(input_datasets: List[DatasetConfig],
-                                 submit_to_azureml: bool, strictly_aml_v1: bool,  # type: ignore
-                                 environment_variables: Dict[str, Any],  # type: ignore
-                                 default_datastore: Optional[str],  # type: ignore
-                                 ) -> AzureRunInfo:
+def test_submit_to_azureml_if_needed(
+    mock_get_workspace: MagicMock, mock_get_env_files: MagicMock, mock_runner: Runner
+) -> None:
+    def _mock_dont_submit_to_aml(
+        input_datasets: List[DatasetConfig],
+        submit_to_azureml: bool,
+        strictly_aml_v1: bool,  # type: ignore
+        environment_variables: Dict[str, Any],  # type: ignore
+        default_datastore: Optional[str],  # type: ignore
+    ) -> AzureRunInfo:
         datasets_input = [d.target_folder for d in input_datasets] if input_datasets else []
-        return AzureRunInfo(input_datasets=datasets_input,
-                            output_datasets=[],
-                            mount_contexts=[],
-                            run=None,
-                            is_running_in_azure_ml=False,
-                            output_folder=None,  # type: ignore
-                            logs_folder=None)  # type: ignore
+        return AzureRunInfo(
+            input_datasets=datasets_input,
+            output_datasets=[],
+            mount_contexts=[],
+            run=None,
+            is_running_in_azure_ml=False,
+            output_folder=None,
+            logs_folder=None,
+        )
 
     mock_get_env_files.return_value = Path("some_file.txt")
 
@@ -266,8 +276,7 @@ def test_crossval_config() -> None:
     """
     mock_tuning_config = "foo"
     container = HelloWorld()
-    with patch("health_ml.configs.hello_world.HelloWorld.get_parameter_tuning_config",
-               return_value=mock_tuning_config):
+    with patch("health_ml.configs.hello_world.HelloWorld.get_parameter_tuning_config", return_value=mock_tuning_config):
         # Without any flags set, no Hyperdrive config should be returned
         assert container.get_hyperdrive_config() is None
         # To trigger a hyperparameter search, the commandline flag for hyperdrive must be present
@@ -302,10 +311,12 @@ def test_submit_to_azure_hyperdrive(mock_runner: Runner) -> None:
     Test if the hyperdrive configurations are passed to the submission function if using cross validation.
     """
     crossval_count = 2
-    _test_hyperdrive_submission(mock_runner,
-                                commandline_arg=f"--crossval_count={crossval_count}",
-                                expected_argument_name=WorkflowParams.CROSSVAL_INDEX_ARG_NAME,
-                                expected_argument_values=list(map(str, range(crossval_count))))
+    _test_hyperdrive_submission(
+        mock_runner,
+        commandline_arg=f"--crossval_count={crossval_count}",
+        expected_argument_name=WorkflowParams.CROSSVAL_INDEX_ARG_NAME,
+        expected_argument_values=list(map(str, range(crossval_count))),
+    )
 
 
 def test_submit_to_azure_differents_seeds(mock_runner: Runner) -> None:
@@ -313,16 +324,17 @@ def test_submit_to_azure_differents_seeds(mock_runner: Runner) -> None:
     Test if the hyperdrive configurations are passed to the submission function if running with dfferent seeds.
     """
     num_seeds = 2
-    _test_hyperdrive_submission(mock_runner,
-                                commandline_arg=f"--different_seeds={num_seeds}",
-                                expected_argument_name=WorkflowParams.RANDOM_SEED_ARG_NAME,
-                                expected_argument_values=list(map(str, range(num_seeds))))
+    _test_hyperdrive_submission(
+        mock_runner,
+        commandline_arg=f"--different_seeds={num_seeds}",
+        expected_argument_name=WorkflowParams.RANDOM_SEED_ARG_NAME,
+        expected_argument_values=list(map(str, range(num_seeds))),
+    )
 
 
-def _test_hyperdrive_submission(mock_runner: Runner,
-                                commandline_arg: str,
-                                expected_argument_name: str,
-                                expected_argument_values: List[str]) -> None:
+def _test_hyperdrive_submission(
+    mock_runner: Runner, commandline_arg: str, expected_argument_name: str, expected_argument_values: List[str]
+) -> None:
     model_name = "HelloWorld"
     arguments = ["", f"--model={model_name}", "--cluster=foo", commandline_arg, "--strictly_aml_v1=True"]
     # Use a special simplified environment file only for the tests here. Copy that to a temp folder, then let the runner
@@ -374,8 +386,7 @@ def test_submit_to_azure_docker(mock_runner: Runner) -> None:
 
 
 def test_runner_help(mock_runner: Runner, capsys: CaptureFixture) -> None:
-    """Test if the runner outputs default values correctly then using --help
-    """
+    """Test if the runner outputs default values correctly then using --help"""
     arguments = ["", "--help"]
     with pytest.raises(SystemExit):
         with patch.object(sys, "argv", arguments):
@@ -386,8 +397,7 @@ def test_runner_help(mock_runner: Runner, capsys: CaptureFixture) -> None:
 
 
 def test_run_hello_world(mock_runner: Runner) -> None:
-    """Test running a model end-to-end via the commandline runner
-    """
+    """Test running a model end-to-end via the commandline runner"""
     model_name = "HelloWorld"
     arguments = ["", f"--model={model_name}"]
     with patch("health_ml.runner.get_workspace") as mock_get_workspace:
@@ -403,8 +413,7 @@ def test_run_hello_world(mock_runner: Runner) -> None:
 
 
 def test_invalid_args(mock_runner: Runner) -> None:
-    """Test if invalid commandline arguments raise an error.
-    """
+    """Test if invalid commandline arguments raise an error."""
     invalid_arg = "--no_such_argument"
     arguments = ["", "--model=HelloWorld", invalid_arg]
     with patch.object(sys, "argv", arguments):
@@ -415,8 +424,7 @@ def test_invalid_args(mock_runner: Runner) -> None:
 
 
 def test_invalid_profiler(mock_runner: Runner) -> None:
-    """Test if invalid profiler commandline arguments raise an error.
-    """
+    """Test if invalid profiler commandline arguments raise an error."""
     invalid_profile = "--pl_profiler=foo"
     arguments = ["", "--model=HelloWorld", invalid_profile]
     with patch.object(sys, "argv", arguments):

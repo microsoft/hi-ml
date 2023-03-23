@@ -15,8 +15,7 @@ def main() -> None:
 
     workspace = get_workspace()
 
-    datastore: Datastore = get_datastore(workspace=workspace,
-                                         datastore_name="himldatasets")
+    datastore: Datastore = get_datastore(workspace=workspace, datastore_name="himldatasets")
 
     # Either download all outputs:
     # run.download_files(prefix="outputs", output_directory=str(path))
@@ -25,10 +24,8 @@ def main() -> None:
     outputs_root.mkdir(exist_ok=False)
 
     downloaded = datastore.download(
-        target_path=str(outputs_root),
-        prefix="himl_sample4_output/primes.txt",
-        overwrite=True,
-        show_progress=True)
+        target_path=str(outputs_root), prefix="himl_sample4_output/primes.txt", overwrite=True, show_progress=True
+    )
     assert downloaded == 1
 
 

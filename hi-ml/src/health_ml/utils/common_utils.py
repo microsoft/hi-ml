@@ -134,12 +134,14 @@ def choose_conda_env_file(env_file: Optional[Path] = None) -> Path:
     # When running from the Git repo, then stop search for environment file at repository root. Otherwise,
     # search from current folder all the way up
     stop_at = [paths.git_repo_root_folder()] if paths.is_himl_used_from_git_repo() else []
-    env_file = find_file_in_parent_folders(paths.ENVIRONMENT_YAML_FILE_NAME,
-                                           start_at_path=Path.cwd(),
-                                           stop_at_path=stop_at)
+    env_file = find_file_in_parent_folders(
+        paths.ENVIRONMENT_YAML_FILE_NAME, start_at_path=Path.cwd(), stop_at_path=stop_at
+    )
     if env_file is None:
-        raise FileNotFoundError(f"No Conda environment file '{paths.ENVIRONMENT_YAML_FILE_NAME}' was found in the "
-                                "current folder or its parent folders")
+        raise FileNotFoundError(
+            f"No Conda environment file '{paths.ENVIRONMENT_YAML_FILE_NAME}' was found in the "
+            "current folder or its parent folders"
+        )
     return env_file
 
 
@@ -220,6 +222,7 @@ def seed_monai_if_available(seed: int) -> None:
     try:
         # MONAI is not part of the core hi-ml requirements, this import can fail.
         from monai.utils import set_determinism  # type: ignore
+
         set_determinism(seed=seed)
     except ImportError:
         pass

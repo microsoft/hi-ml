@@ -15,15 +15,7 @@ def test_extract_fields() -> None:
     tile_id = "ABCDEFGHIJKL"
     split = "train"
     label = 0
-    path = (f"CRC_DX_{split.upper()}/"
-            f"{['MSS', 'MSIMUT'][label]}/"
-            f"blk-{tile_id}-{slide_id}-01Z-00-DX1.png")
-    fields = {
-        'slide_id': slide_id,
-        'tile_id': tile_id,
-        'image': path,
-        'split': split,
-        'label': label
-    }
+    path = f"CRC_DX_{split.upper()}/" f"{['MSS', 'MSIMUT'][label]}/" f"blk-{tile_id}-{slide_id}-01Z-00-DX1.png"
+    fields = {'slide_id': slide_id, 'tile_id': tile_id, 'image': path, 'split': split, 'label': label}
     extracted_fields = extract_fields(pd.Series(fields))
     assert fields == extracted_fields

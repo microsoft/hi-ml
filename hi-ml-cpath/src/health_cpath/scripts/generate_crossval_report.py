@@ -11,24 +11,38 @@ from matplotlib import pyplot as plt
 
 from health_azure.utils import get_aml_run_from_run_id, get_workspace
 from health_ml.utils.reports import HTMLReport
-from health_cpath.utils.analysis_plot_utils import (add_training_curves_legend, plot_confusion_matrices,
-                                                    plot_hyperdrive_roc_and_pr_curves,
-                                                    plot_hyperdrive_training_curves)
-from health_cpath.utils.output_utils import (AML_LEGACY_TEST_OUTPUTS_CSV, AML_TEST_OUTPUTS_CSV,
-                                             AML_VAL_OUTPUTS_CSV)
-from health_cpath.utils.report_utils import (collect_hyperdrive_metrics, collect_hyperdrive_outputs,
-                                             child_runs_have_val_and_test_outputs, get_best_epoch_metrics,
-                                             get_best_epochs, get_child_runs_hyperparams, get_hyperdrive_metrics_table,
-                                             get_formatted_run_info, collect_class_info, get_max_epochs,
-                                             download_hyperdrive_metrics_if_required)
+from health_cpath.utils.analysis_plot_utils import (
+    add_training_curves_legend,
+    plot_confusion_matrices,
+    plot_hyperdrive_roc_and_pr_curves,
+    plot_hyperdrive_training_curves,
+)
+from health_cpath.utils.output_utils import AML_LEGACY_TEST_OUTPUTS_CSV, AML_TEST_OUTPUTS_CSV, AML_VAL_OUTPUTS_CSV
+from health_cpath.utils.report_utils import (
+    collect_hyperdrive_metrics,
+    collect_hyperdrive_outputs,
+    child_runs_have_val_and_test_outputs,
+    get_best_epoch_metrics,
+    get_best_epochs,
+    get_child_runs_hyperparams,
+    get_hyperdrive_metrics_table,
+    get_formatted_run_info,
+    collect_class_info,
+    get_max_epochs,
+    download_hyperdrive_metrics_if_required,
+)
 from health_cpath.utils.naming import MetricsKey, ModelKey
 
 
-def generate_html_report(parent_run_id: str, output_dir: Path,
-                         workspace_config_path: Optional[Path] = None,
-                         include_test: bool = False, overwrite: bool = False,
-                         hyperdrive_arg_name: str = "crossval_index",
-                         primary_metric: str = MetricsKey.AUROC) -> None:
+def generate_html_report(
+    parent_run_id: str,
+    output_dir: Path,
+    workspace_config_path: Optional[Path] = None,
+    include_test: bool = False,
+    overwrite: bool = False,
+    hyperdrive_arg_name: str = "crossval_index",
+    primary_metric: str = MetricsKey.AUROC,
+) -> None:
     """
     Function to generate an HTML report of a Hyperdrive AML run (e.g., cross validation, different random seeds, ...).
 
@@ -54,27 +68,42 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
     report.add_heading("Azure ML metrics", level=2)
 
     # Download metrics from AML. Can take several seconds for each child run
-    metrics_json = download_hyperdrive_metrics_if_required(parent_run_id, report_dir, aml_workspace,
-                                                           overwrite=overwrite, hyperdrive_arg_name=hyperdrive_arg_name)
+    metrics_json = download_hyperdrive_metrics_if_required(
+        parent_run_id, report_dir, aml_workspace, overwrite=overwrite, hyperdrive_arg_name=hyperdrive_arg_name
+    )
 
     # Get metrics dataframe from the downloaded json file
     metrics_df = collect_hyperdrive_metrics(metrics_json=metrics_json)
 
     hyperparameters_children = get_child_runs_hyperparams(metrics_df)
     max_epochs_dict = get_max_epochs(hyperparams_children=hyperparameters_children)
-    best_epochs = get_best_epochs(metrics_df=metrics_df, primary_metric=f'{ModelKey.VAL}/{primary_metric}',
-                                  max_epochs_dict=max_epochs_dict, maximise=True)
+    best_epochs = get_best_epochs(
+        metrics_df=metrics_df,
+        primary_metric=f'{ModelKey.VAL}/{primary_metric}',
+        max_epochs_dict=max_epochs_dict,
+        maximise=True,
+    )
 
     # Add training curves for loss and AUROC (train and val.)
-    render_training_curves(report, heading="Training curves", level=3,
-                           metrics_df=metrics_df, best_epochs=best_epochs, report_dir=report_dir,
-                           primary_metric=primary_metric)
+    render_training_curves(
+        report,
+        heading="Training curves",
+        level=3,
+        metrics_df=metrics_df,
+        best_epochs=best_epochs,
+        report_dir=report_dir,
+        primary_metric=primary_metric,
+    )
 
     # Get metrics list with class names
     num_classes, class_names = collect_class_info(hyperparams_children=hyperparameters_children)
 
-    base_metrics_list: List[str] = [MetricsKey.ACC, MetricsKey.AUROC, MetricsKey.AVERAGE_PRECISION,
-                                    MetricsKey.COHENKAPPA]
+    base_metrics_list: List[str] = [
+        MetricsKey.ACC,
+        MetricsKey.AUROC,
+        MetricsKey.AVERAGE_PRECISION,
+        MetricsKey.COHENKAPPA,
+    ]
     if num_classes > 1:
         base_metrics_list += [MetricsKey.ACC_MACRO, MetricsKey.ACC_WEIGHTED]
     else:
@@ -83,32 +112,50 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
     base_metrics_list += class_names
 
     # Add tables with relevant metrics (val. and test)
-    render_metrics_table(report,
-                         heading=f"Validation metrics (best epoch based on maximum validation {primary_metric})",
-                         level=3,
-                         metrics_df=metrics_df, best_epochs=best_epochs,
-                         base_metrics_list=base_metrics_list, metrics_prefix=f'{ModelKey.VAL}/')
+    render_metrics_table(
+        report,
+        heading=f"Validation metrics (best epoch based on maximum validation {primary_metric})",
+        level=3,
+        metrics_df=metrics_df,
+        best_epochs=best_epochs,
+        base_metrics_list=base_metrics_list,
+        metrics_prefix=f'{ModelKey.VAL}/',
+    )
 
     if include_test:
-        render_metrics_table(report, heading="Test metrics", level=3,
-                             metrics_df=metrics_df, best_epochs=None,
-                             base_metrics_list=base_metrics_list, metrics_prefix=f'{ModelKey.TEST}/')
+        render_metrics_table(
+            report,
+            heading="Test metrics",
+            level=3,
+            metrics_df=metrics_df,
+            best_epochs=None,
+            base_metrics_list=base_metrics_list,
+            metrics_prefix=f'{ModelKey.TEST}/',
+        )
 
     # Get output data frames if available
     try:
         has_val_and_test_outputs = child_runs_have_val_and_test_outputs(parent_run)
         if has_val_and_test_outputs:
             output_filename_val = AML_VAL_OUTPUTS_CSV
-            outputs_dfs_val = collect_hyperdrive_outputs(parent_run_id=parent_run_id, download_dir=report_dir,
-                                                         aml_workspace=aml_workspace,
-                                                         output_filename=output_filename_val, overwrite=overwrite,
-                                                         hyperdrive_arg_name=hyperdrive_arg_name)
+            outputs_dfs_val = collect_hyperdrive_outputs(
+                parent_run_id=parent_run_id,
+                download_dir=report_dir,
+                aml_workspace=aml_workspace,
+                output_filename=output_filename_val,
+                overwrite=overwrite,
+                hyperdrive_arg_name=hyperdrive_arg_name,
+            )
             if include_test:
                 output_filename_test = AML_TEST_OUTPUTS_CSV if has_val_and_test_outputs else AML_LEGACY_TEST_OUTPUTS_CSV
-                outputs_dfs_test = collect_hyperdrive_outputs(parent_run_id=parent_run_id, download_dir=report_dir,
-                                                              aml_workspace=aml_workspace,
-                                                              output_filename=output_filename_test, overwrite=overwrite,
-                                                              hyperdrive_arg_name=hyperdrive_arg_name)
+                outputs_dfs_test = collect_hyperdrive_outputs(
+                    parent_run_id=parent_run_id,
+                    download_dir=report_dir,
+                    aml_workspace=aml_workspace,
+                    output_filename=output_filename_test,
+                    overwrite=overwrite,
+                    hyperdrive_arg_name=hyperdrive_arg_name,
+                )
 
         if num_classes == 1:
             # Currently ROC and PR curves rendered only for binary case
@@ -116,32 +163,50 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
             report.add_heading("ROC and PR curves", level=2)
             if has_val_and_test_outputs:
                 # Add val. ROC and PR curves
-                render_roc_and_pr_curves(report=report, heading="Validation ROC and PR curves", level=3,
-                                         report_dir=report_dir,
-                                         outputs_dfs=outputs_dfs_val,
-                                         prefix=f'{ModelKey.VAL}_')
+                render_roc_and_pr_curves(
+                    report=report,
+                    heading="Validation ROC and PR curves",
+                    level=3,
+                    report_dir=report_dir,
+                    outputs_dfs=outputs_dfs_val,
+                    prefix=f'{ModelKey.VAL}_',
+                )
             if include_test:
                 # Add test ROC and PR curves
-                render_roc_and_pr_curves(report=report, heading="Test ROC and PR curves", level=3,
-                                         report_dir=report_dir,
-                                         outputs_dfs=outputs_dfs_test,
-                                         prefix=f'{ModelKey.TEST}_')
+                render_roc_and_pr_curves(
+                    report=report,
+                    heading="Test ROC and PR curves",
+                    level=3,
+                    report_dir=report_dir,
+                    outputs_dfs=outputs_dfs_test,
+                    prefix=f'{ModelKey.TEST}_',
+                )
 
         # Add confusion matrices for each fold
         report.add_heading("Confusion matrices", level=2)
         if has_val_and_test_outputs:
             # Add val. confusion matrices
-            render_confusion_matrices(report=report, heading="Validation confusion matrices", level=3,
-                                      class_names=class_names,
-                                      report_dir=report_dir, outputs_dfs=outputs_dfs_val,
-                                      prefix=f'{ModelKey.VAL}_')
+            render_confusion_matrices(
+                report=report,
+                heading="Validation confusion matrices",
+                level=3,
+                class_names=class_names,
+                report_dir=report_dir,
+                outputs_dfs=outputs_dfs_val,
+                prefix=f'{ModelKey.VAL}_',
+            )
 
         if include_test:
             # Add test confusion matrices
-            render_confusion_matrices(report=report, heading="Test confusion matrices", level=3,
-                                      class_names=class_names,
-                                      report_dir=report_dir, outputs_dfs=outputs_dfs_test,
-                                      prefix=f'{ModelKey.TEST}_')
+            render_confusion_matrices(
+                report=report,
+                heading="Test confusion matrices",
+                level=3,
+                class_names=class_names,
+                report_dir=report_dir,
+                outputs_dfs=outputs_dfs_test,
+                prefix=f'{ModelKey.TEST}_',
+            )
 
     except ValueError as e:
         print(e)
@@ -154,9 +219,15 @@ def generate_html_report(parent_run_id: str, output_dir: Path,
     report.render()
 
 
-def render_training_curves(report: HTMLReport, heading: str, level: int,
-                           metrics_df: pd.DataFrame, best_epochs: Optional[Dict[int, int]],
-                           report_dir: Path, primary_metric: str = MetricsKey.AUROC) -> None:
+def render_training_curves(
+    report: HTMLReport,
+    heading: str,
+    level: int,
+    metrics_df: pd.DataFrame,
+    best_epochs: Optional[Dict[int, int]],
+    report_dir: Path,
+    primary_metric: str = MetricsKey.AUROC,
+) -> None:
     """
     Function to render training curves for HTML reports.
 
@@ -173,18 +244,29 @@ def render_training_curves(report: HTMLReport, heading: str, level: int,
     metrics = {"loss_epoch", MetricsKey.AUROC.value, primary_metric}
     fig, axs = plt.subplots(1, len(metrics), figsize=(5 * len(metrics), 4))
     for i, metric in enumerate(metrics):
-        plot_hyperdrive_training_curves(metrics_df, train_metric=f'{ModelKey.TRAIN}/{metric}',
-                                        val_metric=f'{ModelKey.VAL}/{metric}',
-                                        ylabel=metric, best_epochs=best_epochs, ax=axs[i])
+        plot_hyperdrive_training_curves(
+            metrics_df,
+            train_metric=f'{ModelKey.TRAIN}/{metric}',
+            val_metric=f'{ModelKey.VAL}/{metric}',
+            ylabel=metric,
+            best_epochs=best_epochs,
+            ax=axs[i],
+        )
     add_training_curves_legend(fig, include_best_epoch=True)
     training_curves_fig_path = report_dir / "training_curves.png"
     fig.savefig(training_curves_fig_path, bbox_inches='tight')
     report.add_images([training_curves_fig_path], base64_encode=True)
 
 
-def render_metrics_table(report: HTMLReport, heading: str, level: int,
-                         metrics_df: pd.DataFrame, best_epochs: Optional[Dict[int, int]],
-                         base_metrics_list: List[str], metrics_prefix: str) -> None:
+def render_metrics_table(
+    report: HTMLReport,
+    heading: str,
+    level: int,
+    metrics_df: pd.DataFrame,
+    best_epochs: Optional[Dict[int, int]],
+    base_metrics_list: List[str],
+    metrics_prefix: str,
+) -> None:
     """
     Function to render metrics table for HTML reports.
 
@@ -205,8 +287,14 @@ def render_metrics_table(report: HTMLReport, heading: str, level: int,
     report.add_tables([metrics_table])
 
 
-def render_roc_and_pr_curves(report: HTMLReport, heading: str, level: int, report_dir: Path,
-                             outputs_dfs: Dict[int, pd.DataFrame], prefix: str = '') -> None:
+def render_roc_and_pr_curves(
+    report: HTMLReport,
+    heading: str,
+    level: int,
+    report_dir: Path,
+    outputs_dfs: Dict[int, pd.DataFrame],
+    prefix: str = '',
+) -> None:
     """
     Function to render ROC and PR curves for HTML reports.
 
@@ -224,8 +312,15 @@ def render_roc_and_pr_curves(report: HTMLReport, heading: str, level: int, repor
     report.add_images([roc_pr_curves_fig_path], base64_encode=True)
 
 
-def render_confusion_matrices(report: HTMLReport, heading: str, level: int, class_names: List[str],
-                              report_dir: Path, outputs_dfs: Dict[int, pd.DataFrame], prefix: str = '') -> None:
+def render_confusion_matrices(
+    report: HTMLReport,
+    heading: str,
+    level: int,
+    class_names: List[str],
+    report_dir: Path,
+    outputs_dfs: Dict[int, pd.DataFrame],
+    prefix: str = '',
+) -> None:
     """
     Function to render confusion matrices for HTML reports.
 
@@ -258,14 +353,23 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument('--run_id', help="The parent Hyperdrive run ID.")
     parser.add_argument('--output_dir', help="Directory where to download Azure ML data and save the report.")
-    parser.add_argument('--workspace_config', help="Path to Azure ML workspace config.json file. "
-                                                   "If omitted, will try to load default workspace.")
-    parser.add_argument('--include_test', action='store_true', help="Opt-in flag to include test results "
-                                                                    "in the generated report.")
-    parser.add_argument('--overwrite', action='store_true', help="Forces (re)download of metrics and output files, "
-                                                                 "even if they already exist locally.")
-    parser.add_argument("--hyper_arg_name", default="crossval_index",
-                        help="Name of the Hyperdrive argument used for indexing the child runs.")
+    parser.add_argument(
+        '--workspace_config',
+        help="Path to Azure ML workspace config.json file. If omitted, will try to load default workspace.",
+    )
+    parser.add_argument(
+        '--include_test', action='store_true', help="Opt-in flag to include test results in the generated report."
+    )
+    parser.add_argument(
+        '--overwrite',
+        action='store_true',
+        help="Forces (re)download of metrics and output files, even if they already exist locally.",
+    )
+    parser.add_argument(
+        "--hyper_arg_name",
+        default="crossval_index",
+        help="Name of the Hyperdrive argument used for indexing the child runs.",
+    )
     parser.add_argument("--primary_metric", default=MetricsKey.AUROC, help="Name of the reference metric to optimise.")
     args = parser.parse_args()
 
@@ -279,10 +383,12 @@ if __name__ == "__main__":
             raise ValueError(f"Specified workspace config file does not exist: {workspace_config}")
         print(f"Workspace config: {workspace_config}")
 
-    generate_html_report(parent_run_id=args.run_id,
-                         output_dir=Path(args.output_dir),
-                         workspace_config_path=workspace_config,
-                         include_test=args.include_test,
-                         overwrite=args.overwrite,
-                         hyperdrive_arg_name=args.hyper_arg_name,
-                         primary_metric=args.primary_metric)
+    generate_html_report(
+        parent_run_id=args.run_id,
+        output_dir=Path(args.output_dir),
+        workspace_config_path=workspace_config,
+        include_test=args.include_test,
+        overwrite=args.overwrite,
+        hyperdrive_arg_name=args.hyper_arg_name,
+        primary_metric=args.primary_metric,
+    )

@@ -27,10 +27,12 @@ if __name__ == '__main__':
     expected_subdirs = ["CRC_DX_TEST", "CRC_DX_TRAIN"]
     if not all([(dataset_dir / subdir).is_dir() for subdir in expected_subdirs]):
         raise ValueError(f"The folder {expected_datasetdir} needs to have these subfolder: {expected_subdirs}")
-    image_paths = [str(image_path.relative_to(dataset_dir))
-                   for split_dir in dataset_dir.iterdir()
-                   for class_dir in split_dir.iterdir()
-                   for image_path in class_dir.iterdir()]
+    image_paths = [
+        str(image_path.relative_to(dataset_dir))
+        for split_dir in dataset_dir.iterdir()
+        for class_dir in split_dir.iterdir()
+        for image_path in class_dir.iterdir()
+    ]
 
     df = pd.DataFrame(image_paths, columns=['image'])
 
