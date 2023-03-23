@@ -41,25 +41,28 @@ def get_pl_profiler(pl_profiler: Optional[str], outputs_folder: Path) -> Optiona
     if pl_profiler:
         pl_profilers = {"simple": SimpleProfiler, "advanced": AdvancedProfiler, "pytorch": PyTorchProfiler}
         if pl_profiler not in pl_profilers:
-            raise ValueError("Unsupported profiler. Please choose one of the following options: simple, advanced, "
-                             "pytorch. You can refer to https://pytorch-lightning.readthedocs.io/en/stable/advanced/"
-                             "profiler.html to learn more about each profiler. You can specify a custom profiler by "
-                             "overriding the default behavior of get_trainer_arguments() in your lightning container. "
-                             "You can find an example here https://github.com/microsoft/hi-ml/tree/main/docs/source/"
-                             "debugging.md#L145")
+            raise ValueError(
+                "Unsupported profiler. Please choose one of the following options: simple, advanced, "
+                "pytorch. You can refer to https://pytorch-lightning.readthedocs.io/en/stable/advanced/"
+                "profiler.html to learn more about each profiler. You can specify a custom profiler by "
+                "overriding the default behavior of get_trainer_arguments() in your lightning container. "
+                "You can find an example here https://github.com/microsoft/hi-ml/tree/main/docs/source/"
+                "debugging.md#L145"
+            )
         profiler = pl_profilers[pl_profiler](dirpath=outputs_folder / "profiler")
         return profiler
     else:
         return None
 
 
-def create_lightning_trainer(container: LightningContainer,
-                             resume_from_checkpoint: Optional[Path] = None,
-                             num_nodes: int = 1,
-                             multiple_trainloader_mode: str = "max_size_cycle",
-                             azureml_run_for_logging: Optional[Run] = None,
-                             mlflow_run_for_logging: Optional[str] = None) -> \
-        Tuple[Trainer, StoringLogger]:
+def create_lightning_trainer(
+    container: LightningContainer,
+    resume_from_checkpoint: Optional[Path] = None,
+    num_nodes: int = 1,
+    multiple_trainloader_mode: str = "max_size_cycle",
+    azureml_run_for_logging: Optional[Run] = None,
+    mlflow_run_for_logging: Optional[str] = None,
+) -> Tuple[Trainer, StoringLogger]:
     """
     Creates a Pytorch Lightning Trainer object for the given model configuration. It creates checkpoint handlers
     and loggers. That includes a diagnostic logger for use in unit tests, that is also returned as the second
@@ -91,7 +94,8 @@ def create_lightning_trainer(container: LightningContainer,
             # Initialize the DDP plugin. The default for pl_find_unused_parameters is False. If True, the plugin
             # prints out lengthy warnings about the performance impact of find_unused_parameters.
             strategy = DDPStrategy(
-                find_unused_parameters=container.pl_find_unused_parameters, static_graph=container.pl_static_graph,
+                find_unused_parameters=container.pl_find_unused_parameters,
+                static_graph=container.pl_static_graph,
             )
             message += "s per node with DDP"
     logging.info(f"Using {message}")
@@ -101,9 +105,7 @@ def create_lightning_trainer(container: LightningContainer,
     if is_running_in_azure_ml():
         mlflow_run_id = os.environ.get("MLFLOW_RUN_ID", None)
         logging.info(f"Logging to MLFlow run with id: {mlflow_run_id}")
-        mlflow_logger = HimlMLFlowLogger(
-            run_id=mlflow_run_id
-        )
+        mlflow_logger = HimlMLFlowLogger(run_id=mlflow_run_id)
         loggers.append(mlflow_logger)
     else:
         mlflow_run_dir = container.outputs_folder / "mlruns"
@@ -112,8 +114,10 @@ def create_lightning_trainer(container: LightningContainer,
             mlflow_tracking_uri = "file:" + str(mlflow_run_dir)
             mlflow_logger = HimlMLFlowLogger(run_id=mlflow_run_for_logging, tracking_uri=mlflow_tracking_uri)
             loggers.append(mlflow_logger)
-            logging.info(f"Logging to MLFlow run with id: {mlflow_run_for_logging}. Local MLFlow logs are stored in "
-                         f"{mlflow_tracking_uri}")
+            logging.info(
+                f"Logging to MLFlow run with id: {mlflow_run_for_logging}. Local MLFlow logs are stored in "
+                f"{mlflow_tracking_uri}"
+            )
         except FileNotFoundError as e:
             logging.warning(f"Unable to initialise MLFlowLogger due to error: {e}")
 
@@ -138,13 +142,13 @@ def create_lightning_trainer(container: LightningContainer,
     # Note that "last" is somehow a misnomer, it should rather be "latest". There is a "last" checkpoint written in
     # every epoch. We could use that for recovery too, but it could happen that the job gets preempted right during
     # writing that file, and we would end up with an invalid file.
-    last_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder),
-                                               save_last=True,
-                                               save_top_k=0)
-    recovery_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder),
-                                                   filename=AUTOSAVE_CHECKPOINT_FILE_NAME,
-                                                   every_n_epochs=container.autosave_every_n_val_epochs,
-                                                   save_last=False)
+    last_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder), save_last=True, save_top_k=0)
+    recovery_checkpoint_callback = ModelCheckpoint(
+        dirpath=str(container.checkpoint_folder),
+        filename=AUTOSAVE_CHECKPOINT_FILE_NAME,
+        every_n_epochs=container.autosave_every_n_val_epochs,
+        save_last=False,
+    )
     callbacks: List[Callback] = [
         last_checkpoint_callback,
         recovery_checkpoint_callback,
@@ -176,45 +180,52 @@ def create_lightning_trainer(container: LightningContainer,
     progress_bar_refresh_rate = container.pl_progress_bar_refresh_rate
     if progress_bar_refresh_rate is None:
         progress_bar_refresh_rate = 50
-        logging.info(f"The progress bar refresh rate is not set. Using a default of {progress_bar_refresh_rate}. "
-                     f"To change, modify the pl_progress_bar_refresh_rate field of the container.")
+        logging.info(
+            f"The progress bar refresh rate is not set. Using a default of {progress_bar_refresh_rate}. "
+            f"To change, modify the pl_progress_bar_refresh_rate field of the container."
+        )
     if is_azureml_run:
-        callbacks.append(AzureMLProgressBar(refresh_rate=progress_bar_refresh_rate,
-                                            write_to_logging_info=True,
-                                            print_timestamp=False))
+        callbacks.append(
+            AzureMLProgressBar(
+                refresh_rate=progress_bar_refresh_rate, write_to_logging_info=True, print_timestamp=False
+            )
+        )
     else:
         # Use a local import here to be able to support older PL versions
         from pytorch_lightning.callbacks import TQDMProgressBar
+
         callbacks.append(TQDMProgressBar(refresh_rate=progress_bar_refresh_rate))
     # Read out additional model-specific args here.
     # We probably want to keep essential ones like numgpu and logging.
-    trainer = Trainer(default_root_dir=str(container.outputs_folder),
-                      deterministic=deterministic,
-                      benchmark=benchmark,
-                      accelerator=accelerator,
-                      strategy=strategy,
-                      max_epochs=container.max_epochs,
-                      # All of the following limit_batches  arguments can be integers or floats.
-                      # If integers, it is the number of batches.
-                      # If float, it's the fraction of batches. We default to 1.0 (processing all batches).
-                      limit_train_batches=container.pl_limit_train_batches or 1.0,
-                      limit_val_batches=container.pl_limit_val_batches or 1.0,
-                      limit_test_batches=container.pl_limit_test_batches or 1.0,
-                      fast_dev_run=container.pl_fast_dev_run,  # type: ignore
-                      num_sanity_val_steps=container.pl_num_sanity_val_steps,
-                      log_every_n_steps=container.pl_log_every_n_steps,
-                      # check_val_every_n_epoch=container.pl_check_val_every_n_epoch,
-                      callbacks=callbacks,
-                      logger=loggers,
-                      num_nodes=num_nodes,
-                      devices=devices,
-                      precision=precision,
-                      sync_batchnorm=container.pl_sync_batchnorm,
-                      detect_anomaly=container.detect_anomaly,
-                      profiler=profiler,
-                      resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
-                      multiple_trainloader_mode=multiple_trainloader_mode,
-                      accumulate_grad_batches=container.pl_accumulate_grad_batches,
-                      replace_sampler_ddp=container.pl_replace_sampler_ddp,
-                      **additional_args)
+    trainer = Trainer(
+        default_root_dir=str(container.outputs_folder),
+        deterministic=deterministic,
+        benchmark=benchmark,
+        accelerator=accelerator,
+        strategy=strategy,
+        max_epochs=container.max_epochs,
+        # All of the following limit_batches  arguments can be integers or floats.
+        # If integers, it is the number of batches.
+        # If float, it's the fraction of batches. We default to 1.0 (processing all batches).
+        limit_train_batches=container.pl_limit_train_batches or 1.0,
+        limit_val_batches=container.pl_limit_val_batches or 1.0,
+        limit_test_batches=container.pl_limit_test_batches or 1.0,
+        fast_dev_run=container.pl_fast_dev_run,  # type: ignore
+        num_sanity_val_steps=container.pl_num_sanity_val_steps,
+        log_every_n_steps=container.pl_log_every_n_steps,
+        # check_val_every_n_epoch=container.pl_check_val_every_n_epoch,
+        callbacks=callbacks,
+        logger=loggers,
+        num_nodes=num_nodes,
+        devices=devices,
+        precision=precision,
+        sync_batchnorm=container.pl_sync_batchnorm,
+        detect_anomaly=container.detect_anomaly,
+        profiler=profiler,
+        resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
+        multiple_trainloader_mode=multiple_trainloader_mode,
+        accumulate_grad_batches=container.pl_accumulate_grad_batches,
+        replace_sampler_ddp=container.pl_replace_sampler_ddp,
+        **additional_args,
+    )
     return trainer, storing_logger

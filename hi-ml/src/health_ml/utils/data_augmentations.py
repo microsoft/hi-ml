@@ -22,7 +22,7 @@ class HEDJitter(object):
         >>> img = transform(img)
     """
 
-    def __init__(self, theta: float = 0.) -> None:
+    def __init__(self, theta: float = 0.0) -> None:
         """
         :param theta: How much to jitter HED color space.
             HED_light: theta=0.05; HED_strong: theta=0.2.
@@ -31,13 +31,15 @@ class HEDJitter(object):
             The jitter formula is :math:`s' = \alpha * s + \beta`.
         """
         self.theta = theta
-        self.rgb_from_hed = torch.tensor([[0.65, 0.70, 0.29],
-                                          [0.07, 0.99, 0.11],
-                                          [0.27, 0.57, 0.78]])
-        self.hed_from_rgb = torch.tensor([[1.87798274, -1.00767869, -0.55611582],
-                                          [-0.06590806, 1.13473037, -0.1355218],
-                                          [-0.60190736, -0.48041419, 1.57358807]])
-        self.log_adjust = torch.log(torch.tensor(1E-6))
+        self.rgb_from_hed = torch.tensor([[0.65, 0.70, 0.29], [0.07, 0.99, 0.11], [0.27, 0.57, 0.78]])
+        self.hed_from_rgb = torch.tensor(
+            [
+                [1.87798274, -1.00767869, -0.55611582],
+                [-0.06590806, 1.13473037, -0.1355218],
+                [-0.60190736, -0.48041419, 1.57358807],
+            ]
+        )
+        self.log_adjust = torch.log(torch.tensor(1e-6))
 
     def adjust_hed(self, img: torch.Tensor) -> torch.Tensor:
         """
@@ -51,7 +53,7 @@ class HEDJitter(object):
 
         # Separate stains
         img = img.permute([0, 2, 3, 1])
-        img = torch.maximum(img, 1E-6 * torch.ones(img.shape))
+        img = torch.maximum(img, 1e-6 * torch.ones(img.shape))
         stains = (torch.log(img) / self.log_adjust) @ self.hed_from_rgb
         stains = torch.maximum(stains, torch.zeros(stains.shape))
 
@@ -91,15 +93,15 @@ class HEDJitter(object):
 class StainNormalization(object):
     """Normalize the stain of an image given a reference image.
 
-        Following Erik Reinhard, Bruce Gooch (2001): “Color Transfer between Images.”
-        First, mask all white pixels.
-        Second, convert remaining pixels to lab space and normalize each channel.
-        Third, add mean and std of reference image.
-        Fourth, convert back to rgb and add white pixels back.
+    Following Erik Reinhard, Bruce Gooch (2001): “Color Transfer between Images.”
+    First, mask all white pixels.
+    Second, convert remaining pixels to lab space and normalize each channel.
+    Third, add mean and std of reference image.
+    Fourth, convert back to rgb and add white pixels back.
 
-        Usage example:
-            >>> transform = StainNormalization()
-            >>> img = transform(img)
+    Usage example:
+        >>> transform = StainNormalization()
+        >>> img = transform(img)
     """
 
     def __init__(self) -> None:
@@ -136,7 +138,7 @@ class StainNormalization(object):
         imagelab = imagelab.astype(np.uint8)
         nimg = cv2.cvtColor(imagelab, cv2.COLOR_LAB2RGB)
         nimg[whitemask] = img[whitemask]  # add back white pixels
-        nimg = torch.Tensor(nimg).unsqueeze(0).permute(0, 3, 1, 2) / 255.  # back to pytorch format
+        nimg = torch.Tensor(nimg).unsqueeze(0).permute(0, 3, 1, 2) / 255.0  # back to pytorch format
 
         return nimg
 
@@ -193,8 +195,8 @@ class GaussianBlur(object):
         :param max: upper bound of the interval from which we sample the STD
         """
         if np.random.binomial(n=1, p=p):
-            sigma = np.random.uniform(low=min, high=max)    # (max - min) * np.random.random_sample() + min
-            sample = sample.permute([0, 2, 3, 1]).squeeze().numpy()   # only 3 channels, color channel last
+            sigma = np.random.uniform(low=min, high=max)  # (max - min) * np.random.random_sample() + min
+            sample = sample.permute([0, 2, 3, 1]).squeeze().numpy()  # only 3 channels, color channel last
             sample = cv2.GaussianBlur(sample, (kernel_size, kernel_size), sigma)
             sample = torch.Tensor(sample).unsqueeze(0).permute(0, 3, 1, 2)
         return sample
@@ -207,12 +209,14 @@ class GaussianBlur(object):
         if img.shape[0] > 1:
             for i in range(img.shape[0]):
                 img_tile = img[i]
-                img[i] = self.apply_gaussian_blur(sample=img_tile.unsqueeze(0), kernel_size=self.kernel_size, p=self.p,
-                                                  min=self.min, max=self.max)
+                img[i] = self.apply_gaussian_blur(
+                    sample=img_tile.unsqueeze(0), kernel_size=self.kernel_size, p=self.p, min=self.min, max=self.max
+                )
             return img
         else:
-            img = self.apply_gaussian_blur(sample=img, kernel_size=self.kernel_size, p=self.p,
-                                           min=self.min, max=self.max)
+            img = self.apply_gaussian_blur(
+                sample=img, kernel_size=self.kernel_size, p=self.p, min=self.min, max=self.max
+            )
             if len(original_shape) == 3:
                 return img.squeeze(0)
             return img
@@ -231,9 +235,9 @@ class RandomRotationByMultiplesOf90(object):
         super().__init__()
 
     def __call__(self, sample: torch.Tensor) -> torch.Tensor:
-        angle = np.random.choice([0., 90., 180., 270.])
+        angle = np.random.choice([0.0, 90.0, 180.0, 270.0])
 
-        if angle != 0.:
+        if angle != 0.0:
             sample = TF.rotate(sample, angle)
 
         return sample

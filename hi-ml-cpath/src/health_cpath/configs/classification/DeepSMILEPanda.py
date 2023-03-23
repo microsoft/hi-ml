@@ -57,7 +57,7 @@ class BaseDeepSMILEPanda(BaseMIL):
 
 
 class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
-    """ DeepSMILETilesPanda is derived from BaseMILTiles and BaseDeepSMILEPanda to inherit common behaviors from both
+    """DeepSMILETilesPanda is derived from BaseMILTiles and BaseDeepSMILEPanda to inherit common behaviors from both
     tiles basemil and panda specific configuration.
 
     `tune_encoder` sets the fine-tuning mode of the encoder. For fine-tuning the encoder, batch_size = 2
@@ -70,7 +70,8 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
             is_caching=False,
             batch_size=8,
             batch_size_inf=8,
-            azure_datasets=[PANDA_5X_TILES_DATASET_ID, PANDA_DATASET_ID])
+            azure_datasets=[PANDA_5X_TILES_DATASET_ID, PANDA_DATASET_ID],
+        )
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
 
@@ -96,7 +97,7 @@ class DeepSMILETilesPanda(BaseMILTiles, BaseDeepSMILEPanda):
         )
 
     def get_slides_dataset(self) -> Optional[PandaDataset]:
-        return PandaDataset(root=self.local_datasets[1])                             # type: ignore
+        return PandaDataset(root=self.local_datasets[1])  # type: ignore
 
 
 class TilesPandaImageNetMIL(DeepSMILETilesPanda):
@@ -131,7 +132,8 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             level=1,
             tile_size=224,
             background_val=255,
-            azure_datasets=[PANDA_DATASET_ID],)
+            azure_datasets=[PANDA_DATASET_ID],
+        )
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
 
@@ -139,10 +141,7 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
         BaseMILSlides.setup(self)
 
     def get_dataloader_kwargs(self) -> dict:
-        return dict(
-            multiprocessing_context="spawn",
-            **super().get_dataloader_kwargs()
-        )
+        return dict(multiprocessing_context="spawn", **super().get_dataloader_kwargs())
 
     def get_data_module(self) -> PandaSlidesDataModule:
         return PandaSlidesDataModule(
@@ -162,7 +161,7 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
         )
 
     def get_slides_dataset(self) -> PandaDataset:
-        return PandaDataset(root=self.local_datasets[0])                             # type: ignore
+        return PandaDataset(root=self.local_datasets[0])  # type: ignore
 
 
 class SlidesPandaImageNetMIL(DeepSMILESlidesPanda):

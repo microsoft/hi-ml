@@ -19,7 +19,7 @@ from health_cpath.datasets.base_dataset import (
     DEFAULT_TEST_SPLIT_LABEL,
     DEFAULT_TRAIN_SPLIT_LABEL,
     DEFAULT_VAL_SPLIT_LABEL,
-    TilesDataset
+    TilesDataset,
 )
 from health_cpath.utils.naming import ModelKey
 
@@ -31,8 +31,7 @@ def noop_transform(x: Any) -> Any:
 def _check_generator_consistency(dl: DataLoader) -> None:
     dataloader_generator = dl.generator
     bag_sampler_generator = dl.dataset.data.bag_sampler.generator  # type: ignore
-    assert torch.equal(dataloader_generator.get_state(),
-                       bag_sampler_generator.get_state())
+    assert torch.equal(dataloader_generator.get_state(), bag_sampler_generator.get_state())
 
 
 def compare_dataloaders(dl1: DataLoader, dl2: DataLoader) -> None:
@@ -77,11 +76,12 @@ class MockTilesDataModule(TilesDataModule):
     def get_splits(self) -> Tuple[MockTilesDataset, MockTilesDataset, MockTilesDataset]:
         df = MockTilesDataset(self.root_path).dataset_df
         df = df.reset_index()
-        split_dfs = (df[df[MockTilesDataset.SPLIT_COLUMN] == DEFAULT_TRAIN_SPLIT_LABEL],
-                     df[df[MockTilesDataset.SPLIT_COLUMN] == DEFAULT_VAL_SPLIT_LABEL],
-                     df[df[MockTilesDataset.SPLIT_COLUMN] == DEFAULT_TEST_SPLIT_LABEL])
-        return tuple(MockTilesDataset(self.root_path, dataset_df=split_df)  # type: ignore
-                     for split_df in split_dfs)
+        split_dfs = (
+            df[df[MockTilesDataset.SPLIT_COLUMN] == DEFAULT_TRAIN_SPLIT_LABEL],
+            df[df[MockTilesDataset.SPLIT_COLUMN] == DEFAULT_VAL_SPLIT_LABEL],
+            df[df[MockTilesDataset.SPLIT_COLUMN] == DEFAULT_TEST_SPLIT_LABEL],
+        )
+        return tuple(MockTilesDataset(self.root_path, dataset_df=split_df) for split_df in split_dfs)  # type: ignore
 
 
 @pytest.fixture
@@ -96,42 +96,54 @@ def mock_data_dir(tmp_path: Path) -> Path:
     return csv_dir
 
 
-def _get_datamodule(cache_mode: CacheMode, precache_location: CacheLocation,
-                    cache_dir_provided: bool, data_dir: Path,
-                    max_bag_size: int = 0, max_bag_size_inf: int = 0) -> TilesDataModule:
-    if (cache_mode is CacheMode.NONE and precache_location is not CacheLocation.NONE) \
-            or (cache_mode is CacheMode.DISK and not cache_dir_provided) \
-            or (precache_location is not CacheLocation.NONE and not cache_dir_provided):
+def _get_datamodule(
+    cache_mode: CacheMode,
+    precache_location: CacheLocation,
+    cache_dir_provided: bool,
+    data_dir: Path,
+    max_bag_size: int = 0,
+    max_bag_size_inf: int = 0,
+) -> TilesDataModule:
+    if (
+        (cache_mode is CacheMode.NONE and precache_location is not CacheLocation.NONE)
+        or (cache_mode is CacheMode.DISK and not cache_dir_provided)
+        or (precache_location is not CacheLocation.NONE and not cache_dir_provided)
+    ):
         pytest.skip("Unsupported combination of caching arguments")
 
-    cache_dir = data_dir / f"datamodule_cache_{cache_mode.value}_{precache_location.value}" if \
-        cache_dir_provided else None
+    cache_dir = (
+        data_dir / f"datamodule_cache_{cache_mode.value}_{precache_location.value}" if cache_dir_provided else None
+    )
 
     if cache_dir is not None and cache_dir.exists():
         shutil.rmtree(cache_dir)
 
-    return MockTilesDataModule(root_path=data_dir,
-                               transforms_dict={ModelKey.TRAIN: noop_transform, ModelKey.VAL: noop_transform,
-                                                ModelKey.TEST: noop_transform},
-                               seed=0,
-                               batch_size=2,
-                               cache_mode=cache_mode,
-                               precache_location=precache_location,
-                               cache_dir=cache_dir,
-                               max_bag_size=max_bag_size,
-                               max_bag_size_inf=max_bag_size_inf)
+    return MockTilesDataModule(
+        root_path=data_dir,
+        transforms_dict={ModelKey.TRAIN: noop_transform, ModelKey.VAL: noop_transform, ModelKey.TEST: noop_transform},
+        seed=0,
+        batch_size=2,
+        cache_mode=cache_mode,
+        precache_location=precache_location,
+        cache_dir=cache_dir,
+        max_bag_size=max_bag_size,
+        max_bag_size_inf=max_bag_size_inf,
+    )
 
 
 @pytest.mark.parametrize('cache_mode', [CacheMode.MEMORY, CacheMode.DISK, CacheMode.NONE])
 @pytest.mark.parametrize('precache_location', [CacheLocation.NONE, CacheLocation.CPU, CacheLocation.SAME])
 @pytest.mark.parametrize('cache_dir_provided', [True, False])
-def test_caching_consistency(mock_data_dir: Path, cache_mode: CacheMode, precache_location: CacheLocation,
-                             cache_dir_provided: bool) -> None:
+def test_caching_consistency(
+    mock_data_dir: Path, cache_mode: CacheMode, precache_location: CacheLocation, cache_dir_provided: bool
+) -> None:
     # Compare two dataloaders from the same datamodule
-    datamodule = _get_datamodule(cache_mode=cache_mode,
-                                 precache_location=precache_location,
-                                 cache_dir_provided=cache_dir_provided,
-                                 data_dir=mock_data_dir)
+    datamodule = _get_datamodule(
+        cache_mode=cache_mode,
+        precache_location=precache_location,
+        cache_dir_provided=cache_dir_provided,
+        data_dir=mock_data_dir,
+    )
     datamodule.prepare_data()
     train_dataloader = datamodule.train_dataloader()
     train_dataloader2 = datamodule.train_dataloader()
@@ -139,37 +151,47 @@ def test_caching_consistency(mock_data_dir: Path, cache_mode: CacheMode, precach
     compare_dataloaders(train_dataloader, train_dataloader2)
 
     # Compare datamodules reusing the same cache
-    datamodule = _get_datamodule(cache_mode=cache_mode,
-                                 precache_location=precache_location,
-                                 cache_dir_provided=cache_dir_provided,
-                                 data_dir=mock_data_dir)
+    datamodule = _get_datamodule(
+        cache_mode=cache_mode,
+        precache_location=precache_location,
+        cache_dir_provided=cache_dir_provided,
+        data_dir=mock_data_dir,
+    )
     datamodule.prepare_data()
     train_dataloader = datamodule.train_dataloader()
 
-    reloaded_datamodule = _get_datamodule(cache_mode=cache_mode,
-                                          precache_location=precache_location,
-                                          cache_dir_provided=cache_dir_provided,
-                                          data_dir=mock_data_dir)
+    reloaded_datamodule = _get_datamodule(
+        cache_mode=cache_mode,
+        precache_location=precache_location,
+        cache_dir_provided=cache_dir_provided,
+        data_dir=mock_data_dir,
+    )
     reloaded_datamodule.prepare_data()
     reloaded_train_dataloader = reloaded_datamodule.train_dataloader()
 
     compare_dataloaders(train_dataloader, reloaded_train_dataloader)
 
 
-@pytest.mark.parametrize('cache_mode, precache_location, cache_dir_provided',
-                         [(CacheMode.DISK, CacheLocation.SAME, True),
-                          (CacheMode.DISK, CacheLocation.CPU, True),
-                          (CacheMode.MEMORY, CacheLocation.SAME, True),
-                          (CacheMode.MEMORY, CacheLocation.CPU, True),
-                          (CacheMode.MEMORY, CacheLocation.NONE, False),
-                          (CacheMode.NONE, CacheLocation.NONE, False)
-                          ])
-def test_tile_id_coverage(mock_data_dir: Path, cache_mode: CacheMode, precache_location: CacheLocation,
-                          cache_dir_provided: bool) -> None:
-    datamodule = _get_datamodule(cache_mode=cache_mode,
-                                 precache_location=precache_location,
-                                 cache_dir_provided=cache_dir_provided,
-                                 data_dir=mock_data_dir)
+@pytest.mark.parametrize(
+    'cache_mode, precache_location, cache_dir_provided',
+    [
+        (CacheMode.DISK, CacheLocation.SAME, True),
+        (CacheMode.DISK, CacheLocation.CPU, True),
+        (CacheMode.MEMORY, CacheLocation.SAME, True),
+        (CacheMode.MEMORY, CacheLocation.CPU, True),
+        (CacheMode.MEMORY, CacheLocation.NONE, False),
+        (CacheMode.NONE, CacheLocation.NONE, False),
+    ],
+)
+def test_tile_id_coverage(
+    mock_data_dir: Path, cache_mode: CacheMode, precache_location: CacheLocation, cache_dir_provided: bool
+) -> None:
+    datamodule = _get_datamodule(
+        cache_mode=cache_mode,
+        precache_location=precache_location,
+        cache_dir_provided=cache_dir_provided,
+        data_dir=mock_data_dir,
+    )
     datamodule.prepare_data()
     train_dataset = datamodule.train_dataset
     train_dataloader = datamodule.train_dataloader()
@@ -180,8 +202,7 @@ def test_tile_id_coverage(mock_data_dir: Path, cache_mode: CacheMode, precache_l
             if isinstance(stacked_bag_tile_ids, torch.Tensor):
                 stacked_bag_tile_ids = stacked_bag_tile_ids.tolist()
             bag_tile_ids = set(stacked_bag_tile_ids)
-            assert bag_tile_ids.isdisjoint(loaded_tile_ids), \
-                f"Tile IDs already seen: {bag_tile_ids}"
+            assert bag_tile_ids.isdisjoint(loaded_tile_ids), f"Tile IDs already seen: {bag_tile_ids}"
             loaded_tile_ids.update(bag_tile_ids)
     assert loaded_tile_ids == expected_tile_ids
 
@@ -192,22 +213,28 @@ def compare_bag_size(dl: DataLoader, bag_size: int) -> None:
             assert len(bag) <= bag_size
 
 
-@pytest.mark.parametrize('cache_mode, precache_location, cache_dir_provided',
-                         [(CacheMode.DISK, CacheLocation.SAME, True),
-                          (CacheMode.DISK, CacheLocation.CPU, True),
-                          (CacheMode.MEMORY, CacheLocation.SAME, True),
-                          (CacheMode.MEMORY, CacheLocation.CPU, True),
-                          (CacheMode.MEMORY, CacheLocation.NONE, False),
-                          (CacheMode.NONE, CacheLocation.NONE, False)
-                          ])
-def test_max_bag_size(mock_data_dir: Path, cache_mode: CacheMode, precache_location: CacheLocation,
-                      cache_dir_provided: bool) -> None:
-    datamodule = _get_datamodule(cache_mode=cache_mode,
-                                 precache_location=precache_location,
-                                 cache_dir_provided=cache_dir_provided,
-                                 data_dir=mock_data_dir,
-                                 max_bag_size=10,
-                                 max_bag_size_inf=20)
+@pytest.mark.parametrize(
+    'cache_mode, precache_location, cache_dir_provided',
+    [
+        (CacheMode.DISK, CacheLocation.SAME, True),
+        (CacheMode.DISK, CacheLocation.CPU, True),
+        (CacheMode.MEMORY, CacheLocation.SAME, True),
+        (CacheMode.MEMORY, CacheLocation.CPU, True),
+        (CacheMode.MEMORY, CacheLocation.NONE, False),
+        (CacheMode.NONE, CacheLocation.NONE, False),
+    ],
+)
+def test_max_bag_size(
+    mock_data_dir: Path, cache_mode: CacheMode, precache_location: CacheLocation, cache_dir_provided: bool
+) -> None:
+    datamodule = _get_datamodule(
+        cache_mode=cache_mode,
+        precache_location=precache_location,
+        cache_dir_provided=cache_dir_provided,
+        data_dir=mock_data_dir,
+        max_bag_size=10,
+        max_bag_size_inf=20,
+    )
     datamodule.prepare_data()
     train_dataloader = datamodule.train_dataloader()
     val_dataloader = datamodule.val_dataloader()

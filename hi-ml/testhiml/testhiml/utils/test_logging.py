@@ -56,30 +56,38 @@ def test_log_on_epoch() -> None:
         assert actual_metrics[metric_name].dtype == torch.float, f"Metric {metric_name}: should be float tensor"
     assert actual_metrics["foo"].item() == float(foo_value)
     # Default arguments for the call to module.log
-    assert actual_args[1] == {'on_epoch': True,
-                              'on_step': False,
-                              'reduce_fx': torch.mean,
-                              'sync_dist': False}, "Failed for world_size==1"
+    assert actual_args[1] == {
+        'on_epoch': True,
+        'on_step': False,
+        'reduce_fx': torch.mean,
+        'sync_dist': False,
+    }, "Failed for world_size==1"
     # Test if sync_dist is computed correctly from world size: world size is now 2, so sync_dist should be True
     module.trainer.world_size = 2
     log_on_epoch(module, metrics=metrics)
-    assert module.log_dict.call_args[1] == {'on_epoch': True,
-                                            'on_step': False,
-                                            'reduce_fx': torch.mean,
-                                            'sync_dist': True}, "Failed for world_size==2"
+    assert module.log_dict.call_args[1] == {
+        'on_epoch': True,
+        'on_step': False,
+        'reduce_fx': torch.mean,
+        'sync_dist': True,
+    }, "Failed for world_size==2"
     # Test if overrides for sync_dist and the other aggregation args are passed correctly
     module.trainer.world_size = 2
     log_on_epoch(module, metrics=metrics, reduce_fx="reduce", sync_dist=False)  # type: ignore
-    assert module.log_dict.call_args[1] == {'on_epoch': True,
-                                            'on_step': False,
-                                            'sync_dist': False,
-                                            'reduce_fx': "reduce"}, "Failed for sync_dist==True"
+    assert module.log_dict.call_args[1] == {
+        'on_epoch': True,
+        'on_step': False,
+        'sync_dist': False,
+        'reduce_fx': "reduce",
+    }, "Failed for sync_dist==True"
     module.trainer.world_size = 1
     log_on_epoch(module, metrics=metrics, reduce_fx="reduce", sync_dist=True)  # type: ignore
-    assert module.log_dict.call_args[1] == {'on_epoch': True,
-                                            'on_step': False,
-                                            'sync_dist': True,
-                                            'reduce_fx': "reduce"}, "Failed for sync_dist==True"
+    assert module.log_dict.call_args[1] == {
+        'on_epoch': True,
+        'on_step': False,
+        'sync_dist': True,
+        'reduce_fx': "reduce",
+    }, "Failed for sync_dist==True"
 
 
 def test_log_learning_rate_singleton() -> None:
@@ -117,9 +125,7 @@ def test_log_learning_rate_multiple() -> None:
     with mock.patch("health_ml.utils.logging.log_on_epoch") as mock_log_on_epoch:
         log_learning_rate(module, name="foo")
         assert mock_log_on_epoch.call_args[0] == (module,)
-        assert mock_log_on_epoch.call_args[1] == {'metrics': {'foo/0/0': lr1[0],
-                                                              'foo/1/0': lr2[0],
-                                                              'foo/1/1': lr2[1]}}
+        assert mock_log_on_epoch.call_args[1] == {'metrics': {'foo/0/0': lr1[0], 'foo/1/0': lr2[0], 'foo/1/1': lr2[1]}}
 
 
 def create_mock_logger() -> AzureMLLogger:
@@ -233,8 +239,7 @@ def test_azureml_logger_hyperparams_processing() -> None:
     """
     Test flattening of hyperparameters: Lists were not handled correctly in previous versions.
     """
-    hyperparams = {"A long list": ["foo", 1.0, "abc"],
-                   "foo": 1.0}
+    hyperparams = {"A long list": ["foo", 1.0, "abc"], "foo": 1.0}
     actual = _preprocess_hyperparams(hyperparams)
     assert actual == {"A long list": "['foo', 1.0, 'abc']", "foo": "1.0"}
 
@@ -289,9 +294,11 @@ def test_azureml_logger_actual_run() -> None:
     """
     When running outside of AzureML, a new run should be created.
     """
-    logger = AzureMLLogger(enable_logging_outside_azure_ml=True,
-                           workspace=DEFAULT_WORKSPACE.workspace,
-                           run_name="test_azureml_logger_actual_run")
+    logger = AzureMLLogger(
+        enable_logging_outside_azure_ml=True,
+        workspace=DEFAULT_WORKSPACE.workspace,
+        run_name="test_azureml_logger_actual_run",
+    )
     assert not logger.is_running_in_azure_ml
     assert logger.run is not None
     assert logger.run != RUN_CONTEXT
@@ -319,19 +326,23 @@ def test_azureml_logger_init4() -> None:
     # Check that all arguments are respected
     run_mock = MagicMock()
     with mock.patch("health_ml.utils.logging.create_aml_run_object", return_value=run_mock) as mock_create:
-        logger = AzureMLLogger(enable_logging_outside_azure_ml=True,
-                               experiment_name="exp",
-                               run_name="run",
-                               snapshot_directory="snapshot",
-                               workspace="workspace",  # type: ignore
-                               workspace_config_path=Path("config_path"))
+        logger = AzureMLLogger(
+            enable_logging_outside_azure_ml=True,
+            experiment_name="exp",
+            run_name="run",
+            snapshot_directory="snapshot",
+            workspace="workspace",  # type: ignore
+            workspace_config_path=Path("config_path"),
+        )
         assert not logger.has_user_provided_run
         assert logger.run == run_mock
-        mock_create.assert_called_once_with(experiment_name="exp",
-                                            run_name="run",
-                                            snapshot_directory="snapshot",
-                                            workspace="workspace",
-                                            workspace_config_path=Path("config_path"))
+        mock_create.assert_called_once_with(
+            experiment_name="exp",
+            run_name="run",
+            snapshot_directory="snapshot",
+            workspace="workspace",
+            workspace_config_path=Path("config_path"),
+        )
     # The run created in the constructor is under the control of the AzureML logger, and should be completed.
     # Check that the finalize method calls the run's complete method, but not the run's flush method.
     run_mock.flush = MagicMock()
@@ -375,13 +386,15 @@ def test_progress_bar_enable() -> None:
 def test_progress_bar(capsys: CaptureFixture) -> None:
     bar = AzureMLProgressBar(refresh_rate=1)
     mock_module = mock.MagicMock(global_step=34)
-    mock_trainer = mock.MagicMock(current_epoch=12,
-                                  lightning_module=mock_module,
-                                  num_training_batches=10,
-                                  num_val_batches=5,
-                                  emable_validation=False,
-                                  num_test_batches=[20],
-                                  num_predict_batches=[30])
+    mock_trainer = mock.MagicMock(
+        current_epoch=12,
+        lightning_module=mock_module,
+        num_training_batches=10,
+        num_val_batches=5,
+        emable_validation=False,
+        num_test_batches=[20],
+        num_predict_batches=[30],
+    )
     bar.setup(mock_trainer, mock_module)
     assert bar.trainer == mock_trainer
 

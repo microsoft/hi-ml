@@ -96,7 +96,7 @@ class StoringLogger(LightningLoggerBase):
             # Add the metric if either there is no prefix filter (prefix does not matter), or if the prefix
             # filter is supplied and really matches the metric name
             if (not prefix_filter) or key.startswith(prefix_filter):
-                stripped_key = key[len(prefix_filter):]
+                stripped_key = key[len(prefix_filter) :]
                 filtered[stripped_key] = value  # type: ignore
         return filtered  # type: ignore
 
@@ -133,8 +133,7 @@ class HimlMLFlowLogger(MLFlowLogger):
         for k, v in params.items():
             if len(str(v)) > 250:
                 rank_zero_warn(
-                    f"Mlflow only allows parameters with up to 250 characters. Discard {k}={v}",
-                    category=RuntimeWarning
+                    f"Mlflow only allows parameters with up to 250 characters. Discard {k}={v}", category=RuntimeWarning
                 )
                 continue
             if k in existing_hyperparams:

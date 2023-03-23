@@ -1,0 +1,4 @@
+[tool.black]
+line-length = 120
+skip-string-normalization = true
+extend-exclude = "docs/source/amulet/amulet_script.py"

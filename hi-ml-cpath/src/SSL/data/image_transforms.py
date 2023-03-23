@@ -55,7 +55,6 @@ class ExpandChannels:
 
 
 class AddGaussianNoise:
-
     def __init__(self, p_apply: float, std: float) -> None:
         """
         Transformation to add Gaussian noise N(0, std) to an image.
@@ -83,11 +82,7 @@ class ElasticTransform:
        https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.160.8494&rep=rep1&type=pdf
     """
 
-    def __init__(self,
-                 sigma: float,
-                 alpha: float,
-                 p_apply: float
-                 ) -> None:
+    def __init__(self, sigma: float, alpha: float, p_apply: float) -> None:
         """
         :param sigma: elasticity coefficient
         :param alpha: intensity of the deformation

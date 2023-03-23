@@ -29,16 +29,18 @@ class BootstrapYourOwnLatent(pl.LightningModule):
     Implementation of `Bootstrap Your Own Latent (BYOL) <https://arxiv.org/pdf/2006.07733.pdf>`
     """
 
-    def __init__(self,
-                 num_samples: int,
-                 learning_rate: float,
-                 batch_size: int,
-                 encoder_name: str,
-                 warmup_epochs: int,
-                 max_epochs: int,
-                 use_7x7_first_conv_in_resnet: bool = True,
-                 weight_decay: float = 1e-6,
-                 **kwargs: Any) -> None:
+    def __init__(
+        self,
+        num_samples: int,
+        learning_rate: float,
+        batch_size: int,
+        encoder_name: str,
+        warmup_epochs: int,
+        max_epochs: int,
+        use_7x7_first_conv_in_resnet: bool = True,
+        weight_decay: float = 1e-6,
+        **kwargs: Any
+    ) -> None:
         """
         Args:
             :param num_samples: Number of samples present in training dataset / dataloader.
@@ -95,8 +97,9 @@ class BootstrapYourOwnLatent(pl.LightningModule):
         with torch.no_grad():
             z_img1 = self.target_network.forward_until_predictor(img_1)
             z_img2 = self.target_network.forward_until_predictor(img_2)
-        loss = 0.5 * (self.cosine_loss(h_img1, z_img2.detach())
-                      + self.cosine_loss(h_img2, z_img1.detach()))  # noqa: W503
+        loss = 0.5 * (
+            self.cosine_loss(h_img1, z_img2.detach()) + self.cosine_loss(h_img2, z_img1.detach())
+        )  # noqa: W503
 
         return loss
 
@@ -117,20 +120,20 @@ class BootstrapYourOwnLatent(pl.LightningModule):
 
     def configure_optimizers(self) -> Any:
         # exclude certain parameters
-        parameters = self.exclude_from_wt_decay(self.online_network.named_parameters(),
-                                                weight_decay=self.hparams.weight_decay)  # type: ignore
-        optimizer = Adam(parameters,
-                         lr=self.hparams.learning_rate,  # type: ignore
-                         weight_decay=self.hparams.weight_decay)  # type: ignore
-        scheduler = LinearWarmupCosineAnnealingLR(optimizer,
-                                                  warmup_epochs=self.hparams.warmup_epochs,  # type: ignore
-                                                  max_epochs=self.hparams.max_epochs)  # type: ignore
+        parameters = self.exclude_from_wt_decay(
+            self.online_network.named_parameters(), weight_decay=self.hparams.weight_decay
+        )  # type: ignore
+        optimizer = Adam(
+            parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay  # type: ignore
+        )  # type: ignore
+        scheduler = LinearWarmupCosineAnnealingLR(
+            optimizer, warmup_epochs=self.hparams.warmup_epochs, max_epochs=self.hparams.max_epochs  # type: ignore
+        )  # type: ignore
         return [optimizer], [scheduler]
 
-    def exclude_from_wt_decay(self,
-                              named_params: Iterator[Tuple[str, T]],
-                              weight_decay: float,
-                              skip_list: List[str] = ['bias', 'bn']) -> List[Dict[str, Any]]:
+    def exclude_from_wt_decay(
+        self, named_params: Iterator[Tuple[str, T]], weight_decay: float, skip_list: List[str] = ['bias', 'bn']
+    ) -> List[Dict[str, Any]]:
         """
         Convolution-Linear bias-terms and batch-norm parameters are excluded from l2-norm weight decay regularisation.
         https://arxiv.org/pdf/2006.07733.pdf Section 3.3 Optimisation and Section F.5.
@@ -146,7 +149,4 @@ class BootstrapYourOwnLatent(pl.LightningModule):
             else:
                 params.append(param)
 
-        return [
-            {'params': params, 'weight_decay': weight_decay},
-            {'params': excluded_params, 'weight_decay': 0.}
-        ]
+        return [{'params': params, 'weight_decay': weight_decay}, {'params': excluded_params, 'weight_decay': 0.0}]

@@ -21,13 +21,12 @@ def main() -> None:
         default_datastore="himldatasets",
         input_datasets=["himl_sample7_input"],
         wait_for_completion=True,
-        wait_for_completion_show_output=True)
+        wait_for_completion_show_output=True,
+    )
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--kernel', type=str, default='linear',
-                        help='Kernel type to be used in the algorithm')
-    parser.add_argument('--penalty', type=float, default=1.0,
-                        help='Penalty parameter of the error term')
+    parser.add_argument('--kernel', type=str, default='linear', help='Kernel type to be used in the algorithm')
+    parser.add_argument('--penalty', type=float, default=1.0, help='Penalty parameter of the error term')
 
     args = parser.parse_args()
     print(f'Kernel type:{args.kernel}')
@@ -43,6 +42,7 @@ def main() -> None:
 
     # training a linear SVM classifier
     from sklearn.svm import SVC
+
     svm_model_linear = SVC(kernel=args.kernel, C=args.penalty).fit(X_train, y_train)
     svm_predictions = svm_model_linear.predict(X_test)
 

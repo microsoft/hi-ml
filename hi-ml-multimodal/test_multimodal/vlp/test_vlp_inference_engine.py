@@ -22,10 +22,10 @@ CENTER_CROP_SIZE = 480
 
 
 def _get_vlp_inference_engine() -> ImageTextInferenceEngine:
-
     image_inference = ImageInferenceEngine(
         image_model=ImageModel(img_encoder_type=ImageEncoderType.RESNET50.value, joint_feature_size=JOINT_FEATURE_SIZE),
-        transform=create_chest_xray_transform_for_inference(resize=512, center_crop_size=CENTER_CROP_SIZE))
+        transform=create_chest_xray_transform_for_inference(resize=512, center_crop_size=CENTER_CROP_SIZE),
+    )
     img_txt_inference = ImageTextInferenceEngine(
         image_inference_engine=image_inference,
         text_inference_engine=get_bert_inference(),
@@ -37,7 +37,9 @@ def _get_vlp_inference_engine() -> ImageTextInferenceEngine:
 @pytest.mark.parametrize("height", (400, 500, 650))
 @pytest.mark.parametrize("query_text", ("", "hello", "this is a test"))
 def test_vlp_inference(height: int, query_text: Union[str, List[str]]) -> None:
-    image_embedding_shapes = {480: (15, 15), }
+    image_embedding_shapes = {
+        480: (15, 15),
+    }
     width = 600
 
     img_txt_inference = _get_vlp_inference_engine()
@@ -76,7 +78,6 @@ def test_vlp_inference(height: int, query_text: Union[str, List[str]]) -> None:
 
 @pytest.mark.parametrize("query_text", ("this is a test", ["Test prompt 1", "Test prompt 2"]))
 def test_vlp_inference_global_similarity(query_text: str) -> None:
-
     img_txt_inference = _get_vlp_inference_engine()
 
     with tempfile.NamedTemporaryFile(suffix='.jpg') as f:
@@ -86,7 +87,6 @@ def test_vlp_inference_global_similarity(query_text: str) -> None:
         image.save(image_path)
 
         # Test global similarity score
-        sim_score = img_txt_inference.get_similarity_score_from_raw_data(image_path=image_path,
-                                                                         query_text=query_text)
+        sim_score = img_txt_inference.get_similarity_score_from_raw_data(image_path=image_path, query_text=query_text)
         assert isinstance(sim_score, float)
         assert 1 >= sim_score >= -1

@@ -16,5 +16,5 @@ __all__ = [
     "log_learning_rate",
     "log_on_epoch",
     "set_model_to_eval_mode",
-    "health_ml_package_setup"
+    "health_ml_package_setup",
 ]

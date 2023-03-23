@@ -24,9 +24,8 @@ def main() -> None:
     First call submit_to_azure_if_needed.
     """
     _ = submit_to_azure_if_needed(
-        compute_cluster_name="lite-testing-ds2",
-        wait_for_completion=True,
-        wait_for_completion_show_output=True)
+        compute_cluster_name="lite-testing-ds2", wait_for_completion=True, wait_for_completion_show_output=True
+    )
 
     parser = ArgumentParser()
     parser.add_argument("-m", "--message", type=str, required=True, help="The message to print out")

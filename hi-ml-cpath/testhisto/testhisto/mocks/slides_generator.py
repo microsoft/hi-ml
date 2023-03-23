@@ -23,13 +23,13 @@ class TilesPositioningType(Enum):
 
 class MockPandaSlidesGenerator(MockHistoDataGenerator):
     """Generator class to create mock WSI on the fly.
-        If tiles positioning is diagonal, a mock WSI resembles to:
-                                [**      ]
-                                [  **    ]
-                                [    **  ]
-                                [      **]
-        where * represents 2 tiles stitched along the Y axis.
-        If tiles positioning is random, tiles are positioned randomly on the WSI grid.
+    If tiles positioning is diagonal, a mock WSI resembles to:
+                            [**      ]
+                            [  **    ]
+                            [    **  ]
+                            [      **]
+    where * represents 2 tiles stitched along the Y axis.
+    If tiles positioning is random, tiles are positioned randomly on the WSI grid.
     """
 
     ISUP_GRADE = "isup_grade"
@@ -83,7 +83,10 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
 
     def create_mock_metadata_dataframe(self) -> pd.DataFrame:
         """Create a mock dataframe with random metadata."""
-        isup_grades = np.tile(list(self.ISUP_GRADE_MAPPING.keys()), self.n_slides // PANDA_N_CLASSES + 1,)
+        isup_grades = np.tile(
+            list(self.ISUP_GRADE_MAPPING.keys()),
+            self.n_slides // PANDA_N_CLASSES + 1,
+        )
         mock_metadata: dict = {
             col: [] for col in [PandaDataset.SLIDE_ID_COLUMN, PandaDataset.MASK_COLUMN, *PandaDataset.METADATA_COLUMNS]
         }
@@ -143,7 +146,7 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
             else:
                 raise NotImplementedError
             mock_image[
-                :, self.step_size * i: self.step_size * (i + 1), self.step_size * i: self.step_size * (i + 1)
+                :, self.step_size * i : self.step_size * (i + 1), self.step_size * i : self.step_size * (i + 1)
             ] = fill_square
         return np.transpose(mock_image, (1, 2, 0)), np.array(dump_tiles)  # switch to channels_last.
 
@@ -159,7 +162,7 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         )
 
         n_tiles_side = self.img_size // self.tile_size
-        total_n_tiles = n_tiles_side ** 2
+        total_n_tiles = n_tiles_side**2
         coords = [
             (k // n_tiles_side, k % n_tiles_side)
             for k in np.random.choice(total_n_tiles, size=self.n_tiles, replace=False)
@@ -172,7 +175,7 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
                 new_tile = np.random.uniform(0, self.background_val / (self.n_repeat_diag + 1) * (i + 1))
             else:
                 raise NotImplementedError
-            mock_image[:, x: x + self.tile_size, y: y + self.tile_size] = new_tile
+            mock_image[:, x : x + self.tile_size, y : y + self.tile_size] = new_tile
         return np.transpose(mock_image, (1, 2, 0))
 
     def _save_mock_wsi_as_tiff_file(self, file_path: Path, wsi_levels: List[np.ndarray]) -> None:
@@ -202,7 +205,7 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         :param mock_image: A mock image in channels_last format (H, W, 3).
         :return: Returns a list of n_levels downsampled versions of the original mock image.
         """
-        levels = [mock_image[:: 2 ** i, :: 2 ** i] for i in range(self.n_levels)]
+        levels = [mock_image[:: 2**i, :: 2**i] for i in range(self.n_levels)]
         return levels
 
     def generate_mock_histo_data(self) -> None:
@@ -215,7 +218,6 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
         tile_dir.mkdir(parents=True, exist_ok=True)
 
         for slide_counter in range(self.n_slides):
-
             if self.n_tiles_list:
                 self.total_tiles = self.n_tiles_list[slide_counter]
                 self.n_tiles: int = self.n_tiles_list[slide_counter]

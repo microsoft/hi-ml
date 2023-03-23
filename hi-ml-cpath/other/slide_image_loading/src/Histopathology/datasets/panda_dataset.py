@@ -21,14 +21,14 @@ class PandaDataset(Dataset):
     Ref.: https://www.kaggle.com/c/prostate-cancer-grade-assessment/overview
     """
 
-    def __init__(self, root_dir: Union[str, Path], n_slides: Optional[int] = None,
-                 frac_slides: Optional[float] = None) -> None:
+    def __init__(
+        self, root_dir: Union[str, Path], n_slides: Optional[int] = None, frac_slides: Optional[float] = None
+    ) -> None:
         super().__init__()
         self.root_dir = Path(root_dir)
         self.train_df = pd.read_csv(self.root_dir / "train.csv", index_col='image_id')
         if n_slides or frac_slides:
-            self.train_df = self.train_df.sample(n=n_slides, frac=frac_slides, replace=False,
-                                                 random_state=1234)
+            self.train_df = self.train_df.sample(n=n_slides, frac=frac_slides, replace=False, random_state=1234)
 
     def __len__(self) -> int:
         return self.train_df.shape[0]
@@ -45,7 +45,7 @@ class PandaDataset(Dataset):
             'image_id': image_id,
             'image': str(self._get_image_path(image_id).resolve()),
             'mask': str(self._get_mask_path(image_id).resolve()),
-            **self.train_df.loc[image_id].to_dict()
+            **self.train_df.loc[image_id].to_dict(),
         }
 
 
@@ -53,8 +53,9 @@ class PandaDataset(Dataset):
 class ReadImaged(MapTransform):
     """Basic transform to read image files."""
 
-    def __init__(self, reader: ImageReader, keys: KeysCollection,
-                 allow_missing_keys: bool = False, **kwargs: Any) -> None:
+    def __init__(
+        self, reader: ImageReader, keys: KeysCollection, allow_missing_keys: bool = False, **kwargs: Any
+    ) -> None:
         super().__init__(keys, allow_missing_keys=allow_missing_keys)
         self.reader = reader
         self.kwargs = kwargs
@@ -77,9 +78,16 @@ class LoadPandaROId(MapTransform):
     - `'scale'` (float): corresponding scale, loaded from the file
     """
 
-    def __init__(self, image_reader: WSIReader, mask_reader: WSIReader,
-                 image_key: str = 'image', mask_key: str = 'mask',
-                 level: int = 0, margin: int = 0, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        image_reader: WSIReader,
+        mask_reader: WSIReader,
+        image_key: str = 'image',
+        mask_key: str = 'mask',
+        level: int = 0,
+        margin: int = 0,
+        **kwargs: Any,
+    ) -> None:
         """
         :param reader: An instance of MONAI's `WSIReader`.
         :param image_key: Image key in the input and output dictionaries.
@@ -116,9 +124,9 @@ class LoadPandaROId(MapTransform):
         # but relative region size in pixels at the chosen level
         scale = mask_obj.level_downsamples[self.level]
         scaled_bbox = level0_bbox / scale
-        get_data_kwargs = dict(location=(level0_bbox.x, level0_bbox.y),
-                               size=(scaled_bbox.w, scaled_bbox.h),
-                               level=self.level)
+        get_data_kwargs = dict(
+            location=(level0_bbox.x, level0_bbox.y), size=(scaled_bbox.w, scaled_bbox.h), level=self.level
+        )
         mask, _ = self.mask_reader.get_data(mask_obj, **get_data_kwargs)  # type: ignore
         data[self.mask_key] = mask[:1]  # PANDA segmentation mask is in 'R' channel
         data[self.image_key], _ = self.image_reader.get_data(image_obj, **get_data_kwargs)  # type: ignore

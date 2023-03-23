@@ -24,6 +24,7 @@ class TcgaCrck_TilesDataset(TilesDataset):
     - `'image'` (`PIL.Image`): RGB tile
     - `'label'` (str): MSS (0) vs MSIMUT (1)
     """
+
     TILE_X_COLUMN = TILE_Y_COLUMN = None  # no tile coordinates available
     # This dataset conforms to all other defaults in TilesDataset
 
@@ -34,18 +35,19 @@ class TcgaCrck_TilesDatasetReturnImageLabel(VisionDataset):
     class label.
     """
 
-    def __init__(self,
-                 root: Union[str, Path],
-                 dataset_csv: Optional[Union[str, Path]] = None,
-                 dataset_df: Optional[pd.DataFrame] = None,
-                 train: Optional[bool] = None,
-                 transform: Optional[Callable] = None,
-                 **kwargs: Any) -> None:
+    def __init__(
+        self,
+        root: Union[str, Path],
+        dataset_csv: Optional[Union[str, Path]] = None,
+        dataset_df: Optional[pd.DataFrame] = None,
+        train: Optional[bool] = None,
+        transform: Optional[Callable] = None,
+        **kwargs: Any
+    ) -> None:
         super().__init__(root=root, transform=transform)
-        self.base_dataset = TcgaCrck_TilesDataset(root=root,
-                                                  dataset_csv=dataset_csv,
-                                                  dataset_df=dataset_df,
-                                                  train=train)
+        self.base_dataset = TcgaCrck_TilesDataset(
+            root=root, dataset_csv=dataset_csv, dataset_df=dataset_df, train=train
+        )
 
     def __getitem__(self, index: int) -> Tuple:  # type: ignore
         sample = self.base_dataset[index]
@@ -59,13 +61,13 @@ class TcgaCrck_TilesDatasetReturnImageLabel(VisionDataset):
         return len(self.base_dataset)
 
 
-class TcgaCrck_TilesDatasetWithReturnIndex(DatasetWithReturnIndex,
-                                           TcgaCrck_TilesDatasetReturnImageLabel):
+class TcgaCrck_TilesDatasetWithReturnIndex(DatasetWithReturnIndex, TcgaCrck_TilesDatasetReturnImageLabel):
     """
     Any dataset used in SSL needs to inherit from DataClassBaseWithReturnIndex as well as VisionData.
     This class is just a shorthand notation for this double inheritance. Please note that this class needs
     to override __getitem__(), this is why we need a separate PandaTilesDatasetReturnImageLabel.
     """
+
     @property
     def num_classes(self) -> int:
         return 2

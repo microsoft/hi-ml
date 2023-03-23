@@ -24,43 +24,49 @@ class NIH_RSNA_BYOL(SSLContainer):
     """
 
     def __init__(self) -> None:
-        super().__init__(ssl_training_dataset_name=SSLDatasetName.NIHCXR,
-                         linear_head_dataset_name=SSLDatasetName.RSNAKaggleCXR,
-                         # the first Azure dataset is for training, the second is for the linear head
-                         azure_datasets=[NIH_AZURE_DATASET_ID, RSNA_AZURE_DATASET_ID],
-                         random_seed=1,
-                         max_epochs=1000,
-                         # We usually train this model with 16 GPUs, giving an effective batch size of 1200
-                         ssl_training_batch_size=75,
-                         ssl_encoder=EncoderName.resnet50,
-                         ssl_training_type=SSLTrainingType.BYOL,
-                         use_balanced_binary_loss_for_linear_head=True,
-                         ssl_augmentation_config=path_encoder_augmentation_cxr,
-                         linear_head_augmentation_config=path_linear_head_augmentation_cxr)
+        super().__init__(
+            ssl_training_dataset_name=SSLDatasetName.NIHCXR,
+            linear_head_dataset_name=SSLDatasetName.RSNAKaggleCXR,
+            # the first Azure dataset is for training, the second is for the linear head
+            azure_datasets=[NIH_AZURE_DATASET_ID, RSNA_AZURE_DATASET_ID],
+            random_seed=1,
+            max_epochs=1000,
+            # We usually train this model with 16 GPUs, giving an effective batch size of 1200
+            ssl_training_batch_size=75,
+            ssl_encoder=EncoderName.resnet50,
+            ssl_training_type=SSLTrainingType.BYOL,
+            use_balanced_binary_loss_for_linear_head=True,
+            ssl_augmentation_config=path_encoder_augmentation_cxr,
+            linear_head_augmentation_config=path_linear_head_augmentation_cxr,
+        )
 
 
 class NIH_RSNA_SimCLR(SSLContainer):
     def __init__(self) -> None:
-        super().__init__(ssl_training_dataset_name=SSLDatasetName.NIHCXR,
-                         linear_head_dataset_name=SSLDatasetName.RSNAKaggleCXR,
-                         # the first Azure dataset is for training, the second is for the linear head
-                         azure_datasets=[NIH_AZURE_DATASET_ID, RSNA_AZURE_DATASET_ID],
-                         random_seed=1,
-                         max_epochs=1000,
-                         # We usually train this model with 16 GPUs, giving an effective batch size of 1200
-                         ssl_training_batch_size=75,
-                         ssl_encoder=EncoderName.resnet50,
-                         ssl_training_type=SSLTrainingType.SimCLR,
-                         use_balanced_binary_loss_for_linear_head=True,
-                         ssl_augmentation_config=path_encoder_augmentation_cxr,
-                         linear_head_augmentation_config=path_linear_head_augmentation_cxr)
+        super().__init__(
+            ssl_training_dataset_name=SSLDatasetName.NIHCXR,
+            linear_head_dataset_name=SSLDatasetName.RSNAKaggleCXR,
+            # the first Azure dataset is for training, the second is for the linear head
+            azure_datasets=[NIH_AZURE_DATASET_ID, RSNA_AZURE_DATASET_ID],
+            random_seed=1,
+            max_epochs=1000,
+            # We usually train this model with 16 GPUs, giving an effective batch size of 1200
+            ssl_training_batch_size=75,
+            ssl_encoder=EncoderName.resnet50,
+            ssl_training_type=SSLTrainingType.SimCLR,
+            use_balanced_binary_loss_for_linear_head=True,
+            ssl_augmentation_config=path_encoder_augmentation_cxr,
+            linear_head_augmentation_config=path_linear_head_augmentation_cxr,
+        )
 
 
 class CXRImageClassifier(SSLClassifierContainer):
     def __init__(self) -> None:
-        super().__init__(linear_head_dataset_name=SSLDatasetName.RSNAKaggleCXR,
-                         random_seed=1,
-                         max_epochs=200,
-                         use_balanced_binary_loss_for_linear_head=True,
-                         azure_datasets=[RSNA_AZURE_DATASET_ID],
-                         linear_head_augmentation_config=path_linear_head_augmentation_cxr)
+        super().__init__(
+            linear_head_dataset_name=SSLDatasetName.RSNAKaggleCXR,
+            random_seed=1,
+            max_epochs=200,
+            use_balanced_binary_loss_for_linear_head=True,
+            azure_datasets=[RSNA_AZURE_DATASET_ID],
+            linear_head_augmentation_config=path_linear_head_augmentation_cxr,
+        )

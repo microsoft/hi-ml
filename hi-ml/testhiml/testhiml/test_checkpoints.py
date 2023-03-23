@@ -26,14 +26,16 @@ from health_ml.utils.checkpoint_utils import (
     find_checkpoint_with_highest_epoch,
     find_recovery_checkpoint_in_downloaded_files,
     find_recovery_checkpoint_on_disk_or_cloud,
-    _load_epoch_from_checkpoint)
+    _load_epoch_from_checkpoint,
+)
 from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.common_utils import (
     AUTOSAVE_CHECKPOINT_CANDIDATES,
     CHECKPOINT_FOLDER,
     CHECKPOINT_SUFFIX,
     DEFAULT_AML_CHECKPOINT_DIR,
-    DEFAULT_AML_UPLOAD_DIR)
+    DEFAULT_AML_UPLOAD_DIR,
+)
 from testazure.utils_testazure import create_unittest_run_object
 from testhiml.utils.fixed_paths_for_tests import full_test_data_path, mock_run_id
 
@@ -62,7 +64,6 @@ def _test_invalid_checkpoint(checkpoint: str) -> None:
 
 
 def test_validate_checkpoint_parser() -> None:
-
     _test_invalid_checkpoint(checkpoint="dummy/local/path/model.ckpt")
     _test_invalid_checkpoint(checkpoint="INV@lid%RUN*id")
     _test_invalid_checkpoint(checkpoint="http/dummy_url-com")
@@ -86,7 +87,7 @@ def get_checkpoint_handler(tmp_path: Path, src_checkpoint: str) -> Tuple[Lightni
 
 def test_load_model_checkpoints_from_url(tmp_path: Path) -> None:
     WEIGHTS_URL = (
-        "https://pl-bolts-weights.s3.us-east-2.amazonaws.com/" "simclr/bolts_simclr_imagenet/simclr_imagenet.ckpt"
+        "https://pl-bolts-weights.s3.us-east-2.amazonaws.com/simclr/bolts_simclr_imagenet/simclr_imagenet.ckpt"
     )
 
     container, checkpoint_handler = get_checkpoint_handler(tmp_path, WEIGHTS_URL)
@@ -116,9 +117,7 @@ def test_load_model_checkpoints_from_aml_run_id(src_chekpoint_filename: str, tmp
     container, checkpoint_handler = get_checkpoint_handler(tmp_path, src_checkpoint)
     checkpoint_path = "custom/path" if "custom" in src_checkpoint else DEFAULT_AML_CHECKPOINT_DIR
     src_checkpoint_filename = (
-        src_chekpoint_filename.split("/")[-1]
-        if src_chekpoint_filename
-        else LAST_CHECKPOINT_FILE_NAME
+        src_chekpoint_filename.split("/")[-1] if src_chekpoint_filename else LAST_CHECKPOINT_FILE_NAME
     )
     expected_weights_path = container.checkpoint_folder / run_id / checkpoint_path / src_checkpoint_filename
     assert container.src_checkpoint.is_aml_run_id
@@ -191,13 +190,12 @@ def write_empty_checkpoint_file(path: Path, epoch: int, file_name: str = "") -> 
 
 
 def test_find_recovery_checkpoints_local(tmp_path: Path) -> None:
-    """Test if the logic to find recovery checkpoints on the local disk works.
-    """
+    """Test if the logic to find recovery checkpoints on the local disk works."""
     # If no checkpoint file is found, the function should return None.
     assert find_recovery_checkpoint_on_disk_or_cloud(tmp_path) is None
     # Write checkpoint files with increasing epoch numbers, for all 3 accepted filenames.
     # Each time, this should be recognized as the now most recent checkpoint.
-    for (epoch, filename) in [
+    for epoch, filename in [
         (1, AUTOSAVE_CHECKPOINT_CANDIDATES[0]),
         (2, AUTOSAVE_CHECKPOINT_CANDIDATES[1]),
         (3, LAST_CHECKPOINT_FILE_NAME),
@@ -239,8 +237,7 @@ def test_get_checkpoint_filenames_non_matching() -> None:
 
 
 def test_find_recovery_checkpoint_in_downloaded_files(tmp_path: Path) -> None:
-    """Test the logic to find the checkpoints with highest epoch.
-    """
+    """Test the logic to find the checkpoints with highest epoch."""
     highest_epoch = 100
     # Write 3 files, check that the highest epoch is returned.
     file_1 = write_empty_checkpoint_file(tmp_path, 1, "epoch1")
@@ -262,9 +259,8 @@ def test_find_recovery_checkpoint_in_downloaded_files(tmp_path: Path) -> None:
 
 
 def test_find_recovery_checkpoints_in_cloud(tmp_path: Path) -> None:
-    """Test if the logic to find recovery checkpoints in AzureML works.
-    """
-    empty_file = (tmp_path / "empty.txt")
+    """Test if the logic to find recovery checkpoints in AzureML works."""
+    empty_file = tmp_path / "empty.txt"
     empty_file.touch()
     highest_epoch = 100
     # Write 3 files, check that the highest epoch is returned.
@@ -286,9 +282,9 @@ def test_find_recovery_checkpoints_in_cloud(tmp_path: Path) -> None:
             (file_1, output_folder / CHECKPOINT_FOLDER / AUTOSAVE_CHECKPOINT_CANDIDATES[0]),
             (empty_file, output_folder / "retry_001" / CHECKPOINT_FOLDER / AUTOSAVE_CHECKPOINT_CANDIDATES[1]),
             (file_100, highest_epoch_file),
-            (empty_file, output_folder / other_file)
+            (empty_file, output_folder / other_file),
         ]
-        for (file, name) in files_to_upload:
+        for file, name in files_to_upload:
             run.upload_file(name=str(name), path_or_stream=str(file))
         run.flush()
 
@@ -307,8 +303,9 @@ def test_find_recovery_checkpoints_in_cloud(tmp_path: Path) -> None:
         # When choosing the best checkpoint in that folder, it should be the one with the highest epoch.
         found_highest_epoch_file = find_recovery_checkpoint_in_downloaded_files(new_folder)
         assert found_highest_epoch_file is not None
-        assert str(found_highest_epoch_file).endswith(str(highest_epoch_file)), \
-            f"Highest epoch file should be {highest_epoch_file}, but was {found_highest_epoch_file}"
+        assert str(found_highest_epoch_file).endswith(
+            str(highest_epoch_file)
+        ), f"Highest epoch file should be {highest_epoch_file}, but was {found_highest_epoch_file}"
         assert _load_epoch_from_checkpoint(found_highest_epoch_file) == highest_epoch
 
         empty_temp_folder = tmp_path / "no_such_folder"
@@ -390,25 +387,32 @@ def test_download_inference_checkpoint_in_azureml(tmp_path: Path) -> None:
     handler = checkpoint_handler_for_hello_world(tmp_path)
     relative_checkpoint_path = f"{CHECKPOINT_FOLDER}/{LAST_CHECKPOINT_FILE_NAME}"
     assert str(handler.get_relative_inference_checkpoint_path()) == relative_checkpoint_path
-    with mock.patch.multiple("health_ml.utils.checkpoint_handler",
-                             is_running_in_azure_ml=MagicMock(return_value=True),
-                             is_global_rank_zero=MagicMock(return_value=True)):
+    with mock.patch.multiple(
+        "health_ml.utils.checkpoint_handler",
+        is_running_in_azure_ml=MagicMock(return_value=True),
+        is_global_rank_zero=MagicMock(return_value=True),
+    ):
         # Mock the case where there is no checkpoint available in the AzureML run.
         mock_download_highest_epoch_checkpoint = mock.MagicMock(return_value=None)
-        with mock.patch.multiple("health_ml.utils.checkpoint_handler",
-                                 download_highest_epoch_checkpoint=mock_download_highest_epoch_checkpoint):
+        with mock.patch.multiple(
+            "health_ml.utils.checkpoint_handler",
+            download_highest_epoch_checkpoint=mock_download_highest_epoch_checkpoint,
+        ):
             assert handler.download_inference_checkpoint(download_folder=tmp_path) is None
             mock_download_highest_epoch_checkpoint.assert_called_once_with(
                 run=RUN_CONTEXT,
                 checkpoint_suffix=f"{DEFAULT_AML_UPLOAD_DIR}/{relative_checkpoint_path}",
-                output_folder=tmp_path)
+                output_folder=tmp_path,
+            )
 
         # Mock the case where there is at least one checkpoint in the AzureML run.
         epoch = 123
         checkpoint_file = write_empty_checkpoint_file(tmp_path, epoch)
         mock_download_highest_epoch_checkpoint = mock.MagicMock(return_value=checkpoint_file)
-        with mock.patch.multiple("health_ml.utils.checkpoint_handler",
-                                 download_highest_epoch_checkpoint=mock_download_highest_epoch_checkpoint):
+        with mock.patch.multiple(
+            "health_ml.utils.checkpoint_handler",
+            download_highest_epoch_checkpoint=mock_download_highest_epoch_checkpoint,
+        ):
             downloaded = handler.download_inference_checkpoint(download_folder=tmp_path)
             mock_download_highest_epoch_checkpoint.assert_called_once()
             assert downloaded is not None

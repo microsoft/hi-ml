@@ -8,47 +8,75 @@ from pathlib import Path
 from pytorch_lightning import LightningModule
 from torch import Tensor, argmax, mode, nn, optim, round
 from pytorch_lightning.utilities.rank_zero import rank_zero_warn
-from torchmetrics.classification import (MulticlassAUROC, MulticlassAccuracy, MulticlassConfusionMatrix,
-                                         MulticlassCohenKappa, MulticlassAveragePrecision, BinaryConfusionMatrix,
-                                         BinaryAccuracy, BinaryPrecision, BinaryRecall, BinaryF1Score, BinaryCohenKappa,
-                                         BinaryAUROC, BinarySpecificity, BinaryAveragePrecision)
+from torchmetrics.classification import (
+    MulticlassAUROC,
+    MulticlassAccuracy,
+    MulticlassConfusionMatrix,
+    MulticlassCohenKappa,
+    MulticlassAveragePrecision,
+    BinaryConfusionMatrix,
+    BinaryAccuracy,
+    BinaryPrecision,
+    BinaryRecall,
+    BinaryF1Score,
+    BinaryCohenKappa,
+    BinaryAUROC,
+    BinarySpecificity,
+    BinaryAveragePrecision,
+)
 from health_ml.utils import log_on_epoch
 from health_ml.deep_learning_config import OptimizerParams
 from health_cpath.models.encoders import IdentityEncoder
 from health_cpath.utils.deepmil_utils import ClassifierParams, EncoderParams, PoolingParams
 from health_cpath.datasets.base_dataset import TilesDataset
 from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
-from health_cpath.utils.output_utils import (BatchResultsType, DeepMILOutputsHandler, EpochResultsType,
-                                             validate_class_names, EXTRA_PREFIX)
+from health_cpath.utils.output_utils import (
+    BatchResultsType,
+    DeepMILOutputsHandler,
+    EpochResultsType,
+    validate_class_names,
+    EXTRA_PREFIX,
+)
 
 
-RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
-                ResultsKey.CLASS_PROBS, ResultsKey.PRED_LABEL, ResultsKey.TRUE_LABEL, ResultsKey.BAG_ATTN]
+RESULTS_COLS = [
+    ResultsKey.SLIDE_ID,
+    ResultsKey.TILE_ID,
+    ResultsKey.IMAGE_PATH,
+    ResultsKey.PROB,
+    ResultsKey.CLASS_PROBS,
+    ResultsKey.PRED_LABEL,
+    ResultsKey.TRUE_LABEL,
+    ResultsKey.BAG_ATTN,
+]
 
 
 def _format_cuda_memory_stats() -> str:
-    return (f"GPU {torch.cuda.current_device()} memory: "
-            f"{torch.cuda.memory_allocated() / 1024 ** 3:.2f} GB allocated, "
-            f"{torch.cuda.memory_reserved() / 1024 ** 3:.2f} GB reserved")
+    return (
+        f"GPU {torch.cuda.current_device()} memory: "
+        f"{torch.cuda.memory_allocated() / 1024 ** 3:.2f} GB allocated, "
+        f"{torch.cuda.memory_reserved() / 1024 ** 3:.2f} GB reserved"
+    )
 
 
 class DeepMILModule(LightningModule):
     """Base class for deep multiple-instance learning"""
 
-    def __init__(self,
-                 label_column: str,
-                 n_classes: int,
-                 class_weights: Optional[Tensor] = None,
-                 class_names: Optional[Sequence[str]] = None,
-                 encoder_params: EncoderParams = EncoderParams(),
-                 pooling_params: PoolingParams = PoolingParams(),
-                 classifier_params: ClassifierParams = ClassifierParams(),
-                 optimizer_params: OptimizerParams = OptimizerParams(),
-                 outputs_folder: Optional[Path] = None,
-                 outputs_handler: Optional[DeepMILOutputsHandler] = None,
-                 analyse_loss: Optional[bool] = False,
-                 verbose: bool = False,
-                 ) -> None:
+    def __init__(
+        self,
+        label_column: str,
+        n_classes: int,
+        class_weights: Optional[Tensor] = None,
+        class_names: Optional[Sequence[str]] = None,
+        encoder_params: EncoderParams = EncoderParams(),
+        pooling_params: PoolingParams = PoolingParams(),
+        classifier_params: ClassifierParams = ClassifierParams(),
+        optimizer_params: OptimizerParams = OptimizerParams(),
+        outputs_folder: Optional[Path] = None,
+        outputs_handler: Optional[DeepMILOutputsHandler] = None,
+        analyse_loss: Optional[bool] = False,
+        verbose: bool = False,
+    ) -> None:
         """
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be
@@ -134,8 +162,10 @@ class DeepMILModule(LightningModule):
         cur_total_params = _total_params(current_submodule)
 
         if pre_total_params != cur_total_params:
-            raise ValueError(f"Submodule {submodule_name} has different number of parameters "
-                             f"({cur_total_params} vs {pre_total_params}) from pretrained model.")
+            raise ValueError(
+                f"Submodule {submodule_name} has different number of parameters "
+                f"({cur_total_params} vs {pre_total_params}) from pretrained model."
+            )
 
         for param, pretrained_param in zip(
             current_submodule.state_dict().values(), pretrained_submodule.state_dict().values()
@@ -159,8 +189,10 @@ class DeepMILModule(LightningModule):
 
             if self.classifier_params.pretrained_classifier:
                 if pretrained_model.n_classes != self.n_classes:
-                    raise ValueError(f"Number of classes in pretrained model {pretrained_model.n_classes} "
-                                     f"does not match number of classes in current model {self.n_classes}.")
+                    raise ValueError(
+                        f"Number of classes in pretrained model {pretrained_model.n_classes} "
+                        f"does not match number of classes in current model {self.n_classes}."
+                    )
                 self.copy_weights(self.classifier_fn, pretrained_model.classifier_fn, DeepMILSubmodules.CLASSIFIER)
 
     def get_loss(self, reduction: str = "mean") -> Callable:
@@ -184,7 +216,7 @@ class DeepMILModule(LightningModule):
 
     @staticmethod
     def get_bag_label(labels: Tensor) -> Tensor:
-        """ Get bag label as the majority class of the bag's samples. For slides pipeline, we already have a single
+        """Get bag label as the majority class of the bag's samples. For slides pipeline, we already have a single
         label per bag so we just return that label. For tiles pipeline, we need to get the majority class as labels
         are duplicated for each tile in the bag."""
         if len(labels.shape) == 0:
@@ -194,31 +226,37 @@ class DeepMILModule(LightningModule):
 
     def get_metrics(self) -> nn.ModuleDict:
         if self.n_classes > 1:
-            return nn.ModuleDict({
-                MetricsKey.ACC: MulticlassAccuracy(num_classes=self.n_classes, average='micro'),
-                MetricsKey.AUROC: MulticlassAUROC(num_classes=self.n_classes),
-                MetricsKey.AVERAGE_PRECISION: MulticlassAveragePrecision(num_classes=self.n_classes),
-                # Quadratic Weighted Kappa (QWK) used in PANDA challenge
-                # is calculated using Cohen's Kappa with quadratic weights
-                # https://www.kaggle.com/code/reighns/understanding-the-quadratic-weighted-kappa/
-                MetricsKey.COHENKAPPA: MulticlassCohenKappa(num_classes=self.n_classes, weights='quadratic'),
-                MetricsKey.CONF_MATRIX: MulticlassConfusionMatrix(num_classes=self.n_classes),
-                # Metrics below are computed for multi-class case only
-                MetricsKey.ACC_MACRO: MulticlassAccuracy(num_classes=self.n_classes, average='macro'),
-                MetricsKey.ACC_WEIGHTED: MulticlassAccuracy(num_classes=self.n_classes, average='weighted')})
+            return nn.ModuleDict(
+                {
+                    MetricsKey.ACC: MulticlassAccuracy(num_classes=self.n_classes, average='micro'),
+                    MetricsKey.AUROC: MulticlassAUROC(num_classes=self.n_classes),
+                    MetricsKey.AVERAGE_PRECISION: MulticlassAveragePrecision(num_classes=self.n_classes),
+                    # Quadratic Weighted Kappa (QWK) used in PANDA challenge
+                    # is calculated using Cohen's Kappa with quadratic weights
+                    # https://www.kaggle.com/code/reighns/understanding-the-quadratic-weighted-kappa/
+                    MetricsKey.COHENKAPPA: MulticlassCohenKappa(num_classes=self.n_classes, weights='quadratic'),
+                    MetricsKey.CONF_MATRIX: MulticlassConfusionMatrix(num_classes=self.n_classes),
+                    # Metrics below are computed for multi-class case only
+                    MetricsKey.ACC_MACRO: MulticlassAccuracy(num_classes=self.n_classes, average='macro'),
+                    MetricsKey.ACC_WEIGHTED: MulticlassAccuracy(num_classes=self.n_classes, average='weighted'),
+                }
+            )
         else:
-            return nn.ModuleDict({
-                MetricsKey.ACC: BinaryAccuracy(),
-                MetricsKey.AUROC: BinaryAUROC(),
-                # Average precision is a measure of area under the PR curve
-                MetricsKey.AVERAGE_PRECISION: BinaryAveragePrecision(),
-                MetricsKey.COHENKAPPA: BinaryCohenKappa(weights='quadratic'),
-                MetricsKey.CONF_MATRIX: BinaryConfusionMatrix(),
-                # Metrics below are computed for binary case only
-                MetricsKey.F1: BinaryF1Score(),
-                MetricsKey.PRECISION: BinaryPrecision(),
-                MetricsKey.RECALL: BinaryRecall(),
-                MetricsKey.SPECIFICITY: BinarySpecificity()})
+            return nn.ModuleDict(
+                {
+                    MetricsKey.ACC: BinaryAccuracy(),
+                    MetricsKey.AUROC: BinaryAUROC(),
+                    # Average precision is a measure of area under the PR curve
+                    MetricsKey.AVERAGE_PRECISION: BinaryAveragePrecision(),
+                    MetricsKey.COHENKAPPA: BinaryCohenKappa(weights='quadratic'),
+                    MetricsKey.CONF_MATRIX: BinaryConfusionMatrix(),
+                    # Metrics below are computed for binary case only
+                    MetricsKey.F1: BinaryF1Score(),
+                    MetricsKey.PRECISION: BinaryPrecision(),
+                    MetricsKey.RECALL: BinaryRecall(),
+                    MetricsKey.SPECIFICITY: BinarySpecificity(),
+                }
+            )
 
     def get_extra_prefix(self) -> str:
         """Get extra prefix for the metrics name to avoir overriding best validation metrics."""
@@ -272,10 +310,12 @@ class DeepMILModule(LightningModule):
         return bag_logit, attentions
 
     def configure_optimizers(self) -> optim.Optimizer:
-        return optim.Adam(filter(lambda p: p.requires_grad, self.parameters()),
-                          lr=self.optimizer_params.l_rate,
-                          weight_decay=self.optimizer_params.weight_decay,
-                          betas=self.optimizer_params.adam_betas)
+        return optim.Adam(
+            filter(lambda p: p.requires_grad, self.parameters()),
+            lr=self.optimizer_params.l_rate,
+            weight_decay=self.optimizer_params.weight_decay,
+            betas=self.optimizer_params.adam_betas,
+        )
 
     def get_metrics_dict(self, stage: str) -> nn.ModuleDict:
         return getattr(self, f'{stage}_metrics')
@@ -301,8 +341,7 @@ class DeepMILModule(LightningModule):
 
     def update_results_with_metadata(self, batch: Dict, results: Dict) -> None:
         """Update results with metadata. This can be either tiles or slides metadata including tiles coordinates."""
-        results.update({ResultsKey.SLIDE_ID: batch[SlideKey.SLIDE_ID],
-                        ResultsKey.TILE_ID: batch[TileKey.TILE_ID]})
+        results.update({ResultsKey.SLIDE_ID: batch[SlideKey.SLIDE_ID], ResultsKey.TILE_ID: batch[TileKey.TILE_ID]})
         # Add tiles coordinates if available
         coordinates_keys = [TileKey.TILE_TOP, TileKey.TILE_BOTTOM, TileKey.TILE_RIGHT, TileKey.TILE_LEFT]
         if all([key in batch for key in coordinates_keys]):
@@ -312,8 +351,9 @@ class DeepMILModule(LightningModule):
             results[ResultsKey.TILE_LEFT] = batch[TilesDataset.TILE_X_COLUMN]
             results[ResultsKey.TILE_TOP] = batch[TilesDataset.TILE_Y_COLUMN]
         else:
-            rank_zero_warn(message="Coordinates not found in batch. If this is not expected check your"
-                           "input tiles dataset.")
+            rank_zero_warn(
+                message="Coordinates not found in batch. If this is not expected check your input tiles dataset."
+            )
 
     def update_slides_selection(self, stage: str, batch: Dict, results: Dict) -> None:
         if (
@@ -330,7 +370,6 @@ class DeepMILModule(LightningModule):
             return loss_fn(bag_logits.squeeze(1), bag_labels.float())
 
     def _shared_step(self, batch: Dict, batch_idx: int, stage: str) -> BatchResultsType:
-
         bag_logits, bag_labels, bag_attn_list = self.compute_bag_labels_logits_and_attn_maps(batch)
 
         loss = self._compute_loss(self.loss_fn, bag_logits, bag_labels)
@@ -341,8 +380,12 @@ class DeepMILModule(LightningModule):
             probs_perclass = predicted_probs
         else:
             predicted_labels = round(predicted_probs).int()
-            probs_perclass = Tensor([[1.0 - predicted_probs[i][0].item(), predicted_probs[i][0].item()]
-                                     for i in range(len(predicted_probs))])
+            probs_perclass = Tensor(
+                [
+                    [1.0 - predicted_probs[i][0].item(), predicted_probs[i][0].item()]
+                    for i in range(len(predicted_probs))
+                ]
+            )
 
         loss = loss.view(-1, 1)
         predicted_labels = predicted_labels.view(-1, 1)
@@ -360,14 +403,22 @@ class DeepMILModule(LightningModule):
         bag_labels = bag_labels.view(-1, 1)
 
         for metric_object in self.get_metrics_dict(stage).values():
-            metric_object.update(predicted_probs, bag_labels.view(batch_size,).int())
-        results.update({ResultsKey.LOSS: loss,
-                        ResultsKey.PROB: predicted_probs,
-                        ResultsKey.CLASS_PROBS: probs_perclass,
-                        ResultsKey.PRED_LABEL: predicted_labels,
-                        ResultsKey.TRUE_LABEL: bag_labels.int(),
-                        ResultsKey.BAG_ATTN: bag_attn_list
-                        })
+            metric_object.update(
+                predicted_probs,
+                bag_labels.view(
+                    batch_size,
+                ).int(),
+            )
+        results.update(
+            {
+                ResultsKey.LOSS: loss,
+                ResultsKey.PROB: predicted_probs,
+                ResultsKey.CLASS_PROBS: probs_perclass,
+                ResultsKey.PRED_LABEL: predicted_labels,
+                ResultsKey.TRUE_LABEL: bag_labels.int(),
+                ResultsKey.BAG_ATTN: bag_attn_list,
+            }
+        )
         self.update_results_with_metadata(batch=batch, results=results)
         self.update_slides_selection(stage=stage, batch=batch, results=results)
         return results
@@ -379,9 +430,13 @@ class DeepMILModule(LightningModule):
             print(f"After loading images batch {batch_idx} -", _format_cuda_memory_stats())
         results = {ResultsKey.LOSS: train_result[ResultsKey.LOSS]}
         if self.analyse_loss:
-            results.update({ResultsKey.LOSS_PER_SAMPLE: train_result[ResultsKey.LOSS_PER_SAMPLE],
-                            ResultsKey.CLASS_PROBS: train_result[ResultsKey.CLASS_PROBS],
-                            ResultsKey.TILE_ID: train_result[ResultsKey.TILE_ID]})
+            results.update(
+                {
+                    ResultsKey.LOSS_PER_SAMPLE: train_result[ResultsKey.LOSS_PER_SAMPLE],
+                    ResultsKey.CLASS_PROBS: train_result[ResultsKey.CLASS_PROBS],
+                    ResultsKey.TILE_ID: train_result[ResultsKey.TILE_ID],
+                }
+            )
         return results
 
     def validation_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
@@ -406,15 +461,14 @@ class DeepMILModule(LightningModule):
                 metrics_dict=self.get_metrics_dict(ModelKey.VAL),  # type: ignore
                 epoch=self.current_epoch,
                 is_global_rank_zero=self.global_rank == 0,
-                on_extra_val=self._on_extra_val_epoch
+                on_extra_val=self._on_extra_val_epoch,
             )
 
     def test_epoch_end(self, epoch_results: EpochResultsType) -> None:  # type: ignore
         self.log_metrics(ModelKey.TEST)
         if self.outputs_handler:
             self.outputs_handler.save_test_outputs(
-                epoch_results=epoch_results,
-                is_global_rank_zero=self.global_rank == 0
+                epoch_results=epoch_results, is_global_rank_zero=self.global_rank == 0
             )
 
     def on_run_extra_validation_epoch(self) -> None:

@@ -22,12 +22,14 @@ class BagSampler(Sampler[List[int]]):
     >>> loader = DataLoader(dataset, batch_sampler=sampler)
     """
 
-    def __init__(self,
-                 bag_ids: Sequence,
-                 shuffle_bags: bool = False,
-                 shuffle_samples: bool = False,
-                 max_bag_size: int = 0,
-                 generator: Optional[torch.Generator] = None) -> None:
+    def __init__(
+        self,
+        bag_ids: Sequence,
+        shuffle_bags: bool = False,
+        shuffle_samples: bool = False,
+        max_bag_size: int = 0,
+        generator: Optional[torch.Generator] = None,
+    ) -> None:
         """
         :param bag_ids: The bag IDs for each sample, of the same length as the dataset.
         :param shuffle_bags: Whether the bags should be iterated in random order.
@@ -49,21 +51,19 @@ class BagSampler(Sampler[List[int]]):
     def __iter__(self) -> Iterator[List[int]]:
         generator = self.generator or _create_generator()
         n_bags = len(self.unique_bag_ids)
-        bag_sequence = torch.randperm(n_bags, generator=generator).tolist() \
-            if self.shuffle_bags else range(n_bags)
+        bag_sequence = torch.randperm(n_bags, generator=generator).tolist() if self.shuffle_bags else range(n_bags)
         for bag_idx in bag_sequence:
             yield self.get_bag(bag_idx, generator)
 
-    def get_bag(self, bag_index: int, generator: Optional[torch.Generator] = None) \
-            -> List[int]:
-        bag, = np.where(self.bag_indices == bag_index)
+    def get_bag(self, bag_index: int, generator: Optional[torch.Generator] = None) -> List[int]:
+        (bag,) = np.where(self.bag_indices == bag_index)
         if self.shuffle_samples:
             if generator is None:
                 generator = self.generator or _create_generator()
             perm = torch.randperm(len(bag), generator=generator)
             bag = np.atleast_1d(bag[perm])  # pytorch squeezes singleton tensors
         if self.max_bag_size > 0:
-            bag = bag[:self.max_bag_size]
+            bag = bag[: self.max_bag_size]
         return bag.tolist()
 
     def __len__(self) -> int:
@@ -91,13 +91,15 @@ class BagSampler(Sampler[List[int]]):
 class BagDataset(Dataset):
     """A wrapper dataset that iterates a base dataset in user-specified 'bags'."""
 
-    def __init__(self,
-                 base_dataset: Sequence,
-                 bag_ids: Sequence[int],
-                 shuffle_samples: bool = False,
-                 max_bag_size: int = 0,
-                 generator: Optional[torch.Generator] = None,
-                 collate_fn: Callable[[List], Any] = default_collate) -> None:
+    def __init__(
+        self,
+        base_dataset: Sequence,
+        bag_ids: Sequence[int],
+        shuffle_samples: bool = False,
+        max_bag_size: int = 0,
+        generator: Optional[torch.Generator] = None,
+        collate_fn: Callable[[List], Any] = default_collate,
+    ) -> None:
         """
         :param base_dataset: The source dataset whose samples will be grouped in bags.
         :param bag_ids: The bag IDs for each sample, of the same length as the dataset.
@@ -114,15 +116,18 @@ class BagDataset(Dataset):
         More details in https://pytorch.org/docs/stable/data.html#dataloader-collate-fn
         """
         if len(base_dataset) != len(bag_ids):
-            raise ValueError(f"Base dataset and bag IDs must have the same length, "
-                             f"got {len(base_dataset)} and {len(bag_ids)}")
+            raise ValueError(
+                f"Base dataset and bag IDs must have the same length, " f"got {len(base_dataset)} and {len(bag_ids)}"
+            )
 
         self.base_dataset = base_dataset
-        self.bag_sampler = BagSampler(bag_ids,
-                                      shuffle_bags=False,  # bag shuffling is handled by dataloader
-                                      shuffle_samples=shuffle_samples,
-                                      max_bag_size=max_bag_size,
-                                      generator=generator)
+        self.bag_sampler = BagSampler(
+            bag_ids,
+            shuffle_bags=False,  # bag shuffling is handled by dataloader
+            shuffle_samples=shuffle_samples,
+            max_bag_size=max_bag_size,
+            generator=generator,
+        )
         self.collate_fn = collate_fn
         self.bag_ids = bag_ids
 
@@ -136,7 +141,8 @@ class BagDataset(Dataset):
 
 
 class BatchedDataset(Dataset):
-    """ A wrapper class that aggregates multiple bags in a batch"""
+    """A wrapper class that aggregates multiple bags in a batch"""
+
     # TODO: Just a stub for now; extend to enable shuffling and/or other batching strategies
 
     def __init__(self, base_dataset: Sequence, batch_size: int) -> None:
@@ -175,12 +181,18 @@ def multibag_collate(batch: List) -> Any:
     return batch  # return other types as a plain list
 
 
-def create_bag_dataloader(base_dataset: Sequence, bag_ids: Sequence,
-                          *,  # make following arguments keyword-only to avoid confusion
-                          shuffle_bags: bool, shuffle_samples: bool, max_bag_size: int = 0,
-                          batch_size: Optional[int] = 1, collate_fn: Callable[[List], Any] = default_collate,
-                          generator: Optional[torch.Generator] = None,
-                          **dataloader_kwargs: Any) -> DataLoader:
+def create_bag_dataloader(
+    base_dataset: Sequence,
+    bag_ids: Sequence,
+    *,  # make following arguments keyword-only to avoid confusion
+    shuffle_bags: bool,
+    shuffle_samples: bool,
+    max_bag_size: int = 0,
+    batch_size: Optional[int] = 1,
+    collate_fn: Callable[[List], Any] = default_collate,
+    generator: Optional[torch.Generator] = None,
+    **dataloader_kwargs: Any,
+) -> DataLoader:
     """Create a DataLoader that consumes the given dataset in batches grouped by bag ID.
 
     :param base_dataset: The source dataset whose samples will be grouped in bags.
@@ -206,15 +218,19 @@ def create_bag_dataloader(base_dataset: Sequence, bag_ids: Sequence,
     :return: The `DataLoader` configured to iterate one bag at a time.
     """
     generator = generator or _create_generator()
-    bag_dataset = BagDataset(base_dataset,
-                             bag_ids=bag_ids,
-                             max_bag_size=max_bag_size,
-                             shuffle_samples=shuffle_samples,
-                             generator=generator,
-                             collate_fn=collate_fn)
-    return DataLoader(bag_dataset,
-                      shuffle=shuffle_bags,
-                      generator=generator,
-                      batch_size=batch_size,
-                      collate_fn=None if batch_size is None else multibag_collate,
-                      **dataloader_kwargs)
+    bag_dataset = BagDataset(
+        base_dataset,
+        bag_ids=bag_ids,
+        max_bag_size=max_bag_size,
+        shuffle_samples=shuffle_samples,
+        generator=generator,
+        collate_fn=collate_fn,
+    )
+    return DataLoader(
+        bag_dataset,
+        shuffle=shuffle_bags,
+        generator=generator,
+        batch_size=batch_size,
+        collate_fn=None if batch_size is None else multibag_collate,
+        **dataloader_kwargs,
+    )

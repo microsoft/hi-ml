@@ -24,5 +24,6 @@ Make file commands:
 * `make pip_local` to install the package in editable mode. This must happen before running tests.
 * `make build` to build the package
 * `make mypy` to run `mypy`
-* `make check` to run `flake8`, `mypy` and `pyright`
+* `make black` to run `black` checks (not reformatting)
+* `make check` to run `flake8`, `mypy`, `pyright` and `black`
 * `make clean` to clean up all temporary files and folders

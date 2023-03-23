@@ -48,7 +48,7 @@ def test_small_rectangle() -> None:
     height = 1
     width = 2
     col = 3
-    mask[row:row + height, col:col + width] = 1
+    mask[row : row + height, col : col + width] = 1
     # array([[0, 0, 0, 1, 1],
     #        [0, 0, 0, 0, 0],
     #        [0, 0, 0, 0, 0],
@@ -67,10 +67,12 @@ def test_tiny_mask() -> None:
 
 
 def test_tiny_box() -> None:
-    mask = np.array((
-        (0, 0),
-        (0, 1),
-    ))
+    mask = np.array(
+        (
+            (0, 0),
+            (0, 1),
+        )
+    )
     bbox = get_bounding_box(mask)
     assert bbox.x == bbox.y == bbox.w == bbox.h == 1
 

@@ -19,9 +19,7 @@ from azureml.core import Workspace
 
 # Add hi-ml packages to sys.path so that AML can find them if we are using the runner directly from the git repo
 himl_root = Path(__file__).resolve().parent.parent.parent.parent
-folders_to_add = [himl_root / "hi-ml" / "src",
-                  himl_root / "hi-ml-azure" / "src",
-                  himl_root / "hi-ml-cpath" / "src"]
+folders_to_add = [himl_root / "hi-ml" / "src", himl_root / "hi-ml-azure" / "src", himl_root / "hi-ml-cpath" / "src"]
 for folder in folders_to_add:
     if folder.is_dir():
         sys.path.insert(0, str(folder))
@@ -30,21 +28,30 @@ from health_azure import AzureRunInfo, submit_to_azure_if_needed  # noqa: E402
 from health_azure.amulet import prepare_amulet_job, is_amulet_job  # noqa: E402
 from health_azure.datasets import create_dataset_configs  # noqa: E402
 from health_azure.himl import DEFAULT_DOCKER_BASE_IMAGE, OUTPUT_FOLDER  # noqa: E402
-from health_azure.logging import logging_to_stdout   # noqa: E402
+from health_azure.logging import logging_to_stdout  # noqa: E402
 from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
-from health_azure.utils import (ENV_LOCAL_RANK, ENV_NODE_RANK,  # noqa: E402
-                                get_workspace, get_ml_client, is_local_rank_zero,
-                                is_running_in_azure_ml, set_environment_variables_for_multi_node,
-                                create_argparser, parse_arguments, ParserResult, apply_overrides,
-                                filter_v2_input_output_args, is_global_rank_zero)
+from health_azure.utils import (
+    ENV_LOCAL_RANK,
+    ENV_NODE_RANK,  # noqa: E402
+    get_workspace,
+    get_ml_client,
+    is_local_rank_zero,
+    is_running_in_azure_ml,
+    set_environment_variables_for_multi_node,
+    create_argparser,
+    parse_arguments,
+    ParserResult,
+    apply_overrides,
+    filter_v2_input_output_args,
+    is_global_rank_zero,
+)
 
 from health_ml.experiment_config import DEBUG_DDP_ENV_VAR, ExperimentConfig  # noqa: E402
 from health_ml.lightning_container import LightningContainer  # noqa: E402
 from health_ml.run_ml import MLRunner  # noqa: E402
 from health_ml.utils import fixed_paths  # noqa: E402
 from health_ml.utils.logging import ConsoleAndFileOutput  # noqa: E402
-from health_ml.utils.common_utils import (check_conda_environment,  # noqa: E402
-                                          choose_conda_env_file, is_linux)
+from health_ml.utils.common_utils import check_conda_environment, choose_conda_env_file, is_linux  # noqa: E402
 from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
 from health_ml.utils import health_ml_package_setup  # noqa: E402
 
@@ -64,11 +71,14 @@ def initialize_rpdb() -> None:
     if not is_linux():
         return
     import rpdb
+
     rpdb_port = 4444
     rpdb.handle_trap(port=rpdb_port)
     # For some reason, os.getpid() does not return the ID of what appears to be the currently running process.
-    logging.info("rpdb is handling traps. To debug: identify the main runner.py process, then as root: "
-                 f"kill -TRAP <process_id>; nc 127.0.0.1 {rpdb_port}")
+    logging.info(
+        "rpdb is handling traps. To debug: identify the main runner.py process, then as root: "
+        f"kill -TRAP <process_id>; nc 127.0.0.1 {rpdb_port}"
+    )
 
 
 def create_runner_parser() -> argparse.ArgumentParser:
@@ -143,11 +153,15 @@ class Runner:
         """
         if not self.experiment_config.cluster:
             if self.lightning_container.hyperdrive:
-                raise ValueError("HyperDrive for hyperparameters tuning is only supported when submitting the job to "
-                                 "AzureML. You need to specify a compute cluster with the argument --cluster.")
+                raise ValueError(
+                    "HyperDrive for hyperparameters tuning is only supported when submitting the job to "
+                    "AzureML. You need to specify a compute cluster with the argument --cluster."
+                )
             if self.lightning_container.is_crossvalidation_parent_run and not is_amulet_job():
-                raise ValueError("Cross-validation is only supported when submitting the job to AzureML."
-                                 "You need to specify a compute cluster with the argument --cluster.")
+                raise ValueError(
+                    "Cross-validation is only supported when submitting the job to AzureML."
+                    "You need to specify a compute cluster with the argument --cluster."
+                )
 
     def additional_run_tags(self, script_params: List[str]) -> Dict[str, str]:
         """
@@ -158,13 +172,13 @@ class Runner:
         return {
             "commandline_args": " ".join(script_params),
             "tag": self.lightning_container.tag,
-            **self.lightning_container.get_additional_aml_run_tags()
+            **self.lightning_container.get_additional_aml_run_tags(),
         }
 
     def additional_environment_variables(self) -> Dict[str, str]:
         return {
             DEBUG_DDP_ENV_VAR: self.experiment_config.debug_ddp.value,
-            **self.lightning_container.get_additional_environment_variables()
+            **self.lightning_container.get_additional_environment_variables(),
         }
 
     def run(self) -> Tuple[LightningContainer, AzureRunInfo]:
@@ -209,8 +223,10 @@ class Runner:
             try:
                 workspace = get_workspace(workspace_config_path=self.experiment_config.workspace_config_path)
             except ValueError:
-                raise ValueError("Unable to submit the script to AzureML because no workspace configuration file "
-                                 "(config.json) was found.")
+                raise ValueError(
+                    "Unable to submit the script to AzureML because no workspace configuration file "
+                    "(config.json) was found."
+                )
 
         if self.lightning_container.datastore:
             datastore = self.lightning_container.datastore
@@ -224,12 +240,13 @@ class Runner:
         # When running in AzureML, respect the commandline flag for mounting. Outside of AML, we always mount
         # datasets to be quicker.
         use_mounting = self.experiment_config.mount_in_azureml if self.experiment_config.cluster else True
-        input_datasets = \
-            create_dataset_configs(all_azure_dataset_ids=self.lightning_container.azure_datasets,
-                                   all_dataset_mountpoints=self.lightning_container.dataset_mountpoints,
-                                   all_local_datasets=all_local_datasets,  # type: ignore
-                                   datastore=datastore,
-                                   use_mounting=use_mounting)
+        input_datasets = create_dataset_configs(
+            all_azure_dataset_ids=self.lightning_container.azure_datasets,
+            all_dataset_mountpoints=self.lightning_container.dataset_mountpoints,
+            all_local_datasets=all_local_datasets,  # type: ignore
+            datastore=datastore,
+            use_mounting=use_mounting,
+        )
 
         if self.experiment_config.cluster and not is_running_in_azure_ml():
             if self.experiment_config.strictly_aml_v1:
@@ -313,9 +330,8 @@ class Runner:
         if self.experiment_config.num_nodes > 1:
             set_environment_variables_for_multi_node()
         self.ml_runner = MLRunner(
-            experiment_config=self.experiment_config,
-            container=self.lightning_container,
-            project_root=self.project_root)
+            experiment_config=self.experiment_config, container=self.lightning_container, project_root=self.project_root
+        )
         self.ml_runner.setup(azure_run_info)
         self.ml_runner.run()
 

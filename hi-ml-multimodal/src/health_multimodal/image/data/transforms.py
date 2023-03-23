@@ -65,6 +65,7 @@ def infer_resize_params(val_img_transforms: Sequence[Callable]) -> Tuple[Optiona
                 crop_size_from_transforms = transform.size[0]
             else:
                 raise ValueError(
-                    f"Crop size has already been set to {crop_size_from_transforms} in a previous transform")
+                    f"Crop size has already been set to {crop_size_from_transforms} in a previous transform"
+                )
 
     return resize_size_from_transforms, crop_size_from_transforms

@@ -7,11 +7,10 @@ from typing import List
 import numpy as np
 
 
-def location_selected_tiles(tile_coords: np.ndarray,
-                            location_bbox: List[int],
-                            scale_factor: int = 1,
-                            should_upscale_coords: bool = True) -> np.ndarray:
-    """ Return the scaled and shifted tile co-ordinates for selected tiles in the slide.
+def location_selected_tiles(
+    tile_coords: np.ndarray, location_bbox: List[int], scale_factor: int = 1, should_upscale_coords: bool = True
+) -> np.ndarray:
+    """Return the scaled and shifted tile co-ordinates for selected tiles in the slide.
 
     :param tile_coords: XY tile coordinates, assumed to be spaced by multiples of `tile_size`
     (shape: [N, 2]) in original resolution.

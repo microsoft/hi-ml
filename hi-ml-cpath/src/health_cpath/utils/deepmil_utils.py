@@ -49,8 +49,9 @@ class EncoderParams(param.Parameterized):
         False, doc="If True, fine-tune the encoder during training. If False (default), keep the encoder frozen."
     )
     pretrained_encoder = param.Boolean(
-        False, doc="If True, transfer weights from the pretrained model (specified in `src_checkpoint`) to the encoder."
-        "Else (False), keep the encoder weights as defined by the `encoder_type`."
+        False,
+        doc="If True, transfer weights from the pretrained model (specified in `src_checkpoint`) to the encoder."
+        "Else (False), keep the encoder weights as defined by the `encoder_type`.",
     )
     is_caching: bool = param.Boolean(
         default=False,
@@ -58,37 +59,41 @@ class EncoderParams(param.Parameterized):
         "the tiles without caching (enables random subsampling of tiles).",
     )
     encoding_chunk_size: int = param.Integer(
-        default=0, doc="If > 0 performs encoding in chunks, by enconding_chunk_size tiles " "per chunk"
+        default=0, doc="If > 0 performs encoding in chunks, by enconding_chunk_size tiles per chunk"
     )
-    ssl_checkpoint: CheckpointParser = param.ClassSelector(class_=CheckpointParser, default=None,
-                                                           instantiate=False, doc=CheckpointParser.DOC)
+    ssl_checkpoint: CheckpointParser = param.ClassSelector(
+        class_=CheckpointParser, default=None, instantiate=False, doc=CheckpointParser.DOC
+    )
     projection_dim: int = param.Integer(
         default=0, doc="If > 0, project the encoded tiles to this dimension. Otherwise, use identity projection."
     )
     use_encoder_checkpointing: bool = param.Boolean(
-        default=False, doc="Whether to checkpoint activations during forward pass. This can be used to reduce the "
+        default=False,
+        doc="Whether to checkpoint activations during forward pass. This can be used to reduce the "
         "memory required to store gradients by checkpointing the activations. Note that this is only supported for "
         "Resnet18, Resnet50 and Swin Transformer encoders at the moment. The encoder class needs to override "
-        "`custom_forward()` to support checkpointing. Default: False."
+        "`custom_forward()` to support checkpointing. Default: False.",
     )
     checkpoint_segments_size: int = param.Integer(
         default=2,
         bounds=(1, None),
-        doc="The segments size to use for checkpointing the encoder's activations. Default: 2. "
+        doc="The segments size to use for checkpointing the encoder's activations. Default: 2. ",
     )
     batchnorm_momentum: Optional[float] = param.Number(
         default=None,
         bounds=(0, 1),
         doc="An optional momentum value to use for batch norm layers statistics updates when`use_encoder_checkpointing`"
         " is True. If None (default), sqrt of the default momentum retrieved from the model is used to avoid running "
-        "statistics from going out of sync due to activations checkpointing."
+        "statistics from going out of sync due to activations checkpointing.",
     )
 
     def validate(self) -> None:
         """Validate the encoder parameters."""
         if self.encoder_type == SSLEncoder.__name__ and not self.ssl_checkpoint:
-            raise ValueError("SSLEncoder requires an ssl_checkpoint. Please specify a valid checkpoint. "
-                             f"{CheckpointParser.INFO_MESSAGE}")
+            raise ValueError(
+                "SSLEncoder requires an ssl_checkpoint. Please specify a valid checkpoint. "
+                f"{CheckpointParser.INFO_MESSAGE}"
+            )
 
     def get_encoder(self, outputs_folder: Optional[Path]) -> TileEncoder:
         """Given the current encoder parameters, returns the encoder object.
@@ -173,18 +178,21 @@ class EncoderParams(param.Parameterized):
 
 
 class PoolingParams(param.Parameterized):
-    """Parameters class to group all pooling specific attributes for deepmil module. """
+    """Parameters class to group all pooling specific attributes for deepmil module."""
 
     pool_type: str = param.String(doc="Name of the pooling layer class to use.")
     pool_hidden_dim: int = param.Integer(
-        default=128, doc="If pooling has a learnable part, this defines the number of the hidden dimensions.",
+        default=128,
+        doc="If pooling has a learnable part, this defines the number of the hidden dimensions.",
     )
     pool_out_dim: int = param.Integer(1, doc="Dimension of the pooled representation.")
     num_transformer_pool_layers: int = param.Integer(
-        default=4, doc="If transformer pooling is chosen, this defines the number of encoding layers.",
+        default=4,
+        doc="If transformer pooling is chosen, this defines the number of encoding layers.",
     )
     num_transformer_pool_heads: int = param.Integer(
-        default=4, doc="If transformer pooling is chosen, this defines the number of attention heads.",
+        default=4,
+        doc="If transformer pooling is chosen, this defines the number of attention heads.",
     )
     tune_pooling: bool = param.Boolean(
         default=True,
@@ -210,13 +218,13 @@ class PoolingParams(param.Parameterized):
         """
         pooling_layer: nn.Module
         if self.pool_type == AttentionLayer.__name__:
-            pooling_layer = AttentionLayer(input_dims=num_encoding,
-                                           hidden_dims=self.pool_hidden_dim,
-                                           attention_dims=self.pool_out_dim)
+            pooling_layer = AttentionLayer(
+                input_dims=num_encoding, hidden_dims=self.pool_hidden_dim, attention_dims=self.pool_out_dim
+            )
         elif self.pool_type == GatedAttentionLayer.__name__:
-            pooling_layer = GatedAttentionLayer(input_dims=num_encoding,
-                                                hidden_dims=self.pool_hidden_dim,
-                                                attention_dims=self.pool_out_dim)
+            pooling_layer = GatedAttentionLayer(
+                input_dims=num_encoding, hidden_dims=self.pool_hidden_dim, attention_dims=self.pool_out_dim
+            )
         elif self.pool_type == MeanPoolingLayer.__name__:
             pooling_layer = MeanPoolingLayer()
         elif self.pool_type == MaxPoolingLayer.__name__:
@@ -226,7 +234,8 @@ class PoolingParams(param.Parameterized):
                 num_layers=self.num_transformer_pool_layers,
                 num_heads=self.num_transformer_pool_heads,
                 dim_representation=num_encoding,
-                transformer_dropout=self.transformer_dropout)
+                transformer_dropout=self.transformer_dropout,
+            )
             self.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
         elif self.pool_type == TransformerPoolingBenchmark.__name__:
             pooling_layer = TransformerPoolingBenchmark(
@@ -234,7 +243,8 @@ class PoolingParams(param.Parameterized):
                 num_heads=self.num_transformer_pool_heads,
                 dim_representation=num_encoding,
                 hidden_dim=self.pool_hidden_dim,
-                transformer_dropout=self.transformer_dropout)
+                transformer_dropout=self.transformer_dropout,
+            )
             self.pool_out_dim = 1  # currently this is hardcoded in forward of the TransformerPooling
         else:
             raise ValueError(f"Unsupported pooling type: {self.pool_type}")
@@ -247,15 +257,16 @@ class ClassifierParams(param.Parameterized):
     dropout_rate: Optional[float] = param.Number(None, bounds=(0, 1), doc="Pre-classifier dropout rate.")
     tune_classifier: bool = param.Boolean(
         default=True,
-        doc="If True (default), fine-tune the classifier during training. If False, keep the classifier frozen.")
+        doc="If True (default), fine-tune the classifier during training. If False, keep the classifier frozen.",
+    )
     pretrained_classifier: bool = param.Boolean(
         default=False,
         doc="If True, will use classifier weights from pretrained model specified in src_checkpoint. If False, will "
-            "initiliaze classifier with random weights.")
+        "initiliaze classifier with random weights.",
+    )
 
     def get_classifier(self, in_features: int, out_features: int) -> nn.Module:
-        classifier_layer = nn.Linear(in_features=in_features,
-                                     out_features=out_features)
+        classifier_layer = nn.Linear(in_features=in_features, out_features=out_features)
         set_module_gradients_enabled(classifier_layer, tuning_flag=self.tune_classifier)
         if self.dropout_rate is None:
             return classifier_layer

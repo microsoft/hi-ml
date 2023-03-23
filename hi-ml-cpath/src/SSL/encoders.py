@@ -68,9 +68,7 @@ def get_encoder_output_dim(
     """
     # Target device
     device = (
-        pl_module.device
-        if isinstance(pl_module, pl.LightningDataModule)
-        else next(pl_module.parameters()).device
+        pl_module.device if isinstance(pl_module, pl.LightningDataModule) else next(pl_module.parameters()).device
     )  # type: ignore
     assert isinstance(device, torch.device)
 
@@ -79,6 +77,7 @@ def get_encoder_output_dim(
         from SSL.lightning_modules.ssl_online_evaluator import (
             SslOnlineEvaluatorHiml,
         )
+
         loaders = dm.train_dataloader()
         loader = loaders[SSLDataModuleType.LINEAR_HEAD] if isinstance(loaders, dict) else loaders  # type: ignore
         iterator = iter(loader)

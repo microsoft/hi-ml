@@ -42,16 +42,17 @@ class TextInferenceEngine(TextInput):
 
         max_length = tokenizer_output.input_ids.shape[1]
         if tokenizer_output.input_ids.shape[1] > self.max_allowed_input_length:
-            raise ValueError(f"The sequence length of the input ({max_length}) is "
-                             f"longer than the maximum allowed sequence length ({self.max_allowed_input_length}).")
+            raise ValueError(
+                f"The sequence length of the input ({max_length}) is "
+                f"longer than the maximum allowed sequence length ({self.max_allowed_input_length})."
+            )
 
         return tokenizer_output
 
     @torch.no_grad()
-    def get_embeddings_from_prompt(self,
-                                   prompts: Union[str, List[str]],
-                                   normalize: bool = True,
-                                   verbose: bool = True) -> torch.Tensor:
+    def get_embeddings_from_prompt(
+        self, prompts: Union[str, List[str]], normalize: bool = True, verbose: bool = True
+    ) -> torch.Tensor:
         """Generate L2-normalised embeddings for a list of input text prompts.
 
         :param prompts: Input text prompt(s) either in string or list of string format.
@@ -65,14 +66,15 @@ class TextInferenceEngine(TextInput):
         txt_emb = self.model.get_projected_text_embeddings(  # type: ignore
             input_ids=tokenizer_output.input_ids,
             attention_mask=tokenizer_output.attention_mask,
-            normalize_embeddings=normalize)
+            normalize_embeddings=normalize,
+        )
 
         return txt_emb
 
     @torch.no_grad()
-    def get_pairwise_similarities(self,
-                                  prompt_set_1: Union[str, List[str]],
-                                  prompt_set_2: Union[str, List[str]]) -> torch.Tensor:
+    def get_pairwise_similarities(
+        self, prompt_set_1: Union[str, List[str]], prompt_set_2: Union[str, List[str]]
+    ) -> torch.Tensor:
         """Compute pairwise cosine similarities between the embeddings of the given prompts."""
 
         emb_1 = self.get_embeddings_from_prompt(prompts=prompt_set_1, verbose=False)
@@ -97,8 +99,9 @@ class TextInferenceEngine(TextInput):
         tokenized_prompts = self.tokenize_input_prompts(prompts)
 
         # Collect all token predictions
-        text_model_output = self.model.forward(input_ids=tokenized_prompts.input_ids,
-                                               attention_mask=tokenized_prompts.attention_mask)
+        text_model_output = self.model.forward(
+            input_ids=tokenized_prompts.input_ids, attention_mask=tokenized_prompts.attention_mask
+        )
         logits = text_model_output.logits
         logits = logits.detach()
 

@@ -342,8 +342,9 @@ class SwinTransformerCheckpointingMixin:
         """Custom patch partitioning checkpointing"""
         _, _, H, W = images.shape
         img_size = self.feature_extractor_fn.patch_embed.img_size
-        assert H == img_size[0] and W == img_size[1], \
-            f"Input image size ({H}*{W}) doesn't match model ({img_size[0]}*{img_size[1]})."
+        assert (
+            H == img_size[0] and W == img_size[1]
+        ), f"Input image size ({H}*{W}) doesn't match model ({img_size[0]}*{img_size[1]})."
         images = checkpoint(self.feature_extractor_fn.patch_embed.proj, images)
         images = images.flatten(2).transpose(1, 2)  # BCHW -> BNC
         images = checkpoint(self.feature_extractor_fn.patch_embed.norm, images)
@@ -372,7 +373,7 @@ class SwinTransformer_NoPreproc(SwinTransformerCheckpointingMixin, ImageNetEncod
         tile_size: int = 224,
         n_channels: int = 3,
         use_activation_checkpointing: bool = False,
-        checkpoint_segments_size: int = 2
+        checkpoint_segments_size: int = 2,
     ) -> None:
         """
         :param tile_size: The size of the input tiles (default=224).
@@ -399,8 +400,9 @@ class SwinTransformer_NoPreproc(SwinTransformerCheckpointingMixin, ImageNetEncod
 class ImageNetSimCLREncoder(TileEncoder):
     """SimCLR encoder pretrained on ImageNet"""
 
-    WEIGHTS_URL = ("https://pl-bolts-weights.s3.us-east-2.amazonaws.com/"
-                   "simclr/bolts_simclr_imagenet/simclr_imagenet.ckpt")
+    WEIGHTS_URL = (
+        "https://pl-bolts-weights.s3.us-east-2.amazonaws.com/simclr/bolts_simclr_imagenet/simclr_imagenet.ckpt"
+    )
     EMBEDDING_DIM = 2048
 
     def _get_preprocessing(self) -> Callable:
@@ -432,9 +434,7 @@ class SSLEncoder(TileEncoder):
         except (ImportError, ModuleNotFoundError):
             raise ValueError("SSL not found. This class can only be used by using hi-ml from the GitHub source")
         model: SSLClassifier = create_ssl_image_classifier(  # type: ignore
-            num_classes=1,  # dummy value
-            freeze_encoder=True,
-            pl_checkpoint_path=str(self.pl_checkpoint_path)
+            num_classes=1, freeze_encoder=True, pl_checkpoint_path=str(self.pl_checkpoint_path)  # dummy value
         )
         assert isinstance(model.encoder, encoders.SSLEncoder)
         return setup_feature_extractor(model.encoder.cnn_model, self.input_dim)
@@ -452,8 +452,10 @@ class HistoSSLEncoder(TileEncoder):
     arXiv:2011.13971
     """
 
-    WEIGHTS_URL = ("https://github.com/ozanciga/self-supervised-histopathology/releases/"
-                   "download/tenpercent/tenpercent_resnet18.ckpt")
+    WEIGHTS_URL = (
+        "https://github.com/ozanciga/self-supervised-histopathology/releases/"
+        "download/tenpercent/tenpercent_resnet18.ckpt"
+    )
 
     def _get_encoder(self) -> Tuple[torch.nn.Module, int]:
         resnet18_model = resnet18(pretrained=False)

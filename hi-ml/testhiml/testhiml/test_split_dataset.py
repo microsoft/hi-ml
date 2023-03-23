@@ -32,8 +32,9 @@ def test_split_by_subject_ids() -> None:
 def test_split_by_subject_ids_invalid(splits: List[List[str]]) -> None:
     df1 = pd.read_csv(full_test_data_path(suffix=DATASET_CSV_FILE_NAME), dtype=str)
     with pytest.raises(ValueError):
-        DatasetSplits.from_subject_ids(df1, train_ids=splits[0], val_ids=splits[1], test_ids=splits[2],
-                                       subject_column=CSV_SUBJECT_HEADER)
+        DatasetSplits.from_subject_ids(
+            df1, train_ids=splits[0], val_ids=splits[1], test_ids=splits[2], subject_column=CSV_SUBJECT_HEADER
+        )
 
 
 def test_get_subject_ranges_for_splits() -> None:
@@ -42,10 +43,9 @@ def test_get_subject_ranges_for_splits() -> None:
 
     proportions = [0.5, 0.4, 0.1]
 
-    splits = DatasetSplits.get_subject_ranges_for_splits(['1', '2', '3'],
-                                                         proportions[0],
-                                                         proportions[1],
-                                                         proportions[2])
+    splits = DatasetSplits.get_subject_ranges_for_splits(
+        ['1', '2', '3'], proportions[0], proportions[1], proportions[2]
+    )
     _check_at_least_one(splits)
 
     splits = DatasetSplits.get_subject_ranges_for_splits(['1'], proportions[0], proportions[1], proportions[2])
@@ -55,7 +55,8 @@ def test_get_subject_ranges_for_splits() -> None:
     splits = DatasetSplits.get_subject_ranges_for_splits(population, proportions[0], proportions[1], proportions[2])
     _check_at_least_one(splits)
     assert all(
-        [np.isclose(len(splits[mode]) / len(population), proportions[i]) for i, mode in enumerate(splits.keys())])
+        [np.isclose(len(splits[mode]) / len(population), proportions[i]) for i, mode in enumerate(splits.keys())]
+    )
 
 
 def _check_is_partition(total: pd.DataFrame, parts: Iterable[pd.DataFrame], column: str) -> None:
@@ -73,8 +74,14 @@ def _check_is_partition(total: pd.DataFrame, parts: Iterable[pd.DataFrame], colu
 def test_grouped_splits(group_column: str) -> None:
     test_df = _get_test_df()[0]
     proportions = [0.5, 0.4, 0.1]
-    splits = DatasetSplits.from_proportions(test_df, proportions[0], proportions[1], proportions[2],
-                                            group_column=group_column, subject_column=CSV_SUBJECT_HEADER)
+    splits = DatasetSplits.from_proportions(
+        test_df,
+        proportions[0],
+        proportions[1],
+        proportions[2],
+        group_column=group_column,
+        subject_column=CSV_SUBJECT_HEADER,
+    )
     _check_is_partition(test_df, [splits.train, splits.test, splits.val], CSV_SUBJECT_HEADER)
     _check_is_partition(test_df, [splits.train, splits.test, splits.val], group_column)
 
@@ -84,7 +91,7 @@ def _get_test_df() -> Tuple[DataFrame, List[str], List[str], List[str]]:
         CSV_SUBJECT_HEADER: list(map(str, range(0, 100))),
         CSV_INSTITUTION_HEADER: ([0] * 10) + ([1] * 90),
         CSV_GROUP_HEADER: [i // 5 for i in range(0, 100)],
-        "other": list(range(0, 100))
+        "other": list(range(0, 100)),
     }
     assert all(np.bincount(test_data[CSV_GROUP_HEADER]) > 1), "Found singleton groups"  # type: ignore
     assert len(np.unique(test_data[CSV_GROUP_HEADER])) > 1, "Found a single group"  # type: ignore

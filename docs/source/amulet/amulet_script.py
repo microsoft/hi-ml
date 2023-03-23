@@ -24,11 +24,21 @@ for folder in [repo_root / "hi-ml-azure" / "src", repo_root / "hi-ml" / "src"]:
         sys.path.append(str(folder))
 
 from health_ml.utils.logging import AzureMLLogger  # noqa: E402
-from health_azure.utils import (set_environment_variables_for_multi_node,  # noqa: E402
-                                is_local_rank_zero, is_global_rank_zero)
-from health_azure.amulet import (ENV_AMLT_PROJECT_NAME, ENV_AMLT_INPUT_OUTPUT,  # noqa: E402
-                                 ENV_AMLT_DATAREFERENCE_OUTPUT, is_amulet_job, get_amulet_aml_working_dir,
-                                 get_amulet_data_dir, get_amulet_output_dir, prepare_amulet_job)
+from health_azure.utils import (
+    set_environment_variables_for_multi_node,  # noqa: E402
+    is_local_rank_zero,
+    is_global_rank_zero,
+)
+from health_azure.amulet import (
+    ENV_AMLT_PROJECT_NAME,
+    ENV_AMLT_INPUT_OUTPUT,  # noqa: E402
+    ENV_AMLT_DATAREFERENCE_OUTPUT,
+    is_amulet_job,
+    get_amulet_aml_working_dir,
+    get_amulet_data_dir,
+    get_amulet_output_dir,
+    prepare_amulet_job,
+)
 from health_azure import submit_to_azure_if_needed  # noqa: E402
 
 
@@ -186,15 +196,16 @@ def run_training_loop(logging_folder: Optional[Path] = None) -> None:
     # Write all metrics also to AzureML natively, so that they are visible in the AzureML UI
     loggers.append(AzureMLLogger())
 
-    trainer = Trainer(accelerator=accelerator,
-                      strategy=strategy,
-                      max_epochs=2,
-                      logger=loggers,
-                      num_nodes=1,
-                      devices=devices,
-                      # Setting the logging interval to a very small value because we have a tiny dataset
-                      log_every_n_steps=1
-                      )
+    trainer = Trainer(
+        accelerator=accelerator,
+        strategy=strategy,
+        max_epochs=2,
+        logger=loggers,
+        num_nodes=1,
+        devices=devices,
+        # Setting the logging interval to a very small value because we have a tiny dataset
+        log_every_n_steps=1,
+    )
     model = BoringModel()
     data_module = BoringDataModule()
     trainer.fit(model, datamodule=data_module)

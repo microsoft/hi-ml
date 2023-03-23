@@ -37,8 +37,8 @@ class ByolMovingAverageWeightUpdate(Callback):
         # get networks
         online_net = pl_module.online_network
         target_net = pl_module.target_network
-        assert (isinstance(online_net, torch.nn.Module))
-        assert (isinstance(target_net, torch.nn.Module))
+        assert isinstance(online_net, torch.nn.Module)
+        assert isinstance(target_net, torch.nn.Module)
 
         # update weights
         self.update_weights(online_net, target_net)

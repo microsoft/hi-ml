@@ -20,6 +20,7 @@ class DicomFileType(Enum):
     """
     Supported file extensions that indicate Dicom data.
     """
+
     Dicom = ".dcm"
 
 
@@ -61,7 +62,7 @@ def load_dicom_image(path: PathOrString) -> np.ndarray:
     if ds.PhotometricInterpretation == PhotometricInterpretation.MONOCHROME1.value:
         pixel_repr = ds.PixelRepresentation
         if pixel_repr == 0:  # unsigned
-            pixels = 2 ** bits_stored - 1 - pixels
+            pixels = 2**bits_stored - 1 - pixels
         elif pixel_repr == 1:  # signed
             pixels = -1 * (pixels + 1)
         else:
