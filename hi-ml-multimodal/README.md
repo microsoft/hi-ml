@@ -6,7 +6,7 @@ The code is available on [GitHub][1] and [Hugging Face 🤗][6].
 ## Getting started
 
 The best way to get started is by running the [phrase grounding notebook][2] and the [examples](#examples).
-All the dependencies will be installed upon execution, so Python 3.7 and [Jupyter][3] are the only requirements to get started.
+All the dependencies will be installed upon execution, so Python 3.9 and [Jupyter][3] are the only requirements to get started.
 
 The notebook can also be run on [Binder][4], without the need to download any code or install any libraries:
 
