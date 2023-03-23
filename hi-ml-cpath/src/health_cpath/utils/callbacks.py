@@ -25,7 +25,6 @@ from pytorch_lightning.callbacks import Callback
 from health_cpath.models.deepmil import DeepMILModule
 from health_cpath.utils.naming import ModelKey, ResultsKey, SlideKey
 from health_cpath.utils.output_utils import BatchResultsType
-from health_cpath.utils.hooks import ActivationHook
 
 
 LossCacheDictType = Dict[Union[ResultsKey, str], List]
@@ -569,6 +568,10 @@ class MILGradCamCallback(Callback):
     def __init__(self, layer_name: str = 'layer4') -> None:
         super().__init__()
         self.layer_name = layer_name
+        self.activations_of_selected_layer = None
+
+    def forward_hook(self, module: nn.Module, input: torch.Tensor, out: torch.Tensor):
+        self.activations_of_selected_layer = out
 
     @staticmethod
     def compute_grad_cam(prob: torch.Tensor, activations: torch.Tensor, attentions: torch.Tensor) -> Tuple:
@@ -607,7 +610,7 @@ class MILGradCamCallback(Callback):
 
     @staticmethod
     def plot_cam(cams: np.ndarray, tiles: torch.Tensor, topk_idx: np.ndarray, slide_id: str, true_label: str,
-                 pred_label: str, layer_name:str) -> None:
+                 pred_label: str, layer_name: str) -> None:
         """
         Plot CAM images for each of the top k tiles.
 
@@ -628,13 +631,13 @@ class MILGradCamCallback(Callback):
             return np.array(image_interp)
 
         slide_id = slide_id[0][0]
-        true_label = true_label[0].cpu().numpy()
+        true_label = true_label[0][0].cpu().numpy()
         pred_label = pred_label[0][0].cpu().numpy()
 
         # Get topk tiles
         tiles = tiles[0][topk_idx].cpu()
 
-        fig, axs = plt.subplots(nrows=2, ncols=10, figsize=(50, 10))
+        _, axs = plt.subplots(nrows=2, ncols=10, figsize=(50, 10))
         axs = axs.flatten()
 
         for i, (tile, cam) in enumerate(zip(tiles, cams)):
@@ -686,15 +689,21 @@ class MILGradCamCallback(Callback):
             params.requires_grad = True
 
         # Register hook that returns activations of selected layer
-        self.activation_hook = ActivationHook(pl_module, self.layer_name)
+        selected_layer = getattr(pl_module.encoder.feature_extractor_fn, self.layer_name)
+        self.activation_hook = selected_layer.register_forward_hook(self.forward_hook)
 
     def on_validation_batch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule",
                                 outputs: Any, batch: Any, batch_idx: int, unused: int = 0) -> None:
         # Compute gradcam
         cams, topk_idx = self.compute_grad_cam(outputs[ResultsKey.BAG_LOGITS],
-                                               self.activation_hook.acts_of_selected_layer,
+                                               self.activations_of_selected_layer,
                                                outputs[ResultsKey.BAG_ATTN])
 
         # Plot CAM
         self.plot_cam(cams, batch[SlideKey.IMAGE], topk_idx, batch[ResultsKey.SLIDE_ID],
                       outputs[ResultsKey.TRUE_LABEL], outputs[ResultsKey.PRED_LABEL], self.layer_name)
+
+    def on_validation_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+        # Clean up
+        self.activation_hook.remove()
+        self.activations_of_selected_layer = None
