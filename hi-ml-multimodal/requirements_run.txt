@@ -1,9 +1,9 @@
-huggingface-hub==0.6.0
-pillow==9.3.0
-pydicom==2.2.2
-scikit-image==0.18.1
+huggingface-hub
+pillow
+pydicom
+scikit-image
 SimpleITK
-timm==0.6.5
+timm
 torch
 torchvision
-transformers==4.17.0
+transformers
