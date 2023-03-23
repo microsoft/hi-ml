@@ -12,7 +12,7 @@ version = "0.1.3"
 package_name = "hi-ml-multimodal"
 install_requires = Path("requirements_run.txt").read_text().splitlines()
 
-description = "Microsoft Health Futures package to work with multi-modal health data"
+description = "Microsoft Health Futures package to work with multimodal health data"
 
 setup(
     name=package_name,
@@ -28,7 +28,7 @@ setup(
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Medical Science Apps.",
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.7"
+        "Programming Language :: Python :: 10"
     ],
     license="MIT License",
     packages=find_namespace_packages(where="src"),

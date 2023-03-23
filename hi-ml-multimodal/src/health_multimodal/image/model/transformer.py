@@ -229,7 +229,7 @@ class SinePositionEmbedding():
                  embedding_dim: int = 64,
                  temperature: int = 10000,
                  normalize: bool = False,
-                 scale: float = None) -> None:
+                 scale: Optional[float] = None) -> None:
         super().__init__()
         self.embedding_dim = embedding_dim
         self.temperature = temperature
