@@ -120,8 +120,8 @@ class MultiImageModel(ImageModel):
         super().__init__(**kwargs)
         assert isinstance(self.encoder, MultiImageEncoder), "MultiImageModel only supports MultiImageEncoder"
 
-    def forward(
-        self, current_image: torch.Tensor, previous_image: Optional[torch.Tensor] = None  # type: ignore[override]
+    def forward(  # type: ignore[override]
+        self, current_image: torch.Tensor, previous_image: Optional[torch.Tensor] = None
     ) -> ImageModelOutput:
         with torch.set_grad_enabled(not self.freeze_encoder):
             patch_x, pooled_x = self.encoder(
