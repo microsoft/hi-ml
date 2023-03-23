@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import tempfile
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Optional, Union
@@ -14,50 +13,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from health_multimodal.common.device import get_module_device
-from torchvision.datasets.utils import download_url
 
 from .encoder import get_encoder_from_type, get_encoder_output_dim, MultiImageEncoder
 from .modules import MLP, MultiTaskModel
-from .types import ImageEncoderType, ImageModelOutput
-
-
-MODEL_TYPE = ImageEncoderType.RESNET50
-JOINT_FEATURE_SIZE = 128
-
-BIOMED_VLP_CXR_BERT_SPECIALIZED = "microsoft/BiomedVLP-CXR-BERT-specialized"
-REPO_URL = f"https://huggingface.co/{BIOMED_VLP_CXR_BERT_SPECIALIZED}"
-CXR_BERT_COMMIT_TAG = "v1.1"
-
-BIOVIL_IMAGE_WEIGHTS_NAME = "biovil_image_resnet50_proj_size_128.pt"
-BIOVIL_IMAGE_WEIGHTS_URL = f"{REPO_URL}/resolve/{CXR_BERT_COMMIT_TAG}/{BIOVIL_IMAGE_WEIGHTS_NAME}"
-BIOVIL_IMAGE_WEIGHTS_MD5 = "02ce6ee460f72efd599295f440dbb453"
-
-
-def _download_biovil_image_model_weights() -> Path:
-    """Download image model weights from Hugging Face.
-
-    More information available at https://huggingface.co/microsoft/BiomedVLP-CXR-BERT-specialized.
-    """
-    root_dir = tempfile.gettempdir()
-    download_url(
-        BIOVIL_IMAGE_WEIGHTS_URL,
-        root=root_dir,
-        filename=BIOVIL_IMAGE_WEIGHTS_NAME,
-        md5=BIOVIL_IMAGE_WEIGHTS_MD5,
-    )
-    return Path(root_dir, BIOVIL_IMAGE_WEIGHTS_NAME)
-
-
-def get_biovil_resnet(pretrained: bool = True) -> ImageModel:
-    """Download weights from Hugging Face and instantiate the image model."""
-    resnet_checkpoint_path = _download_biovil_image_model_weights() if pretrained else None
-
-    image_model = ImageModel(
-        img_encoder_type=MODEL_TYPE,
-        joint_feature_size=JOINT_FEATURE_SIZE,
-        pretrained_model_path=resnet_checkpoint_path,
-    )
-    return image_model
+from .types import ImageModelOutput
 
 
 class BaseImageModel(nn.Module, ABC):

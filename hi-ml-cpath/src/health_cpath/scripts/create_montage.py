@@ -52,6 +52,7 @@ def main() -> None:
             docker_shm_size=config.docker_shm_size,
             wait_for_completion=config.wait_for_completion,
             workspace_config_file=config.workspace_config_path,
+            display_name=config.display_name,
         )
         input_folder = run_info.input_datasets[0]
 
