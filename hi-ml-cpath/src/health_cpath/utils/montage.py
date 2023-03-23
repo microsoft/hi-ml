@@ -81,9 +81,16 @@ def load_slide_as_pil(reader: WSIReader, slide_file: Path, level: int = 0) -> Im
     return array_pil
 
 
-def _make_thumbnail(sample: DatasetRecord, reader: WSIReader, level: int, slide_size: Tuple[int, int], images_dir: Path,
-                    masks_dir: Optional[Path] = None, image_suffix: str = '.png',
-                    default_mask_color: TupleInt3 = (119, 161, 120)) -> None:
+def _make_thumbnail(
+    sample: DatasetRecord,
+    reader: WSIReader,
+    level: int,
+    slide_size: Tuple[int, int],
+    images_dir: Path,
+    masks_dir: Optional[Path] = None,
+    image_suffix: str = '.png',
+    default_mask_color: TupleInt3 = (119, 161, 120),
+) -> None:
     """Make thumbnails of the slides in slides dataset.
 
     :param sample: The slide dataset object dictionary for which thumbnail needs to be created.
@@ -125,14 +132,16 @@ def _make_thumbnail(sample: DatasetRecord, reader: WSIReader, level: int, slide_
         logging.warning(f"Unable to process slide with ID '{slide_id}': {ex}")
 
 
-def make_thumbnails(records: List[DatasetRecord],
-                    slide_size: Tuple[int, int],
-                    images_dir: Path,
-                    level: int,
-                    masks_dir: Optional[Path] = None,
-                    num_parallel: int = 0,
-                    image_suffix: str = '.png',
-                    backend: str = WSIBackend.CUCIM) -> None:
+def make_thumbnails(
+    records: List[DatasetRecord],
+    slide_size: Tuple[int, int],
+    images_dir: Path,
+    level: int,
+    masks_dir: Optional[Path] = None,
+    num_parallel: int = 0,
+    image_suffix: str = '.png',
+    backend: str = WSIBackend.CUCIM,
+) -> None:
     """Make thumbnails of the slides in slides dataset.
 
     :param records: A list of dataframe records. The records must contain at least the columns `slide_id` and `image`.
@@ -166,8 +175,9 @@ def make_thumbnails(records: List[DatasetRecord],
         pool.close()
 
 
-def make_montage_from_dir(images_dir: Path, num_cols: int, masks_dir: Optional[Path] = None,
-                          image_suffix: str = '.png') -> Image:
+def make_montage_from_dir(
+    images_dir: Path, num_cols: int, masks_dir: Optional[Path] = None, image_suffix: str = '.png'
+) -> Image:
     """Create the montage image from the thumbnails.
 
     :param images_dir: The path to the `images` directory where WSI thumbnails will be stored.
@@ -234,10 +244,7 @@ def dataset_from_folder(root_folder: Path, glob_pattern: str = "**/*") -> pd.Dat
     return pd.DataFrame({SlideKey.SLIDE_ID: image_ids, SlideKey.IMAGE: map(str, image_paths)})
 
 
-def restrict_dataset(dataset: pd.DataFrame,
-                     column: str,
-                     items: List[str],
-                     include: bool) -> pd.DataFrame:
+def restrict_dataset(dataset: pd.DataFrame, column: str, items: List[str], include: bool) -> pd.DataFrame:
     """Exclude or include slides from a dataset, based on values in a column.
     For example, to exclude slides with label `0` from the dataset, use:
     restrict_dataset(dataset, column='label', items=['0'], include=False).
@@ -285,16 +292,18 @@ def dataset_to_records(dataset: DatasetOrDataframe) -> List[DatasetRecord]:
         raise ValueError(f"Can't convert {type(dataset)} to a list of records.")
 
 
-def make_montage(records: List[DatasetRecord],
-                 out_path: Path,
-                 width: int = 60_000,
-                 level: int = 2,
-                 image_suffix: str = '.png',
-                 masks: bool = True,
-                 temp_dir: Optional[Union[Path, str]] = None,
-                 cleanup: bool = False,
-                 num_parallel: int = 0,
-                 backend: str = "cucim") -> None:
+def make_montage(
+    records: List[DatasetRecord],
+    out_path: Path,
+    width: int = 60_000,
+    level: int = 2,
+    image_suffix: str = '.png',
+    masks: bool = True,
+    temp_dir: Optional[Union[Path, str]] = None,
+    cleanup: bool = False,
+    num_parallel: int = 0,
+    backend: str = "cucim",
+) -> None:
     """Make the montage of WSI thumbnails from a slides dataset.
 
     :param records: A list of dataframe records. The records must contain at least the columns `slide_id` and `image`.
@@ -330,15 +339,21 @@ def make_montage(records: List[DatasetRecord],
         logging.info(f"Skipping thumbnail creation because folder already exists: {image_thumbnail_dir}")
     else:
         logging.info(f"Starting thumbnail creation with thumbnail size {slide_size}")
-        make_thumbnails(records=records, slide_size=slide_size, images_dir=image_thumbnail_dir, level=level,
-                        masks_dir=mask_thumbnail_dir, image_suffix=image_suffix, num_parallel=num_parallel,
-                        backend=backend)
+        make_thumbnails(
+            records=records,
+            slide_size=slide_size,
+            images_dir=image_thumbnail_dir,
+            level=level,
+            masks_dir=mask_thumbnail_dir,
+            image_suffix=image_suffix,
+            num_parallel=num_parallel,
+            backend=backend,
+        )
     try:
         logging.info("Starting montage creation")
-        montage_pil = make_montage_from_dir(image_thumbnail_dir,
-                                            num_cols,
-                                            masks_dir=mask_thumbnail_dir,
-                                            image_suffix=image_suffix)
+        montage_pil = make_montage_from_dir(
+            image_thumbnail_dir, num_cols, masks_dir=mask_thumbnail_dir, image_suffix=image_suffix
+        )
     except Exception as ex:
         raise ValueError(f"Failed to create montage from {image_thumbnail_dir}: {ex}")
     logger.info(f"Saving montage to {out_path}")
@@ -367,8 +382,10 @@ class MontageCreation(MontageConfig):
         if self.exclude_by_slide_id:
             slides_to_exclude = self.read_list(self.exclude_by_slide_id)
             logger.info(f"Excluding {len(slides_to_exclude)} slides from montage. First 3: {slides_to_exclude[:3]}")
-            logger.info("Exclusion list will be matched against the Slide ID column (for predefined datasets) or the "
-                        "filename.")
+            logger.info(
+                "Exclusion list will be matched against the Slide ID column (for predefined datasets) or the "
+                "filename."
+            )
             return slides_to_exclude
         else:
             return []
@@ -378,8 +395,10 @@ class MontageCreation(MontageConfig):
         if self.include_by_slide_id:
             slides_to_include = self.read_list(self.include_by_slide_id)
             logger.info(f"Restricting montage to {len(slides_to_include)} slides. First 3: {slides_to_include[:3]}")
-            logger.info("Inclusion list will be matched against the Slide ID column (for predefined datasets) or the "
-                        "filename.")
+            logger.info(
+                "Inclusion list will be matched against the Slide ID column (for predefined datasets) or the "
+                "filename."
+            )
             return slides_to_include
         else:
             return []
@@ -411,8 +430,10 @@ class MontageCreation(MontageConfig):
                 while str(file) != str(file.root):
                     logging.debug(f"File: {file}, exists: {file.exists()}")
                     file = file.parent
-                raise ValueError(f"Unable to load dataset. Check if the file {SlidesDataset.DEFAULT_CSV_FILENAME} "
-                                 f"exists, or provide a file name pattern via --image_glob_pattern. Error: {ex}")
+                raise ValueError(
+                    f"Unable to load dataset. Check if the file {SlidesDataset.DEFAULT_CSV_FILENAME} "
+                    f"exists, or provide a file name pattern via --image_glob_pattern. Error: {ex}"
+                )
             return dataset
 
     def create_montage(self, input_folder: Path) -> None:
@@ -441,11 +462,13 @@ class MontageCreation(MontageConfig):
             exclude_items=exclude_items,
         )
 
-    def montage_from_included_and_excluded_slides(self,
-                                                  dataset: DatasetOrDataframe,
-                                                  items: Optional[List[str]] = None,
-                                                  exclude_items: bool = True,
-                                                  restrict_by_column: str = "") -> Optional[Path]:
+    def montage_from_included_and_excluded_slides(
+        self,
+        dataset: DatasetOrDataframe,
+        items: Optional[List[str]] = None,
+        exclude_items: bool = True,
+        restrict_by_column: str = "",
+    ) -> Optional[Path]:
         """Creates a montage of included and excluded slides from the dataset.
 
         :param dataset: Slides dataset or a plain dataframe.
@@ -474,11 +497,7 @@ class MontageCreation(MontageConfig):
             else:
                 logging.info(f"Using dataset column '{restrict_by_column}' to restrict the set of slides")
                 include = True
-            df_restricted = restrict_dataset(
-                df_original,
-                column=restrict_by_column,
-                items=items,
-                include=include)
+            df_restricted = restrict_dataset(df_original, column=restrict_by_column, items=items, include=include)
             logging.info(f"Updated dataset contains {len(df_restricted)} records")
         else:
             df_restricted = df_original
@@ -502,7 +521,8 @@ class MontageCreation(MontageConfig):
                 masks=False,
                 cleanup=True,
                 num_parallel=self.parallel,
-                backend=self.backend)
+                backend=self.backend,
+            )
             return montage_result
         else:
             logging.info("No slides to include in montage, skipping.")

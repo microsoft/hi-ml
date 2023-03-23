@@ -22,6 +22,7 @@ from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPosi
 
 try:
     from cucim import CuImage  # noqa: F401
+
     has_cucim = True
 except:  # noqa: E722
     has_cucim = False
@@ -43,7 +44,7 @@ def test_panda_reproducibility(tmp_path: Path) -> None:
         n_levels=3,
         tile_size=tile_size,
         background_val=255,
-        tiles_pos_type=TilesPositioningType.RANDOM
+        tiles_pos_type=TilesPositioningType.RANDOM,
     )
     wsi_generator.generate_mock_histo_data()
 
@@ -60,9 +61,11 @@ def test_panda_reproducibility(tmp_path: Path) -> None:
         """Creates a new data module from the container, and checks if all the data loaders specified in
         `loader_fn_names` return the same set of items when enumerated twice."""
         data_module = container.get_data_module()
-        data_module.dataloader_kwargs = {**data_module.dataloader_kwargs,
-                                         "multiprocessing_context": None,
-                                         "num_workers": 0}
+        data_module.dataloader_kwargs = {
+            **data_module.dataloader_kwargs,
+            "multiprocessing_context": None,
+            "num_workers": 0,
+        }
 
         def get_item_from_new_loader(loader_fn_name: str) -> Any:
             """Get a new dataloader with the given name (for example, 'train_dataloader') and returns the first item."""

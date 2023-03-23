@@ -16,7 +16,6 @@ from health_multimodal.text.model.modelling_cxrbert import CXRBertModel
 
 
 def test_model_instantiation() -> None:
-
     def _test_model_forward(model: CXRBertModel) -> None:
         batch_size = 2
         seq_length = 5
@@ -38,12 +37,14 @@ def test_model_instantiation() -> None:
         assert outputs.cls_projected_embedding == outputs_in_tuple[2]
         assert torch.allclose(outputs.last_hidden_state, outputs_in_tuple[0])
 
-    config = CXRBertConfig(hidden_size=6,
-                           projection_size=4,
-                           num_hidden_layers=1,
-                           num_attention_heads=2,
-                           output_attentions=True,
-                           return_dict=True)
+    config = CXRBertConfig(
+        hidden_size=6,
+        projection_size=4,
+        num_hidden_layers=1,
+        num_attention_heads=2,
+        output_attentions=True,
+        return_dict=True,
+    )
     model = CXRBertModel(config)
     model = model.eval()
     _test_model_forward(model=model)

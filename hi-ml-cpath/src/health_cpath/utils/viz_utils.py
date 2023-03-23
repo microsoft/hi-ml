@@ -125,7 +125,8 @@ def plot_attention_tiles(
     if num_rows == 0:
         logging.warning(
             "The number of selected top and bottom tiles is too low, plotting will be skipped."
-            "Try debugging with a higher num_top_tiles and/or a higher number of batches.")
+            "Try debugging with a higher num_top_tiles and/or a higher number of batches."
+        )
         return None
 
     fig, axs = plt.subplots(nrows=num_rows, ncols=num_columns, figsize=figsize)
@@ -216,14 +217,17 @@ def plot_heatmap_overlay(
     slide_idx = slide_ids.index(slide_node.slide_id)
     attentions = results[ResultsKey.BAG_ATTN][slide_idx]
 
-    coords = np.transpose([results[ResultsKey.TILE_LEFT][slide_idx].cpu().numpy(),
-                           results[ResultsKey.TILE_TOP][slide_idx].cpu().numpy()])
+    coords = np.transpose(
+        [results[ResultsKey.TILE_LEFT][slide_idx].cpu().numpy(), results[ResultsKey.TILE_TOP][slide_idx].cpu().numpy()]
+    )
     attentions = np.array(attentions.cpu()).reshape(-1)
 
-    sel_coords = location_selected_tiles(tile_coords=coords,
-                                         location_bbox=slide_dict[SlideKey.ORIGIN],
-                                         scale_factor=slide_dict[SlideKey.SCALE],
-                                         should_upscale_coords=should_upscale_coords)
+    sel_coords = location_selected_tiles(
+        tile_coords=coords,
+        location_bbox=slide_dict[SlideKey.ORIGIN],
+        scale_factor=slide_dict[SlideKey.SCALE],
+        should_upscale_coords=should_upscale_coords,
+    )
     cmap = plt.cm.get_cmap("Spectral_r")  # _r reverse the color map so that the highest attention is red
 
     tile_xs, tile_ys = sel_coords.T
@@ -273,7 +277,9 @@ def plot_normalized_confusion_matrix(cm: np.ndarray, class_names: Sequence[str])
 
 
 def plot_normalized_and_non_normalized_confusion_matrices(
-    cm: np.ndarray, cm_n: np.ndarray, class_names: Sequence[str],
+    cm: np.ndarray,
+    cm_n: np.ndarray,
+    class_names: Sequence[str],
 ) -> plt.Figure:
     """Plots a normalized and non-normalized confusion matrix and returns the figure.
 

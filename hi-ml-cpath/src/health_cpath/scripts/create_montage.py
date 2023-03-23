@@ -15,9 +15,11 @@ from typing import Optional
 
 current_file = Path(__file__).absolute()
 repository_root = current_file.parent.parent.parent.parent.parent
-folders_to_add = [repository_root / "hi-ml" / "src",
-                  repository_root / "hi-ml-azure" / "src",
-                  repository_root / "hi-ml-cpath" / "src"]
+folders_to_add = [
+    repository_root / "hi-ml" / "src",
+    repository_root / "hi-ml-azure" / "src",
+    repository_root / "hi-ml-cpath" / "src",
+]
 for folder in folders_to_add:
     assert folder.is_dir()
     sys.path.insert(0, str(folder))

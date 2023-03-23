@@ -12,10 +12,7 @@ from health_azure.utils import create_from_matching_params
 from health_cpath.models.transforms import MetaTensorToTensord
 from health_cpath.preprocessing.loading import LoadingParams
 from health_cpath.utils.wsi_utils import TilingParams
-from health_ml.networks.layers.attention_layers import (
-    TransformerPooling,
-    TransformerPoolingBenchmark
-)
+from health_ml.networks.layers.attention_layers import TransformerPooling, TransformerPoolingBenchmark
 from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_ml.deep_learning_config import OptimizerParams
 from health_cpath.datasets.panda_dataset import PandaDataset
@@ -43,9 +40,10 @@ class PandaSlidesDeepMILModuleBenchmark(DeepMILModule):
         self.save_hyperparameters()
         self.n_epochs = n_epochs
 
-    def configure_optimizers(self) -> Dict[str, Any]:           # type: ignore
-        optimizer = optim.AdamW(self.parameters(), lr=self.optimizer_params.l_rate,
-                                weight_decay=self.optimizer_params.weight_decay)
+    def configure_optimizers(self) -> Dict[str, Any]:  # type: ignore
+        optimizer = optim.AdamW(
+            self.parameters(), lr=self.optimizer_params.l_rate, weight_decay=self.optimizer_params.weight_decay
+        )
         scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=self.n_epochs, eta_min=0)
         return {"optimizer": optimizer, "lr_scheduler": scheduler}
 
@@ -71,7 +69,8 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             max_epochs=50,
             l_rate=3e-4,
             weight_decay=0,
-            primary_val_metric=MetricsKey.ACC)
+            primary_val_metric=MetricsKey.ACC,
+        )
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
 
@@ -89,16 +88,20 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
     def get_transforms_dict(self, image_key: str) -> Dict[ModelKey, Union[Callable, None]]:
         # Use same transforms as demonstrated in
         # https://github.com/Project-MONAI/tutorials/blob/master/pathology/multiple_instance_learning/panda_mil_train_evaluate_pytorch_gpu.py
-        transform_train = Compose([
-            RandFlipd(keys=image_key, spatial_axis=0, prob=0.5),
-            RandFlipd(keys=image_key, spatial_axis=1, prob=0.5),
-            RandRotate90d(keys=image_key, prob=0.5),
-            ScaleIntensityRanged(keys=image_key, a_min=0.0, a_max=255.0),
-            MetaTensorToTensord(keys=image_key),  # rotate transforms add some metadata to affine matrix
-        ])
-        transform_inf = Compose([
-            ScaleIntensityRanged(keys=image_key, a_min=0.0, a_max=255.0),
-        ])
+        transform_train = Compose(
+            [
+                RandFlipd(keys=image_key, spatial_axis=0, prob=0.5),
+                RandFlipd(keys=image_key, spatial_axis=1, prob=0.5),
+                RandRotate90d(keys=image_key, prob=0.5),
+                ScaleIntensityRanged(keys=image_key, a_min=0.0, a_max=255.0),
+                MetaTensorToTensord(keys=image_key),  # rotate transforms add some metadata to affine matrix
+            ]
+        )
+        transform_inf = Compose(
+            [
+                ScaleIntensityRanged(keys=image_key, a_min=0.0, a_max=255.0),
+            ]
+        )
         return {ModelKey.TRAIN: transform_train, ModelKey.VAL: transform_inf, ModelKey.TEST: transform_inf}
 
     def get_data_module(self) -> PandaSlidesDataModuleBenchmark:  # type: ignore

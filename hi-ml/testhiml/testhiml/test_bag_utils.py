@@ -8,7 +8,7 @@ from pytorch_lightning import LightningModule, Trainer
 from torch.utils.data import DataLoader, Dataset
 
 
-from health_ml.utils.bag_utils import (BagSampler, create_bag_dataloader, multibag_collate)
+from health_ml.utils.bag_utils import BagSampler, create_bag_dataloader, multibag_collate
 
 # Run GPU tests only if available
 GPUS = [0, -1] if torch.cuda.is_available() else [0]  # type: ignore
@@ -31,10 +31,7 @@ def test_bag_sampler(shuffle_bags: bool, shuffle_samples: bool, max_bag_size: in
     n_bags = len(set(bag_ids))
     limited_bag_size = max_bag_size > 0
 
-    sampler = BagSampler(bag_ids,
-                         shuffle_bags=shuffle_bags,
-                         shuffle_samples=shuffle_samples,
-                         max_bag_size=max_bag_size)
+    sampler = BagSampler(bag_ids, shuffle_bags=shuffle_bags, shuffle_samples=shuffle_samples, max_bag_size=max_bag_size)
     assert len(sampler) == n_bags
 
     sampled_bags = list(sampler)
@@ -49,8 +46,7 @@ def test_bag_sampler(shuffle_bags: bool, shuffle_samples: bool, max_bag_size: in
         idx_counter.update(bag)
     assert all(count == 1 for count in idx_counter.values()), "There were repeated indices"
     if not limited_bag_size:
-        assert set(idx_counter) == set(range(n_samples)), \
-            "Sampled indices do not match input indices"
+        assert set(idx_counter) == set(range(n_samples)), "Sampled indices do not match input indices"
 
     # test sampled bag IDs
     bag_id_counter = Counter()  # type: ignore
@@ -66,20 +62,18 @@ def test_bag_sampler(shuffle_bags: bool, shuffle_samples: bool, max_bag_size: in
 @pytest.mark.parametrize('shuffle_samples', [False, True])
 @pytest.mark.parametrize('seed1', [None, 0])
 @pytest.mark.parametrize('seed2', [None, 0, 1])
-def test_bag_sampler_seeding(shuffle_bags: bool, shuffle_samples: bool,
-                             seed1: Optional[int], seed2: Optional[int]) -> None:
-
+def test_bag_sampler_seeding(
+    shuffle_bags: bool, shuffle_samples: bool, seed1: Optional[int], seed2: Optional[int]
+) -> None:
     bag_ids = list('aabeefecc')
 
-    sampler1 = BagSampler(bag_ids,
-                          shuffle_bags=shuffle_bags,
-                          shuffle_samples=shuffle_samples,
-                          generator=get_generator(seed1))
+    sampler1 = BagSampler(
+        bag_ids, shuffle_bags=shuffle_bags, shuffle_samples=shuffle_samples, generator=get_generator(seed1)
+    )
 
-    sampler2 = BagSampler(bag_ids,
-                          shuffle_bags=shuffle_bags,
-                          shuffle_samples=shuffle_samples,
-                          generator=get_generator(seed2))
+    sampler2 = BagSampler(
+        bag_ids, shuffle_bags=shuffle_bags, shuffle_samples=shuffle_samples, generator=get_generator(seed2)
+    )
 
     same_seed = (seed1 is not None) and (seed2 is not None) and seed1 == seed2
     same_bag_order = same_seed and not shuffle_bags
@@ -108,8 +102,10 @@ def test_bag_sampler_pickling() -> None:
 
     restored_sampler = pickle.loads(pickle.dumps(original_sampler))
 
-    assert torch.equal(torch.rand([1000], generator=original_sampler.generator),
-                       torch.rand([1000], generator=restored_sampler.generator))
+    assert torch.equal(
+        torch.rand([1000], generator=original_sampler.generator),
+        torch.rand([1000], generator=restored_sampler.generator),
+    )
 
 
 class MockMILDataset(Dataset):
@@ -124,18 +120,17 @@ class MockMILDataset(Dataset):
         return len(self.instance_ids)
 
     def __getitem__(self, index: int) -> Dict:
-        return {'input': self.inputs[index],
-                'label': self.labels[index],
-                'instance_id': self.instance_ids[index],
-                'bag_id': self.bag_ids[index]}
+        return {
+            'input': self.inputs[index],
+            'label': self.labels[index],
+            'instance_id': self.instance_ids[index],
+            'bag_id': self.bag_ids[index],
+        }
 
 
 def test_multibag_collate() -> None:
     # Use MockMILDataset as a minimal example of dictionary dataset
-    dataset = MockMILDataset(n_samples=100,
-                             n_classes=10,
-                             n_bags=8,
-                             input_shape=(1, 4, 4))
+    dataset = MockMILDataset(n_samples=100, n_classes=10, n_bags=8, input_shape=(1, 4, 4))
 
     batch_size = 5
     samples_list = [dataset[idx] for idx in range(batch_size)]
@@ -149,16 +144,14 @@ def test_multibag_collate() -> None:
     for key, value_list in batch.items():
         assert isinstance(value_list, List)
         assert len(value_list) == batch_size
-        assert all(torch.equal(value_list[idx], samples_list[idx][key])
-                   for idx in range(batch_size))
+        assert all(torch.equal(value_list[idx], samples_list[idx][key]) for idx in range(batch_size))
 
 
 @pytest.mark.parametrize('shuffle_bags', [False, True])
 @pytest.mark.parametrize('shuffle_samples', [False, True])
 @pytest.mark.parametrize('seed', [None, 0])
 @pytest.mark.parametrize('batch_size', [None, 1, 2])
-def test_bag_dataloader(shuffle_bags: bool, shuffle_samples: bool, batch_size: int,
-                        seed: Optional[int]) -> None:
+def test_bag_dataloader(shuffle_bags: bool, shuffle_samples: bool, batch_size: int, seed: Optional[int]) -> None:
     n_samples = 100
     n_classes = 10
     n_bags = 8
@@ -171,7 +164,7 @@ def test_bag_dataloader(shuffle_bags: bool, shuffle_samples: bool, batch_size: i
         shuffle_bags=shuffle_bags,
         shuffle_samples=shuffle_samples,
         batch_size=batch_size,
-        generator=get_generator(seed)
+        generator=get_generator(seed),
     )
 
     if batch_size is None:
@@ -203,11 +196,18 @@ def test_bag_dataloader(shuffle_bags: bool, shuffle_samples: bool, batch_size: i
 
 
 class InstrumentedLightningModule(LightningModule):
-    def __init__(self, base_dataset: Sequence, bag_ids: Sequence[int], batch_size: Optional[int],
-                 shuffle_bags: bool, shuffle_samples: bool,
-                 get_instance_id: Callable[[Any], Sequence],
-                 get_bag_id: Callable[[Any], Sequence],
-                 seed: Optional[int] = None, **dataloader_kwargs: Any) -> None:
+    def __init__(
+        self,
+        base_dataset: Sequence,
+        bag_ids: Sequence[int],
+        batch_size: Optional[int],
+        shuffle_bags: bool,
+        shuffle_samples: bool,
+        get_instance_id: Callable[[Any], Sequence],
+        get_bag_id: Callable[[Any], Sequence],
+        seed: Optional[int] = None,
+        **dataloader_kwargs: Any,
+    ) -> None:
         super().__init__()
         self.base_dataset = base_dataset
         self.bag_ids = bag_ids
@@ -225,12 +225,15 @@ class InstrumentedLightningModule(LightningModule):
         pass
 
     def train_dataloader(self) -> DataLoader:
-        return create_bag_dataloader(self.base_dataset, self.bag_ids,
-                                     batch_size=self.batch_size,
-                                     shuffle_bags=self.shuffle_bags,
-                                     shuffle_samples=self.shuffle_samples,
-                                     generator=self.generator,
-                                     **self.dataloader_kwargs)
+        return create_bag_dataloader(
+            self.base_dataset,
+            self.bag_ids,
+            batch_size=self.batch_size,
+            shuffle_bags=self.shuffle_bags,
+            shuffle_samples=self.shuffle_samples,
+            generator=self.generator,
+            **self.dataloader_kwargs,
+        )
 
     def on_train_epoch_start(self) -> None:  # type: ignore
         # mypy can't infer the parametrised type of empty collections
@@ -274,19 +277,17 @@ class InstrumentedLightningModule(LightningModule):
         self.n_bags_seen += n_bags_in_batch
 
     def on_train_epoch_end(self) -> None:  # type: ignore
-        assert all(count == 1 for count in self.instance_id_counter.values()), \
-            "There were repeated instances"
+        assert all(count == 1 for count in self.instance_id_counter.values()), "There were repeated instances"
         assert len(set(self.instance_id_counter)) == len(self.base_dataset)
 
-        assert set(self.bag_id_counter) == set(self.unique_bag_id_counter), \
-            "Inconsistent test state - this should not happen"
+        assert set(self.bag_id_counter) == set(
+            self.unique_bag_id_counter
+        ), "Inconsistent test state - this should not happen"
         assert self.bag_id_counter == self.expected_bag_sizes
 
-        assert all(count == 1 for count in self.unique_bag_id_counter.values()), \
-            "There were repeated bag IDs"
+        assert all(count == 1 for count in self.unique_bag_id_counter.values()), "There were repeated bag IDs"
         unique_bag_ids = set(self.bag_ids)
-        assert set(self.unique_bag_id_counter) == unique_bag_ids, \
-            "Sampled bag IDs do not match input bag IDs"
+        assert set(self.unique_bag_id_counter) == unique_bag_ids, "Sampled bag IDs do not match input bag IDs"
         assert self.n_bags_seen == len(unique_bag_ids)
 
 
@@ -308,6 +309,7 @@ def test_lightning_mock_dataset(shuffle_bags: bool, shuffle_samples: bool, gpus:
         get_instance_id=lambda batch: batch['instance_id'],
         get_bag_id=lambda batch: batch['bag_id'],
         seed=0,
-        num_workers=os.cpu_count())
+        num_workers=os.cpu_count(),
+    )
     trainer = Trainer(max_epochs=2, gpus=gpus)
     trainer.fit(module)

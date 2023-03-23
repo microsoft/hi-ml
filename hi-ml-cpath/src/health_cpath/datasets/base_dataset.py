@@ -33,6 +33,7 @@ class TilesDataset(Dataset):
     :param TILE_Y_COLUMN: CSV column name for vertical tile coordinate (optional).
     :param DEFAULT_CSV_FILENAME: Default name of the dataset CSV at the dataset rood directory.
     """
+
     TILE_ID_COLUMN: str = 'tile_id'
     SLIDE_ID_COLUMN: str = 'slide_id'
     IMAGE_COLUMN: str = 'image'
@@ -43,15 +44,17 @@ class TilesDataset(Dataset):
 
     DEFAULT_CSV_FILENAME: str = "dataset.csv"
 
-    def __init__(self,
-                 root: Union[str, Path],
-                 dataset_csv: Optional[Union[str, Path]] = None,
-                 dataset_df: Optional[pd.DataFrame] = None,
-                 train: Optional[bool] = None,
-                 validate_columns: bool = True,
-                 label_column: str = DEFAULT_LABEL_COLUMN,
-                 n_classes: int = 1,
-                 dataframe_kwargs: Dict[str, Any] = {}) -> None:
+    def __init__(
+        self,
+        root: Union[str, Path],
+        dataset_csv: Optional[Union[str, Path]] = None,
+        dataset_df: Optional[pd.DataFrame] = None,
+        train: Optional[bool] = None,
+        validate_columns: bool = True,
+        label_column: str = DEFAULT_LABEL_COLUMN,
+        n_classes: int = 1,
+        dataframe_kwargs: Dict[str, Any] = {},
+    ) -> None:
         """
         :param root: Root directory of the dataset.
         :param dataset_csv: Full path to a dataset CSV file, containing at least
@@ -98,8 +101,14 @@ class TilesDataset(Dataset):
         If the constructor is overloaded in a subclass, you can pass `validate_columns=False` and
         call `validate_columns()` after creating derived columns, for example.
         """
-        columns = [self.SLIDE_ID_COLUMN, self.IMAGE_COLUMN, self.label_column,
-                   self.SPLIT_COLUMN, self.TILE_X_COLUMN, self.TILE_Y_COLUMN]
+        columns = [
+            self.SLIDE_ID_COLUMN,
+            self.IMAGE_COLUMN,
+            self.label_column,
+            self.SPLIT_COLUMN,
+            self.TILE_X_COLUMN,
+            self.TILE_Y_COLUMN,
+        ]
         columns_not_found = []
         for column in columns:
             if column is not None and column not in self.dataset_df.columns:
@@ -112,10 +121,7 @@ class TilesDataset(Dataset):
 
     def __getitem__(self, index: int) -> Dict[str, Any]:
         tile_id = self.dataset_df.index[index]
-        sample = {
-            self.TILE_ID_COLUMN: tile_id,
-            **self.dataset_df.loc[tile_id].to_dict()
-        }
+        sample = {self.TILE_ID_COLUMN: tile_id, **self.dataset_df.loc[tile_id].to_dict()}
         sample[self.IMAGE_COLUMN] = str(self.root_dir / sample.pop(self.IMAGE_COLUMN))
         # we're replicating this column because we want to propagate the path to the batch
         sample[self.PATH_COLUMN] = sample[self.IMAGE_COLUMN]
@@ -139,13 +145,9 @@ class TilesDataset(Dataset):
         and `TILE_Y_COLUMN`."""
 
         if TileKey.TILE_LEFT in self.dataset_df.columns:
-            self.dataset_df = self.dataset_df.assign(
-                **{TilesDataset.TILE_X_COLUMN: self.dataset_df[TileKey.TILE_LEFT]}
-            )
+            self.dataset_df = self.dataset_df.assign(**{TilesDataset.TILE_X_COLUMN: self.dataset_df[TileKey.TILE_LEFT]})
         if TileKey.TILE_TOP in self.dataset_df.columns:
-            self.dataset_df = self.dataset_df.assign(
-                **{TilesDataset.TILE_Y_COLUMN: self.dataset_df[TileKey.TILE_TOP]}
-            )
+            self.dataset_df = self.dataset_df.assign(**{TilesDataset.TILE_Y_COLUMN: self.dataset_df[TileKey.TILE_TOP]})
 
 
 class SlidesDataset(Dataset):
@@ -158,6 +160,7 @@ class SlidesDataset(Dataset):
     :param SPLIT_COLUMN: CSV column name for train/test split (optional).
     :param DEFAULT_CSV_FILENAME: Default name of the dataset CSV at the dataset rood directory.
     """
+
     SLIDE_ID_COLUMN: str = 'slide_id'
     IMAGE_COLUMN: str = 'image'
     MASK_COLUMN: Optional[str] = None
@@ -167,15 +170,17 @@ class SlidesDataset(Dataset):
 
     DEFAULT_CSV_FILENAME: str = "dataset.csv"
 
-    def __init__(self,
-                 root: Union[str, Path],
-                 dataset_csv: Optional[Union[str, Path]] = None,
-                 dataset_df: Optional[pd.DataFrame] = None,
-                 train: Optional[bool] = None,
-                 validate_columns: bool = True,
-                 label_column: str = DEFAULT_LABEL_COLUMN,
-                 n_classes: int = 1,
-                 dataframe_kwargs: Dict[str, Any] = {}) -> None:
+    def __init__(
+        self,
+        root: Union[str, Path],
+        dataset_csv: Optional[Union[str, Path]] = None,
+        dataset_df: Optional[pd.DataFrame] = None,
+        train: Optional[bool] = None,
+        validate_columns: bool = True,
+        label_column: str = DEFAULT_LABEL_COLUMN,
+        n_classes: int = 1,
+        dataframe_kwargs: Dict[str, Any] = {},
+    ) -> None:
         """
         :param root: Root directory of the dataset.
         :param dataset_csv: Full path to a dataset CSV file, containing at least

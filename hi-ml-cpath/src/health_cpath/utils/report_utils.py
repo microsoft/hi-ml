@@ -12,10 +12,18 @@ import pandas as pd
 from azureml.core import Experiment, Run, Workspace
 
 from health_ml.utils.common_utils import df_to_json
-from health_azure.utils import (aggregate_hyperdrive_metrics, download_file_if_necessary, get_aml_run_from_run_id,
-                                get_tags_from_hyperdrive_run)
-from health_cpath.utils.output_utils import (AML_LEGACY_TEST_OUTPUTS_CSV, AML_TEST_OUTPUTS_CSV,
-                                             AML_VAL_OUTPUTS_CSV, validate_class_names)
+from health_azure.utils import (
+    aggregate_hyperdrive_metrics,
+    download_file_if_necessary,
+    get_aml_run_from_run_id,
+    get_tags_from_hyperdrive_run,
+)
+from health_cpath.utils.output_utils import (
+    AML_LEGACY_TEST_OUTPUTS_CSV,
+    AML_TEST_OUTPUTS_CSV,
+    AML_VAL_OUTPUTS_CSV,
+    validate_class_names,
+)
 from health_cpath.utils.naming import AMLMetricsJsonKey
 
 
@@ -34,9 +42,11 @@ def run_has_val_and_test_outputs(run: Run) -> bool:
     elif AML_LEGACY_TEST_OUTPUTS_CSV in available_files:
         return False
     else:
-        raise ValueError(f"Run {run.display_name} ({run.id}) does not have the expected files "
-                         f"({AML_LEGACY_TEST_OUTPUTS_CSV} or both {AML_VAL_OUTPUTS_CSV} and "
-                         f"{AML_TEST_OUTPUTS_CSV}): {available_files}")
+        raise ValueError(
+            f"Run {run.display_name} ({run.id}) does not have the expected files "
+            f"({AML_LEGACY_TEST_OUTPUTS_CSV} or both {AML_VAL_OUTPUTS_CSV} and "
+            f"{AML_TEST_OUTPUTS_CSV}): {available_files}"
+        )
 
 
 def child_runs_have_val_and_test_outputs(parent_run: Run) -> bool:
@@ -54,14 +64,20 @@ def child_runs_have_val_and_test_outputs(parent_run: Run) -> bool:
     elif not any(have_val_and_test_outputs):
         return False
     else:
-        raise ValueError(f"Parent run {parent_run.display_name} ({parent_run.id}) has mixed children with legacy "
-                         "test-only outputs and with both validation and test outputs")
+        raise ValueError(
+            f"Parent run {parent_run.display_name} ({parent_run.id}) has mixed children with legacy "
+            "test-only outputs and with both validation and test outputs"
+        )
 
 
-def collect_hyperdrive_outputs(parent_run_id: str, download_dir: Path, aml_workspace: Workspace,
-                               hyperdrive_arg_name: str = "crossval_index",
-                               output_filename: str = "test_output.csv",
-                               overwrite: bool = False) -> Dict[int, pd.DataFrame]:
+def collect_hyperdrive_outputs(
+    parent_run_id: str,
+    download_dir: Path,
+    aml_workspace: Workspace,
+    hyperdrive_arg_name: str = "crossval_index",
+    output_filename: str = "test_output.csv",
+    overwrite: bool = False,
+) -> Dict[int, pd.DataFrame]:
     """Fetch output CSV files from Hyperdrive child runs as dataframes.
 
     Will only download the CSV files if they do not already exist locally.
@@ -84,17 +100,22 @@ def collect_hyperdrive_outputs(parent_run_id: str, download_dir: Path, aml_works
             raise ValueError(f"Child run expected to have the tag '{hyperdrive_arg_name}'")
         child_dir = download_dir / str(child_run_index)
         try:
-            child_csv = download_file_if_necessary(child_run, output_filename, child_dir / output_filename,
-                                                   overwrite=overwrite)
+            child_csv = download_file_if_necessary(
+                child_run, output_filename, child_dir / output_filename, overwrite=overwrite
+            )
             all_outputs_dfs[child_run_index] = pd.read_csv(child_csv)
         except Exception as e:
             print(f"Failed to download {output_filename} for run {child_run.id}: {e}")
     return dict(sorted(all_outputs_dfs.items()))  # type: ignore
 
 
-def download_hyperdrive_metrics_if_required(parent_run_id: str, download_dir: Path, aml_workspace: Workspace,
-                                            hyperdrive_arg_name: str = "crossval_index",
-                                            overwrite: bool = False) -> Path:
+def download_hyperdrive_metrics_if_required(
+    parent_run_id: str,
+    download_dir: Path,
+    aml_workspace: Workspace,
+    hyperdrive_arg_name: str = "crossval_index",
+    overwrite: bool = False,
+) -> Path:
     """Fetch metrics logged to Azure ML from hyperdrive runs.
 
     Will only download the metrics if they do not already exist locally, as this can take several
@@ -111,9 +132,9 @@ def download_hyperdrive_metrics_if_required(parent_run_id: str, download_dir: Pa
     if not overwrite and metrics_json.is_file():
         print(f"AML metrics file already exists at {metrics_json}")
     else:
-        metrics_df = aggregate_hyperdrive_metrics(run_id=parent_run_id,
-                                                  child_run_arg_name=hyperdrive_arg_name,
-                                                  aml_workspace=aml_workspace)
+        metrics_df = aggregate_hyperdrive_metrics(
+            run_id=parent_run_id, child_run_arg_name=hyperdrive_arg_name, aml_workspace=aml_workspace
+        )
         metrics_json.parent.mkdir(parents=True, exist_ok=True)
         print(f"Writing AML metrics file to {metrics_json}")
         df_to_json(metrics_df, metrics_json)
@@ -156,8 +177,9 @@ def get_hyperdrive_metrics_table(metrics_df: pd.DataFrame, metrics_list: Sequenc
     return table
 
 
-def get_best_epochs(metrics_df: pd.DataFrame, primary_metric: str, max_epochs_dict: Dict[int, int],
-                    maximise: bool = True) -> Dict[int, Any]:
+def get_best_epochs(
+    metrics_df: pd.DataFrame, primary_metric: str, max_epochs_dict: Dict[int, int], maximise: bool = True
+) -> Dict[int, Any]:
     """Determine the best epoch for each hyperdrive child run based on a given metric.
 
     The returned epoch indices are relative to the logging frequency of the chosen metric, i.e.
@@ -175,17 +197,22 @@ def get_best_epochs(metrics_df: pd.DataFrame, primary_metric: str, max_epochs_di
         primary_metric_list = metrics_df[child_index][primary_metric]
         if primary_metric_list is not None:
             # If extra validation epoch was logged (N+1), return only the first N elements
-            primary_metric_list = primary_metric_list[:-1] \
-                if (len(primary_metric_list) == max_epochs_dict[child_index] + 1) else primary_metric_list
-            best_epochs[child_index] = int(np.argmax(primary_metric_list)
-                                           if maximise else np.argmin(primary_metric_list))
+            primary_metric_list = (
+                primary_metric_list[:-1]
+                if (len(primary_metric_list) == max_epochs_dict[child_index] + 1)
+                else primary_metric_list
+            )
+            best_epochs[child_index] = int(
+                np.argmax(primary_metric_list) if maximise else np.argmin(primary_metric_list)
+            )
         else:
             best_epochs[child_index] = None
     return best_epochs
 
 
-def get_best_epoch_metrics(metrics_df: pd.DataFrame, metrics_list: Sequence[str],
-                           best_epochs: Dict[int, Any]) -> pd.DataFrame:
+def get_best_epoch_metrics(
+    metrics_df: pd.DataFrame, metrics_list: Sequence[str], best_epochs: Dict[int, Any]
+) -> pd.DataFrame:
     """Extract the values of the selected hyperdrive metrics at the given best epochs.
 
     The `best_epoch` indices are relative to the logging frequency of the chosen primary metric,
@@ -200,8 +227,12 @@ def get_best_epoch_metrics(metrics_df: pd.DataFrame, metrics_list: Sequence[str]
     :return: Dataframe with the same columns as `metrics_df` and rows specified by `metrics_list`,
         containing only scalar values.
     """
-    best_metrics = [metrics_df.loc[metrics_list, k].apply(lambda values: values[epoch])
-                    if epoch is not None else metrics_df.loc[metrics_list, k] for k, epoch in best_epochs.items()]
+    best_metrics = [
+        metrics_df.loc[metrics_list, k].apply(lambda values: values[epoch])
+        if epoch is not None
+        else metrics_df.loc[metrics_list, k]
+        for k, epoch in best_epochs.items()
+    ]
     best_metrics_df = pd.DataFrame(best_metrics).T
     return best_metrics_df
 
@@ -214,6 +245,7 @@ def get_formatted_run_info(parent_run: Run) -> str:
     :param parent_run: Parent Hyperdrive Azure ML run object.
     :return: Formatted HTML string.
     """
+
     def format_experiment(experiment: Experiment) -> str:
         return f"<a href={experiment.get_portal_url()}>{experiment.name}</a>"
 

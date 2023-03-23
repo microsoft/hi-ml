@@ -27,14 +27,21 @@ from health_cpath.datasets.default_paths import TCGA_CRCK_DATASET_DIR
 from health_cpath.datasets.panda_tiles_dataset import PandaTilesDataset
 from health_cpath.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
 from health_cpath.models.encoders import Resnet18
-from health_cpath.models.transforms import (EncodeTilesBatchd, ExtractCoordinatesd, LoadTiled, TimerWrapper,
-                                            LoadTilesBatchd, MetaTensorToTensord, Subsampled, transform_dict_adaptor,
-                                            NormalizeBackgroundd)
+from health_cpath.models.transforms import (
+    EncodeTilesBatchd,
+    ExtractCoordinatesd,
+    LoadTiled,
+    TimerWrapper,
+    LoadTilesBatchd,
+    MetaTensorToTensord,
+    Subsampled,
+    transform_dict_adaptor,
+    NormalizeBackgroundd,
+)
 from testhisto.utils.utils_testhisto import assert_dicts_equal
 
 
-@pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR),
-                    reason="TCGA-CRCk tiles dataset is unavailable")
+@pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR), reason="TCGA-CRCk tiles dataset is unavailable")
 def test_load_tile() -> None:
     tiles_dataset = TcgaCrck_TilesDataset(TCGA_CRCK_DATASET_DIR)
     image_key = tiles_dataset.IMAGE_COLUMN
@@ -56,14 +63,14 @@ def test_load_tile() -> None:
     assert not torch.allclose(different_sample[image_key], loaded_sample[image_key])
 
 
-@pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR),
-                    reason="TCGA-CRCk tiles dataset is unavailable")
+@pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR), reason="TCGA-CRCk tiles dataset is unavailable")
 def test_load_tiles_batch() -> None:
     tiles_dataset = TcgaCrck_TilesDataset(TCGA_CRCK_DATASET_DIR)
     image_key = tiles_dataset.IMAGE_COLUMN
     max_bag_size = 5
-    bagged_dataset = BagDataset(tiles_dataset, bag_ids=tiles_dataset.slide_ids,  # type: ignore
-                                max_bag_size=max_bag_size)
+    bagged_dataset = BagDataset(
+        tiles_dataset, bag_ids=tiles_dataset.slide_ids, max_bag_size=max_bag_size  # type: ignore
+    )
     load_batch_transform = LoadTilesBatchd(image_key)
     loaded_dataset = Dataset(tiles_dataset, transform=LoadTiled(image_key))  # type:ignore
     image_shape = loaded_dataset[0][image_key].shape
@@ -86,9 +93,9 @@ def test_load_tiles_batch() -> None:
     assert not torch.allclose(different_batch[image_key], manually_loaded_batch[image_key])
 
     # Test that loading and bagging commute
-    bagged_loaded_dataset = BagDataset(loaded_dataset,  # type: ignore
-                                       bag_ids=tiles_dataset.slide_ids,
-                                       max_bag_size=max_bag_size)
+    bagged_loaded_dataset = BagDataset(
+        loaded_dataset, bag_ids=tiles_dataset.slide_ids, max_bag_size=max_bag_size  # type: ignore
+    )
     bagged_loaded_batch = bagged_loaded_dataset[index]
     assert_dicts_equal(bagged_loaded_batch, loaded_bagged_batch)
 
@@ -98,8 +105,9 @@ def test_itensity_scaling_load_tiles_batch(scale_intensity: bool, mock_panda_til
     tiles_dataset = PandaTilesDataset(mock_panda_tiles_root_dir)
     image_key = tiles_dataset.IMAGE_COLUMN
     max_bag_size = 4
-    bagged_dataset = BagDataset(tiles_dataset, bag_ids=tiles_dataset.slide_ids,  # type: ignore
-                                max_bag_size=max_bag_size)
+    bagged_dataset = BagDataset(
+        tiles_dataset, bag_ids=tiles_dataset.slide_ids, max_bag_size=max_bag_size  # type: ignore
+    )
     load_batch_transform = LoadTilesBatchd(image_key, scale_intensity=scale_intensity)
     index = 0
 
@@ -108,7 +116,7 @@ def test_itensity_scaling_load_tiles_batch(scale_intensity: bool, mock_panda_til
     manually_loaded_batch = load_batch_transform(bagged_batch)
 
     pixels_dtype = torch.uint8 if not scale_intensity else torch.float32
-    max_val = 255 if not scale_intensity else 1.
+    max_val = 255 if not scale_intensity else 1.0
 
     for tile in manually_loaded_batch[image_key]:
         assert tile.dtype == pixels_dtype
@@ -119,58 +127,53 @@ def test_itensity_scaling_load_tiles_batch(scale_intensity: bool, mock_panda_til
         assert tile.unique().shape[0] > 1
 
 
-def _test_cache_and_persistent_datasets(tmp_path: Path,
-                                        base_dataset: TorchDataset,
-                                        transform: Union[Sequence[Callable], Callable],
-                                        cache_subdir: str) -> None:
+def _test_cache_and_persistent_datasets(
+    tmp_path: Path, base_dataset: TorchDataset, transform: Union[Sequence[Callable], Callable], cache_subdir: str
+) -> None:
     default_dataset = Dataset(base_dataset, transform=transform)  # type: ignore
     cached_dataset = CacheDataset(base_dataset, transform=transform)  # type: ignore
     cache_dir = tmp_path / cache_subdir
     cache_dir.mkdir(exist_ok=True)
-    persistent_dataset = PersistentDataset(base_dataset, transform=transform,  # type: ignore
-                                           cache_dir=cache_dir)
+    persistent_dataset = PersistentDataset(base_dataset, transform=transform, cache_dir=cache_dir)  # type: ignore
 
-    for default_sample, cached_sample, persistent_sample \
-            in zip(default_dataset, cached_dataset, persistent_dataset):  # type: ignore
+    for default_sample, cached_sample, persistent_sample in zip(
+        default_dataset, cached_dataset, persistent_dataset
+    ):  # type: ignore
         assert_dicts_equal(cached_sample, default_sample)
         assert_dicts_equal(persistent_sample, default_sample)
 
 
-@pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR),
-                    reason="TCGA-CRCk tiles dataset is unavailable")
+@pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR), reason="TCGA-CRCk tiles dataset is unavailable")
 def test_cached_loading(tmp_path: Path) -> None:
     tiles_dataset = TcgaCrck_TilesDataset(TCGA_CRCK_DATASET_DIR)
     image_key = tiles_dataset.IMAGE_COLUMN
 
     max_num_tiles = 100
     tiles_subset = Subset(tiles_dataset, range(max_num_tiles))
-    _test_cache_and_persistent_datasets(tmp_path,
-                                        tiles_subset,
-                                        transform=LoadTiled(image_key),
-                                        cache_subdir="TCGA-CRCk_tiles_cache")
+    _test_cache_and_persistent_datasets(
+        tmp_path, tiles_subset, transform=LoadTiled(image_key), cache_subdir="TCGA-CRCk_tiles_cache"
+    )
 
     max_bag_size = 5
     max_num_bags = max_num_tiles // max_bag_size
-    bagged_dataset = BagDataset(tiles_dataset, bag_ids=tiles_dataset.slide_ids,  # type: ignore
-                                max_bag_size=max_bag_size)
+    bagged_dataset = BagDataset(
+        tiles_dataset, bag_ids=tiles_dataset.slide_ids, max_bag_size=max_bag_size  # type: ignore
+    )
     bagged_subset = Subset(bagged_dataset, range(max_num_bags))
-    _test_cache_and_persistent_datasets(tmp_path,
-                                        bagged_subset,
-                                        transform=LoadTilesBatchd(image_key),
-                                        cache_subdir="TCGA-CRCk_load_cache")
+    _test_cache_and_persistent_datasets(
+        tmp_path, bagged_subset, transform=LoadTilesBatchd(image_key), cache_subdir="TCGA-CRCk_load_cache"
+    )
 
 
-@pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR),
-                    reason="TCGA-CRCk tiles dataset is unavailable")
-@pytest.mark.parametrize('use_gpu , chunk_size',
-                         [(False, 0), (False, 2), (True, 0), (True, 2)]
-                         )
+@pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR), reason="TCGA-CRCk tiles dataset is unavailable")
+@pytest.mark.parametrize('use_gpu , chunk_size', [(False, 0), (False, 2), (True, 0), (True, 2)])
 def test_encode_tiles(tmp_path: Path, use_gpu: bool, chunk_size: int) -> None:
     tiles_dataset = TcgaCrck_TilesDataset(TCGA_CRCK_DATASET_DIR)
     image_key = tiles_dataset.IMAGE_COLUMN
     max_bag_size = 5
-    bagged_dataset = BagDataset(tiles_dataset, bag_ids=tiles_dataset.slide_ids,  # type: ignore
-                                max_bag_size=max_bag_size)
+    bagged_dataset = BagDataset(
+        tiles_dataset, bag_ids=tiles_dataset.slide_ids, max_bag_size=max_bag_size  # type: ignore
+    )
 
     encoder = Resnet18(tile_size=224, n_channels=3)
     if use_gpu:
@@ -185,10 +188,9 @@ def test_encode_tiles(tmp_path: Path, use_gpu: bool, chunk_size: int) -> None:
 
     max_num_bags = 20
     bagged_subset = Subset(bagged_dataset, range(max_num_bags))
-    _test_cache_and_persistent_datasets(tmp_path,
-                                        bagged_subset,
-                                        transform=transform,
-                                        cache_subdir="TCGA-CRCk_embed_cache")
+    _test_cache_and_persistent_datasets(
+        tmp_path, bagged_subset, transform=transform, cache_subdir="TCGA-CRCk_embed_cache"
+    )
 
 
 @pytest.mark.parametrize('include_non_indexable', [True, False])
@@ -211,8 +213,7 @@ def test_subsample(include_non_indexable: bool, allow_missing_keys: bool) -> Non
         keys_to_subsample.remove('non-indexable')
     keys_to_subsample.append('missing-key')
 
-    subsampling = Subsampled(keys_to_subsample, max_size=max_size,
-                             allow_missing_keys=allow_missing_keys)
+    subsampling = Subsampled(keys_to_subsample, max_size=max_size, allow_missing_keys=allow_missing_keys)
     subsampling.set_random_state(seed=0)
     if include_non_indexable:
         with pytest.raises(ValueError):
@@ -267,7 +268,7 @@ def test_shuffle(max_size: int) -> None:
     shuffling = Subsampled(keys_to_subsample, max_size=max_size, allow_missing_keys=True)
     shuffling.randomize(total_size=max_size)
     indices = shuffling._indices
-    assert len(indices) <= len(data['indices'])         # type: ignore
+    assert len(indices) <= len(data['indices'])  # type: ignore
     assert len(indices) == len(set(indices))
 
 
@@ -299,9 +300,11 @@ def _get_sample(wsi_is_cropped: bool = False) -> Dict:
     ys = torch.randint(0, h, (bag_size,))
     coords = torch.stack([ys, xs], dim=0)
     metadata = {WSIPatchKeys.LOCATION: coords, WSIPatchKeys.COUNT: bag_size}
-    sample: Dict[str, Any] = {SlideKey.IMAGE: MetaTensor(tiles, meta=metadata),
-                              SlideKey.LABEL: 0,
-                              SlideKey.SLIDE_ID: "0"}
+    sample: Dict[str, Any] = {
+        SlideKey.IMAGE: MetaTensor(tiles, meta=metadata),
+        SlideKey.LABEL: 0,
+        SlideKey.SLIDE_ID: "0",
+    }
     if wsi_is_cropped:
         sample[SlideKey.ORIGIN] = (2, 3)
         sample[SlideKey.SCALE] = 4
@@ -336,7 +339,7 @@ def test_extract_offset(wsi_is_cropped: bool) -> None:
 def test_extract_coordinates_d_transform(roi_type: ROIType) -> None:
     tile_size = 16
     bag_size = 2
-    wsi_is_cropped = (roi_type != ROIType.WHOLE)
+    wsi_is_cropped = roi_type != ROIType.WHOLE
     sample = _get_sample(wsi_is_cropped=wsi_is_cropped)
 
     transform = ExtractCoordinatesd(tile_size=tile_size, image_key=SlideKey.IMAGE)

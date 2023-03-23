@@ -16,8 +16,9 @@ from torch import cuda
 from PIL import Image
 
 
-def assert_dicts_equal(d1: Mapping, d2: Mapping, exclude_keys: Collection[Any] = (),
-                       rtol: float = 1e-5, atol: float = 1e-8) -> None:
+def assert_dicts_equal(
+    d1: Mapping, d2: Mapping, exclude_keys: Collection[Any] = (), rtol: float = 1e-5, atol: float = 1e-8
+) -> None:
     assert isinstance(d1, Mapping)
     assert isinstance(d2, Mapping)
     keys1 = [key for key in d1 if key not in exclude_keys]
@@ -76,8 +77,9 @@ def full_ml_test_data_path(suffix: str = "") -> Path:
     return test_data_dir / suffix
 
 
-def _run_distributed_process(rank: int, world_size: int, fn: Callable[..., None], args: Sequence[Any] = (),
-                             backend: str = 'nccl') -> None:
+def _run_distributed_process(
+    rank: int, world_size: int, fn: Callable[..., None], args: Sequence[Any] = (), backend: str = 'nccl'
+) -> None:
     """Run a function in the current subprocess within a PyTorch Distributed context.
 
     This function should be called with :py:func:`torch.multiprocessing.spawn()`.

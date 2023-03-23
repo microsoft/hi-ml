@@ -30,7 +30,8 @@ class _Projection(nn.Module):
             nn.Linear(self.input_dim, self.hidden_dim, bias=True),
             nn.BatchNorm1d(self.hidden_dim),
             nn.ReLU(),
-            nn.Linear(self.hidden_dim, self.output_dim, bias=False))
+            nn.Linear(self.hidden_dim, self.output_dim, bias=False),
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.model(x)
@@ -38,8 +39,9 @@ class _Projection(nn.Module):
 
 
 class SimClrHiml(SimCLR):
-    def __init__(self, encoder_name: str, dataset_name: str, use_7x7_first_conv_in_resnet: bool = True,
-                 **kwargs: Any) -> None:
+    def __init__(
+        self, encoder_name: str, dataset_name: str, use_7x7_first_conv_in_resnet: bool = True, **kwargs: Any
+    ) -> None:
         """
         Returns SimCLR pytorch-lightning module, based on lightning-bolts implementation.
         :param encoder_name: Image encoder name (predefined models)

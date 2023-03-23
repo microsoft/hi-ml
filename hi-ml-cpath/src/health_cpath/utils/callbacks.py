@@ -243,7 +243,7 @@ class LossAnalysisCallback(Callback):
         epoch: int,
         stage: ModelKey,
         high: Optional[bool] = None,
-        num_values: Optional[int] = None
+        num_values: Optional[int] = None,
     ) -> List[np.ndarray]:
         """Selects the values corresponding to keys from a dataframe for the given epoch and stage.
 
@@ -420,7 +420,7 @@ class LossAnalysisCallback(Callback):
         epoch: int,
         stage: ModelKey,
         high: bool,
-        figsize: Tuple[float, float] = (15, 15)
+        figsize: Tuple[float, float] = (15, 15),
     ) -> None:
         """Plots the loss values for each slide across all epochs in a heatmap.
 
@@ -484,11 +484,11 @@ class LossAnalysisCallback(Callback):
         for epoch in self.epochs_range:
             epoch_slides = self.select_slides_for_epoch(epoch, stage=stage)
 
-            top_slides = epoch_slides[:self.num_slides_heatmap]
+            top_slides = epoch_slides[: self.num_slides_heatmap]
             top_slides_loss_values = self.select_all_losses_for_selected_slides(top_slides, stage=stage)
             self.plot_loss_heatmap_for_slides_of_epoch(top_slides_loss_values, epoch, stage, high=True)
 
-            bottom_slides = epoch_slides[-self.num_slides_heatmap:]
+            bottom_slides = epoch_slides[-self.num_slides_heatmap :]
             bottom_slides_loss_values = self.select_all_losses_for_selected_slides(bottom_slides, stage=stage)
             self.plot_loss_heatmap_for_slides_of_epoch(bottom_slides_loss_values, epoch, stage, high=False)
         self.loss_cache[stage] = self.get_empty_loss_cache()  # reset loss cache
@@ -511,7 +511,7 @@ class LossAnalysisCallback(Callback):
         outputs: BatchResultsType,
         batch: Dict,
         batch_idx: int,
-        unused: int = 0
+        unused: int = 0,
     ) -> None:
         """Caches train loss values per slide at each training step in a local variable self.loss_cache."""
         self.update_loss_cache(trainer, outputs, batch, stage=ModelKey.TRAIN)
@@ -523,7 +523,7 @@ class LossAnalysisCallback(Callback):
         outputs: BatchResultsType,
         batch: Any,
         batch_idx: int,
-        dataloader_idx: int
+        dataloader_idx: int,
     ) -> None:
         """Caches validation loss values per slide at each training step in a local variable self.loss_cache."""
         self.update_loss_cache(trainer, outputs, batch, stage=ModelKey.VAL)

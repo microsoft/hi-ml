@@ -52,7 +52,7 @@ class PolynomialLR:
 
     def get_lr(self, epoch: int) -> float:
         x = self.min_l_rate / self.l_rate
-        return (1 - x) * ((1. - float(epoch) / self.epochs_after_warmup) ** self.gamma) + x
+        return (1 - x) * ((1.0 - float(epoch) / self.epochs_after_warmup) ** self.gamma) + x
 
 
 class SchedulerWithWarmUp(_LRScheduler):
@@ -69,10 +69,9 @@ class SchedulerWithWarmUp(_LRScheduler):
         self._scheduler = self.get_scheduler(args)
         # This must be called after self.get_scheduler, because we want the optimizer to have the learning rate
         # guided by the warmup schedule
-        self._warmup = LinearWarmUp(optimizer,
-                                    warmup_epochs=self.warmup_epochs,
-                                    final_lr=args.l_rate,
-                                    last_epoch=last_epoch)
+        self._warmup = LinearWarmUp(
+            optimizer, warmup_epochs=self.warmup_epochs, final_lr=args.l_rate, last_epoch=last_epoch
+        )
         self._last_lr = get_current_learning_rates(optimizer)
         self.min_l_rate = args.min_l_rate
         super().__init__(optimizer, last_epoch)
@@ -84,33 +83,36 @@ class SchedulerWithWarmUp(_LRScheduler):
         scheduler: _LRScheduler
         epochs_after_warmup = self.num_epochs - self.warmup_epochs
         if args.l_rate_scheduler == LRSchedulerType.Exponential:
-            scheduler = ExponentialLR(optimizer=self.optimizer,
-                                      gamma=args.l_rate_exponential_gamma,
-                                      last_epoch=self.last_epoch)
+            scheduler = ExponentialLR(
+                optimizer=self.optimizer, gamma=args.l_rate_exponential_gamma, last_epoch=self.last_epoch
+            )
         elif args.l_rate_scheduler == LRSchedulerType.Step:
-            scheduler = StepLR(optimizer=self.optimizer,
-                               step_size=args.l_rate_step_step_size,
-                               gamma=args.l_rate_step_gamma,
-                               last_epoch=self.last_epoch)
+            scheduler = StepLR(
+                optimizer=self.optimizer,
+                step_size=args.l_rate_step_step_size,
+                gamma=args.l_rate_step_gamma,
+                last_epoch=self.last_epoch,
+            )
         elif args.l_rate_scheduler == LRSchedulerType.MultiStep:
             assert args.l_rate_multi_step_milestones is not None
-            scheduler = MultiStepLR(optimizer=self.optimizer,
-                                    milestones=args.l_rate_multi_step_milestones,
-                                    gamma=args.l_rate_multi_step_gamma,
-                                    last_epoch=self.last_epoch)
+            scheduler = MultiStepLR(
+                optimizer=self.optimizer,
+                milestones=args.l_rate_multi_step_milestones,
+                gamma=args.l_rate_multi_step_gamma,
+                last_epoch=self.last_epoch,
+            )
         elif args.l_rate_scheduler == LRSchedulerType.Polynomial:
-            polynomial_lr = PolynomialLR(gamma=args.l_rate_polynomial_gamma,
-                                         l_rate=args.l_rate,
-                                         min_l_rate=args.min_l_rate,
-                                         epochs_after_warmup=epochs_after_warmup)
-            scheduler = LambdaLR(optimizer=self.optimizer,
-                                 lr_lambda=polynomial_lr.get_lr,
-                                 last_epoch=self.last_epoch)
+            polynomial_lr = PolynomialLR(
+                gamma=args.l_rate_polynomial_gamma,
+                l_rate=args.l_rate,
+                min_l_rate=args.min_l_rate,
+                epochs_after_warmup=epochs_after_warmup,
+            )
+            scheduler = LambdaLR(optimizer=self.optimizer, lr_lambda=polynomial_lr.get_lr, last_epoch=self.last_epoch)
         elif args.l_rate_scheduler == LRSchedulerType.Cosine:
-            scheduler = CosineAnnealingLR(optimizer=self.optimizer,
-                                          T_max=epochs_after_warmup,
-                                          eta_min=args.min_l_rate,
-                                          last_epoch=self.last_epoch)
+            scheduler = CosineAnnealingLR(
+                optimizer=self.optimizer, T_max=epochs_after_warmup, eta_min=args.min_l_rate, last_epoch=self.last_epoch
+            )
         else:
             raise ValueError("Unknown learning rate scheduler {}".format(args.l_rate_scheduler))
         return scheduler
@@ -122,8 +124,11 @@ class SchedulerWithWarmUp(_LRScheduler):
         state_dict for these variables.
         The state dict does not include the state of the optimizer.
         """
-        state_dict = {key: val for key, val in self.__dict__.items()
-                      if key != "_scheduler" and key != "optimizer" and key != "_warmup"}
+        state_dict = {
+            key: val
+            for key, val in self.__dict__.items()
+            if key != "_scheduler" and key != "optimizer" and key != "_warmup"
+        }
 
         state_dict['_scheduler'] = self._scheduler.state_dict()
         state_dict['_warmup'] = self._warmup.state_dict()

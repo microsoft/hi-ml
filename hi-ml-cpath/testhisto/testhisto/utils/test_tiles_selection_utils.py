@@ -58,7 +58,7 @@ def _batch_data(data: Dict, batch_idx: int, batch_size: int) -> Dict:
     """Helper function to generate smaller batches from a dictionary."""
     batch = {}
     for k in data:
-        batch[k] = data[k][batch_idx * batch_size: (batch_idx + 1) * batch_size]
+        batch[k] = data[k][batch_idx * batch_size : (batch_idx + 1) * batch_size]
     return batch
 
 
@@ -128,8 +128,12 @@ def _get_expected_slides_by_probability(
 @pytest.mark.parametrize("num_top_slides", [2, 10])
 @pytest.mark.parametrize("n_classes", [2, 3])  # n_classes=2 represents the binary case.
 def test_aggregate_shallow_slide_nodes(
-    n_classes: int, num_top_slides: int, uneven_samples: bool = False, rank: int = 0, world_size: int = 1,
-    device: str = "cpu"
+    n_classes: int,
+    num_top_slides: int,
+    uneven_samples: bool = False,
+    rank: int = 0,
+    world_size: int = 1,
+    device: str = "cpu",
 ) -> None:
     """This test ensures that shallow copies of slide nodes are gathered properlyy across devices in a ddp context."""
     n_tiles = 3
@@ -160,7 +164,6 @@ def test_aggregate_shallow_slide_nodes(
 
     if rank == 0:
         for label in range(n_classes):
-
             assert all(slide_node.pred_label == slide_node.true_label for slide_node in shallow_top_slides_heaps[label])
             selected_top_slides_ids = {slide_node.slide_id for slide_node in shallow_top_slides_heaps[label]}
             expected_top_slides_ids = _get_expected_slides_by_probability(results, num_top_slides, label, top=True)
@@ -235,20 +238,24 @@ def assert_equal_top_bottom_attention_tiles(
 @pytest.mark.parametrize("num_top_slides", [2, 10])
 @pytest.mark.parametrize("n_classes", [2, 3])  # n_classes=2 represents the binary case.
 def test_select_k_top_bottom_tiles_on_the_fly(
-    n_classes: int, num_top_slides: int, uneven_samples: bool = False, rank: int = 0, world_size: int = 1,
-    device: str = "cpu"
+    n_classes: int,
+    num_top_slides: int,
+    uneven_samples: bool = False,
+    rank: int = 0,
+    world_size: int = 1,
+    device: str = "cpu",
 ) -> None:
     """This tests checks that k top and bottom tiles are selected properly `on the fly`:
-        1- Create a mock dataset and corresponding mock results that are small enough to fit in memory
-        2- Create a tiles selector that is only exposed to a subset of the data distributed across devices. This
-           selector updates its top and bottom slides and tiles sequentially as we processes smaller batches of data.
-        3- Gather top and bottom tiles if ddp context
-        4- Select expected top slides from the entire dataset using torch.topk given that it's a small set that fits
-           entirely in memory.
-        5- Assert that the top slides selected on the fly are equal to the expected top slides selected from the entire
-           dataset for both ddp and single device runs.
-        6- Assert that corresponding top and bottom tiles are equal as well
-        7- Repeat steps 4, 5 and 6 for bottom slides.
+    1- Create a mock dataset and corresponding mock results that are small enough to fit in memory
+    2- Create a tiles selector that is only exposed to a subset of the data distributed across devices. This
+       selector updates its top and bottom slides and tiles sequentially as we processes smaller batches of data.
+    3- Gather top and bottom tiles if ddp context
+    4- Select expected top slides from the entire dataset using torch.topk given that it's a small set that fits
+       entirely in memory.
+    5- Assert that the top slides selected on the fly are equal to the expected top slides selected from the entire
+       dataset for both ddp and single device runs.
+    6- Assert that corresponding top and bottom tiles are equal as well
+    7- Repeat steps 4, 5 and 6 for bottom slides.
     """
 
     n_tiles = 3
@@ -269,7 +276,6 @@ def test_select_k_top_bottom_tiles_on_the_fly(
 
     if rank == 0:
         for label in range(n_classes):
-
             assert all(
                 slide_node.pred_label == slide_node.true_label for slide_node in tiles_selector.top_slides_heaps[label]
             )

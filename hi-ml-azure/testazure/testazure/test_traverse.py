@@ -110,11 +110,14 @@ def test_traverse_params_readonly() -> None:
 def test_traverse_list() -> None:
     """Lists of basic datatypes should be serialized"""
     list_config = ConfigWithList(list_field=[1, 2.5, "foo"])
-    assert object_to_yaml(list_config) == """list_field:
+    assert (
+        object_to_yaml(list_config)
+        == """list_field:
 - 1
 - 2.5
 - foo
 """
+    )
     list_config.list_field = [1, dict()]
     with pytest.raises(ValueError) as ex:
         object_to_dict(list_config)
@@ -133,10 +136,13 @@ def test_is_basic() -> None:
 def test_traverse_dict() -> None:
     """Fields with dictionaries with basic datatypes should be serialized"""
     list_config = ConfigWithList(list_field={1: "foo", "bar": 2.0})
-    assert object_to_yaml(list_config) == """list_field:
+    assert (
+        object_to_yaml(list_config)
+        == """list_field:
   1: foo
   bar: 2.0
 """
+    )
     # Invalid dictionaries contain non-basic types either as keys or as values
     for invalid in [{"foo": dict()}, {(1, 2): "foo"}]:
         list_config.list_field = invalid  # type: ignore
@@ -165,9 +171,12 @@ def test_traverse_none() -> None:
     config.optimizer = None
     assert _object_to_dict(None) is None
     assert _object_to_dict(config) == {"learning_rate": 1e-3, "optimizer": None}
-    assert object_to_yaml(config) == """learning_rate: 0.001
+    assert (
+        object_to_yaml(config)
+        == """learning_rate: 0.001
 optimizer: null
 """
+    )
 
 
 def test_to_yaml_rountrip() -> None:
@@ -219,8 +228,10 @@ def test_write_nested() -> None:
     blur_sigma = 8.0
     learning_rate = 3.0
     optimizer = "Foo"
-    d1 = {"transforms": {"blur_sigma": blur_sigma, "blur_p": blur_p},
-          "optimizer": {"learning_rate": learning_rate, "optimizer": optimizer}}
+    d1 = {
+        "transforms": {"blur_sigma": blur_sigma, "blur_p": blur_p},
+        "optimizer": {"learning_rate": learning_rate, "optimizer": optimizer},
+    }
     d = {"float1": float1, "int1": int1, "nested": d1}
     write_dict_to_object(obj, d)
     assert obj.float1 == float1
@@ -276,9 +287,12 @@ def test_object_to_yaml_floats() -> None:
     config = TransformConfig()
     config.blur_p = 1.0
     yaml = object_to_yaml(config)
-    assert yaml == """blur_p: 1.0
+    assert (
+        yaml
+        == """blur_p: 1.0
 blur_sigma: 0.1
 """
+    )
 
 
 def test_write_dict_errors1(caplog: LogCaptureFixture) -> None:

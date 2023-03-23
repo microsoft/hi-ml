@@ -15,8 +15,7 @@ from health_cpath.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
 from health_cpath.models.transforms import LoadTiled
 
 
-@pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR),
-                    reason="TCGA-CRCk dataset is unavailable")
+@pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR), reason="TCGA-CRCk dataset is unavailable")
 @pytest.mark.parametrize('train', [True, False])
 def test_dataset(train: bool) -> None:
     base_dataset = TcgaCrck_TilesDataset(TCGA_CRCK_DATASET_DIR, train=train)

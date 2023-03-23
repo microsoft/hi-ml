@@ -44,6 +44,7 @@ def create_ssl_encoder(encoder_name: str, use_7x7_first_conv_in_resnet: bool = T
     """
     from pl_bolts.models.self_supervised.resnets import resnet18, resnet50, resnet101
     from SSL.encoders import DenseNet121Encoder
+
     if encoder_name == 'resnet18':
         encoder = resnet18(return_all_feature_maps=False, first_conv=use_7x7_first_conv_in_resnet)
     elif encoder_name == 'resnet50':
@@ -52,18 +53,19 @@ def create_ssl_encoder(encoder_name: str, use_7x7_first_conv_in_resnet: bool = T
         encoder = resnet101(return_all_feature_maps=False, first_conv=use_7x7_first_conv_in_resnet)
     elif encoder_name == 'densenet121':
         if not use_7x7_first_conv_in_resnet:
-            raise ValueError("You set use_7x7_first_conv_in_resnet to False (non-default) but you requested a "
-                             "DenseNet121 encoder.")
+            raise ValueError(
+                "You set use_7x7_first_conv_in_resnet to False (non-default) but you requested a "
+                "DenseNet121 encoder."
+            )
         encoder = DenseNet121Encoder()
     else:
         raise ValueError("Unknown model type")
     return encoder
 
 
-def create_ssl_image_classifier(num_classes: int,
-                                freeze_encoder: bool,
-                                pl_checkpoint_path: str,
-                                class_weights: Optional[torch.Tensor] = None) -> LightningModuleWithOptimizer:
+def create_ssl_image_classifier(
+    num_classes: int, freeze_encoder: bool, pl_checkpoint_path: str, class_weights: Optional[torch.Tensor] = None
+) -> LightningModuleWithOptimizer:
     """
     Creates a SSL image classifier from a frozen encoder trained on in an unsupervised manner.
     """
@@ -89,10 +91,9 @@ def create_ssl_image_classifier(num_classes: int,
     else:
         raise NotImplementedError(f"Unknown unsupervised model: {ssl_type}")
 
-    model = SSLClassifier(num_classes=num_classes,
-                          encoder=encoder,
-                          freeze_encoder=freeze_encoder,
-                          class_weights=class_weights)
+    model = SSLClassifier(
+        num_classes=num_classes, encoder=encoder, freeze_encoder=freeze_encoder, class_weights=class_weights
+    )
 
     return model
 
@@ -114,16 +115,16 @@ def SSLModelLoader(ssl_class: Any, num_classes: int) -> Any:
     class _wrap(ssl_class):  # type: ignore
         def __init__(self, **kwargs: Any) -> None:
             super().__init__(**kwargs)
-            self.non_linear_evaluator = SSLEvaluator(n_input=get_encoder_output_dim(self),
-                                                     n_classes=num_classes,
-                                                     n_hidden=None)
+            self.non_linear_evaluator = SSLEvaluator(
+                n_input=get_encoder_output_dim(self), n_classes=num_classes, n_hidden=None
+            )
 
     return _wrap
 
 
-def add_submodules_to_same_device(module: torch.nn.Module,
-                                  submodules: Iterable[torch.nn.Module],
-                                  prefix: str = "") -> None:
+def add_submodules_to_same_device(
+    module: torch.nn.Module, submodules: Iterable[torch.nn.Module], prefix: str = ""
+) -> None:
     """
     Adds each of the given submodules to the "main" module, and moves them to the same device as the "main"
     module. The submodules get a name derived from their class name, with the given prefix.

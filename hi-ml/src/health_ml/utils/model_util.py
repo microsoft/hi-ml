@@ -14,23 +14,19 @@ from health_ml.deep_learning_config import OptimizerParams, OptimizerType
 def create_optimizer(config: OptimizerParams, parameters: Iterator[Parameter]) -> Optimizer:
     # Select optimizer type
     if config.optimizer_type in [OptimizerType.Adam, OptimizerType.AMSGrad]:
-        return Adam(parameters,
-                    config.l_rate,
-                    config.adam_betas,
-                    config.opt_eps,
-                    config.weight_decay,
-                    amsgrad=config.optimizer_type == OptimizerType.AMSGrad)
+        return Adam(
+            parameters,
+            config.l_rate,
+            config.adam_betas,
+            config.opt_eps,
+            config.weight_decay,
+            amsgrad=config.optimizer_type == OptimizerType.AMSGrad,
+        )
     elif config.optimizer_type == OptimizerType.SGD:
-        return SGD(parameters,
-                   config.l_rate,
-                   config.momentum,
-                   weight_decay=config.weight_decay)
+        return SGD(parameters, config.l_rate, config.momentum, weight_decay=config.weight_decay)
     elif config.optimizer_type == OptimizerType.RMSprop:
-        return RMSprop(parameters,
-                       config.l_rate,
-                       config.rms_alpha,
-                       config.opt_eps,
-                       config.weight_decay,
-                       config.momentum)
+        return RMSprop(
+            parameters, config.l_rate, config.rms_alpha, config.opt_eps, config.weight_decay, config.momentum
+        )
     else:
         raise NotImplementedError(f"Optimizer type {config.optimizer_type.value} is not implemented")

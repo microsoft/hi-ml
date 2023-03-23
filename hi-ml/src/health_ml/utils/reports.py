@@ -18,8 +18,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from health_azure.utils import (download_files_from_run_id, get_aml_run_from_run_id,
-                                download_files_from_hyperdrive_children)
+from health_azure.utils import (
+    download_files_from_run_id,
+    get_aml_run_from_run_id,
+    download_files_from_hyperdrive_children,
+)
 
 CLOSE_DOC_TAGS = "</p>\n</div>\n</body>\n</html>"
 IMAGE_KEY_HTML = "IMAGEPATHSHTML"
@@ -58,9 +61,7 @@ class HTMLReport:
         self.template = ""
         self.template_path = self._create_template()
 
-        self.env = jinja2.Environment(
-            loader=jinja2.FileSystemLoader('/')
-        )
+        self.env = jinja2.Environment(loader=jinja2.FileSystemLoader('/'))
         self.render_kwargs: Dict[str, Any] = {"title": title}
 
     def validate(self) -> None:
@@ -79,8 +80,9 @@ class HTMLReport:
             if self.report_html.count(tag) < 1:
                 raise ValueError(f"report_html is missing the tag {tag}. This will cause problems with rendering")
             elif self.report_html.count(tag) > 1:
-                raise ValueError(f"report_html contains more than one tag {tag}. This will cause problems with"
-                                 "rendering")
+                raise ValueError(
+                    f"report_html contains more than one tag {tag}. This will cause problems with rendering"
+                )
 
     @staticmethod
     def _remove_html_end(report_stream: str) -> str:
@@ -106,7 +108,8 @@ class HTMLReport:
         template_path = self.report_folder / "template.html"
         template_path.touch(exist_ok=True)
 
-        self.template += """<!DOCTYPE html>
+        self.template += (
+            """<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -119,7 +122,9 @@ class HTMLReport:
 <h1> {{title}} </h1>
 </div>
 <p>
-""" + CLOSE_DOC_TAGS
+"""
+            + CLOSE_DOC_TAGS
+        )
 
         return template_path
 
@@ -178,18 +183,23 @@ class HTMLReport:
             num_existing_tables = self.template.count("table.to_html")
             table_key = f"{TABLE_KEY_HTML}_{num_existing_tables}"  # starts at zero
 
-            template_addition = """<div class="container" >
-            {% for table in """ + table_key + """ %}
+            template_addition = (
+                """<div class="container" >
+            {% for table in """
+                + table_key
+                + """ %}
                 {{ table.to_html(classes=[ "table"], justify="center") | safe }}
             {% endfor %}
             </div>
             <br>"""
+            )
             self.add_to_template(template_addition)
 
             self.render_kwargs.update({table_key: [table]})
 
-    def add_tables(self, tables: Optional[List[pd.DataFrame]] = None,
-                   table_paths_or_dir: Optional[List[Path]] = None) -> None:
+    def add_tables(
+        self, tables: Optional[List[pd.DataFrame]] = None, table_paths_or_dir: Optional[List[Path]] = None
+    ) -> None:
         """
         Add one or more tables to your report. The table can either be passed as a Pandas DataFrame object, or
         a list of path to one or more .csv files, or a directory of csv files containing your tables.
@@ -237,12 +247,16 @@ class HTMLReport:
 
         image_key_html = image_key_html.split("_")[0] + f"_{num_existing_images}"
 
-        template_addition = """<div class="container">
-        {% for image_path in """ + image_key_html + """ %}
+        template_addition = (
+            """<div class="container">
+        {% for image_path in """
+            + image_key_html
+            + """ %}
             <img src={{image_path}} alt={{image_path}}>
         {% endfor %}
         </div>
         <br>"""
+        )
         self.add_to_template(template_addition)
 
         # Add these keys and paths to the keyword args for rendering later
@@ -280,8 +294,9 @@ class HTMLReport:
                 self._add_image_to_report(image_path_or_dir, base64_encode=base64_encode)
 
     @classmethod
-    def load_imgs_onto_subplot(cls, img_folder_or_paths: List[Path], num_plot_columns: int = 2,
-                               figsize: Tuple[int, int] = DEFAULT_FIGSIZE) -> plt.Figure:
+    def load_imgs_onto_subplot(
+        cls, img_folder_or_paths: List[Path], num_plot_columns: int = 2, figsize: Tuple[int, int] = DEFAULT_FIGSIZE
+    ) -> plt.Figure:
         """
         Given a list of one or more paths, either to a folder containing multiple images, or multiple image
         paths, loads each of the images adds to a single chart
@@ -323,8 +338,13 @@ class HTMLReport:
         plt.tight_layout()
         return fig
 
-    def add_image_gallery(self, image_folder_or_paths: List[Path], figsize: Tuple[int, int] = DEFAULT_FIGSIZE,
-                          num_cols: int = DEFAULT_NUM_COLS, base64_encode: bool = False) -> None:
+    def add_image_gallery(
+        self,
+        image_folder_or_paths: List[Path],
+        figsize: Tuple[int, int] = DEFAULT_FIGSIZE,
+        num_cols: int = DEFAULT_NUM_COLS,
+        base64_encode: bool = False,
+    ) -> None:
         """
         Given a list of one or more paths, either to a folder containing multiple images, or multiple image
         paths, loads each of the images adds to a single chart create a "gallery" i.e. a plot containing
@@ -342,8 +362,9 @@ class HTMLReport:
         fig.savefig(str(gallery_img_path))
         self.add_images([gallery_img_path], base64_encode=base64_encode)
 
-    def add_plot(self, plot_path: Optional[Path] = None, fig: Optional[plt.Figure] = None,
-                 fig_title: Optional[str] = None) -> None:
+    def add_plot(
+        self, plot_path: Optional[Path] = None, fig: Optional[plt.Figure] = None, fig_title: Optional[str] = None
+    ) -> None:
         """
         Add a plot to your report. The plot can either be passed as a [matplotlib Figure object](
         https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.figure.html), or as a path to
@@ -437,8 +458,9 @@ class HTMLReport:
             else:
                 raise ValueError("Key must either equal table, image or text")
 
-    def download_report_contents_from_aml(self, run_id: str, report_contents: List[Dict[str, Any]],
-                                          hyperdrive_hyperparam_name: str = '') -> List[Dict[str, Any]]:
+    def download_report_contents_from_aml(
+        self, run_id: str, report_contents: List[Dict[str, Any]], hyperdrive_hyperparam_name: str = ''
+    ) -> List[Dict[str, Any]]:
         """
         Downloads report contents (images, csv files etc, as specified in the ) from Azure ML Runs. If the
         run_id provided represents an AML HyperDrive run, will attempt to download each of the specified paths
@@ -469,8 +491,9 @@ class HTMLReport:
             component_val = component[ReportComponentKey.VALUE.value]
             # If the component is text, we don't need to download anything
             if component_type == ReportComponentKey.TEXT.value:
-                updated_report_contents.append({ReportComponentKey.TYPE.value: component_type,
-                                                ReportComponentKey.VALUE.value: component_val})
+                updated_report_contents.append(
+                    {ReportComponentKey.TYPE.value: component_type, ReportComponentKey.VALUE.value: component_val}
+                )
             else:
                 if run.type == "hyperdrive":
                     artifact_paths = download_files_from_hyperdrive_children(
@@ -484,8 +507,10 @@ class HTMLReport:
                     full_artifact_path = str(self.report_folder / component_val)
                     download_files_from_run_id(run_id, self.report_folder, prefix=component_val)
 
-                updated_component = {ReportComponentKey.TYPE.value: component_type,
-                                     ReportComponentKey.VALUE.value: full_artifact_path}
+                updated_component = {
+                    ReportComponentKey.TYPE.value: component_type,
+                    ReportComponentKey.VALUE.value: full_artifact_path,
+                }
 
                 # add back any other entries such as figsize, num_columns etc
                 additional_keys = set(component.keys()).difference(set(updated_component.keys()))
@@ -519,6 +544,7 @@ class HTMLReport:
         :return: The path to the zipped folder
         """
         import zipfile
+
         report_files = self.report_folder.rglob("*.*")
         zipped_folder_path = self.report_folder.with_suffix(".zip")
         with zipfile.ZipFile(zipped_folder_path, "w") as zipped_folder:

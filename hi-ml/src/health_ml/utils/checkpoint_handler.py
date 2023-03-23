@@ -15,7 +15,7 @@ from health_ml.utils.common_utils import DEFAULT_AML_UPLOAD_DIR
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils.checkpoint_utils import (
     download_highest_epoch_checkpoint,
-    find_recovery_checkpoint_on_disk_or_cloud
+    find_recovery_checkpoint_on_disk_or_cloud,
 )
 
 
@@ -39,7 +39,8 @@ class CheckpointHandler:
         """
         if self.container.src_checkpoint:
             self.trained_weights_path = self.container.src_checkpoint.get_or_download_checkpoint(
-                download_dir=self.container.checkpoint_folder)
+                download_dir=self.container.checkpoint_folder
+            )
             self.container.trained_weights_path = self.trained_weights_path
 
     def additional_training_done(self) -> None:
@@ -105,9 +106,11 @@ class CheckpointHandler:
         try:
             return expected_checkpoint_path.relative_to(self.container.outputs_folder)
         except ValueError:
-            raise ValueError("Inference checkpoint path should be relative to the container's output folder. "
-                             f"Checkpoint path: {expected_checkpoint_path}, "
-                             f"output folder: {self.container.outputs_folder}")
+            raise ValueError(
+                "Inference checkpoint path should be relative to the container's output folder. "
+                f"Checkpoint path: {expected_checkpoint_path}, "
+                f"output folder: {self.container.outputs_folder}"
+            )
 
     def download_inference_checkpoint(self, download_folder: Optional[Path] = None) -> Optional[Path]:
         """
@@ -128,9 +131,8 @@ class CheckpointHandler:
                 Path(DEFAULT_AML_UPLOAD_DIR) / self.get_relative_inference_checkpoint_path()
             ).as_posix()
             highest_epoch_checkpoint = download_highest_epoch_checkpoint(
-                run=RUN_CONTEXT,
-                checkpoint_suffix=inference_checkpoint_azureml_path,
-                output_folder=download_folder)
+                run=RUN_CONTEXT, checkpoint_suffix=inference_checkpoint_azureml_path, output_folder=download_folder
+            )
             if highest_epoch_checkpoint is None:
                 logging.info("No inference checkpoint was found in the AzureML run.")
                 return None
