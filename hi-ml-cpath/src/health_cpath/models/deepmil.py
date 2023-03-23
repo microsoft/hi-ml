@@ -366,7 +366,8 @@ class DeepMILModule(LightningModule):
                         ResultsKey.CLASS_PROBS: probs_perclass,
                         ResultsKey.PRED_LABEL: predicted_labels,
                         ResultsKey.TRUE_LABEL: bag_labels.int(),
-                        ResultsKey.BAG_ATTN: bag_attn_list
+                        ResultsKey.BAG_ATTN: bag_attn_list,
+                        ResultsKey.BAG_LOGITS: bag_logits,
                         })
         self.update_results_with_metadata(batch=batch, results=results)
         self.update_slides_selection(stage=stage, batch=batch, results=results)

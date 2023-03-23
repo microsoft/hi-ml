@@ -16,7 +16,7 @@ from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 
 from health_azure.utils import create_from_matching_params
 from health_cpath.preprocessing.loading import LoadingParams
-from health_cpath.utils.callbacks import LossAnalysisCallback, LossCallbackParams
+from health_cpath.utils.callbacks import LossAnalysisCallback, LossCallbackParams, MILGradCamCallback
 from health_cpath.utils.wsi_utils import TilingParams
 
 from health_ml.deep_learning_config import OptimizerParams
@@ -77,6 +77,9 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
     stratify_plots_by: Optional[str] = param.String(None,
                                                     doc="Name of metadata field to stratify output plots"
                                                     "(PR curve, ROC curve).")
+    grad_cam_layer_name: Optional[str] = param.String(None,
+                                                      doc="Name of the layer to use for Grad-CAM. If layer_name is not"
+                                                      "None, Grad-CAM will be computed for the given layer.")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -177,6 +180,10 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
                                                   log_exceptions=self.log_exceptions,
                                                   )
                              )
+
+        if self.grad_cam_layer_name:
+            callbacks.append(MILGradCamCallback(self.grad_cam_layer_name))
+
         return callbacks
 
     def get_checkpoint_to_test(self) -> Path:

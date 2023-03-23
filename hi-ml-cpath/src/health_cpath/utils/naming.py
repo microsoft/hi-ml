@@ -56,6 +56,7 @@ class ResultsKey(str, Enum):
     PRED_LABEL = 'pred_label'
     TRUE_LABEL = 'true_label'
     BAG_ATTN = 'bag_attn'
+    BAG_LOGITS = 'bag_logits'
     TILE_LEFT = 'left'
     TILE_TOP = 'top'
     TILE_RIGHT = 'right'

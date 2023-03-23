@@ -5,6 +5,7 @@
 
 import os
 import torch
+import torch.nn as nn
 import param
 import logging
 import numpy as np
@@ -12,15 +13,20 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+import cv2
+from PIL import Image
 
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
+import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import Callback
 
 from health_cpath.models.deepmil import DeepMILModule
 from health_cpath.utils.naming import ModelKey, ResultsKey
 from health_cpath.utils.output_utils import BatchResultsType
+from health_cpath.utils.hooks import ActivationHook
+
 
 LossCacheDictType = Dict[Union[ResultsKey, str], List]
 LossDictType = Dict[str, List]
@@ -554,3 +560,140 @@ class LossAnalysisCallback(Callback):
                 self.save_loss_outliers_analaysis_results(stage=ModelKey.VAL)
             except Exception as e:
                 self.handle_loss_exceptions(stage=ModelKey.VAL, exception=e)
+
+
+class MILGradCamCallback(Callback):
+    """
+    Callback for computing Grad-CAM on the output of a MIL model during training.
+    """
+    def __init__(self, layer_name: str = 'layer4') -> None:
+        super().__init__()
+        self.layer_name = layer_name
+
+    @staticmethod
+    def compute_grad_cam(prob: torch.Tensor, activations: torch.Tensor, attentions: torch.Tensor) -> Tuple:
+        """
+        Computes Grad-CAM from the probability predictions, activations and attention maps.
+
+        Args:
+            prob (torch.Tensor): The predicted probability tensor.
+            activations (torch.Tensor): The tensor containing the activations of the layer whose name was specified.
+            attentions (torch.Tensor): The tensor containing the attention maps.
+
+        Returns:
+            Tuple: A tuple containing the class activation map (CAM) and the top-k indices.
+        """
+        # Compute the gradients of the predicted probability with respect to the layer activations
+        grads = torch.autograd.grad(prob, activations)[0].detach()
+
+        # Filter the activations and gradients by top attention scores
+        topk_idx = torch.topk(attentions[0, 0], k=10).indices
+        activations = activations[topk_idx]
+        grads = grads[topk_idx]
+
+        # Compute the class activation map (CAM)
+        pooled_grads = torch.mean(grads, dim=[2, 3], keepdim=True)
+        cam = (pooled_grads * activations).sum(dim=0, keepdim=True)
+        cam = nn.functional.relu(cam)
+
+        # Normalize the CAM by the maximum activation value in each spatial location
+        max_per_tile, _ = torch.max(cam, dim=(2, 3), keepdim=True)
+        cam /= max_per_tile
+
+        return cam.cpu().numpy(), topk_idx.cpu().numpy()
+
+    @staticmethod
+    def plot_cam(cams: np.ndarray, tiles: torch.Tensor, topk_idx: np.ndarray, slide_id: str, true_label: str,
+                 pred_label: str) -> None:
+        """
+        Plot CAM images for each of the top k tiles.
+
+        Args:
+            cams (np.ndarray): The class activation maps.
+            tiles (torch.Tensor): The tensor containing the top k tiles.
+            topk_idx (np.ndarray): The indices of the top k tiles.
+            slide_id (str): The ID of the slide.
+            true_label (str): The true label of the slide.
+            pred_label (str): The predicted label of the slide.
+
+        Returns:
+            None
+        """
+        def interpolate_image(image: np.ndarray, size: Tuple[int, int]) -> np.ndarray:
+            image_pil = Image.fromarray(image)
+            image_interp = image_pil.resize(size=size, resample=Image.BILINEAR)
+            return np.array(image_interp)
+
+        # Get topk tiles
+        tiles = tiles[0][topk_idx].cpu()
+
+        fig, axs = plt.subplots(nrows=2, ncols=10, figsize=(50, 10))
+        axs = axs.flatten()
+
+        for i, (tile, cam) in enumerate(zip(tiles, cams)):
+            ax_tile, ax_heatmap = axs[i], axs[i+10]
+
+            # From tensor to array
+            tile = np.uint8(255 * tile.permute(1, 2, 0).numpy())
+
+            # Prepare heatmap
+            heatmap = np.clip(cam, 0., 1.)
+            heatmap = np.uint8(255 * heatmap)
+            heatmap = interpolate_image(heatmap, size=(224, 224))
+            heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_BONE)
+
+            superimposed_img = np.uint8(heatmap * 0.7 + tile * 0.3)
+
+            ax_tile.imshow(tile, interpolation='nearest', aspect='auto', extent=(0, tile.shape[1], tile.shape[0], 0))
+            ax_heatmap.imshow(superimposed_img, interpolation='nearest', aspect='auto',
+                              extent=(0, superimposed_img.shape[1], superimposed_img.shape[0], 0))
+
+            ax_tile.axis('off')
+            ax_heatmap.axis('off')
+
+        plt.tight_layout()
+        file_name = f"slide_{slide_id}_true_label_{true_label}_pred_label_{pred_label}.png"
+        plt.savefig(file_name)
+
+    def on_validation_epoch_start(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+        # Enable gradients
+        torch.set_grad_enabled(True)
+
+        # Enable gradients for aggregation and classifier functions
+        for params in pl_module.aggregation_fn.parameters():
+            params.requires_grad = True
+        for params in pl_module.classifier_fn.parameters():
+            params.requires_grad = True
+
+        # Enable gradients for selected layers
+        feature_extractor_fn = pl_module.encoder.feature_extractor_fn
+        layer_params = {
+            'layer1': feature_extractor_fn,
+            'layer2': feature_extractor_fn.layer2,
+            'layer3': feature_extractor_fn.layer3,
+            'layer4': feature_extractor_fn.layer4
+        }
+        if self.layer_name not in layer_params:
+            raise ValueError('Invalid layer name')
+        for params in layer_params[self.layer_name].parameters():
+            params.requires_grad = True
+
+        # Register hook that returns activations of selected layer
+        self.activation_hook = ActivationHook(pl_module, self.layer_name)
+
+    def on_validation_batch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule",
+                                outputs: Any, batch: Any, batch_idx: int, unused: int = 0) -> None:
+        # Compute gradcam
+        cams, topk_idx = self.compute_grad_cam(outputs[ResultsKey.BAG_LOGITS],
+                                               self.activation_hook.acts_of_selected_layer,
+                                               outputs[ResultsKey.BAG_ATTN])
+
+        # Clear GPU memory
+        self.activation_hook.acts_of_selected_layer = None
+        torch.cuda.empty_cache()
+
+        # Plot CAM
+        slide_id = batch['slide_id'][0][0]
+        true_label = batch['label'][0].cpu().numpy()
+        pred_label = outputs['pred_label'][0][0].cpu().numpy()
+        self.plot_cam(cams, batch['image'], topk_idx, slide_id, true_label, pred_label)
