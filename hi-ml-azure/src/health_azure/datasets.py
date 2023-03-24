@@ -440,13 +440,16 @@ class DatasetConfig:
         else:
             return None
 
-    def to_output_dataset(self, workspace: Workspace, dataset_index: int) -> OutputFileDatasetConfig:
+    def to_output_dataset(
+        self, workspace: Workspace, dataset_index: int, overwrite: bool = True
+    ) -> OutputFileDatasetConfig:
         """
         Creates a configuration to write a script output to an AzureML dataset. The name and datastore of this new
         dataset will be taken from the present object.
 
         :param workspace: The AzureML workspace to read from.
         :param dataset_index: Suffix for using datasets as named inputs, the dataset will be marked OUTPUT_{index}
+        :param overwrite: If True, overwrite the dataset if it already exists. Only applies if use_mounting is False.
         :return:
         """
         status = f"Output dataset {self.name} (index {dataset_index}) will be "
@@ -464,7 +467,7 @@ class DatasetConfig:
             result = dataset.as_mount()
         else:
             status += "uploaded when the job completes."
-            result = dataset.as_upload()
+            result = dataset.as_upload(overwrite=overwrite)
         logging.info(status)
         return result
 
