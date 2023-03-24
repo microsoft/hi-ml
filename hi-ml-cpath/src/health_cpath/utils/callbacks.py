@@ -570,7 +570,7 @@ class MILGradCamCallback(Callback):
         self.layer_name = layer_name
         self.activations_of_selected_layer = None
 
-    def forward_hook(self, module: nn.Module, input: torch.Tensor, out: torch.Tensor):
+    def forward_hook(self, module: nn.Module, input: torch.Tensor, out: torch.Tensor) -> None:
         self.activations_of_selected_layer = out
 
     @staticmethod
@@ -609,8 +609,8 @@ class MILGradCamCallback(Callback):
         return cam.cpu().numpy(), topk_idx.cpu().numpy()
 
     @staticmethod
-    def plot_cam(cams: np.ndarray, tiles: torch.Tensor, topk_idx: np.ndarray, slide_id: str, true_label: str,
-                 pred_label: str, layer_name: str) -> None:
+    def plot_cam(cams: np.ndarray, tiles: torch.Tensor, topk_idx: np.ndarray, slide_id: str, true_label: torch.Tensor,
+                 pred_label: torch.Tensor, layer_name: str) -> None:
         """
         Plot CAM images for each of the top k tiles.
 
@@ -665,31 +665,12 @@ class MILGradCamCallback(Callback):
         file_name = f"slide_{slide_id}_layer_name_{layer_name}_true_label_{true_label}_pred_label_{pred_label}.png"
         plt.savefig(file_name)
 
-    def on_validation_epoch_start(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
-        # Enable gradients
+    def on_validation_batch_start(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", batch: Any, batch_idx: int, dataloader_idx: int) -> None:
         torch.set_grad_enabled(True)
 
-        # Enable gradients for aggregation and classifier functions
-        for params in pl_module.aggregation_fn.parameters():
-            params.requires_grad = True
-        for params in pl_module.classifier_fn.parameters():
-            params.requires_grad = True
-
-        # Enable gradients for selected layers
-        feature_extractor_fn = pl_module.encoder.feature_extractor_fn
-        layer_params = {
-            'layer1': feature_extractor_fn,
-            'layer2': feature_extractor_fn.layer2,
-            'layer3': feature_extractor_fn.layer3,
-            'layer4': feature_extractor_fn.layer4
-        }
-        if self.layer_name not in layer_params:
-            raise ValueError('Invalid layer name')
-        for params in layer_params[self.layer_name].parameters():
-            params.requires_grad = True
-
-        # Register hook that returns activations of selected layer
         selected_layer = getattr(pl_module.encoder.feature_extractor_fn, self.layer_name)
+        for params in selected_layer.parameters():
+            params.requires_grad = True
         self.activation_hook = selected_layer.register_forward_hook(self.forward_hook)
 
     def on_validation_batch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule",
@@ -703,7 +684,7 @@ class MILGradCamCallback(Callback):
         self.plot_cam(cams, batch[SlideKey.IMAGE], topk_idx, batch[ResultsKey.SLIDE_ID],
                       outputs[ResultsKey.TRUE_LABEL], outputs[ResultsKey.PRED_LABEL], self.layer_name)
 
-    def on_validation_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
         # Clean up
+        torch.set_grad_enabled(False)
         self.activation_hook.remove()
         self.activations_of_selected_layer = None
