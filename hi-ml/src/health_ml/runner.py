@@ -5,7 +5,11 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import argparse
+import contextlib
+from datetime import datetime
 import logging
+import os
+import traceback
 import param
 import sys
 from pathlib import Path
@@ -15,9 +19,7 @@ from azureml.core import Workspace
 
 # Add hi-ml packages to sys.path so that AML can find them if we are using the runner directly from the git repo
 himl_root = Path(__file__).resolve().parent.parent.parent.parent
-folders_to_add = [himl_root / "hi-ml" / "src",
-                  himl_root / "hi-ml-azure" / "src",
-                  himl_root / "hi-ml-cpath" / "src"]
+folders_to_add = [himl_root / "hi-ml" / "src", himl_root / "hi-ml-azure" / "src", himl_root / "hi-ml-cpath" / "src"]
 for folder in folders_to_add:
     if folder.is_dir():
         sys.path.insert(0, str(folder))
@@ -25,20 +27,31 @@ for folder in folders_to_add:
 from health_azure import AzureRunInfo, submit_to_azure_if_needed  # noqa: E402
 from health_azure.amulet import prepare_amulet_job, is_amulet_job  # noqa: E402
 from health_azure.datasets import create_dataset_configs  # noqa: E402
-from health_azure.himl import DEFAULT_DOCKER_BASE_IMAGE  # noqa: E402
-from health_azure.logging import logging_to_stdout   # noqa: E402
+from health_azure.himl import DEFAULT_DOCKER_BASE_IMAGE, OUTPUT_FOLDER  # noqa: E402
+from health_azure.logging import logging_to_stdout  # noqa: E402
 from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
-from health_azure.utils import (get_workspace, get_ml_client, is_local_rank_zero,  # noqa: E402
-                                is_running_in_azure_ml, set_environment_variables_for_multi_node,
-                                create_argparser, parse_arguments, ParserResult, apply_overrides,
-                                filter_v2_input_output_args, is_global_rank_zero)
+from health_azure.utils import (
+    ENV_LOCAL_RANK,
+    ENV_NODE_RANK,  # noqa: E402
+    get_workspace,
+    get_ml_client,
+    is_local_rank_zero,
+    is_running_in_azure_ml,
+    set_environment_variables_for_multi_node,
+    create_argparser,
+    parse_arguments,
+    ParserResult,
+    apply_overrides,
+    filter_v2_input_output_args,
+    is_global_rank_zero,
+)
 
 from health_ml.experiment_config import DEBUG_DDP_ENV_VAR, ExperimentConfig  # noqa: E402
 from health_ml.lightning_container import LightningContainer  # noqa: E402
 from health_ml.run_ml import MLRunner  # noqa: E402
 from health_ml.utils import fixed_paths  # noqa: E402
-from health_ml.utils.common_utils import (check_conda_environment,  # noqa: E402
-                                          choose_conda_env_file, is_linux)
+from health_ml.utils.logging import ConsoleAndFileOutput  # noqa: E402
+from health_ml.utils.common_utils import check_conda_environment, choose_conda_env_file, is_linux  # noqa: E402
 from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
 from health_ml.utils import health_ml_package_setup  # noqa: E402
 
@@ -58,11 +71,14 @@ def initialize_rpdb() -> None:
     if not is_linux():
         return
     import rpdb
+
     rpdb_port = 4444
     rpdb.handle_trap(port=rpdb_port)
     # For some reason, os.getpid() does not return the ID of what appears to be the currently running process.
-    logging.info("rpdb is handling traps. To debug: identify the main runner.py process, then as root: "
-                 f"kill -TRAP <process_id>; nc 127.0.0.1 {rpdb_port}")
+    logging.info(
+        "rpdb is handling traps. To debug: identify the main runner.py process, then as root: "
+        f"kill -TRAP <process_id>; nc 127.0.0.1 {rpdb_port}"
+    )
 
 
 def create_runner_parser() -> argparse.ArgumentParser:
@@ -120,7 +136,10 @@ class Runner:
         # For each parser, feed in the unknown settings from the previous parser. All commandline args should
         # be consumed by name, hence fail if there is something that is still unknown.
         parser2_result = parse_arguments(parser2, args=parser1_result.unknown, fail_on_unknown_args=True)
-        # Apply the overrides and validate. Overrides can come from either YAML settings or the commandline.
+        # Apply the commandline overrides and validate. Any parameters specified on the commandline should have
+        # higher priority than what is done in the model variant
+        assert isinstance(container, LightningContainer)
+        container.set_model_variant(experiment_config.model_variant)
         apply_overrides(container, parser2_result.overrides)  # type: ignore
         container.validate()
 
@@ -134,11 +153,15 @@ class Runner:
         """
         if not self.experiment_config.cluster:
             if self.lightning_container.hyperdrive:
-                raise ValueError("HyperDrive for hyperparameters tuning is only supported when submitting the job to "
-                                 "AzureML. You need to specify a compute cluster with the argument --cluster.")
+                raise ValueError(
+                    "HyperDrive for hyperparameters tuning is only supported when submitting the job to "
+                    "AzureML. You need to specify a compute cluster with the argument --cluster."
+                )
             if self.lightning_container.is_crossvalidation_parent_run and not is_amulet_job():
-                raise ValueError("Cross-validation is only supported when submitting the job to AzureML."
-                                 "You need to specify a compute cluster with the argument --cluster.")
+                raise ValueError(
+                    "Cross-validation is only supported when submitting the job to AzureML."
+                    "You need to specify a compute cluster with the argument --cluster."
+                )
 
     def additional_run_tags(self, script_params: List[str]) -> Dict[str, str]:
         """
@@ -149,13 +172,13 @@ class Runner:
         return {
             "commandline_args": " ".join(script_params),
             "tag": self.lightning_container.tag,
-            **self.lightning_container.get_additional_aml_run_tags()
+            **self.lightning_container.get_additional_aml_run_tags(),
         }
 
     def additional_environment_variables(self) -> Dict[str, str]:
         return {
             DEBUG_DDP_ENV_VAR: self.experiment_config.debug_ddp.value,
-            **self.lightning_container.get_additional_environment_variables()
+            **self.lightning_container.get_additional_environment_variables(),
         }
 
     def run(self) -> Tuple[LightningContainer, AzureRunInfo]:
@@ -166,9 +189,11 @@ class Runner:
         :return: a tuple of the LightningContainer object and an AzureRunInfo containing all information about
             the present run (whether running in AzureML or not)
         """
-        # Usually, when we set logging to DEBUG, we want diagnostics about the model
-        # build itself, but not the tons of debug information that AzureML submissions create.
-        logging_to_stdout(logging.INFO if is_local_rank_zero() else "ERROR")
+        # Suppress the logging from all processes but the one for GPU 0 on each node, to make log files more readable
+        log_level = logging.INFO if is_local_rank_zero() else logging.ERROR
+        logging_to_stdout(log_level)
+        # When running in Azure, also output logging to a file. This can help in particular when jobs
+        # get preempted, but we don't get access to the logs from the previous incarnation of the job
         initialize_rpdb()
         self.parse_and_load_model()
         self.validate()
@@ -198,8 +223,10 @@ class Runner:
             try:
                 workspace = get_workspace(workspace_config_path=self.experiment_config.workspace_config_path)
             except ValueError:
-                raise ValueError("Unable to submit the script to AzureML because no workspace configuration file "
-                                 "(config.json) was found.")
+                raise ValueError(
+                    "Unable to submit the script to AzureML because no workspace configuration file "
+                    "(config.json) was found."
+                )
 
         if self.lightning_container.datastore:
             datastore = self.lightning_container.datastore
@@ -213,12 +240,13 @@ class Runner:
         # When running in AzureML, respect the commandline flag for mounting. Outside of AML, we always mount
         # datasets to be quicker.
         use_mounting = self.experiment_config.mount_in_azureml if self.experiment_config.cluster else True
-        input_datasets = \
-            create_dataset_configs(all_azure_dataset_ids=self.lightning_container.azure_datasets,
-                                   all_dataset_mountpoints=self.lightning_container.dataset_mountpoints,
-                                   all_local_datasets=all_local_datasets,  # type: ignore
-                                   datastore=datastore,
-                                   use_mounting=use_mounting)
+        input_datasets = create_dataset_configs(
+            all_azure_dataset_ids=self.lightning_container.azure_datasets,
+            all_dataset_mountpoints=self.lightning_container.dataset_mountpoints,
+            all_local_datasets=all_local_datasets,  # type: ignore
+            datastore=datastore,
+            use_mounting=use_mounting,
+        )
 
         if self.experiment_config.cluster and not is_running_in_azure_ml():
             if self.experiment_config.strictly_aml_v1:
@@ -289,10 +317,6 @@ class Runner:
         :param azure_run_info: Contains all information about the present run in AzureML, in particular where the
         datasets are mounted.
         """
-        # Only set the logging level now. Usually, when we set logging to DEBUG, we want diagnostics about the model
-        # build itself, but not the tons of debug information that AzureML submissions create.
-        # Suppress the logging from all processes but the one for GPU 0 on each node, to make log files more readable
-        logging_to_stdout("INFO" if is_local_rank_zero() else "ERROR")
         health_ml_package_setup()
         prepare_amulet_job()
 
@@ -306,9 +330,8 @@ class Runner:
         if self.experiment_config.num_nodes > 1:
             set_environment_variables_for_multi_node()
         self.ml_runner = MLRunner(
-            experiment_config=self.experiment_config,
-            container=self.lightning_container,
-            project_root=self.project_root)
+            experiment_config=self.experiment_config, container=self.lightning_container, project_root=self.project_root
+        )
         self.ml_runner.setup(azure_run_info)
         self.ml_runner.run()
 
@@ -320,16 +343,64 @@ def run(project_root: Path) -> Tuple[LightningContainer, AzureRunInfo]:
 
     :param project_root: The root folder that contains all of the source code that should be executed.
     :return: If submitting to AzureML, returns the model configuration that was used for training,
-    including commandline overrides applied (if any). For details on the arguments, see the constructor of Runner.
+        including commandline overrides applied (if any). For details on the arguments, see the constructor of Runner.
     """
     if is_global_rank_zero():
-        print(f"project root: {project_root}")
-    runner = Runner(project_root)
-    return runner.run()
+        print(f"Project root: {project_root}")
+    return Runner(project_root).run()
+
+
+def create_logging_filename() -> Path:
+    """Creates a file name for console logs, based on the current time and the DDP rank.
+    The filename is timestamped to seconds level, so that we also get a full history of all
+    low-priority preemptions, because each restart will create a logfile afresh.
+
+    :return: A full path to a file for console logs.
+    """
+    rank = os.getenv(ENV_LOCAL_RANK, "0")
+    node = os.getenv(ENV_NODE_RANK, "0")
+    timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H%M%S")
+    cwd = Path.cwd()
+    logging_filename = cwd
+    # DDP subprocesses may already be running in the "outputs" folder. Add the "outputs" hence only if necessary.
+    if cwd.name != OUTPUT_FOLDER:
+        logging_filename = logging_filename / Path(OUTPUT_FOLDER)
+    logging_filename = logging_filename / "console_logs" / f"logging_{timestamp}_node{node}_rank{rank}.txt"
+    logging_filename.parent.mkdir(parents=True, exist_ok=True)
+    print(f"Rank {rank}: Redirecting all console logs to {logging_filename}")
+    return logging_filename
+
+
+def run_with_logging(project_root: Path) -> Tuple[LightningContainer, AzureRunInfo]:
+    """
+    Start the main main entry point for training and testing models from the commandline.
+    When running in Azure, this method also redirects the stdout stream, so that all console output is visible both on
+    the console and stored in a file. The filename is timestamped and contains the DDP rank of the current process.
+
+    :param project_root: The root folder that contains all of the source code that should be executed.
+    :return: If submitting to AzureML, returns the model configuration that was used for training,
+        including commandline overrides applied (if any). For details on the arguments, see the constructor of Runner.
+    """
+    if is_running_in_azure_ml():
+        logging_filename = create_logging_filename()
+        with logging_filename.open("w") as logging_file:
+            console_and_file = ConsoleAndFileOutput(logging_file)
+            with contextlib.redirect_stdout(console_and_file):
+                try:
+                    return run(project_root)
+                except:  # noqa
+                    # Exceptions would only be printed to the console at the very top level, and would not be visible
+                    # in the log file. Hence, write here specifically.
+                    traceback.print_exc(file=logging_file)
+                    raise
+                finally:
+                    logging_file.flush()
+    return run(project_root)
 
 
 def main() -> None:
-    run(project_root=fixed_paths.repository_root_directory() if is_himl_used_from_git_repo() else Path.cwd())
+    project_root = fixed_paths.repository_root_directory() if is_himl_used_from_git_repo() else Path.cwd()
+    run_with_logging(project_root)
 
 
 if __name__ == '__main__':

@@ -41,8 +41,7 @@ def main() -> None:
     np.savetxt(str(target_splits_file), np.vstack(indices_test_splits), delimiter=",")
 
     ws = get_workspace()
-    datastore: Datastore = get_datastore(workspace=ws,
-                                         datastore_name="himldatasets")
+    datastore: Datastore = get_datastore(workspace=ws, datastore_name="himldatasets")
 
     dataset_name = 'himl_kfold_split_iris'
     datastore.upload_files(
@@ -50,7 +49,8 @@ def main() -> None:
         relative_root=str(inputs),
         target_path=dataset_name,
         overwrite=True,
-        show_progress=True)
+        show_progress=True,
+    )
 
     train_data_file.unlink()
     targets_file.unlink()

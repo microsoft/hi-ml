@@ -38,48 +38,71 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
     tiles settings. It is responsible for instantiating the encoder and pooling layer. Subclasses should define the
     full DeepMIL model depending on the type of dataset (tiles/slides based).
     """
-    class_names: Optional[Sequence[str]] = param.List(None, item_type=str, doc="List of class names. If `None`, "
-                                                                               "defaults to `('0', '1', ...)`.")
+
+    class_names: Optional[Sequence[str]] = param.List(
+        None, item_type=str, doc="List of class names. If `None`, defaults to `('0', '1', ...)`."
+    )
     # Data module parameters:
     batch_size: int = param.Integer(16, bounds=(1, None), doc="Number of slides to load per batch.")
     batch_size_inf: int = param.Integer(16, bounds=(1, None), doc="Number of slides per batch during inference.")
-    max_bag_size: int = param.Integer(1000, bounds=(0, None),
-                                      doc="Upper bound on number of tiles in each loaded bag during training stage. "
-                                          "If 0 (default), will return all samples in each bag. "
-                                          "If > 0, bags larger than `max_bag_size` will yield "
-                                          "random subsets of instances.")
-    max_bag_size_inf: int = param.Integer(0, bounds=(0, None),
-                                          doc="Upper bound on number of tiles in each loaded bag during "
-                                          "validation and test stages."
-                                          "If 0 (default), will return all samples in each bag. "
-                                          "If > 0 , bags larger than `max_bag_size_inf` will yield "
-                                          "random subsets of instances.")
+    max_bag_size: int = param.Integer(
+        1000,
+        bounds=(0, None),
+        doc="Upper bound on number of tiles in each loaded bag during training stage. "
+        "If 0 (default), will return all samples in each bag. "
+        "If > 0, bags larger than `max_bag_size` will yield "
+        "random subsets of instances.",
+    )
+    max_bag_size_inf: int = param.Integer(
+        0,
+        bounds=(0, None),
+        doc="Upper bound on number of tiles in each loaded bag during "
+        "validation and test stages."
+        "If 0 (default), will return all samples in each bag. "
+        "If > 0 , bags larger than `max_bag_size_inf` will yield "
+        "random subsets of instances.",
+    )
     # Outputs Handler parameters:
-    num_top_slides: int = param.Integer(10, bounds=(0, None), doc="Number of slides to select when saving top and "
-                                                                  "bottom tiles. If set to 10 (default), it selects 10 "
-                                                                  "top and 10 bottom slides. To disable tiles plots "
-                                                                  "saving, set `num_top_slides=0`")
-    num_top_tiles: int = param.Integer(12, bounds=(1, None), doc="Number of tiles to select when saving top and bottom"
-                                                                 "tiles. If set to 12 (default), it saves 12 top and 12"
-                                                                 "bottom tiles.")
-    primary_val_metric: MetricsKey = param.ClassSelector(default=MetricsKey.AUROC, class_=MetricsKey,
-                                                         doc="Primary validation metric to track for checkpointing and "
-                                                             "generating outputs.")
-    maximise_primary_metric: bool = param.Boolean(True, doc="Whether the primary validation metric should be "
-                                                            "maximised (otherwise minimised).")
-    max_num_workers: int = param.Integer(10, bounds=(0, None),
-                                         doc="The maximum number of worker processes for dataloaders. Dataloaders use"
-                                             "a heuristic num_cpus/num_gpus to set the number of workers, which can be"
-                                             "very high for small num_gpus. This parameters sets an upper bound.")
+    num_top_slides: int = param.Integer(
+        10,
+        bounds=(0, None),
+        doc="Number of slides to select when saving top and "
+        "bottom tiles. If set to 10 (default), it selects 10 "
+        "top and 10 bottom slides. To disable tiles plots "
+        "saving, set `num_top_slides=0`",
+    )
+    num_top_tiles: int = param.Integer(
+        12,
+        bounds=(1, None),
+        doc="Number of tiles to select when saving top and bottom"
+        "tiles. If set to 12 (default), it saves 12 top and 12"
+        "bottom tiles.",
+    )
+    primary_val_metric: MetricsKey = param.ClassSelector(
+        default=MetricsKey.AUROC,
+        class_=MetricsKey,
+        doc="Primary validation metric to track for checkpointing and generating outputs.",
+    )
+    maximise_primary_metric: bool = param.Boolean(
+        True, doc="Whether the primary validation metric should be maximised (otherwise minimised)."
+    )
+    max_num_workers: int = param.Integer(
+        10,
+        bounds=(0, None),
+        doc="The maximum number of worker processes for dataloaders. Dataloaders use"
+        "a heuristic num_cpus/num_gpus to set the number of workers, which can be"
+        "very high for small num_gpus. This parameters sets an upper bound.",
+    )
     save_intermediate_outputs: bool = param.Boolean(
         True, doc="Whether to save intermediate validation outputs during training."
     )
-    stratify_plots_by: Optional[str] = param.String(None,
-                                                    doc="Name of metadata field to stratify output plots"
-                                                    "(PR curve, ROC curve).")
-    grad_cam_layer_name: Optional[str] = param.String(None,
-                                                      doc="Name of the layer to use for Grad-CAM. If layer_name is not"
-                                                      "None, Grad-CAM will be computed for the given layer.")
+    stratify_plots_by: Optional[str] = param.String(
+        None, doc="Name of metadata field to stratify output plots (PR curve, ROC curve)."
+    )
+
+    grad_cam_layer_name: Optional[str] = param.String(
+        None, doc="Name of the layer to use for Grad-CAM. If `None`, Grad-CAM is disabled."
+    )
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -112,8 +135,10 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
                 f" {CheckpointParser.INFO_MESSAGE}"
             )
         if (
-            self.tune_encoder and self.encoding_chunk_size < self.max_bag_size
-            and self.pl_sync_batchnorm and self.max_num_gpus > 1
+            self.tune_encoder
+            and self.encoding_chunk_size < self.max_bag_size
+            and self.pl_sync_batchnorm
+            and self.max_num_gpus > 1
         ):
             raise ValueError(
                 "The encoding chunk size should be at least as large as the maximum bag size when fine tuning the "
@@ -136,7 +161,7 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
         return options
 
     def get_val_plot_options(self) -> Set[PlotOption]:
-        """ Override this method if you want to produce validation plots at each epoch. By default, at the end of the
+        """Override this method if you want to produce validation plots at each epoch. By default, at the end of the
         training an extra validation epoch is run where val_plot_options = test_plot_options
         """
         return set()
@@ -154,7 +179,7 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
             test_plot_options=self.get_test_plot_options(),
             loading_params=create_from_matching_params(self, LoadingParams),
             save_intermediate_outputs=self.save_intermediate_outputs,
-            stratify_plots_by=self.stratify_plots_by
+            stratify_plots_by=self.stratify_plots_by,
         )
         if self.num_top_slides > 0:
             outputs_handler.tiles_selector = TilesSelector(
@@ -163,27 +188,35 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
         return outputs_handler
 
     def get_callbacks(self) -> List[Callback]:
-        callbacks = [*super().get_callbacks(),
-                     ModelCheckpoint(dirpath=self.checkpoint_folder,
-                                     monitor=f"{ModelKey.VAL}/{self.primary_val_metric}",
-                                     filename=self.best_checkpoint_filename,
-                                     auto_insert_metric_name=False,
-                                     mode="max" if self.maximise_primary_metric else "min")]
+        callbacks = [
+            *super().get_callbacks(),
+            ModelCheckpoint(
+                dirpath=self.checkpoint_folder,
+                monitor=f"{ModelKey.VAL}/{self.primary_val_metric}",
+                filename=self.best_checkpoint_filename,
+                auto_insert_metric_name=False,
+                mode="max" if self.maximise_primary_metric else "min",
+            ),
+        ]
         if self.analyse_loss:
-            callbacks.append(LossAnalysisCallback(outputs_folder=self.outputs_folder,
-                                                  max_epochs=self.max_epochs,
-                                                  patience=self.loss_analysis_patience,
-                                                  epochs_interval=self.loss_analysis_epochs_interval,
-                                                  num_slides_scatter=self.num_slides_scatter,
-                                                  num_slides_heatmap=self.num_slides_heatmap,
-                                                  save_tile_ids=self.save_tile_ids,
-                                                  log_exceptions=self.log_exceptions,
-                                                  )
-                             )
-
+            callbacks.append(
+                LossAnalysisCallback(
+                    outputs_folder=self.outputs_folder,
+                    max_epochs=self.max_epochs,
+                    patience=self.loss_analysis_patience,
+                    epochs_interval=self.loss_analysis_epochs_interval,
+                    num_slides_scatter=self.num_slides_scatter,
+                    num_slides_heatmap=self.num_slides_heatmap,
+                    save_tile_ids=self.save_tile_ids,
+                    log_exceptions=self.log_exceptions,
+                )
+            )
         if self.grad_cam_layer_name:
-            callbacks.append(MILGradCamCallback(self.grad_cam_layer_name))
-
+            callbacks.append(
+                MILGradCamCallback(
+                    layer_name=self.grad_cam_layer_name,
+                )
+            )
         return callbacks
 
     def get_checkpoint_to_test(self) -> Path:
@@ -215,20 +248,25 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
         random see. See `SlidesDataModule` for an example how to achieve that."""
         return None
 
+    def get_encoder_params(self) -> EncoderParams:
+        return create_from_matching_params(self, EncoderParams)
+
     def create_model(self) -> DeepMILModule:
         self.data_module = self.get_data_module()
         outputs_handler = self.get_outputs_handler()
-        deepmil_module = DeepMILModule(label_column=self.get_label_column(),
-                                       n_classes=self.data_module.train_dataset.n_classes,
-                                       class_names=self.class_names,
-                                       class_weights=self.data_module.class_weights,
-                                       outputs_folder=self.outputs_folder,
-                                       encoder_params=create_from_matching_params(self, EncoderParams),
-                                       pooling_params=create_from_matching_params(self, PoolingParams),
-                                       classifier_params=create_from_matching_params(self, ClassifierParams),
-                                       optimizer_params=create_from_matching_params(self, OptimizerParams),
-                                       outputs_handler=outputs_handler,
-                                       analyse_loss=self.analyse_loss)
+        deepmil_module = DeepMILModule(
+            label_column=self.get_label_column(),
+            n_classes=self.data_module.train_dataset.n_classes,
+            class_names=self.class_names,
+            class_weights=self.data_module.class_weights,
+            outputs_folder=self.outputs_folder,
+            encoder_params=self.get_encoder_params(),
+            pooling_params=create_from_matching_params(self, PoolingParams),
+            classifier_params=create_from_matching_params(self, ClassifierParams),
+            optimizer_params=create_from_matching_params(self, OptimizerParams),
+            outputs_handler=outputs_handler,
+            analyse_loss=self.analyse_loss,
+        )
         deepmil_module.transfer_weights(self.trained_weights_path)
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
         outputs_handler.set_extra_slides_dataset_for_plots_handlers(self.get_extra_slides_dataset_for_plotting())
@@ -261,14 +299,20 @@ class BaseMILTiles(BaseMIL):
     for instantiating the full DeepMIL model in tiles settings. Subclasses should define their datamodules and
     configure experiment-specific parameters.
     """
+
     # Tiles Data module parameters:
-    cache_mode: CacheMode = param.ClassSelector(default=CacheMode.MEMORY, class_=CacheMode,
-                                                doc="The type of caching to perform: "
-                                                    "'memory' (default), 'disk', or 'none'.")
-    precache_location: CacheLocation = param.ClassSelector(default=CacheLocation.CPU, class_=CacheLocation,
-                                                           doc="Whether to pre-cache the entire transformed dataset "
-                                                               "upfront and save it to disk and if re-load in cpu or "
-                                                               "gpu. Options: `none`,`cpu` (default), `gpu`")
+    cache_mode: CacheMode = param.ClassSelector(
+        default=CacheMode.MEMORY,
+        class_=CacheMode,
+        doc="The type of caching to perform: 'memory' (default), 'disk', or 'none'.",
+    )
+    precache_location: CacheLocation = param.ClassSelector(
+        default=CacheLocation.CPU,
+        class_=CacheLocation,
+        doc="Whether to pre-cache the entire transformed dataset "
+        "upfront and save it to disk and if re-load in cpu or "
+        "gpu. Options: `none`,`cpu` (default), `gpu`",
+    )
 
     def get_label_column(self) -> str:
         return self.data_module.train_dataset.label_column
@@ -293,10 +337,12 @@ class BaseMILTiles(BaseMIL):
     def get_transforms_dict(self, image_key: str) -> Dict[ModelKey, Union[Callable, None]]:
         if self.is_caching:
             encoder = create_from_matching_params(self, EncoderParams).get_encoder(self.outputs_folder)
-            transform = Compose([
-                LoadTilesBatchd(image_key, progress=False),
-                EncodeTilesBatchd(image_key, encoder, chunk_size=self.encoding_chunk_size)  # type: ignore
-            ])
+            transform = Compose(
+                [
+                    LoadTilesBatchd(image_key, progress=False),
+                    EncodeTilesBatchd(image_key, encoder, chunk_size=self.encoding_chunk_size),  # type: ignore
+                ]
+            )
         else:
             transform = LoadTilesBatchd(image_key, progress=False)  # type: ignore
         # in case the transformations for training contain augmentations, val and test transform will be different

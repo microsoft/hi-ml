@@ -29,22 +29,25 @@
 .. autosummary::
    :toctree:
 
+   encoder
    model
    modules
    resnet
+   transformer
+   types
 """
 
+from .model import BaseImageModel
 from .model import ImageModel
-from .model import ResnetType
-from .model import get_biovil_resnet
+from .model import ImageEncoderType
 from .inference_engine import ImageInferenceEngine
-from .utils import get_biovil_resnet_inference
+from .utils import get_image_inference
 
 
 __all__ = [
+    "BaseImageModel",
     "ImageModel",
-    "ResnetType",
+    "ImageEncoderType",
     "ImageInferenceEngine",
-    "get_biovil_resnet",
-    "get_biovil_resnet_inference",
+    "get_image_inference",
 ]

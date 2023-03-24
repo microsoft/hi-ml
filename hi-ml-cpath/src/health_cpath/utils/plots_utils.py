@@ -17,7 +17,7 @@ from health_cpath.utils.viz_utils import (
     plot_attention_tiles,
     plot_heatmap_overlay,
     plot_attention_histogram,
-    plot_normalized_confusion_matrix,
+    plot_normalized_and_non_normalized_confusion_matrices,
     plot_scores_hist,
     plot_slide,
 )
@@ -54,14 +54,15 @@ def save_scores_histogram(results: ResultsType, figures_dir: Path, stage: str = 
     save_figure(fig=fig, figpath=figures_dir / f"hist_scores_{stage}.png")
 
 
-def save_pr_curve(results: ResultsType, figures_dir: Path, stage: str = '',
-                  stratify_metadata: Optional[List[Any]] = None) -> None:
+def save_pr_curve(
+    results: ResultsType, figures_dir: Path, stage: str = '', stratify_metadata: Optional[List[Any]] = None
+) -> None:
     """Plots and saves PR curve figure in its dedicated directory. This implementation
-    only works for binary classification.
-''
-    :param results: Dict of lists that contains slide_level results
-    :param figures_dir: The path to the directory where to save the figure
-    :param stage: Test or validation, used to name the figure. Empty string by default.
+        only works for binary classification.
+    ''
+        :param results: Dict of lists that contains slide_level results
+        :param figures_dir: The path to the directory where to save the figure
+        :param stage: Test or validation, used to name the figure. Empty string by default.
     """
     true_labels = get_list_from_results_dict(results=results, results_key=ResultsKey.TRUE_LABEL)
     if len(set(true_labels)) == 2:
@@ -69,8 +70,9 @@ def save_pr_curve(results: ResultsType, figures_dir: Path, stage: str = '',
         fig, ax = plt.subplots()
         plot_pr_curve(true_labels, scores, legend_label=stage, ax=ax)
         if stratify_metadata is not None:
-            stratified_outputs = get_stratified_outputs(true_labels=true_labels, scores=scores,
-                                                        stratify_metadata=stratify_metadata)
+            stratified_outputs = get_stratified_outputs(
+                true_labels=true_labels, scores=scores, stratify_metadata=stratify_metadata
+            )
             for key in stratified_outputs.keys():
                 true_stratified = stratified_outputs[key][0]
                 pred_stratified = stratified_outputs[key][1]
@@ -82,8 +84,9 @@ def save_pr_curve(results: ResultsType, figures_dir: Path, stage: str = '',
         logging.warning("The PR curve plot implementation works only for binary cases, this plot will be skipped.")
 
 
-def save_roc_curve(results: ResultsType, figures_dir: Path, stage: str = '',
-                   stratify_metadata: Optional[List[Any]] = None) -> None:
+def save_roc_curve(
+    results: ResultsType, figures_dir: Path, stage: str = '', stratify_metadata: Optional[List[Any]] = None
+) -> None:
     """Plots and saves ROC curve figure in its dedicated directory. This implementation
     only works for binary classification.
 
@@ -98,8 +101,9 @@ def save_roc_curve(results: ResultsType, figures_dir: Path, stage: str = '',
         fig, ax = plt.subplots()
         plot_roc_curve(true_labels, scores, legend_label=stage, ax=ax)
         if stratify_metadata is not None:
-            stratified_outputs = get_stratified_outputs(true_labels=true_labels, scores=scores,
-                                                        stratify_metadata=stratify_metadata)
+            stratified_outputs = get_stratified_outputs(
+                true_labels=true_labels, scores=scores, stratify_metadata=stratify_metadata
+            )
             for key in stratified_outputs.keys():
                 true_stratified = stratified_outputs[key][0]
                 pred_stratified = stratified_outputs[key][1]
@@ -130,15 +134,11 @@ def save_confusion_matrix(results: ResultsType, class_names: Sequence[str], figu
     if pred_labels_diff_expected != set():
         raise ValueError("More entries were found in predicted labels than are available in class names")
 
-    cf_matrix_n = confusion_matrix(
-        true_labels,
-        pred_labels,
-        labels=all_potential_labels,
-        normalize="true"
-    )
+    cf_matrix = confusion_matrix(true_labels, pred_labels, labels=all_potential_labels)
+    cf_matrix_n = confusion_matrix(true_labels, pred_labels, labels=all_potential_labels, normalize="true")
 
-    fig = plot_normalized_confusion_matrix(cm=cf_matrix_n, class_names=(class_names))
-    save_figure(fig=fig, figpath=figures_dir / f"normalized_confusion_matrix_{stage}.png")
+    fig = plot_normalized_and_non_normalized_confusion_matrices(cm=cf_matrix, cm_n=cf_matrix_n, class_names=class_names)
+    save_figure(fig=fig, figpath=figures_dir / f"confusion_matrices_{stage}.png")
 
 
 def save_top_and_bottom_tiles(
@@ -226,7 +226,7 @@ def make_figure_dirs(subfolder: str, parent_dir: Path) -> Path:
 
 
 def get_list_from_results_dict(results: ResultsType, results_key: ResultsKey) -> List[Any]:
-    """ Get a specific results list from the slide_level results dictionary, we extract items from tensors
+    """Get a specific results list from the slide_level results dictionary, we extract items from tensors
     here so that it's compatible with inputs formats of scikit learn functions.
 
     :param results: Dict of lists that contains slide_level results
@@ -235,8 +235,9 @@ def get_list_from_results_dict(results: ResultsType, results_key: ResultsKey) ->
     return [i.item() if isinstance(i, Tensor) else i for i in results[results_key]]
 
 
-def get_stratified_outputs(true_labels: List[Any], scores: List[Any],
-                           stratify_metadata: List[Any]) -> Dict[str, List[Any]]:
+def get_stratified_outputs(
+    true_labels: List[Any], scores: List[Any], stratify_metadata: List[Any]
+) -> Dict[str, List[Any]]:
     """
     Get stratified true labels and predictions given metadata, from all true and prediction labels
     to plot stratified curves.
@@ -247,7 +248,7 @@ def get_stratified_outputs(true_labels: List[Any], scores: List[Any],
     :return: A dictionary of stratified outputs, where a key is a unique value from the metadata,
     and value contains a list of two lists - true labels in first list, predicted labels in second list.
     """
-    unique_vals, unique_counts = np.unique(stratify_metadata, return_counts=True)   # metadata should not contain nans
+    unique_vals, unique_counts = np.unique(stratify_metadata, return_counts=True)  # metadata should not contain nans
     stratified_outputs = {}
     for val, count in zip(unique_vals, unique_counts):
         idxs = [i for i, x in enumerate(stratify_metadata) if x == val]
@@ -268,7 +269,7 @@ class DeepMILPlotsHandler:
         figsize: Tuple[int, int] = (10, 10),
         stage: str = '',
         class_names: Optional[Sequence[str]] = None,
-        stratify_plots_by: Optional[str] = None
+        stratify_plots_by: Optional[str] = None,
     ) -> None:
         """Class that handles the plotting of DeepMIL results.
 
@@ -339,7 +340,13 @@ class DeepMILPlotsHandler:
                 else:
                     extra_slide_dict = None
                 save_attention_heatmap(
-                    case, slide_node, slide_dict, case_dir, results, self.tile_size, self.should_upscale_coords,
+                    case,
+                    slide_node,
+                    slide_dict,
+                    case_dir,
+                    results,
+                    self.tile_size,
+                    self.should_upscale_coords,
                     extra_slide_dict,
                 )
 
@@ -358,14 +365,16 @@ class DeepMILPlotsHandler:
         else:
             slides_df = self.slides_dataset.dataset_df
             all_slide_ids = slides_df.index.to_list()
-            output_slide_ids = [x[0] for x in results[ResultsKey.SLIDE_ID]]    # get unique slide ID from bags
+            output_slide_ids = [x[0] for x in results[ResultsKey.SLIDE_ID]]  # get unique slide ID from bags
             stratify_metadata = []
             for slide in output_slide_ids:
                 idx = all_slide_ids.index(slide)
                 sample = self.slides_dataset[idx]
                 if self.stratify_plots_by not in sample[SlideKey.METADATA]:
-                    logging.warning(f"{self.stratify_plots_by} not available in the slides dataset metadata, \
-                        make sure the dataset includes stratify_plots_by, so stratified plots will be skipped.")
+                    logging.warning(
+                        f"{self.stratify_plots_by} not available in the slides dataset metadata, \
+                        make sure the dataset includes stratify_plots_by, so stratified plots will be skipped."
+                    )
                     return None
                 stratify_metadata.append(sample[SlideKey.METADATA][self.stratify_plots_by])
         return stratify_metadata
@@ -379,23 +388,27 @@ class DeepMILPlotsHandler:
         :param stage: The model stage: validation or test.
         """
         if self.plot_options:
-            logging.info(
-                f"Plotting {[opt.value for opt in self.plot_options]}..."
-            )
+            logging.info(f"Plotting {[opt.value for opt in self.plot_options]}...")
             figures_dir = make_figure_dirs(subfolder="fig", parent_dir=outputs_dir)
 
             stratify_metadata = self.get_metadata(results=results)
 
             if PlotOption.PR_CURVE in self.plot_options:
-                save_pr_curve(results=results, figures_dir=figures_dir,
-                              stage=self.stage, stratify_metadata=stratify_metadata)
+                save_pr_curve(
+                    results=results, figures_dir=figures_dir, stage=self.stage, stratify_metadata=stratify_metadata
+                )
 
             if PlotOption.ROC_CURVE in self.plot_options:
-                save_roc_curve(results=results, figures_dir=figures_dir, stage=self.stage,
-                               stratify_metadata=stratify_metadata)
+                save_roc_curve(
+                    results=results, figures_dir=figures_dir, stage=self.stage, stratify_metadata=stratify_metadata
+                )
 
             if PlotOption.HISTOGRAM in self.plot_options:
-                save_scores_histogram(results=results, figures_dir=figures_dir, stage=self.stage,)
+                save_scores_histogram(
+                    results=results,
+                    figures_dir=figures_dir,
+                    stage=self.stage,
+                )
 
             if PlotOption.CONFUSION_MATRIX in self.plot_options:
                 assert self.class_names
@@ -403,7 +416,6 @@ class DeepMILPlotsHandler:
 
             if tiles_selector:
                 for class_id in range(tiles_selector.n_classes):
-
                     for slide_node in tiles_selector.top_slides_heaps[class_id]:
                         case = "TN" if class_id == 0 else f"TP_{class_id}"
                         self.save_slide_node_figures(case, slide_node, outputs_dir, results)

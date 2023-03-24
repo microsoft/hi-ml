@@ -35,7 +35,7 @@ def test_panda_tiles_dataset(tiling_version: int, tmp_path: Path) -> None:
     dataset_columns = set(dataset.dataset_df.columns)
     base_df_columns = set(base_df.columns)
 
-    assert coordinates_columns_v0.issubset(dataset_columns)   # v0 columns are always present
+    assert coordinates_columns_v0.issubset(dataset_columns)  # v0 columns are always present
 
     if tiling_version == 0:
         assert coordinates_columns_v0.issubset(dataset_columns)

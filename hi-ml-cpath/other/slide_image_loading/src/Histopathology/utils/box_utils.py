@@ -15,6 +15,7 @@ class Box:
     :param h: Box height.
     :raises ValueError: If either `w` or `h` are <= 0.
     """
+
     x: int
     y: int
     w: int
@@ -35,10 +36,7 @@ class Box:
         """
         if len(shift) != 2:
             raise ValueError("Shift must be two-dimensional")
-        return Box(x=self.x + shift[0],
-                   y=self.y + shift[1],
-                   w=self.w,
-                   h=self.h)
+        return Box(x=self.x + shift[0], y=self.y + shift[1], w=self.w, h=self.h)
 
     def __mul__(self, factor: float) -> 'Box':
         """Scales the box by a given factor, e.g. when changing resolution.
@@ -46,10 +44,7 @@ class Box:
         :param factor: The factor by which to multiply the box's location and dimensions.
         :return: The updated box, with location and dimensions rounded to `int`.
         """
-        return Box(x=int(self.x * factor),
-                   y=int(self.y * factor),
-                   w=int(self.w * factor),
-                   h=int(self.h * factor))
+        return Box(x=int(self.x * factor), y=int(self.y * factor), w=int(self.w * factor), h=int(self.h * factor))
 
     def __rmul__(self, factor: float) -> 'Box':
         """Scales the box by a given factor, e.g. when changing resolution.
@@ -65,7 +60,7 @@ class Box:
         :param factor: The factor by which to divide the box's location and dimensions.
         :return: The updated box, with location and dimensions rounded to `int`.
         """
-        return self * (1. / factor)
+        return self * (1.0 / factor)
 
     def add_margin(self, margin: int) -> 'Box':
         """Adds a symmetric margin on all sides of the box.
@@ -73,10 +68,7 @@ class Box:
         :param margin: The amount by which to enlarge the box.
         :return: A new box enlarged by `margin` on all sides.
         """
-        return Box(x=self.x - margin,
-                   y=self.y - margin,
-                   w=self.w + 2 * margin,
-                   h=self.h + 2 * margin)
+        return Box(x=self.x - margin, y=self.y - margin, w=self.w + 2 * margin, h=self.h + 2 * margin)
 
     def clip(self, other: 'Box') -> Optional['Box']:
         """Clips a box to the interior of another.
@@ -102,8 +94,7 @@ class Box:
 
         :return: A 2-tuple with vertical and horizontal slices.
         """
-        return (slice(self.y, self.y + self.h),
-                slice(self.x, self.x + self.w))
+        return (slice(self.y, self.y + self.h), slice(self.x, self.x + self.w))
 
     @staticmethod
     def from_slices(slices: Sequence[slice]) -> 'Box':
@@ -113,10 +104,12 @@ class Box:
         :return: A box with corresponding location and dimensions.
         """
         vert_slice, horz_slice = slices
-        return Box(x=horz_slice.start,
-                   y=vert_slice.start,
-                   w=horz_slice.stop - horz_slice.start,
-                   h=vert_slice.stop - vert_slice.start)
+        return Box(
+            x=horz_slice.start,
+            y=vert_slice.start,
+            w=horz_slice.stop - horz_slice.start,
+            h=vert_slice.stop - vert_slice.start,
+        )
 
 
 def get_bounding_box(mask: ArrayLike) -> Box:

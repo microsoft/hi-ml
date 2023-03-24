@@ -14,19 +14,14 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 
 from health_azure.utils import create_from_matching_params
-from health_ml.deep_learning_config import DatasetParams, OptimizerParams, OutputParams, TrainerParams, \
-    WorkflowParams
+from health_ml.deep_learning_config import DatasetParams, OptimizerParams, OutputParams, TrainerParams, WorkflowParams
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
 from health_ml.utils.lr_scheduler import SchedulerWithWarmUp
 from health_ml.utils.model_util import create_optimizer
 
 
-class LightningContainer(WorkflowParams,
-                         DatasetParams,
-                         OutputParams,
-                         TrainerParams,
-                         OptimizerParams):
+class LightningContainer(WorkflowParams, DatasetParams, OutputParams, TrainerParams, OptimizerParams):
     """
     A LightningContainer contains all information to train a user-specified PyTorch Lightning model. The model that
     should be trained is returned by the `get_model` method. The training data must be returned in the form of
@@ -94,16 +89,20 @@ class LightningContainer(WorkflowParams,
         :param run_config: The ScriptRunConfig object that needs to be passed into the constructor of
             HyperDriveConfig.
         """
-        raise NotImplementedError("Parameter search is not implemented. Please override 'get_parameter_tuning_config' "
-                                  "in your model container.")
+        raise NotImplementedError(
+            "Parameter search is not implemented. Please override 'get_parameter_tuning_config' "
+            "in your model container."
+        )
 
     def get_parameter_tuning_args(self) -> Dict[str, Any]:
         """
         Returns a dictionary of hyperperameter argument names and values as expected by a AML SDK v2 job
         to perform hyperparameter search
         """
-        raise NotImplementedError("Parameter search is not implemented. Please override 'get_parameter_tuning_args' "
-                                  "in your model container.")
+        raise NotImplementedError(
+            "Parameter search is not implemented. Please override 'get_parameter_tuning_args' "
+            "in your model container."
+        )
 
     def update_experiment_config(self, experiment_config: ExperimentConfig) -> None:
         """
@@ -223,8 +222,9 @@ class LightningContainer(WorkflowParams,
         arguments_str = "\nContainer:\n"
         # Avoid callable params, the bindings that are printed out can be humongous.
         # Avoid dataframes
-        skip_params = {name for name, value in self.param.params().items()
-                       if isinstance(value, (param.Callable, param.DataFrame))}
+        skip_params = {
+            name for name, value in self.param.params().items() if isinstance(value, (param.Callable, param.DataFrame))
+        }
         for key, value in self.param.get_param_values():
             if key not in skip_params:
                 arguments_str += f"\t{key:40}: {value}\n"
@@ -262,8 +262,20 @@ class LightningContainer(WorkflowParams,
             assert self._model, "Model is not initialized."
             self.model.on_run_extra_validation_epoch()  # type: ignore
         else:
-            logging.warning("Hook `on_run_extra_validation_epoch` is not implemented by lightning module."
-                            "The extra validation epoch won't produce any extra outputs.")
+            logging.warning(
+                "Hook `on_run_extra_validation_epoch` is not implemented by lightning module."
+                "The extra validation epoch won't produce any extra outputs."
+            )
+
+    def set_model_variant(self, variant_name: str) -> None:
+        """Choose which variant of the model to use. A variant can for example have a different number of layers
+        compared to the base model. This method is called by the runner to set the variant that should be used, passing
+        in the variant name. A typical implement would set parameters of the object, based on the value of the
+        `variant_name` argument.
+
+        :param variant_name: The name of the model variant that should be set.
+        """
+        pass
 
 
 class LightningModuleWithOptimizer(LightningModule):
@@ -271,9 +283,10 @@ class LightningModuleWithOptimizer(LightningModule):
     A base class that supplies a method to configure optimizers and LR schedulers. To use this in your model,
     inherit from this class instead of from LightningModule.
     If this class is used, all configuration options for the optimizers and LR schedulers will be also available as
-    commandline arguments (for example, you can supply the InnerEye runner with "--l_rate=1e-2" to change the learning
+    commandline arguments (for example, you can supply the hi-ml runner with "--l_rate=1e-2" to change the learning
     rate.
     """
+
     # These fields will be set by the LightningContainer when the model is created.
     _optimizer_params = OptimizerParams()
     _trainer_params = TrainerParams()
@@ -287,6 +300,7 @@ class LightningModuleWithOptimizer(LightningModule):
         :return: A tuple of (optimizer, LR scheduler)
         """
         optimizer = create_optimizer(self._optimizer_params, self.parameters())
-        l_rate_scheduler = SchedulerWithWarmUp(self._optimizer_params, optimizer,
-                                               num_epochs=self._trainer_params.max_epochs)
+        l_rate_scheduler = SchedulerWithWarmUp(
+            self._optimizer_params, optimizer, num_epochs=self._trainer_params.max_epochs
+        )
         return [optimizer], [l_rate_scheduler]

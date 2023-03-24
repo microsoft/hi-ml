@@ -18,9 +18,9 @@ from health_azure import create_crossval_hyperdrive_config, submit_to_azure_if_n
 def main() -> None:
     num_cross_validation_splits = 2
     metric_name = "val/loss"
-    hyperdrive_config = create_crossval_hyperdrive_config(num_cross_validation_splits,
-                                                          cross_val_index_arg_name="cross_validation_split_index",
-                                                          metric_name=metric_name)
+    hyperdrive_config = create_crossval_hyperdrive_config(
+        num_cross_validation_splits, cross_val_index_arg_name="cross_validation_split_index", metric_name=metric_name
+    )
     # tags{"num_splits": str(num_splits)}
     tags = {}
     run_info = submit_to_azure_if_needed(
@@ -32,7 +32,7 @@ def main() -> None:
         wait_for_completion_show_output=True,
         tags=tags,
         hyperdrive_config=hyperdrive_config,
-        submit_to_azureml=True
+        submit_to_azureml=True,
     )
 
     if run_info.run is None:
@@ -41,12 +41,12 @@ def main() -> None:
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--kernel', type=str, default='linear',
-                        help='Kernel type to be used in the algorithm')
-    parser.add_argument('--penalty', type=float, default=1.0,
-                        help='Penalty parameter of the error term')
-    parser.add_argument('--cross_validation_split_index', help="An index denoting which split of the dataset this"
-                                                               "run represents in k-fold cross-validation")
+    parser.add_argument('--kernel', type=str, default='linear', help='Kernel type to be used in the algorithm')
+    parser.add_argument('--penalty', type=float, default=1.0, help='Penalty parameter of the error term')
+    parser.add_argument(
+        '--cross_validation_split_index',
+        help="An index denoting which split of the dataset this run represents in k-fold cross-validation",
+    )
     parser.add_argument("--num_splits", help="The total number of splits being used for k-fol cross validation")
 
     args = parser.parse_args()

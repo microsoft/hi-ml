@@ -18,8 +18,7 @@ def test_download_aml_run_args(tmp_path: Path) -> None:
 
     with pytest.raises(Exception) as e:
         subprocess.Popen(["python", DOWNLOAD_SCRIPT_PATH, "--output_dir", str(tmp_output_dir)])
-        assert 'One of latest_run_file, experiment, run_recovery_id ' \
-               'or run_id must be provided' in str(e)
+        assert 'One of latest_run_file, experiment, run_recovery_id ' 'or run_id must be provided' in str(e)
 
 
 def test_no_config_path(tmp_path: Path) -> None:

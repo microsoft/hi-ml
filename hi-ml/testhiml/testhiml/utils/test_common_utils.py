@@ -30,7 +30,9 @@ def test_set_to_eval_mode() -> None:
 
 
 @pytest.fixture(scope="session")
-def temp_project_root(tmp_path_factory: pytest.TempPathFactory,) -> Generator:
+def temp_project_root(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Generator:
     temp_project_root = tmp_path_factory.mktemp("test_folder")
     yield temp_project_root
 
@@ -99,21 +101,25 @@ def test_check_conda_environments(tmp_path: Path) -> None:
     """Test if the check_conda_environments function correctly identifies environment files that contain
     a `-r` part in the pip section"""
     invalid_env = tmp_path / "invalid_env.yaml"
-    invalid_env.write_text("""name: DummyEnv
+    invalid_env.write_text(
+        """name: DummyEnv
 dependencies:
   - pip:
       - foo==1.0
       - -r requirements.txt
-""")
+"""
+    )
     with pytest.raises(ValueError) as e:
         check_conda_environment(invalid_env)
     assert "uses '-r' to reference pip requirements" in str(e.value)
 
     valid_env = tmp_path / "valid_env.yaml"
 
-    valid_env.write_text("""name: DummyEnv
+    valid_env.write_text(
+        """name: DummyEnv
 dependencies:
   - pip:
       - foo==1.0
-""")
+"""
+    )
     check_conda_environment(valid_env)

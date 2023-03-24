@@ -2,37 +2,45 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import json
+import logging
 import os
 import sys
-import logging
-import torch
-
 from pathlib import Path
 from typing import Dict, List, Optional
 
+import torch
 from azureml.core import Run
 from pytorch_lightning import Trainer, seed_everything
 
 from health_azure import AzureRunInfo
-from health_azure.logging import logging_section
-from health_azure.utils import (create_run_recovery_id, ENV_OMPI_COMM_WORLD_RANK,
-                                is_running_in_azure_ml, PARENT_RUN_CONTEXT, RUN_CONTEXT,
-                                aggregate_hyperdrive_metrics, get_metrics_for_childless_run,
-                                ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK,
-                                is_local_rank_zero, is_global_rank_zero, create_aml_run_object)
-from health_azure.logging import print_message_with_rank_pid
+from health_azure.logging import logging_section, print_message_with_rank_pid
+from health_azure.utils import (
+    ENV_GLOBAL_RANK,
+    ENV_LOCAL_RANK,
+    ENV_NODE_RANK,
+    ENV_OMPI_COMM_WORLD_RANK,
+    PARENT_RUN_CONTEXT,
+    RUN_CONTEXT,
+    create_aml_run_object,
+    create_run_recovery_id,
+    get_metrics_for_hyperdrive_run,
+    get_metrics_for_run,
+    is_global_rank_zero,
+    is_local_rank_zero,
+    is_running_in_azure_ml,
+)
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.model_trainer import create_lightning_trainer, write_experiment_summary_file
 from health_ml.utils import fixed_paths
-from health_ml.utils.checkpoint_utils import cleanup_checkpoints
 from health_ml.utils.checkpoint_handler import CheckpointHandler
+from health_ml.utils.checkpoint_utils import cleanup_checkpoints
 from health_ml.utils.common_utils import (
     EFFECTIVE_RANDOM_SEED_KEY_NAME,
-    change_working_directory,
-    RUN_RECOVERY_ID_KEY,
     RUN_RECOVERY_FROM_ID_KEY_NAME,
-    df_to_json,
+    RUN_RECOVERY_ID_KEY,
+    change_working_directory,
     seed_monai_if_available,
 )
 from health_ml.utils.lightning_loggers import StoringLogger, get_mlflow_run_id_from_trainer
@@ -56,11 +64,9 @@ def check_dataset_folder_exists(local_dataset: PathOrString) -> Path:
 
 
 class MLRunner:
-
-    def __init__(self,
-                 experiment_config: ExperimentConfig,
-                 container: LightningContainer,
-                 project_root: Optional[Path] = None) -> None:
+    def __init__(
+        self, experiment_config: ExperimentConfig, container: LightningContainer, project_root: Optional[Path] = None
+    ) -> None:
         """
         Driver class to run a ML experiment. Note that the project root argument MUST be supplied when using hi-ml
         as a package!
@@ -76,9 +82,9 @@ class MLRunner:
         self.project_root: Path = project_root or fixed_paths.repository_root_directory()
         self.storing_logger: Optional[StoringLogger] = None
         self._has_setup_run = False
-        self.checkpoint_handler = CheckpointHandler(container=self.container,
-                                                    project_root=self.project_root,
-                                                    run_context=RUN_CONTEXT)
+        self.checkpoint_handler = CheckpointHandler(
+            container=self.container, project_root=self.project_root, run_context=RUN_CONTEXT
+        )
         self.trainer: Optional[Trainer] = None
         self.azureml_run_for_logging: Optional[Run] = None
         self.mlflow_run_for_logging: Optional[str] = None
@@ -98,7 +104,7 @@ class MLRunner:
             "friendly_name",
             "build_number",
             "build_user",
-            RUN_RECOVERY_FROM_ID_KEY_NAME
+            RUN_RECOVERY_FROM_ID_KEY_NAME,
         ]
         new_tags = {tag: run_tags_parent.get(tag, "") for tag in tags_to_copy}
         new_tags[RUN_RECOVERY_ID_KEY] = create_run_recovery_id(run=RUN_CONTEXT)
@@ -158,6 +164,7 @@ class MLRunner:
         multiple_trainloader_mode = "max_size_cycle"
         try:
             from SSL.data.datamodules import CombinedDataModule  # type: ignore
+
             if isinstance(self.data_module, CombinedDataModule):
                 self.data_module.prepare_data()
                 multiple_trainloader_mode = self.data_module.train_loader_cycle_mode  # type: ignore
@@ -197,7 +204,6 @@ class MLRunner:
             self.azureml_run_for_logging = run
 
         if not self.container.run_inference_only:
-
             checkpoint_path_for_recovery = self.checkpoint_handler.get_recovery_or_checkpoint_path_train()
             if not checkpoint_path_for_recovery and self.container.resume_training:
                 # If there is no recovery checkpoint (e.g job hasn't been resubmitted) and a source checkpoint is given,
@@ -209,7 +215,8 @@ class MLRunner:
                 resume_from_checkpoint=checkpoint_path_for_recovery,
                 num_nodes=self.container.num_nodes,
                 multiple_trainloader_mode=self.get_multiple_trainloader_mode(),
-                azureml_run_for_logging=self.azureml_run_for_logging)
+                azureml_run_for_logging=self.azureml_run_for_logging,
+            )
 
             rank_info = ", ".join(
                 f"{env}: {os.getenv(env)}" for env in [ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK]
@@ -269,7 +276,7 @@ class MLRunner:
         return True
 
     def set_trainer_for_inference(self) -> None:
-        """ Set the runner's PL Trainer object that should be used when running inference on the validation or test set.
+        """Set the runner's PL Trainer object that should be used when running inference on the validation or test set.
         We run inference on a single device because distributed strategies such as DDP use DistributedSampler
         internally, which replicates some samples to make sure all devices have the same batch size in case of
         uneven inputs which biases the results."""
@@ -279,11 +286,11 @@ class MLRunner:
             container=self.container,
             num_nodes=1,
             azureml_run_for_logging=self.azureml_run_for_logging,
-            mlflow_run_for_logging=mlflow_run_id
+            mlflow_run_for_logging=mlflow_run_id,
         )
 
     def init_inference(self) -> None:
-        """ Prepare the runner for inference: validation or test. The following steps are performed:
+        """Prepare the runner for inference: validation or test. The following steps are performed:
         1. Get the checkpoint to use for inference. This is either the checkpoint from the last training epoch or the
         one specified in src_checkpoint argument.
         2. If the container has a run_extra_val_epoch method, call it to run an extra validation epoch.
@@ -317,7 +324,7 @@ class MLRunner:
     def run_validation(self) -> None:
         """Run validation on the validation set for all models to save time/memory consuming outputs. This is done in
         inference only mode or when the user has requested an extra validation epoch. The cwd is changed to the outputs
-        folder """
+        folder"""
         if self.container.run_extra_val_epoch or self.container.run_inference_only:
             with change_working_directory(self.container.outputs_folder):
                 assert self.trainer, "Trainer should be initialized before validation. Call self.init_inference()."
@@ -358,23 +365,24 @@ class MLRunner:
                 if self.is_crossval_disabled_or_child_0():
                     if is_running_in_azure_ml():
                         if PARENT_RUN_CONTEXT is not None:
-                            df = aggregate_hyperdrive_metrics(
+                            metrics = get_metrics_for_hyperdrive_run(
                                 child_run_arg_name=crossval_arg_name,
                                 run=PARENT_RUN_CONTEXT,
-                                keep_metrics=regression_metrics)
+                                keep_metrics=regression_metrics,
+                            )
                         else:
-                            df = get_metrics_for_childless_run(
-                                run=RUN_CONTEXT,
-                                keep_metrics=regression_metrics)
+                            metrics = get_metrics_for_run(run=RUN_CONTEXT, keep_metrics=regression_metrics)
 
-                        if not df.empty:
+                        if metrics:
                             metrics_filename = self.container.outputs_folder / REGRESSION_TEST_METRICS_FILENAME
                             logging.info(f"Saving metrics to {metrics_filename}")
-                            df_to_json(df, metrics_filename)
+                            metrics_filename.write_text(json.dumps(metrics))
 
-                    compare_folders_and_run_outputs(expected=self.container.regression_test_folder,
-                                                    actual=self.container.outputs_folder,
-                                                    csv_relative_tolerance=self.container.regression_test_csv_tolerance)
+                    compare_folders_and_run_outputs(
+                        expected=self.container.regression_test_folder,
+                        actual=self.container.outputs_folder,
+                        csv_relative_tolerance=self.container.regression_test_csv_tolerance,
+                    )
                 else:
                     logging.info("Skipping as this is not cross-validation child run 0.")
         else:

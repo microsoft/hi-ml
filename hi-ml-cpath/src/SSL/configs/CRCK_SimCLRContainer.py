@@ -21,8 +21,8 @@ class CRCK_SimCLR(HistoSSLContainer):
     in the _get_transforms method.
     It has been tested locally and on AML on the full training dataset (93408 tiles).
     """
-    SSLContainer.DatasetToClassMapping.update({SSL_Dataset_TCGA_CRCK:
-                                               TcgaCrck_TilesDatasetWithReturnIndex})
+
+    SSLContainer.DatasetToClassMapping.update({SSL_Dataset_TCGA_CRCK: TcgaCrck_TilesDatasetWithReturnIndex})
 
     def __init__(self, **kwargs: Any) -> None:
         # if not running in Azure ML, you may want to override certain properties on the command line, such as:
@@ -30,22 +30,24 @@ class CRCK_SimCLR(HistoSSLContainer):
         # --num_workers = 0
         # --max_epochs = 2
 
-        super().__init__(ssl_training_dataset_name=SSL_Dataset_TCGA_CRCK,
-                         linear_head_dataset_name=SSL_Dataset_TCGA_CRCK,
-                         azure_datasets=[TCGA_CRCK_DATASET_ID],
-                         random_seed=1,
-                         num_workers=8,
-                         is_debug_model=False,
-                         model_checkpoint_save_interval=50,
-                         model_checkpoints_save_last_k=3,
-                         model_monitor_metric='ssl_online_evaluator/val/AreaUnderRocCurve',
-                         model_monitor_mode='max',
-                         max_epochs=50,
-                         ssl_training_batch_size=48,  # GPU memory is at 70% with batch_size=32, 2GPUs
-                         ssl_encoder=EncoderName.resnet50,
-                         ssl_training_type=SSLTrainingType.SimCLR,
-                         use_balanced_binary_loss_for_linear_head=True,
-                         ssl_augmentation_config=None,  # Change to path_augmentation to use the config
-                         linear_head_augmentation_config=None,  # Change to path_augmentation to use the config
-                         drop_last=False,
-                         **kwargs)
+        super().__init__(
+            ssl_training_dataset_name=SSL_Dataset_TCGA_CRCK,
+            linear_head_dataset_name=SSL_Dataset_TCGA_CRCK,
+            azure_datasets=[TCGA_CRCK_DATASET_ID],
+            random_seed=1,
+            num_workers=8,
+            is_debug_model=False,
+            model_checkpoint_save_interval=50,
+            model_checkpoints_save_last_k=3,
+            model_monitor_metric='ssl_online_evaluator/val/AreaUnderRocCurve',
+            model_monitor_mode='max',
+            max_epochs=50,
+            ssl_training_batch_size=48,  # GPU memory is at 70% with batch_size=32, 2GPUs
+            ssl_encoder=EncoderName.resnet50,
+            ssl_training_type=SSLTrainingType.SimCLR,
+            use_balanced_binary_loss_for_linear_head=True,
+            ssl_augmentation_config=None,  # Change to path_augmentation to use the config
+            linear_head_augmentation_config=None,  # Change to path_augmentation to use the config
+            drop_last=False,
+            **kwargs
+        )

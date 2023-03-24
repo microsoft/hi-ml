@@ -35,14 +35,46 @@ Please follow the general [PEP 8](https://peps.python.org/pep-0008/) Python rule
 
 To improve readability, functions or methods that return boolean values should follow a `is_...`, `has_...`, `use...` pattern, like `is_status_ok` instead of `ok`.
 
-### Static Analysis and Linting
+### Static Analysis, Linting and Styling
 
-We use `flake8` as a linter, and `mypy` and pyright for static typechecking. Both tools run as part of the PR workflow, and must run without errors for a contribution to be accepted.
+We use `flake8` as a linter, `mypy` and pyright for static typechecking, and `black` for styling. All these tools run as part of the PR workflow, and must run without errors for a contribution to be accepted.
+
 `mypy` requires that all functions and methods carry type annotations.
 See the [`mypy` documentation](https://mypy.readthedocs.io/en/latest/getting_started.html#function-signatures-and-dynamic-vs-static-typing) for more information.
 
 We highly recommend to run all those tools _before_ pushing the latest changes to a PR.
 If you have `make` installed, you can run both tools in one go via `make check` (from the repository root folder).
+
+### Black styling
+
+We use `black` for styling all of our code. To pass the tests carried out in `make check` (or `make black`) you can run the following command to reformat your changed file as per our guidelines:
+
+  ```shell
+  black <path_to_python_file>
+  ```
+
+You can also run `black` on the whole repository by running the following command from the head of the repo:
+
+  ```shell
+  black .
+  ```
+
+#### Black VS Code Integration
+
+If you're using VS Code as your IDE, you can avoid having to call `black` every time you want to style some files by installing the [`black` formatter extension](https://marketplace.visualstudio.com/items?itemName=ms-python.black-formatter) and adding the following to your vscode `settings.json` file:
+
+  ```json
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "ms-python.black-formatter",
+      },
+  ```
+
+Now every time you save a file it will automatically be formatted by `black`.
+
+#### Black pre-commit hook
+
+If you do not style your code yourself, then the pre-commit hook on your PR will attempt to do this automatically. Please be aware that this may cause conflicts if you're working on an open pull request. We highly recommend styling your code before submitting!
 
 ### Documentation
 

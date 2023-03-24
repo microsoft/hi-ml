@@ -7,20 +7,26 @@ import shutil
 from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
-from _pytest.capture import SysCapture
+from pytest import CaptureFixture
 from pathlib import Path
 from typing import List, Optional, Tuple
 from monai.transforms import LoadImaged
 from monai.data.wsi_reader import CuCIMWSIReader, OpenSlideWSIReader, WSIReader
+from PIL import Image
 from health_cpath.datasets.default_paths import PANDA_DATASET_ID
 from health_cpath.datasets.panda_dataset import PandaDataset
 from health_cpath.preprocessing.loading import (
-    BaseLoadROId, LoadingParams, ROIType, WSIBackend, LoadROId, LoadMaskROId, LoadMaskSubROId
+    BaseLoadROId,
+    LoadingParams,
+    ROIType,
+    WSIBackend,
+    LoadROId,
+    LoadMaskROId,
+    LoadMaskSubROId,
 )
 from health_cpath.scripts.mount_azure_dataset import mount_dataset
 from health_cpath.utils.naming import SlideKey
 from health_ml.utils.common_utils import is_gpu_available
-from PIL import Image
 from testhiml.utils_testhiml import DEFAULT_WORKSPACE
 
 
@@ -33,7 +39,9 @@ def test_get_load_roid_transform(backend: WSIBackend, roi_type: ROIType) -> None
     loading_params = LoadingParams(backend=backend, roi_type=roi_type)
     transform = loading_params.get_load_roid_transform()
     transform_type = {
-        ROIType.MASK: LoadMaskROId, ROIType.FOREGROUND: LoadROId, ROIType.WHOLE: LoadImaged,
+        ROIType.MASK: LoadMaskROId,
+        ROIType.FOREGROUND: LoadROId,
+        ROIType.WHOLE: LoadImaged,
         ROIType.MASKSUBROI: LoadMaskSubROId,
     }
     assert isinstance(transform, transform_type[roi_type])
@@ -86,7 +94,7 @@ def test_load_slide(tmp_path: Path) -> None:
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 def test_failed_to_estimate_foreground(
-    roi_type: ROIType, mock_panda_slides_root_dir: Path, capsys: SysCapture
+    roi_type: ROIType, mock_panda_slides_root_dir: Path, capsys: CaptureFixture
 ) -> None:
     loading_params = LoadingParams(roi_type=roi_type, level=2)
     load_transform: BaseLoadROId = loading_params.get_load_roid_transform()  # type: ignore
@@ -99,7 +107,7 @@ def test_failed_to_estimate_foreground(
             with patch.object(load_transform.reader, "get_data", return_value=(MagicMock(), MagicMock())):
                 _ = load_transform(sample)
                 mock_get_wsi_bbox.assert_called_once()
-                stdout: str = capsys.readouterr().out  # type: ignore
+                stdout: str = capsys.readouterr().out
                 assert "Failed to estimate bounding box for slide _0: The input mask is empty" in stdout
 
 

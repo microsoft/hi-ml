@@ -10,10 +10,10 @@ from monai.transforms import RandGridPatchd, GridPatchd, SplitDimd
 
 def image_collate(batch: List) -> Any:
     """
-        Combine instances from a list of dicts into a single dict, by stacking them along first dim
-        [{'image' : 3xHxW}, {'image' : 3xHxW}, {'image' : 3xHxW}...] - > {'image' : Nx3xHxW}
-        followed by the default collate which will form a batch BxNx3xHxW.
-        The list of dicts refers to the the list of tiles produced by the Rand/GridPatchd transform applied on a WSI.
+    Combine instances from a list of dicts into a single dict, by stacking them along first dim
+    [{'image' : 3xHxW}, {'image' : 3xHxW}, {'image' : 3xHxW}...] - > {'image' : Nx3xHxW}
+    followed by the default collate which will form a batch BxNx3xHxW.
+    The list of dicts refers to the the list of tiles produced by the Rand/GridPatchd transform applied on a WSI.
     """
 
     for i, item in enumerate(batch):
@@ -33,37 +33,40 @@ class TilingParams(param.Parameterized):
     tile_overlap: int = param.Number(
         default=0,
         bounds=(0.0, 1.0),
-        doc="The amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).")
+        doc="The amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).",
+    )
     tile_sort_fn: Optional[str] = param.String(
         default='min',
         doc="When bag_size is fixed, it determines whether to keep tiles with highest intensity values (`'max'`), "
-            "lowest values (`'min'`) that assumes background is high values, or in their default order (`None`). ")
+        "lowest values (`'min'`) that assumes background is high values, or in their default order (`None`). ",
+    )
     tile_pad_mode: Optional[str] = param.String(
         default=None,
-        doc="The mode of padding, refer to NumpyPadMode and PytorchPadMode. Defaults to None, for no padding.")
-    intensity_threshold: float = param.Number(
-        default=255.,
-        doc="The intensity threshold to filter out tiles based on intensity values. Default to None.")
-    intensity_threshold_scale: float = param.Number(
-        default=0.999,
-        doc="The scale factor to be applied to the intensity threshold. Default to 0.999"
+        doc="The mode of padding, refer to NumpyPadMode and PytorchPadMode. Defaults to None, for no padding.",
     )
-    background_val: int = param.Integer(
-        default=255,
-        doc="The intensity value of background. Default to 255.")
+    intensity_threshold: float = param.Number(
+        default=255.0, doc="The intensity threshold to filter out tiles based on intensity values. Default to None."
+    )
+    intensity_threshold_scale: float = param.Number(
+        default=0.999, doc="The scale factor to be applied to the intensity threshold. Default to 0.999"
+    )
+    background_val: int = param.Integer(default=255, doc="The intensity value of background. Default to 255.")
     rand_min_offset: int = param.Integer(
         default=0,
         bounds=(0, None),
         doc="The minimum range of sarting position to be selected randomly. This parameter is passed to RandGridPatchd."
-            "the random version of RandGridPatchd used at training time. Default to 0.")
+        "the random version of RandGridPatchd used at training time. Default to 0.",
+    )
     rand_max_offset: int = param.Integer(
         default=None,
         bounds=(0, None),
         doc="The maximum range of sarting position to be selected randomly. This parameter is passed to RandGridPatchd."
-            "the random version of RandGridPatchd used at training time. Default to None.")
+        "the random version of RandGridPatchd used at training time. Default to None.",
+    )
     inf_offset: Optional[int] = param.Integer(
         default=None,
-        doc="The offset to be used for inference sampling. This parameter is passed to GridPatchd. Default to None.")
+        doc="The offset to be used for inference sampling. This parameter is passed to GridPatchd. Default to None.",
+    )
 
     @property
     def scaled_threshold(self) -> float:
@@ -71,7 +74,11 @@ class TilingParams(param.Parameterized):
         the threshold by the tile size to account for the fact that the intensity is computed on the entire tile"""
         return self.intensity_threshold_scale * 3 * self.intensity_threshold * self.tile_size * self.tile_size
 
-    def get_tiling_transform(self, bag_size: int, stage: ModelKey,) -> Callable:
+    def get_tiling_transform(
+        self,
+        bag_size: int,
+        stage: ModelKey,
+    ) -> Callable:
         if stage == ModelKey.TRAIN:
             return RandGridPatchd(
                 keys=[SlideKey.IMAGE],

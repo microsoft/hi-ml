@@ -14,7 +14,8 @@ def main() -> None:
     run_info = submit_to_azure_if_needed(
         compute_cluster_name="lite-testing-ds2",
         default_datastore="himldatasets",
-        output_datasets=["himl_sample6_input"])
+        output_datasets=["himl_sample6_input"],
+    )
     # import some data to play with
     iris = datasets.load_iris()
     X = iris.data[:, :2]  # we only take the first two features.

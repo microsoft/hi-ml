@@ -10,5 +10,6 @@
 .. autosummary::
    :toctree:
 
+   device
    visualization
 """

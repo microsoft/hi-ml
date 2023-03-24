@@ -28,10 +28,7 @@ class SslOnlineEvaluatorHiml(SSLOnlineEvaluator):
     OPTIMIZER_STATE_NAME = "evaluator_optimizer"
     EVALUATOR_STATE_NAME = "evaluator_weights"
 
-    def __init__(self,
-                 learning_rate: float,
-                 class_weights: Optional[torch.Tensor] = None,
-                 **kwargs: Any) -> None:
+    def __init__(self, learning_rate: float, class_weights: Optional[torch.Tensor] = None, **kwargs: Any) -> None:
         """
         Creates a hook to evaluate a linear model on top of an SSL embedding.
 
@@ -44,12 +41,16 @@ class SslOnlineEvaluatorHiml(SSLOnlineEvaluator):
         self.weight_decay = 1e-4
         self.learning_rate = learning_rate
 
-        self.train_metrics: List[Metric] = [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(),
-                                            Accuracy05()] \
-            if self.num_classes == 2 else [Accuracy05()]
-        self.val_metrics: List[Metric] = [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(),
-                                          Accuracy05()] \
-            if self.num_classes == 2 else [Accuracy05()]
+        self.train_metrics: List[Metric] = (
+            [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy05()]
+            if self.num_classes == 2
+            else [Accuracy05()]
+        )
+        self.val_metrics: List[Metric] = (
+            [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy05()]
+            if self.num_classes == 2
+            else [Accuracy05()]
+        )
         self.class_weights = class_weights
         self.evaluator_state: Optional[OrderedDict] = None
         self.optimizer_state: Optional[OrderedDict] = None
@@ -63,22 +64,20 @@ class SslOnlineEvaluatorHiml(SSLOnlineEvaluator):
         else:
             return self.evaluator
 
-    def on_save_checkpoint(self,
-                           trainer: pl.Trainer,
-                           pl_module: pl.LightningModule,
-                           checkpoint: Dict[str, Any]) -> Dict[str, Any]:
+    def on_save_checkpoint(
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule, checkpoint: Dict[str, Any]
+    ) -> Dict[str, Any]:
         # Each callback gets its own state dictionary, that are fed back in during load
         # When saving the evaluator, use the wrapped DDP module (otherwise the resulting checkpoint will depend
         # on use of DDP or not).
         return {
             self.OPTIMIZER_STATE_NAME: self.optimizer.state_dict(),
-            self.EVALUATOR_STATE_NAME: self._wrapped_evaluator().state_dict()
+            self.EVALUATOR_STATE_NAME: self._wrapped_evaluator().state_dict(),
         }
 
-    def on_load_checkpoint(self,
-                           trainer: pl.Trainer,
-                           pl_module: pl.LightningModule,
-                           callback_state: Dict[str, Any]) -> None:
+    def on_load_checkpoint(
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule, callback_state: Dict[str, Any]
+    ) -> None:
         self.optimizer_state = callback_state[self.OPTIMIZER_STATE_NAME]
         self.evaluator_state = callback_state[self.EVALUATOR_STATE_NAME]
 
@@ -90,10 +89,9 @@ class SslOnlineEvaluatorHiml(SSLOnlineEvaluator):
         """
         for prefix, metrics in [("train", self.train_metrics), ("val", self.val_metrics)]:
             add_submodules_to_same_device(pl_module, metrics, prefix=prefix)
-        self.evaluator = SSLEvaluator(n_input=self.z_dim,
-                                      n_classes=self.num_classes,
-                                      p=self.drop_p,
-                                      n_hidden=self.hidden_dim)
+        self.evaluator = SSLEvaluator(
+            n_input=self.z_dim, n_classes=self.num_classes, p=self.drop_p, n_hidden=self.hidden_dim
+        )
         self.evaluator.to(pl_module.device)
         if hasattr(trainer, "accelerator_connector"):
             # This works with Lightning 1.3.8
@@ -108,11 +106,13 @@ class SslOnlineEvaluatorHiml(SSLOnlineEvaluator):
                 self.evaluator = SyncBatchNorm.convert_sync_batchnorm(self.evaluator)
                 self.evaluator = DistributedDataParallel(self.evaluator, device_ids=[pl_module.device])  # type: ignore
             else:
-                rank_zero_warn("This type of distributed accelerator is not supported. "
-                               "The online evaluator will not synchronize across GPUs.")
-        self.optimizer = torch.optim.Adam(self.evaluator.parameters(),
-                                          lr=self.learning_rate,
-                                          weight_decay=self.weight_decay)
+                rank_zero_warn(
+                    "This type of distributed accelerator is not supported. "
+                    "The online evaluator will not synchronize across GPUs."
+                )
+        self.optimizer = torch.optim.Adam(
+            self.evaluator.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay
+        )
         if self.evaluator_state is not None:
             self._wrapped_evaluator().load_state_dict(self.evaluator_state)
         if self.optimizer_state is not None:
@@ -152,18 +152,20 @@ class SslOnlineEvaluatorHiml(SSLOnlineEvaluator):
 
         with torch.no_grad():
             posteriors = F.softmax(mlp_preds, dim=-1)
-            for metric in (self.train_metrics if is_training else self.val_metrics):
+            for metric in self.train_metrics if is_training else self.val_metrics:
                 metric(posteriors, y)  # type: ignore
 
         return mlp_loss
 
-    def on_validation_batch_end(self,
-                                trainer: pl.Trainer,
-                                pl_module: pl.LightningModule,
-                                outputs: Any,
-                                batch: BatchType,
-                                batch_idx: int,
-                                dataloader_idx: int) -> None:  # type: ignore
+    def on_validation_batch_end(
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        outputs: Any,
+        batch: BatchType,
+        batch_idx: int,
+        dataloader_idx: int,
+    ) -> None:  # type: ignore
         """
         Get and log validation metrics.
         Metrics are computed only if the sample IDs in the batch have not yet been seen in this epoch (linear head

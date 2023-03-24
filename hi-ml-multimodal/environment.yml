@@ -5,7 +5,7 @@ channels:
   - pytorch
 dependencies:
   - pip=20.1.1
-  - python=3.7.3
+  - python=3.9
   - cudatoolkit=11.1
   - pytorch=1.9.0
   - torchvision=0.10.0

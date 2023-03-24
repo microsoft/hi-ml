@@ -30,6 +30,7 @@ from health_cpath.utils.tiles_selection_utils import SlideNode
 def load_image_dict(sample: dict, loading_params: LoadingParams) -> Dict[SlideKey, Any]:
     """
     Load image from metadata dictionary
+
     :param sample: dict describing image metadata. Example:
         {'image_id': ['1ca999adbbc948e69783686e5b5414e4'],
         'image': ['/tmp/datasets/PANDA/train_images/1ca999adbbc948e69783686e5b5414e4.tiff'],
@@ -124,7 +125,8 @@ def plot_attention_tiles(
     if num_rows == 0:
         logging.warning(
             "The number of selected top and bottom tiles is too low, plotting will be skipped."
-            "Try debugging with a higher num_top_tiles and/or a higher number of batches.")
+            "Try debugging with a higher num_top_tiles and/or a higher number of batches."
+        )
         return None
 
     fig, axs = plt.subplots(nrows=num_rows, ncols=num_columns, figsize=figsize)
@@ -215,14 +217,17 @@ def plot_heatmap_overlay(
     slide_idx = slide_ids.index(slide_node.slide_id)
     attentions = results[ResultsKey.BAG_ATTN][slide_idx]
 
-    coords = np.transpose([results[ResultsKey.TILE_LEFT][slide_idx].cpu().numpy(),
-                           results[ResultsKey.TILE_TOP][slide_idx].cpu().numpy()])
+    coords = np.transpose(
+        [results[ResultsKey.TILE_LEFT][slide_idx].cpu().numpy(), results[ResultsKey.TILE_TOP][slide_idx].cpu().numpy()]
+    )
     attentions = np.array(attentions.cpu()).reshape(-1)
 
-    sel_coords = location_selected_tiles(tile_coords=coords,
-                                         location_bbox=slide_dict[SlideKey.ORIGIN],
-                                         scale_factor=slide_dict[SlideKey.SCALE],
-                                         should_upscale_coords=should_upscale_coords)
+    sel_coords = location_selected_tiles(
+        tile_coords=coords,
+        location_bbox=slide_dict[SlideKey.ORIGIN],
+        scale_factor=slide_dict[SlideKey.SCALE],
+        should_upscale_coords=should_upscale_coords,
+    )
     cmap = plt.cm.get_cmap("Spectral_r")  # _r reverse the color map so that the highest attention is red
 
     tile_xs, tile_ys = sel_coords.T
@@ -258,8 +263,9 @@ def plot_attention_histogram(case: str, slide_node: SlideNode, results: Dict[Res
 
 def plot_normalized_confusion_matrix(cm: np.ndarray, class_names: Sequence[str]) -> plt.Figure:
     """Plots a normalized confusion matrix and returns the figure.
-    param cm: Normalized confusion matrix to be plotted.
-    param class_names: List of class names.
+
+    :param cm: Normalized confusion matrix to be plotted.
+    :param class_names: List of class names.
     """
     fig, ax = plt.subplots()
     ax = sns.heatmap(cm, annot=True, cmap="Blues", fmt=".2%")
@@ -270,9 +276,32 @@ def plot_normalized_confusion_matrix(cm: np.ndarray, class_names: Sequence[str])
     return fig
 
 
+def plot_normalized_and_non_normalized_confusion_matrices(
+    cm: np.ndarray,
+    cm_n: np.ndarray,
+    class_names: Sequence[str],
+) -> plt.Figure:
+    """Plots a normalized and non-normalized confusion matrix and returns the figure.
+
+    :param cm: Non normalized confusion matrix to be plotted.
+    :param cm_n: Normalized confusion matrix to be plotted.
+    :param class_names: List of class names.
+    """
+    fig, axes = plt.subplots(1, 2, figsize=(15, 5))
+    axes[0] = sns.heatmap(cm, annot=True, cmap="Blues", fmt="d", ax=axes[0])
+    axes[1] = sns.heatmap(cm_n, annot=True, cmap="Blues", fmt=".2%", ax=axes[1])
+    for ax in axes:
+        ax.set_xlabel("Predicted")
+        ax.set_ylabel("True")
+        ax.xaxis.set_ticklabels(class_names)
+        ax.yaxis.set_ticklabels(class_names)
+    return fig
+
+
 def resize_and_save(width_inch: int, height_inch: int, filename: Union[Path, str], dpi: int = 150) -> None:
     """
     Resizes the present figure to the given (width, height) in inches, and saves it to the given filename.
+
     :param width_inch: The width of the figure in inches.
     :param height_inch: The height of the figure in inches.
     :param filename: The filename to save to.

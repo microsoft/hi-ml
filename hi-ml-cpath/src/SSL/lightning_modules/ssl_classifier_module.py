@@ -20,21 +20,18 @@ class SSLClassifier(LightningModuleWithOptimizer):
     SSL Image classifier that combines pre-trained SSL encoder with a trainable linear-head.
     """
 
-    def __init__(self,
-                 num_classes: int,
-                 encoder: torch.nn.Module,
-                 freeze_encoder: bool,
-                 class_weights: Optional[torch.Tensor]):
+    def __init__(
+        self, num_classes: int, encoder: torch.nn.Module, freeze_encoder: bool, class_weights: Optional[torch.Tensor]
+    ):
         super().__init__()
         self.num_classes = num_classes
         self.encoder = encoder
         self.freeze_encoder = freeze_encoder
         self.class_weights = class_weights
         self.encoder.eval()
-        self.classifier_head = SSLEvaluator(n_input=get_encoder_output_dim(self.encoder),
-                                            n_hidden=None,
-                                            n_classes=num_classes,
-                                            p=0.20)
+        self.classifier_head = SSLEvaluator(
+            n_input=get_encoder_output_dim(self.encoder), n_hidden=None, n_classes=num_classes, p=0.20
+        )
         if self.num_classes == 2:
             self.train_metrics = ModuleList([AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy05()])
             self.val_metrics = ModuleList([AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy05()])
@@ -66,7 +63,7 @@ class SSLClassifier(LightningModuleWithOptimizer):
 
         with torch.no_grad():
             posteriors = F.softmax(mlp_preds, dim=-1)
-            for metric in (self.train_metrics if is_training else self.val_metrics):
+            for metric in self.train_metrics if is_training else self.val_metrics:
                 metric(posteriors, y)
         return mlp_loss
 

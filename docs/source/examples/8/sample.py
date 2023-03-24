@@ -21,10 +21,9 @@ from health_azure import submit_to_azure_if_needed
 
 
 def main() -> None:
-    param_sampling = RandomParameterSampling({
-        "--kernel": choice('linear', 'rbf', 'poly', 'sigmoid'),
-        "--penalty": choice(0.5, 1, 1.5)
-    })
+    param_sampling = RandomParameterSampling(
+        {"--kernel": choice('linear', 'rbf', 'poly', 'sigmoid'), "--penalty": choice(0.5, 1, 1.5)}
+    )
 
     hyperdrive_config = HyperDriveConfig(
         run_config=ScriptRunConfig(source_directory=""),
@@ -32,7 +31,8 @@ def main() -> None:
         primary_metric_name='Accuracy',
         primary_metric_goal=PrimaryMetricGoal.MAXIMIZE,
         max_total_runs=12,
-        max_concurrent_runs=4)
+        max_concurrent_runs=4,
+    )
 
     run_info = submit_to_azure_if_needed(
         compute_cluster_name="lite-testing-ds2",
@@ -40,16 +40,15 @@ def main() -> None:
         input_datasets=["himl_sample7_input"],
         wait_for_completion=True,
         wait_for_completion_show_output=True,
-        hyperdrive_config=hyperdrive_config)
+        hyperdrive_config=hyperdrive_config,
+    )
     if run_info.run is None:
         raise ValueError("run_info.run is None")
     run: Run = run_info.run
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--kernel', type=str, default='linear',
-                        help='Kernel type to be used in the algorithm')
-    parser.add_argument('--penalty', type=float, default=1.0,
-                        help='Penalty parameter of the error term')
+    parser.add_argument('--kernel', type=str, default='linear', help='Kernel type to be used in the algorithm')
+    parser.add_argument('--penalty', type=float, default=1.0, help='Penalty parameter of the error term')
 
     args = parser.parse_args()
     run.log('Kernel type', np.str(args.kernel))  # type: ignore
@@ -65,6 +64,7 @@ def main() -> None:
 
     # training a linear SVM classifier
     from sklearn.svm import SVC
+
     svm_model_linear = SVC(kernel=args.kernel, C=args.penalty).fit(X_train, y_train)
     svm_predictions = svm_model_linear.predict(X_test)
 

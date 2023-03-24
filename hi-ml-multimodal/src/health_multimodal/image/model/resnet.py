@@ -22,8 +22,9 @@ class ResNetHIML(ResNet):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
 
-    def forward(self, x: torch.Tensor,
-                return_intermediate_layers: bool = False) -> Union[torch.Tensor, TypeSkipConnections]:
+    def forward(
+        self, x: torch.Tensor, return_intermediate_layers: bool = False
+    ) -> Union[torch.Tensor, TypeSkipConnections]:
         """ResNetHIML forward pass. Optionally returns intermediate layers using the
         ``return_intermediate_layers`` argument.
 
@@ -47,8 +48,14 @@ class ResNetHIML(ResNet):
             return x4
 
 
-def _resnet(arch: str, block: Type[Union[BasicBlock, Bottleneck]], layers: List[int],
-            pretrained: bool, progress: bool, **kwargs: Any) -> ResNetHIML:
+def _resnet(
+    arch: str,
+    block: Type[Union[BasicBlock, Bottleneck]],
+    layers: List[int],
+    pretrained: bool,
+    progress: bool,
+    **kwargs: Any
+) -> ResNetHIML:
     """Instantiate a custom :class:`ResNet` model.
 
     Adapted from :mod:`torchvision.models.resnet`.

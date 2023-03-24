@@ -11,8 +11,14 @@ from _pytest.logging import LogCaptureFixture
 from param import Number
 from pathlib import Path
 
-from health_ml.deep_learning_config import DatasetParams, WorkflowParams, OutputParams, OptimizerParams, \
-    ExperimentFolderHandler, TrainerParams
+from health_ml.deep_learning_config import (
+    DatasetParams,
+    WorkflowParams,
+    OutputParams,
+    OptimizerParams,
+    ExperimentFolderHandler,
+    TrainerParams,
+)
 from health_ml.utils.checkpoint_utils import CheckpointParser
 from testhiml.utils.fixed_paths_for_tests import full_test_data_path, mock_run_id
 
@@ -23,14 +29,22 @@ def test_validate_workflow_params_for_inference_only() -> None:
 
     full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
     run_id = mock_run_id(id=0)
-    WorkflowParams(local_dataset=Path("foo"), run_inference_only=True,
-                   src_checkpoint=CheckpointParser(run_id)).validate()
-    WorkflowParams(local_dataset=Path("foo"), run_inference_only=True,
-                   src_checkpoint=CheckpointParser(f"{run_id}:best_val_loss.ckpt")).validate()
-    WorkflowParams(local_dataset=Path("foo"), run_inference_only=True,
-                   src_checkpoint=CheckpointParser(f"{run_id}:custom/path/model.ckpt")).validate()
-    WorkflowParams(local_dataset=Path("foo"), run_inference_only=True,
-                   src_checkpoint=CheckpointParser(str(full_file_path))).validate()
+    WorkflowParams(
+        local_dataset=Path("foo"), run_inference_only=True, src_checkpoint=CheckpointParser(run_id)
+    ).validate()
+    WorkflowParams(
+        local_dataset=Path("foo"),
+        run_inference_only=True,
+        src_checkpoint=CheckpointParser(f"{run_id}:best_val_loss.ckpt"),
+    ).validate()
+    WorkflowParams(
+        local_dataset=Path("foo"),
+        run_inference_only=True,
+        src_checkpoint=CheckpointParser(f"{run_id}:custom/path/model.ckpt"),
+    ).validate()
+    WorkflowParams(
+        local_dataset=Path("foo"), run_inference_only=True, src_checkpoint=CheckpointParser(str(full_file_path))
+    ).validate()
 
 
 def test_validate_workflow_params_for_resume_training() -> None:
@@ -39,14 +53,18 @@ def test_validate_workflow_params_for_resume_training() -> None:
 
     full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
     run_id = mock_run_id(id=0)
-    WorkflowParams(local_dataset=Path("foo"), resume_training=True,
-                   src_checkpoint=CheckpointParser(run_id)).validate()
-    WorkflowParams(local_dataset=Path("foo"), resume_training=True,
-                   src_checkpoint=CheckpointParser(f"{run_id}:best_val_loss.ckpt")).validate()
-    WorkflowParams(local_dataset=Path("foo"), resume_training=True,
-                   src_checkpoint=CheckpointParser(f"{run_id}:custom/path/model.ckpt")).validate()
-    WorkflowParams(local_dataset=Path("foo"), resume_training=True,
-                   src_checkpoint=CheckpointParser(str(full_file_path))).validate()
+    WorkflowParams(local_dataset=Path("foo"), resume_training=True, src_checkpoint=CheckpointParser(run_id)).validate()
+    WorkflowParams(
+        local_dataset=Path("foo"), resume_training=True, src_checkpoint=CheckpointParser(f"{run_id}:best_val_loss.ckpt")
+    ).validate()
+    WorkflowParams(
+        local_dataset=Path("foo"),
+        resume_training=True,
+        src_checkpoint=CheckpointParser(f"{run_id}:custom/path/model.ckpt"),
+    ).validate()
+    WorkflowParams(
+        local_dataset=Path("foo"), resume_training=True, src_checkpoint=CheckpointParser(str(full_file_path))
+    ).validate()
 
 
 @pytest.mark.fast
@@ -95,8 +113,7 @@ def test_validate_dataset_params() -> None:
     DatasetParams(local_datasets=[Path("foo")]).validate()
     DatasetParams(azure_datasets=["bar"]).validate()
 
-    config = DatasetParams(local_datasets=[Path("foo")],
-                           azure_datasets=[""])
+    config = DatasetParams(local_datasets=[Path("foo")], azure_datasets=[""])
     config.validate()
     assert config.azure_datasets == [""]
 
@@ -104,8 +121,7 @@ def test_validate_dataset_params() -> None:
     config.validate()
     assert len(config.azure_datasets) == 1
 
-    config = DatasetParams(local_datasets=[Path("foo")],
-                           azure_datasets=[""])
+    config = DatasetParams(local_datasets=[Path("foo")], azure_datasets=[""])
     config.validate()
     assert len(config.azure_datasets) == 1
 
@@ -113,20 +129,17 @@ def test_validate_dataset_params() -> None:
     config.validate()
     assert len(config.azure_datasets) == 2
 
-    config = DatasetParams(azure_datasets=["foo"],
-                           dataset_mountpoints=[Path()])
+    config = DatasetParams(azure_datasets=["foo"], dataset_mountpoints=[Path()])
     config.validate()
     assert config.dataset_mountpoints == [Path()]
 
-    config = DatasetParams(azure_datasets=["foo"],
-                           dataset_mountpoints=[Path("foo")])
+    config = DatasetParams(azure_datasets=["foo"], dataset_mountpoints=[Path("foo")])
     config.validate()
     assert len(config.dataset_mountpoints) == 1
 
     # the number of mountpoints must not be larger than the number of datasets
     with pytest.raises(ValueError) as e:
-        DatasetParams(azure_datasets=["foo"],
-                      dataset_mountpoints=[Path("foo"), Path("bar")]).validate()
+        DatasetParams(azure_datasets=["foo"], dataset_mountpoints=[Path("foo"), Path("bar")]).validate()
     assert "Expected the number of azure datasets to equal the number of mountpoints" in str(e)
 
 
@@ -240,5 +253,7 @@ def test_trainer_params_num_gpus_per_node(mock_gpu_available: MagicMock, caplog:
         config = TrainerParams(max_num_gpus=requested_gpus)
         assert config.num_gpus_per_node() == random_num_available_gpus
         message = caplog.messages[-1]
-        assert f"You requested max_num_gpus {requested_gpus} but there are only {random_num_available_gpus}" \
-               f" available." in message
+        assert (
+            f"You requested max_num_gpus {requested_gpus} but there are only {random_num_available_gpus}"
+            f" available." in message
+        )

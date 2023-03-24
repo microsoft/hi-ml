@@ -14,16 +14,36 @@ import shutil
 import sys
 import tempfile
 import time
-from argparse import (_UNRECOGNIZED_ARGS_ATTR, OPTIONAL, SUPPRESS, ArgumentDefaultsHelpFormatter, ArgumentError,
-                      ArgumentParser, Namespace)
+from argparse import (
+    _UNRECOGNIZED_ARGS_ATTR,
+    OPTIONAL,
+    SUPPRESS,
+    ArgumentDefaultsHelpFormatter,
+    ArgumentError,
+    ArgumentParser,
+    Namespace,
+)
 from collections import defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
 from itertools import islice
 from pathlib import Path
-from typing import (Any, Callable, DefaultDict, Dict, Generator, Iterable, List, Optional, Set, Tuple, Type, TypeVar,
-                    Union)
+from typing import (
+    Any,
+    Callable,
+    DefaultDict,
+    Dict,
+    Generator,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 import conda_merge
 import pandas as pd
@@ -35,7 +55,6 @@ from azureml.core.authentication import InteractiveLoginAuthentication, ServiceP
 from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.run import _OfflineRun
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
-from azureml.train.hyperdrive import HyperDriveRun
 
 from azure.ai.ml import MLClient
 from azure.ai.ml.entities import Job
@@ -43,9 +62,15 @@ from azure.ai.ml.entities import Workspace as WorkspaceV2
 from azure.ai.ml.entities import Environment as EnvironmentV2
 from azure.core.credentials import TokenCredential
 from azure.core.exceptions import ClientAuthenticationError, ResourceNotFoundError
-from azure.identity import (ClientSecretCredential, DeviceCodeCredential,
-                            DefaultAzureCredential, InteractiveBrowserCredential)
+from azure.identity import (
+    ClientSecretCredential,
+    DeviceCodeCredential,
+    DefaultAzureCredential,
+    InteractiveBrowserCredential,
+)
 
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
@@ -120,6 +145,7 @@ RunOrJob = Union[Run, Job]
 
 class JobStatus(Enum):
     """String constants for the status of an AML v2 Job"""
+
     COMPLETED = "Completed"
     STARTING = "Starting"
     FAILED = "Failed"
@@ -213,7 +239,7 @@ def create_argparser(
     config: param.Parameterized,
     usage: Optional[str] = None,
     description: Optional[str] = None,
-    epilog: Optional[str] = None
+    epilog: Optional[str] = None,
 ) -> ArgumentParser:
     """
     Creates an ArgumentParser with all fields of the given config that are overridable.
@@ -227,10 +253,7 @@ def create_argparser(
     """
     assert isinstance(config, param.Parameterized)
     parser = ArgumentParser(
-        formatter_class=ArgumentDefaultsHelpFormatter,
-        usage=usage,
-        description=description,
-        epilog=epilog
+        formatter_class=ArgumentDefaultsHelpFormatter, usage=usage, description=description, epilog=epilog
     )
     _add_overrideable_config_args_to_parser(config, parser)
     return parser
@@ -272,18 +295,24 @@ def _add_overrideable_config_args_to_parser(config: param.Parameterized, parser:
         if isinstance(_p, param.Boolean):
             get_type = parse_bool
         elif isinstance(_p, param.Integer):
+
             def to_int(x: str) -> int:
                 return _p.default if x == "" else int(x)
+
             get_type = to_int
         elif isinstance(_p, param.Number):
+
             def to_float(x: str) -> float:
                 return _p.default if x == "" else float(x)
+
             get_type = to_float
         elif isinstance(_p, param.String):
             get_type = str
         elif isinstance(_p, param.List):
+
             def to_list(x: str) -> List[Any]:
                 return [_p.class_(item) for item in x.split(",") if item]
+
             get_type = to_list
         elif isinstance(_p, param.NumericTuple):
 
@@ -292,6 +321,7 @@ def _add_overrideable_config_args_to_parser(config: param.Parameterized, parser:
 
             def to_tuple(x: str) -> Tuple:
                 return tuple([float_or_int(item) for item in x.split(",")])
+
             get_type = to_tuple
         elif isinstance(_p, param.ClassSelector):
             get_type = _p.class_
@@ -701,8 +731,9 @@ def determine_run_id_type(run_or_recovery_id: str) -> str:
     return run_or_recovery_id
 
 
-def find_file_in_parent_folders(file_name: str, stop_at_path: List[Path],
-                                start_at_path: Optional[Path] = None) -> Optional[Path]:
+def find_file_in_parent_folders(
+    file_name: str, stop_at_path: List[Path], start_at_path: Optional[Path] = None
+) -> Optional[Path]:
     """Searches for a file of the given name in the current working directory, or any of its parent folders.
     Searching stops if either the file is found, or no parent folder can be found, or the search has reached any
     of the given folders in stop_at_path.
@@ -774,8 +805,10 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
         return aml_workspace
 
     if workspace_config_path is None:
-        logging.info(f"Trying to locate the workspace config file '{WORKSPACE_CONFIG_JSON}' in the current folder "
-                     "and its parent folders")
+        logging.info(
+            f"Trying to locate the workspace config file '{WORKSPACE_CONFIG_JSON}' in the current folder "
+            "and its parent folders"
+        )
         workspace_config_path = find_file_in_parent_to_pythonpath(WORKSPACE_CONFIG_JSON)
         if workspace_config_path:
             logging.info(f"Using the workspace config file {str(workspace_config_path.absolute())}")
@@ -785,8 +818,9 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
         if not workspace_config_path.is_file():
             raise FileNotFoundError(f"Workspace config file does not exist: {workspace_config_path}")
         workspace = Workspace.from_config(path=str(workspace_config_path), auth=auth)
-        logging.info(f"Logged into AzureML workspace {workspace.name} as specified in config file "
-                     f"{workspace_config_path}")
+        logging.info(
+            f"Logged into AzureML workspace {workspace.name} as specified in config file " f"{workspace_config_path}"
+        )
         return workspace
 
     logging.info("Trying to load the environment variables that define the workspace.")
@@ -800,9 +834,11 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
         logging.info(f"Logged into AzureML workspace {workspace.name} as specified by environment variables")
         return workspace
 
-    raise ValueError("Tried all ways of identifying the workspace, but failed. Please provide a workspace config "
-                     f"file {WORKSPACE_CONFIG_JSON} or set the environment variables {ENV_RESOURCE_GROUP}, "
-                     f"{ENV_SUBSCRIPTION_ID}, and {ENV_WORKSPACE_NAME}.")
+    raise ValueError(
+        "Tried all ways of identifying the workspace, but failed. Please provide a workspace config "
+        f"file {WORKSPACE_CONFIG_JSON} or set the environment variables {ENV_RESOURCE_GROUP}, "
+        f"{ENV_SUBSCRIPTION_ID}, and {ENV_WORKSPACE_NAME}."
+    )
 
 
 def create_run_recovery_id(run: Run) -> str:
@@ -997,8 +1033,9 @@ class PinnedOperator(Enum):
     PIP = "=="
 
 
-def _resolve_package_clash(duplicate_dependencies: List[PackageDependency], pinned_operator: PinnedOperator
-                           ) -> PackageDependency:
+def _resolve_package_clash(
+    duplicate_dependencies: List[PackageDependency], pinned_operator: PinnedOperator
+) -> PackageDependency:
     """Given a list of duplicate package names with conflicting versions, if exactly one of these
     is pinned, return that, otherwise raise a ValueError
 
@@ -1019,12 +1056,13 @@ def _resolve_package_clash(duplicate_dependencies: List[PackageDependency], pinn
         num_clashes = len(duplicate_dependencies)
         pkg_name = duplicate_dependencies[0].package_name
         raise ValueError(
-            f"Encountered {num_clashes} requirements for package {pkg_name}, none of which specify"
-            " a pinned version.")
+            f"Encountered {num_clashes} requirements for package {pkg_name}, none of which specify a pinned version."
+        )
 
 
-def _resolve_dependencies(all_dependencies: Dict[str, List[PackageDependency]], pinned_operator: PinnedOperator
-                          ) -> List[PackageDependency]:
+def _resolve_dependencies(
+    all_dependencies: Dict[str, List[PackageDependency]], pinned_operator: PinnedOperator
+) -> List[PackageDependency]:
     """Apply conflict resolution for pip package versions. Given a dictionary of package name: PackageDependency
     objects, applies the following logic:
         - if the package only appears once in all definitions, keep that package version
@@ -1233,7 +1271,7 @@ def create_python_environment_v2(
     conda_environment_file: Path,
     pip_extra_index_url: str = "",
     private_pip_wheel_path: Optional[Path] = None,
-    docker_base_image: str = ""
+    docker_base_image: str = "",
 ) -> EnvironmentV2:
     """
     Creates a description for the V2 Python execution environment in AzureML, based on the arguments.
@@ -1324,8 +1362,7 @@ def set_environment_variables_for_multi_node() -> None:
     """
     if ENV_AZ_BATCH_MASTER_NODE in os.environ:
         master_node = os.environ[ENV_AZ_BATCH_MASTER_NODE]
-        logging.debug(
-            f"Found AZ_BATCH_MASTER_NODE: {master_node} in environment variables")
+        logging.debug(f"Found AZ_BATCH_MASTER_NODE: {master_node} in environment variables")
         # For AML BATCHAI
         split_master_node_addr = master_node.split(":")
         if len(split_master_node_addr) == 2:
@@ -1338,14 +1375,12 @@ def set_environment_variables_for_multi_node() -> None:
         os.environ[ENV_MASTER_ADDR] = master_addr
     elif ENV_AZ_BATCHAI_MPI_MASTER_NODE in os.environ and os.environ.get(ENV_AZ_BATCHAI_MPI_MASTER_NODE) != "localhost":
         mpi_master_node = os.environ[ENV_AZ_BATCHAI_MPI_MASTER_NODE]
-        logging.debug(
-            f"Found AZ_BATCHAI_MPI_MASTER_NODE: {mpi_master_node} in environment variables")
+        logging.debug(f"Found AZ_BATCHAI_MPI_MASTER_NODE: {mpi_master_node} in environment variables")
         # For AML BATCHAI
         os.environ[ENV_MASTER_ADDR] = mpi_master_node
     elif ENV_MASTER_IP in os.environ:
         master_ip = os.environ[ENV_MASTER_IP]
-        logging.debug(
-            f"Found MASTER_IP: {master_ip} in environment variables")
+        logging.debug(f"Found MASTER_IP: {master_ip} in environment variables")
         # AKS
         os.environ[ENV_MASTER_ADDR] = master_ip
     else:
@@ -1555,10 +1590,7 @@ def download_files_from_run_id(
 
 
 def download_files_by_suffix(
-    run: Run,
-    output_folder: Path,
-    suffix: str,
-    validate_checksum: bool = False
+    run: Run, output_folder: Path, suffix: str, validate_checksum: bool = False
 ) -> Iterable[Path]:
     """Downloads all files from an AzureML run that have a given suffix, into a folder. The function returns an
     Iterable, where a file path is emitted right after it has been downloaded.
@@ -1588,7 +1620,6 @@ def get_driver_log_file_text(run: Run, download_file: bool = True) -> Optional[s
     :return: Driver log file text if a file exists, ``None`` otherwise.
     """
     with tempfile.TemporaryDirectory() as tmp_dir_name:
-
         for log_file_path in VALID_LOG_FILE_PATHS:
             if download_file:
                 run.download_files(
@@ -1776,13 +1807,13 @@ class AmlRunScriptConfig(param.Parameterized):
         class_=Path,
         default=None,
         instantiate=False,
-        doc="Optional path to most_recent_run.txt where the ID of the" "latest run is stored",
+        doc="Optional path to most_recent_run.txt where the ID of the latest run is stored",
     )
     experiment: str = param.String(
         default=None, allow_None=True, doc="The name of the AML Experiment that you wish to download Run files from"
     )
     num_runs: int = param.Integer(
-        default=1, allow_None=True, doc="The number of runs to download from the " "named experiment"
+        default=1, allow_None=True, doc="The number of runs to download from the named experiment"
     )
     config_file: Path = param.ClassSelector(
         class_=Path, default=None, instantiate=False, doc="Path to config.json where Workspace name is defined"
@@ -1965,63 +1996,115 @@ def aggregate_hyperdrive_metrics(
         AML Workspace object to retrieve the Run from.
     :return: A Pandas DataFrame containing the aggregated metrics from each child run
     """
-    if run is None:
-        assert run_id is not None, "Either run or run_id must be provided"
-        workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
-        run = get_aml_run_from_run_id(run_id, aml_workspace=workspace)
-    assert isinstance(run, HyperDriveRun)
-    metrics: DefaultDict = defaultdict()
-    for child_run in run.get_children():  # type: ignore
-        child_run_metrics = child_run.get_metrics()
-        keep_metrics = keep_metrics or child_run_metrics.keys()
-
-        child_run_tag = get_tags_from_hyperdrive_run(child_run, child_run_arg_name)
-        for metric_name, metric_val in child_run_metrics.items():
-            if metric_name in keep_metrics:
-                if metric_name not in metrics:
-                    metrics[metric_name] = {}
-                metrics[metric_name][child_run_tag] = metric_val
-
-    df = pd.DataFrame.from_dict(metrics, orient="index")
+    metrics = get_metrics_for_hyperdrive_run(
+        child_run_arg_name=child_run_arg_name,
+        run_id=run_id,
+        run=run,
+        keep_metrics=keep_metrics,
+        aml_workspace=aml_workspace,
+        workspace_config_path=workspace_config_path,
+    )
+    metrics_swapped = {}
+    for run_tag, run_metrics in metrics.items():
+        for metric_name, metric_value in run_metrics.items():
+            if metric_name not in metrics_swapped:
+                metrics_swapped[metric_name] = {run_tag: metric_value}
+            else:
+                metrics_swapped[metric_name][run_tag] = metric_value
+    try:
+        df = pd.DataFrame.from_dict(metrics_swapped, orient="index")
+    except Exception:
+        raise ValueError(
+            "The metrics are not compatible with Pandas DataFrame. Likely cause is that some metrics are "
+            "scalars, and some are lists. Make sure that the lists come first."
+        )
     return df
 
 
-def get_metrics_for_childless_run(
+def get_metrics_for_run(
     run_id: Optional[str] = None,
     run: Optional[Run] = None,
     keep_metrics: Optional[List[str]] = None,
     aml_workspace: Optional[Workspace] = None,
     workspace_config_path: Optional[Path] = None,
-) -> pd.DataFrame:
+) -> Dict[str, Any]:
     """
-    For a given Run object or id, retrieves the metrics from that Run and returns them as a pandas DataFrame.
-    Optionally filters the metrics logged in the Run, by providing a list of metrics to keep. This function
-    expects a childless AML Run. If you wish to aggregate metrics for a Run with children (i.e. a HyperDriveRun),
-    please use the function ``aggregate_hyperdrive_metrics``.
+    For a given Run object or id, retrieves the metrics from that Run and returns them as a dictionary.
+    Optionally filters the metrics logged in the Run, by providing a list of metrics to keep.
+    If you wish to aggregate metrics for a Run with children (i.e. a HyperDriveRun),
+    please use the function ``get_metrics_for_hyperdrive_run``.
 
-    :param run: A (childless) Run object to retrieve the metrics from. Either this or run_id must be provided
-    :param run_id: The id (type: str) of a (childless) AML Run. Either this or run must be provided.
-    :param keep_metrics: An optional list of metric names to filter the returned metrics by
+    :param run: A Run object to retrieve the metrics from. Either this or run_id must be provided
+    :param run_id: The id (type: str) of an AML Run. Either this or run must be provided.
+    :param keep_metrics: An optional list of metric names to filter the returned metrics by. If the metric
+        is not logged in the run, a warning will be issued.
     :param aml_workspace: If run_id is provided, this is an optional AML Workspace object to retrieve the Run from
     :param workspace_config_path: If run_id is provided, this is an optional path to a config containing details of the
         AML Workspace object to retrieve the Run from.
-    :return: A Pandas DataFrame containing the metrics
-    """
+    :return: A dictionary containing the metrics from the Run. The dictionary keys are the metric names, and the values
+        are the scalars or lists of scalars that were logged to the Run."""
     if run is None:
-        assert run_id is not None, "Either run or run_id must be provided"
-        workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
-        run = get_aml_run_from_run_id(run_id, aml_workspace=workspace)
+        if not run_id:
+            raise ValueError("Either run or run_id must be provided")
+        run = get_aml_run_from_run_id(run_id, aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
     if isinstance(run, _OfflineRun):
         logging.warning("Can't get metrics for _OfflineRun object")
-        return pd.DataFrame({})
+        return {}
+    if run.status != RunStatus.COMPLETED:  # type: ignore
+        logger.warning(
+            f"Run {run.id} is not completed, but has status '{run.status}'. "  # type: ignore
+            "Metrics may be incomplete."
+        )
+    all_metrics = run.get_metrics()  # type: ignore
+    if keep_metrics:
+        metrics = {}
+        for metric_name in keep_metrics:
+            if metric_name in all_metrics:
+                metrics[metric_name] = all_metrics[metric_name]
+            else:
+                logger.warning(f"Metric {metric_name} not found in run {run.id}")  # type: ignore
+        return metrics
+    return all_metrics
+
+
+def get_metrics_for_hyperdrive_run(
+    child_run_arg_name: str,
+    run_id: Optional[str] = None,
+    run: Optional[Run] = None,
+    keep_metrics: Optional[List[str]] = None,
+    aml_workspace: Optional[Workspace] = None,
+    workspace_config_path: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """
+    For a given Run object or run id, retrieves the metrics for all the run's child runs.
+    Metrics are returned as a dictionary mapping from child run tag to metric name to metric value.
+    Optionally filters the metrics logged in the Run, by providing a list of metrics to keep.
+
+    :param run: A Run object to retrieve the metrics from. Either this or run_id must be provided
+    :param run_id: The id (type: str) of an AML Run. Either this or run must be provided.
+    :param keep_metrics: An optional list of metric names to filter the returned metrics by. If a metric is requested,
+        but not found on the run, a warning will be issued.
+    :param aml_workspace: If run_id is provided, this is an optional AML Workspace object to retrieve the Run from
+    :param workspace_config_path: If run_id is provided, this is an optional path to a config containing details of the
+        AML Workspace object to retrieve the Run from.
+    :raises ValueError: If neither a run object nor a run ID are provided.
+    :return: A dictionary mapping from child run tag to the metrics that run. For each child run,
+        the dictionary keys are the metric names, and the values
+        are the scalars or lists of scalars that were logged to the Run.
+    """
+    if run is None:
+        if not run_id:
+            raise ValueError("Either run or run_id must be provided")
+        run = get_aml_run_from_run_id(run_id, aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
+    if isinstance(run, _OfflineRun):
+        logger.warning("Can't get metrics for _OfflineRun object")
+        return {}
     metrics = {}
-    run_metrics = run.get_metrics()  # type: ignore
-    keep_metrics = keep_metrics or run_metrics.keys()
-    for metric_name, metric_val in run_metrics.items():
-        if metric_name in keep_metrics:
-            metrics[metric_name] = metric_val
-    df = pd.DataFrame.from_dict(metrics, orient="index")
-    return df
+    for child_run in run.get_children():  # type: ignore
+        child_run_tag = get_tags_from_hyperdrive_run(child_run, child_run_arg_name)
+        child_run_metrics = get_metrics_for_run(run=child_run, keep_metrics=keep_metrics)
+        metrics[child_run_tag] = child_run_metrics
+    return metrics
 
 
 def download_files_from_hyperdrive_children(
@@ -2044,7 +2127,7 @@ def download_files_from_hyperdrive_children(
     """
     if len(hyperparam_name) == 0:
         raise ValueError(
-            "To download results from a HyperDrive run you must provide the hyperparameter name" "that was sampled over"
+            "To download results from a HyperDrive run you must provide the hyperparameter name that was sampled over"
         )
 
     # For each child run we create a directory in the local_download_folder named after value of the
@@ -2064,7 +2147,7 @@ def download_files_from_hyperdrive_children(
             downloaded_file_path = local_folder_child_run / remote_file_path
             if not downloaded_file_path.exists():
                 logging.warning(
-                    f"Unable to download the file {remote_file_path} from the datastore associated" "with this run."
+                    f"Unable to download the file {remote_file_path} from the datastore associated with this run."
                 )
             else:
                 downloaded_file_paths.append(str(downloaded_file_path))
@@ -2189,12 +2272,14 @@ def check_config_json(script_folder: Path, shared_config_json: Path) -> Generato
                 config = {
                     "subscription_id": subscription_id,
                     "resource_group": resource_group,
-                    "workspace_name": workspace_name
+                    "workspace_name": workspace_name,
                 }
                 json.dump(config, file)
         else:
-            raise ValueError("Either a shared config.json must be present, or all 3 environment variables for "
-                             "workspace creation must exist.")
+            raise ValueError(
+                "Either a shared config.json must be present, or all 3 environment variables for "
+                "workspace creation must exist."
+            )
     try:
         yield
     finally:
@@ -2225,8 +2310,9 @@ def _validate_credential(credential: TokenCredential) -> None:
     credential.get_token("https://management.azure.com/.default")
 
 
-def _get_legitimate_service_principal_credential(tenant_id: str, service_principal_id: str,
-                                                 service_principal_password: str) -> TokenCredential:
+def _get_legitimate_service_principal_credential(
+    tenant_id: str, service_principal_id: str, service_principal_password: str
+) -> TokenCredential:
     """
     Create a ClientSecretCredential given a tenant id, service principal id and password
 
@@ -2236,16 +2322,18 @@ def _get_legitimate_service_principal_credential(tenant_id: str, service_princip
     :raises ValueError: If the credential cannot be validated (i.e. authentication was unsucessful).
     :return: The validated credential.
     """
-    cred = ClientSecretCredential(tenant_id=tenant_id,
-                                  client_id=service_principal_id,
-                                  client_secret=service_principal_password)
+    cred = ClientSecretCredential(
+        tenant_id=tenant_id, client_id=service_principal_id, client_secret=service_principal_password
+    )
     try:
         _validate_credential(cred)
         return cred
     except ClientAuthenticationError as e:
-        raise ValueError(f"Found environment variables for {ENV_SERVICE_PRINCIPAL_ID}, "
-                         f"{ENV_SERVICE_PRINCIPAL_PASSWORD}, and {ENV_TENANT_ID} but was "
-                         f"not able to authenticate: {e}")
+        raise ValueError(
+            f"Found environment variables for {ENV_SERVICE_PRINCIPAL_ID}, "
+            f"{ENV_SERVICE_PRINCIPAL_PASSWORD}, and {ENV_TENANT_ID} but was "
+            f"not able to authenticate: {e}"
+        )
 
 
 def _get_legitimate_device_code_credential() -> Optional[TokenCredential]:
@@ -2321,17 +2409,20 @@ def get_credential() -> Optional[TokenCredential]:
         if cred is not None:
             return cred
 
-    raise ValueError("Unable to generate and validate a credential. Please see Azure ML documentation"
-                     "for instructions on diffrent options to get a credential")
+    raise ValueError(
+        "Unable to generate and validate a credential. Please see Azure ML documentation"
+        "for instructions on diffrent options to get a credential"
+    )
 
 
-def get_ml_client(ml_client: Optional[MLClient] = None,
-                  aml_workspace: Optional[Workspace] = None,
-                  workspace_config_path: Optional[PathOrString] = None,
-                  subscription_id: Optional[str] = None,
-                  resource_group: Optional[str] = None,
-                  workspace_name: str = "",
-                  ) -> MLClient:
+def get_ml_client(
+    ml_client: Optional[MLClient] = None,
+    aml_workspace: Optional[Workspace] = None,
+    workspace_config_path: Optional[PathOrString] = None,
+    subscription_id: Optional[str] = None,
+    resource_group: Optional[str] = None,
+    workspace_name: str = "",
+) -> MLClient:
     """
     Instantiate an MLClient for interacting with Azure resources via v2 of the Azure ML SDK.
     If a ml_client is provided, return that. Otherwise, create one using workspace details
@@ -2356,17 +2447,17 @@ def get_ml_client(ml_client: Optional[MLClient] = None,
             subscription_id=aml_workspace.subscription_id,
             resource_group_name=aml_workspace.resource_group,
             workspace_name=aml_workspace.name,
-            credential=credential)  # type: ignore
+            credential=credential,
+        )  # type: ignore
     elif workspace_config_path:
-        ml_client = MLClient.from_config(
-            credential=credential,  # type: ignore
-            path=str(workspace_config_path))
+        ml_client = MLClient.from_config(credential=credential, path=str(workspace_config_path))  # type: ignore
     elif subscription_id and resource_group and workspace_name:
         ml_client = MLClient(
             subscription_id=subscription_id,
             resource_group_name=resource_group,
             workspace_name=workspace_name,
-            credential=credential)  # type: ignore
+            credential=credential,
+        )  # type: ignore
     else:
         try:
             workspace = get_workspace()
@@ -2374,15 +2465,15 @@ def get_ml_client(ml_client: Optional[MLClient] = None,
                 subscription_id=workspace.subscription_id,
                 resource_group_name=workspace.resource_group,
                 workspace_name=workspace.name,
-                credential=credential)  # type: ignore
+                credential=credential,
+            )  # type: ignore
         except ValueError as e:
             raise ValueError(f"Couldn't connect to MLClient: {e}")
     logging.info(f"Logged into AzureML workspace {ml_client.workspace_name}")
     return ml_client
 
 
-def retrieve_workspace_from_client(ml_client: MLClient, workspace_name: Optional[str] = None
-                                   ) -> WorkspaceV2:
+def retrieve_workspace_from_client(ml_client: MLClient, workspace_name: Optional[str] = None) -> WorkspaceV2:
     """
     Get a v2 Workspace object from an MLClient object. If a workspace_name is passed, will attempt
     to retrieve a workspace with that name. Otherweise will use the MLClient's default workspace_name
@@ -2423,5 +2514,4 @@ def filter_v2_input_output_args(args: List[str]) -> List[str]:
     :return: A filtered list of arguments, without entries in the format of INPUT_i or OUTPUT_i where i is
         any integer.
     """
-    return [a for a in args if
-            not re.match(V2_INPUT_DATASET_PATTERN, a) and not re.match(V2_OUTPUT_DATASET_PATTERN, a)]
+    return [a for a in args if not re.match(V2_INPUT_DATASET_PATTERN, a) and not re.match(V2_OUTPUT_DATASET_PATTERN, a)]

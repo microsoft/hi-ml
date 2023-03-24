@@ -15,11 +15,14 @@ def test_generate_slide_tiles() -> None:
     bg_value = 255
     fg_value = 128
 
-    image_level_1 = np.array((
-        (fg_value, fg_value, bg_value),
-        (bg_value, fg_value, bg_value),
-        (fg_value, fg_value, fg_value),
-    ), np.uint8)
+    image_level_1 = np.array(
+        (
+            (fg_value, fg_value, bg_value),
+            (bg_value, fg_value, bg_value),
+            (fg_value, fg_value, fg_value),
+        ),
+        np.uint8,
+    )
 
     # Add channel dimensions
     image_level_1 = np.array(3 * (image_level_1,))
@@ -45,16 +48,15 @@ def test_generate_slide_tiles() -> None:
 
     foreground_threshold = 200
     occupancy_threshold = 0.49  # keeps the top left and bottom left
-    image_tiles, tile_locations, occupancies, n_discarded = generate_tiles(image_level_1,
-                                                                           tile_size,
-                                                                           foreground_threshold,
-                                                                           occupancy_threshold)
-    assert np.array_equal(image_tiles[0], np.array([[[128, 128], [255, 128]],
-                                                    [[128, 128], [255, 128]],
-                                                    [[128, 128], [255, 128]]]))
-    assert np.array_equal(image_tiles[1], np.array([[[128, 128], [255, 255]],
-                                                    [[128, 128], [255, 255]],
-                                                    [[128, 128], [255, 255]]]))
+    image_tiles, tile_locations, occupancies, n_discarded = generate_tiles(
+        image_level_1, tile_size, foreground_threshold, occupancy_threshold
+    )
+    assert np.array_equal(
+        image_tiles[0], np.array([[[128, 128], [255, 128]], [[128, 128], [255, 128]], [[128, 128], [255, 128]]])
+    )
+    assert np.array_equal(
+        image_tiles[1], np.array([[[128, 128], [255, 255]], [[128, 128], [255, 255]], [[128, 128], [255, 255]]])
+    )
     assert np.array_equal(tile_locations[0], np.array([0, 0]))
     assert np.array_equal(tile_locations[1], np.array([0, 2]))
     assert occupancies[0] == 0.75
@@ -63,23 +65,21 @@ def test_generate_slide_tiles() -> None:
 
     foreground_threshold = 200
     occupancy_threshold = 0.51  # keeps the top left
-    image_tiles, tile_locations, occupancies, n_discarded = generate_tiles(image_level_1,
-                                                                           tile_size,
-                                                                           foreground_threshold,
-                                                                           occupancy_threshold)
-    assert np.array_equal(image_tiles[0], np.array([[[128, 128], [255, 128]],
-                                                    [[128, 128], [255, 128]],
-                                                    [[128, 128], [255, 128]]]))
+    image_tiles, tile_locations, occupancies, n_discarded = generate_tiles(
+        image_level_1, tile_size, foreground_threshold, occupancy_threshold
+    )
+    assert np.array_equal(
+        image_tiles[0], np.array([[[128, 128], [255, 128]], [[128, 128], [255, 128]], [[128, 128], [255, 128]]])
+    )
     assert np.array_equal(tile_locations[0], np.array([0, 0]))
     assert occupancies[0] == 0.75
     assert n_discarded == 3
 
     foreground_threshold = 100  # discards everything
     occupancy_threshold = 0.49
-    image_tiles, tile_locations, occupancies, n_discarded = generate_tiles(image_level_1,
-                                                                           tile_size,
-                                                                           foreground_threshold,
-                                                                           occupancy_threshold)
+    image_tiles, tile_locations, occupancies, n_discarded = generate_tiles(
+        image_level_1, tile_size, foreground_threshold, occupancy_threshold
+    )
     assert image_tiles.size == 0
     assert tile_locations.size == 0
     assert occupancies.size == 0

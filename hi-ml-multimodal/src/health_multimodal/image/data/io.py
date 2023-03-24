@@ -28,10 +28,7 @@ def remap_to_uint8(array: np.ndarray, percentiles: Optional[Tuple[float, float]]
     if percentiles is not None:
         len_percentiles = len(percentiles)
         if len_percentiles != 2:
-            message = (
-                'The value for percentiles should be a sequence of length 2,'
-                f' but has length {len_percentiles}'
-            )
+            message = 'The value for percentiles should be a sequence of length 2,' f' but has length {len_percentiles}'
             raise ValueError(message)
         a, b = percentiles
         if a >= b:

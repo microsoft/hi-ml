@@ -28,6 +28,7 @@ class SSLClassifierContainer(SSLContainer):
 
     See docs/self_supervised_models.md for more details.
     """
+
     freeze_encoder = param.Boolean(default=True, doc="Whether to freeze the pretrained encoder or not.")
     local_ssl_weights_path = param.ClassSelector(class_=Path, default=None, doc="Local path to SSL weights")
 
@@ -41,10 +42,12 @@ class SSLClassifierContainer(SSLContainer):
             path_to_checkpoint = self.local_ssl_weights_path
         data_module: DataModuleTypes = self.data_module
         assert isinstance(data_module, HimlVisionDataModule)
-        model = create_ssl_image_classifier(num_classes=data_module.dataset_train.dataset.num_classes,
-                                            pl_checkpoint_path=str(path_to_checkpoint),
-                                            freeze_encoder=self.freeze_encoder,
-                                            class_weights=data_module.class_weights)
+        model = create_ssl_image_classifier(
+            num_classes=data_module.dataset_train.dataset.num_classes,
+            pl_checkpoint_path=str(path_to_checkpoint),
+            freeze_encoder=self.freeze_encoder,
+            class_weights=data_module.class_weights,
+        )
 
         return model
 

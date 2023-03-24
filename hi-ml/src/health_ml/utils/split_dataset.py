@@ -54,17 +54,21 @@ class DatasetSplits:
             groups_val = self.val[self.group_column].unique()
             group_intersection = pairwise_intersection(groups_train, groups_test, groups_val)
             if len(group_intersection) != 0:
-                raise ValueError("Train, Test, and Val splits must have no intersecting groups, found: {}"
-                                 .format(group_intersection))
+                raise ValueError(
+                    "Train, Test, and Val splits must have no intersecting groups, found: {}".format(group_intersection)
+                )
 
         if (not self.allow_empty) and any([len(x) == 0 for x in [unique_train, unique_val]]):
-            raise ValueError("train_ids({}), val_ids({}) must have at least one value"
-                             .format(len(unique_train), len(unique_val)))
+            raise ValueError(
+                "train_ids({}), val_ids({}) must have at least one value".format(len(unique_train), len(unique_val))
+            )
 
     def __str__(self) -> str:
         unique_train, unique_test, unique_val = self.unique_subjects()
-        return f'Train: {len(unique_train)}, Test: {len(unique_test)}, and Val: {len(unique_val)}. ' \
-               f'Total subjects: {len(unique_train) + len(unique_test) + len(unique_val)}'
+        return (
+            f'Train: {len(unique_train)}, Test: {len(unique_test)}, and Val: {len(unique_val)}. '
+            f'Total subjects: {len(unique_train) + len(unique_test) + len(unique_val)}'
+        )
 
     def unique_subjects(self) -> Tuple[Any, Any, Any]:
         """
@@ -73,9 +77,11 @@ class DatasetSplits:
 
         :return: a tuple of pandas Series
         """
-        return (self.train[self.subject_column].unique(),
-                self.test[self.subject_column].unique(),
-                self.val[self.subject_column].unique())
+        return (
+            self.train[self.subject_column].unique(),
+            self.test[self.subject_column].unique(),
+            self.val[self.subject_column].unique(),
+        )
 
     def number_of_subjects(self) -> int:
         """
@@ -105,11 +111,9 @@ class DatasetSplits:
             raise ValueError(f"Model execution mode not recognized: {mode}")
 
     @staticmethod
-    def get_subject_ranges_for_splits(population: Sequence[str],
-                                      proportion_train: float,
-                                      proportion_test: float,
-                                      proportion_val: float) \
-            -> Dict[ModelExecutionMode, Set[str]]:
+    def get_subject_ranges_for_splits(
+        population: Sequence[str], proportion_train: float, proportion_test: float, proportion_val: float
+    ) -> Dict[ModelExecutionMode, Set[str]]:
         """
         Get mutually exclusive subject ranges for each dataset split (w.r.t to the proportion provided)
         ensuring all sets have at least one item in them when possible.
@@ -122,20 +126,23 @@ class DatasetSplits:
         """
         sum_proportions = proportion_train + proportion_val + proportion_test
         if not np.isclose(sum_proportions, 1):
-            raise ValueError("proportion_train({}) + proportion_val({}) + proportion_test({}) must be ~ 1, found: {}"
-                             .format(proportion_train, proportion_val, proportion_test, sum_proportions))
+            raise ValueError(
+                "proportion_train({}) + proportion_val({}) + proportion_test({}) must be ~ 1, found: {}".format(
+                    proportion_train, proportion_val, proportion_test, sum_proportions
+                )
+            )
 
         if not 0 <= proportion_test < 1:
-            raise ValueError("proportion_test({}) must be in range [0, 1)"
-                             .format(proportion_test))
+            raise ValueError("proportion_test({}) must be in range [0, 1)".format(proportion_test))
 
         if not all([0 < x < 1 for x in [proportion_train, proportion_val]]):
-            raise ValueError("proportion_train({}) and proportion_val({}) must be in range (0, 1)"
-                             .format(proportion_train, proportion_val))
+            raise ValueError(
+                "proportion_train({}) and proportion_val({}) must be in range (0, 1)".format(
+                    proportion_train, proportion_val
+                )
+            )
 
-        subjects_train, subjects_test, subjects_val = (set(population[0:1]),
-                                                       set(population[1:2]),
-                                                       set(population[2:3]))
+        subjects_train, subjects_test, subjects_val = (set(population[0:1]), set(population[1:2]), set(population[2:3]))
         remaining = list(population[3:])
         if proportion_test == 0:
             remaining = list(subjects_test) + remaining
@@ -143,25 +150,28 @@ class DatasetSplits:
 
         subjects_train |= set(remaining[: ceil(len(remaining) * proportion_train)])
         if len(subjects_test) > 0:
-            subjects_test |= set(remaining[len(subjects_train):
-                                           len(subjects_train) + ceil(len(remaining) * proportion_test)])
+            subjects_test |= set(
+                remaining[len(subjects_train) : len(subjects_train) + ceil(len(remaining) * proportion_test)]
+            )
         subjects_val |= set(remaining) - (subjects_train | subjects_test)
         result = {
             ModelExecutionMode.TRAIN: subjects_train,
             ModelExecutionMode.TEST: subjects_test,
-            ModelExecutionMode.VAL: subjects_val
+            ModelExecutionMode.VAL: subjects_val,
         }
         return result
 
     @staticmethod
-    def _from_split_keys(df: pd.DataFrame,
-                         train_keys: Sequence[str],
-                         test_keys: Sequence[str],
-                         val_keys: Sequence[str],
-                         *,  # make column names keyword-only arguments to avoid mistakes when providing both
-                         key_column: str,
-                         subject_column: str,
-                         group_column: Optional[str]) -> DatasetSplits:
+    def _from_split_keys(
+        df: pd.DataFrame,
+        train_keys: Sequence[str],
+        test_keys: Sequence[str],
+        val_keys: Sequence[str],
+        *,  # make column names keyword-only arguments to avoid mistakes when providing both
+        key_column: str,
+        subject_column: str,
+        group_column: Optional[str],
+    ) -> DatasetSplits:
         """
         Takes a slice of values from each data split train/test/val for the provided keys.
 
@@ -179,19 +189,22 @@ class DatasetSplits:
         test_df = DatasetSplits.get_df_from_ids(df, test_keys, key_column)
         val_df = DatasetSplits.get_df_from_ids(df, val_keys, key_column)
 
-        return DatasetSplits(train=train_df, test=test_df, val=val_df,
-                             subject_column=subject_column, group_column=group_column)
+        return DatasetSplits(
+            train=train_df, test=test_df, val=val_df, subject_column=subject_column, group_column=group_column
+        )
 
     @staticmethod
-    def from_proportions(df: pd.DataFrame,
-                         proportion_train: float,
-                         proportion_test: float,
-                         proportion_val: float,
-                         *,  # make column names keyword-only arguments to avoid mistakes when providing both
-                         subject_column: str = "",
-                         group_column: Optional[str] = None,
-                         shuffle: bool = True,
-                         random_seed: int = 0) -> DatasetSplits:
+    def from_proportions(
+        df: pd.DataFrame,
+        proportion_train: float,
+        proportion_test: float,
+        proportion_val: float,
+        *,  # make column names keyword-only arguments to avoid mistakes when providing both
+        subject_column: str = "",
+        group_column: Optional[str] = None,
+        shuffle: bool = True,
+        random_seed: int = 0,
+    ) -> DatasetSplits:
         """
         Creates a split of a dataset into train, test, and validation set, according to fixed proportions using
         the "subject" column in the dataframe, or the group column, if given.
@@ -216,24 +229,28 @@ class DatasetSplits:
             split_keys,
             proportion_train=proportion_train,
             proportion_val=proportion_val,
-            proportion_test=proportion_test
+            proportion_test=proportion_test,
         )
-        return DatasetSplits._from_split_keys(df,
-                                              list(ranges[ModelExecutionMode.TRAIN]),
-                                              list(ranges[ModelExecutionMode.TEST]),
-                                              list(ranges[ModelExecutionMode.VAL]),
-                                              key_column=key_column,
-                                              subject_column=subject_column,
-                                              group_column=group_column)
+        return DatasetSplits._from_split_keys(
+            df,
+            list(ranges[ModelExecutionMode.TRAIN]),
+            list(ranges[ModelExecutionMode.TEST]),
+            list(ranges[ModelExecutionMode.VAL]),
+            key_column=key_column,
+            subject_column=subject_column,
+            group_column=group_column,
+        )
 
     @staticmethod
-    def from_subject_ids(df: pd.DataFrame,
-                         train_ids: Sequence[str],
-                         test_ids: Sequence[str],
-                         val_ids: Sequence[str],
-                         *,  # make column names keyword-only arguments to avoid mistakes when providing both
-                         subject_column: str = "",
-                         group_column: Optional[str] = None) -> DatasetSplits:
+    def from_subject_ids(
+        df: pd.DataFrame,
+        train_ids: Sequence[str],
+        test_ids: Sequence[str],
+        val_ids: Sequence[str],
+        *,  # make column names keyword-only arguments to avoid mistakes when providing both
+        subject_column: str = "",
+        group_column: Optional[str] = None,
+    ) -> DatasetSplits:
         """
         Assuming a DataFrame with columns subject
         Takes a slice of values from each data split train/test/val for the provided ids.
@@ -247,17 +264,26 @@ class DatasetSplits:
             in the same subset (train, val, or test) and cross-validation fold.
         :return: Data splits with respected dataset split ids.
         """
-        return DatasetSplits._from_split_keys(df, train_ids, test_ids, val_ids, key_column=subject_column,
-                                              subject_column=subject_column, group_column=group_column)
+        return DatasetSplits._from_split_keys(
+            df,
+            train_ids,
+            test_ids,
+            val_ids,
+            key_column=subject_column,
+            subject_column=subject_column,
+            group_column=group_column,
+        )
 
     @staticmethod
-    def from_groups(df: pd.DataFrame,
-                    train_groups: Sequence[str],
-                    test_groups: Sequence[str],
-                    val_groups: Sequence[str],
-                    *,  # make column names keyword-only arguments to avoid mistakes when providing both
-                    group_column: str,
-                    subject_column: str = "") -> DatasetSplits:
+    def from_groups(
+        df: pd.DataFrame,
+        train_groups: Sequence[str],
+        test_groups: Sequence[str],
+        val_groups: Sequence[str],
+        *,  # make column names keyword-only arguments to avoid mistakes when providing both
+        group_column: str,
+        subject_column: str = "",
+    ) -> DatasetSplits:
         """
         Assuming a DataFrame with columns subject
         Takes a slice of values from each data split train/test/val for the provided groups.
@@ -271,12 +297,18 @@ class DatasetSplits:
             in the same subset (train, val, or test) and cross-validation fold.
         :return: Data splits with respected dataset split ids.
         """
-        return DatasetSplits._from_split_keys(df, train_groups, test_groups, val_groups, key_column=group_column,
-                                              subject_column=subject_column, group_column=group_column)
+        return DatasetSplits._from_split_keys(
+            df,
+            train_groups,
+            test_groups,
+            val_groups,
+            key_column=group_column,
+            subject_column=subject_column,
+            group_column=group_column,
+        )
 
     @staticmethod
-    def get_df_from_ids(df: pd.DataFrame, ids: Sequence[str],
-                        subject_column: Optional[str] = "") -> pd.DataFrame:
+    def get_df_from_ids(df: pd.DataFrame, ids: Sequence[str], subject_column: Optional[str] = "") -> pd.DataFrame:
         """
         Retrieve a subset dataframe where the subject column is restricted to a sequence of provided ids
 
@@ -324,7 +356,12 @@ class DatasetSplits:
 
         # create the number of requested splits of the dataset
         return [
-            DatasetSplits(train=self.get_df_from_ids(cv_dataset, ids_from_indices(train_indices), self.subject_column),
-                          val=self.get_df_from_ids(cv_dataset, ids_from_indices(val_indices), self.subject_column),
-                          test=self.test, subject_column=self.subject_column, group_column=self.group_column)
-            for train_indices, val_indices in folds_gen]
+            DatasetSplits(
+                train=self.get_df_from_ids(cv_dataset, ids_from_indices(train_indices), self.subject_column),
+                val=self.get_df_from_ids(cv_dataset, ids_from_indices(val_indices), self.subject_column),
+                test=self.test,
+                subject_column=self.subject_column,
+                group_column=self.group_column,
+            )
+            for train_indices, val_indices in folds_gen
+        ]

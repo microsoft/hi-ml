@@ -47,11 +47,13 @@
   "[python]": {
     "editor.rulers": [
       120
-    ]
+    ],
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "ms-python.black-formatter",
   },
   // The settings below are specific to this project,
   // and may override settings in the workspace configuration.
-  "python.sortImports.args": [
+  "isort.args": [
     "-l=120",
     "--src=${workspaceFolder}/src",
     "--src=${workspaceFolder}/../hi-ml-azure/src"

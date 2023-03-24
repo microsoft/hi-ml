@@ -15,13 +15,14 @@ def cancel_running_and_queued_jobs() -> None:
     auth = ServicePrincipalAuthentication(
         tenant_id='72f988bf-86f1-41af-91ab-2d7cd011db47',
         service_principal_id=os.environ["HIML_SERVICE_PRINCIPAL_ID"],
-        service_principal_password=os.environ["HIML_SERVICE_PRINCIPAL_PASSWORD"])
+        service_principal_password=os.environ["HIML_SERVICE_PRINCIPAL_PASSWORD"],
+    )
     print("Getting AML workspace")
     workspace = Workspace.get(
         name="hi-ml",
         auth=auth,
         subscription_id=os.environ["HIML_SUBSCRIPTION_ID"],
-        resource_group=os.environ["HIML_RESOURCE_GROUP"]
+        resource_group=os.environ["HIML_RESOURCE_GROUP"],
     )
     experiment_name = os.environ["HIML_EXPERIMENT_NAME"]
     experiment_name = re.sub("_+", "_", re.sub(r"\W+", "_", experiment_name))
@@ -31,8 +32,13 @@ def cancel_running_and_queued_jobs() -> None:
     for run in experiment.get_runs(include_children=True, properties={}):
         assert isinstance(run, Run)
         status_suffix = f"'{run.status}' run {run.id} ({run.display_name})"
-        if run.status in (RunStatus.COMPLETED, RunStatus.FAILED, RunStatus.FINALIZING, RunStatus.CANCELED,
-                          RunStatus.CANCEL_REQUESTED):
+        if run.status in (
+            RunStatus.COMPLETED,
+            RunStatus.FAILED,
+            RunStatus.FINALIZING,
+            RunStatus.CANCELED,
+            RunStatus.CANCEL_REQUESTED,
+        ):
             print(f"Skipping {status_suffix}")
         else:
             print(f"Cancelling {status_suffix}")

@@ -36,16 +36,34 @@ from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, Pr
 
 from health_azure.amulet import ENV_AMLT_DATAREFERENCE_DATA, ENV_AMLT_DATAREFERENCE_OUTPUT, is_amulet_job
 from health_azure.datasets import (
-    DatasetConfig, StrOrDatasetConfig, _get_or_create_v2_data_asset, _input_dataset_key,
-    _output_dataset_key, _replace_string_datasets, setup_local_datasets
+    DatasetConfig,
+    StrOrDatasetConfig,
+    _get_or_create_v2_data_asset,
+    _input_dataset_key,
+    _output_dataset_key,
+    _replace_string_datasets,
+    setup_local_datasets,
 )
 from health_azure.package_setup import health_azure_package_setup
 from health_azure.utils import (
-    DEFAULT_ENVIRONMENT_VARIABLES, ENV_EXPERIMENT_NAME, RUN_CONTEXT, PathOrString, create_python_environment,
-    create_python_environment_v2, create_run_recovery_id, create_v2_job_command_line_args_from_params,
-    find_file_in_parent_to_pythonpath, get_ml_client, get_workspace, is_run_and_child_runs_completed,
-    is_running_in_azure_ml, register_environment, register_environment_v2, run_duration_string_to_seconds,
-    to_azure_friendly_string, wait_for_job_completion
+    DEFAULT_ENVIRONMENT_VARIABLES,
+    ENV_EXPERIMENT_NAME,
+    RUN_CONTEXT,
+    PathOrString,
+    create_python_environment,
+    create_python_environment_v2,
+    create_run_recovery_id,
+    create_v2_job_command_line_args_from_params,
+    find_file_in_parent_to_pythonpath,
+    get_ml_client,
+    get_workspace,
+    is_run_and_child_runs_completed,
+    is_running_in_azure_ml,
+    register_environment,
+    register_environment_v2,
+    run_duration_string_to_seconds,
+    to_azure_friendly_string,
+    wait_for_job_completion,
 )
 
 logger = logging.getLogger('health_azure')
@@ -84,6 +102,7 @@ class AzureRunInfo:
 
     Please check the source code for detailed documentation for all fields.
     """
+
     input_datasets: List[Optional[Path]]
     """A list of folders that contain all the datasets that the script uses as inputs. Input datasets must be
      specified when calling `submit_to_azure_if_needed`. Here, they are made available as Path objects. If no input
@@ -101,10 +120,10 @@ class AzureRunInfo:
     The Run object has methods to log metrics, upload files, etc."""
     is_running_in_azure_ml: bool
     """If True, the present script is executing inside AzureML. If False, outside AzureML."""
-    output_folder: Path
+    output_folder: Optional[Path]
     """The output folder into which all script outputs should be written, if they should be later available in the
     AzureML portal. Files written to this folder will be uploaded to blob storage at the end of the script run."""
-    logs_folder: Path
+    logs_folder: Optional[Path]
     """The folder into which all log files (for example, tensorboard) should be written. All files written to this
     folder will be uploaded to blob storage regularly during the script run."""
 
@@ -122,7 +141,8 @@ def validate_num_nodes(compute_cluster: ComputeTarget, num_nodes: int) -> None:
     if num_nodes > max_cluster_nodes:
         raise ValueError(
             f"You have requested {num_nodes} nodes, which is more than your compute cluster "
-            f"({compute_cluster.name})'s maximum of {max_cluster_nodes} nodes.")
+            f"({compute_cluster.name})'s maximum of {max_cluster_nodes} nodes."
+        )
 
 
 def validate_compute_name(existing_compute_targets: Dict[str, ComputeTarget], compute_target_name: str) -> None:
@@ -134,8 +154,10 @@ def validate_compute_name(existing_compute_targets: Dict[str, ComputeTarget], co
         compute targets
     """
     if compute_target_name not in existing_compute_targets:
-        raise ValueError(f"Could not find the compute target {compute_target_name} in the AzureML workspace. ",
-                         f"Existing compute targets: {list(existing_compute_targets)}")
+        raise ValueError(
+            f"Could not find the compute target {compute_target_name} in the AzureML workspace. ",
+            f"Existing compute targets: {list(existing_compute_targets)}",
+        )
 
 
 def validate_compute_cluster(workspace: Workspace, compute_cluster_name: str, num_nodes: int) -> None:
@@ -153,20 +175,21 @@ def validate_compute_cluster(workspace: Workspace, compute_cluster_name: str, nu
     validate_num_nodes(compute_cluster, num_nodes)
 
 
-def create_run_configuration(workspace: Workspace,
-                             compute_cluster_name: str,
-                             conda_environment_file: Optional[Path] = None,
-                             aml_environment_name: str = "",
-                             environment_variables: Optional[Dict[str, str]] = None,
-                             pip_extra_index_url: str = "",
-                             private_pip_wheel_path: Optional[Path] = None,
-                             docker_base_image: str = "",
-                             docker_shm_size: str = "",
-                             num_nodes: int = 1,
-                             max_run_duration: str = "",
-                             input_datasets: Optional[List[DatasetConfig]] = None,
-                             output_datasets: Optional[List[DatasetConfig]] = None,
-                             ) -> RunConfiguration:
+def create_run_configuration(
+    workspace: Workspace,
+    compute_cluster_name: str,
+    conda_environment_file: Optional[Path] = None,
+    aml_environment_name: str = "",
+    environment_variables: Optional[Dict[str, str]] = None,
+    pip_extra_index_url: str = "",
+    private_pip_wheel_path: Optional[Path] = None,
+    docker_base_image: str = "",
+    docker_shm_size: str = "",
+    num_nodes: int = 1,
+    max_run_duration: str = "",
+    input_datasets: Optional[List[DatasetConfig]] = None,
+    output_datasets: Optional[List[DatasetConfig]] = None,
+) -> RunConfiguration:
     """
     Creates an AzureML run configuration, that contains information about environment, multi node execution, and
     Docker.
@@ -208,7 +231,8 @@ def create_run_configuration(workspace: Workspace,
             pip_extra_index_url=pip_extra_index_url,
             workspace=workspace,
             private_pip_wheel_path=private_pip_wheel_path,
-            docker_base_image=docker_base_image)
+            docker_base_image=docker_base_image,
+        )
         conda_deps = new_environment.python.conda_dependencies
         if conda_deps.get_python_version() is None:
             raise ValueError("If specifying a conda environment file, you must specify the python version within it")
@@ -240,20 +264,19 @@ def create_run_configuration(workspace: Workspace,
         run_config.node_count = distributed_job_config.node_count
 
     if input_datasets or output_datasets:
-        inputs, outputs = convert_himl_to_azureml_datasets(cleaned_input_datasets=input_datasets or [],
-                                                           cleaned_output_datasets=output_datasets or [],
-                                                           workspace=workspace,
-                                                           strictly_aml_v1=True
-                                                           )
+        inputs, outputs = convert_himl_to_azureml_datasets(
+            cleaned_input_datasets=input_datasets or [],
+            cleaned_output_datasets=output_datasets or [],
+            workspace=workspace,
+            strictly_aml_v1=True,
+        )
         run_config.data = inputs
         run_config.output_data = outputs
 
     return run_config
 
 
-def create_grid_hyperdrive_config(values: List[str],
-                                  argument_name: str,
-                                  metric_name: str) -> HyperDriveConfig:
+def create_grid_hyperdrive_config(values: List[str], argument_name: str, metric_name: str) -> HyperDriveConfig:
     """
     Creates an Azure ML HyperDriveConfig object that runs a simple grid search. The Hyperdrive job will run one child
     job for each of the values provided in `values`, and each child job will have a suffix added to the commandline
@@ -270,9 +293,11 @@ def create_grid_hyperdrive_config(values: List[str],
         your responsibility to make sure a metric with this name is logged to the Run in your training script
     :return: an Azure ML HyperDriveConfig object
     """
-    logging.info(f"Creating a HyperDriveConfig. Please note that this expects to find the specified "
-                 f"metric '{metric_name}' logged to AzureML from your training script (for example, using the "
-                 f"AzureMLLogger with Pytorch Lightning)")
+    logging.info(
+        f"Creating a HyperDriveConfig. Please note that this expects to find the specified "
+        f"metric '{metric_name}' logged to AzureML from your training script (for example, using the "
+        f"AzureMLLogger with Pytorch Lightning)"
+    )
     parameter_dict = {
         argument_name: choice(values),
     }
@@ -281,13 +306,11 @@ def create_grid_hyperdrive_config(values: List[str],
         hyperparameter_sampling=GridParameterSampling(parameter_dict),
         primary_metric_name=metric_name,
         primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
-        max_total_runs=len(values)
+        max_total_runs=len(values),
     )
 
 
-def create_grid_hyperparam_args_v2(values: List[Any],
-                                   argument_name: str,
-                                   metric_name: str) -> Dict[str, Any]:
+def create_grid_hyperparam_args_v2(values: List[Any], argument_name: str, metric_name: str) -> Dict[str, Any]:
     """
     Create a dictionary of arguments to create an Azure ML v2 SDK Sweep job.
 
@@ -304,14 +327,14 @@ def create_grid_hyperparam_args_v2(values: List[Any],
         PARAM_SAMPLING_ARG: param_sampling,
         SAMPLING_ALGORITHM_ARG: "grid",
         PRIMARY_METRIC_ARG: metric_name,
-        GOAL_ARG: "Minimize"
+        GOAL_ARG: "Minimize",
     }
     return hyperparam_args
 
 
-def create_crossval_hyperdrive_config(num_splits: int,
-                                      cross_val_index_arg_name: str = "crossval_index",
-                                      metric_name: str = "val/loss") -> HyperDriveConfig:
+def create_crossval_hyperdrive_config(
+    num_splits: int, cross_val_index_arg_name: str = "crossval_index", metric_name: str = "val/loss"
+) -> HyperDriveConfig:
     """
     Creates an Azure ML HyperDriveConfig object for running cross validation. Note: this config expects a metric
     named <metric_name> to be logged in your training script([see here](
@@ -324,14 +347,14 @@ def create_crossval_hyperdrive_config(num_splits: int,
         your responsibility to make sure a metric with this name is logged to the Run in your training script
     :return: an Azure ML HyperDriveConfig object
     """
-    return create_grid_hyperdrive_config(values=list(map(str, range(num_splits))),
-                                         argument_name=cross_val_index_arg_name,
-                                         metric_name=metric_name)
+    return create_grid_hyperdrive_config(
+        values=list(map(str, range(num_splits))), argument_name=cross_val_index_arg_name, metric_name=metric_name
+    )
 
 
-def create_crossval_hyperparam_args_v2(num_splits: int,
-                                       cross_val_index_arg_name: str = "crossval_index",
-                                       metric_name: str = "val/loss") -> Dict[str, Any]:
+def create_crossval_hyperparam_args_v2(
+    num_splits: int, cross_val_index_arg_name: str = "crossval_index", metric_name: str = "val/loss"
+) -> Dict[str, Any]:
     """
     Create a dictionary of arguments to create an Azure ML v2 SDK Sweep job.
 
@@ -342,9 +365,9 @@ def create_crossval_hyperparam_args_v2(num_splits: int,
         your responsibility to make sure a metric with this name is logged to the Run in your training script
     :return: A dictionary of arguments and values to pass in to the command job.
     """
-    return create_grid_hyperparam_args_v2(values=list(map(str, range(num_splits))),
-                                          argument_name=cross_val_index_arg_name,
-                                          metric_name=metric_name)
+    return create_grid_hyperparam_args_v2(
+        values=list(map(str, range(num_splits))), argument_name=cross_val_index_arg_name, metric_name=metric_name
+    )
 
 
 def create_script_run(
@@ -379,19 +402,19 @@ def create_script_run(
             # The entry script always needs to use Linux path separators, even when submitting from Windows
             entry_script_relative = entry_script.relative_to(snapshot_root_directory).as_posix()
         except ValueError:
-            raise ValueError("The entry script must be inside of the snapshot root directory. "
-                             f"Snapshot root: {snapshot_root_directory}, entry script: {entry_script}")
+            raise ValueError(
+                "The entry script must be inside of the snapshot root directory. "
+                f"Snapshot root: {snapshot_root_directory}, entry script: {entry_script}"
+            )
     else:
         entry_script_relative = str(entry_script)
     print(f"This command will be run in AzureML: {entry_script_relative} {' '.join(script_params)}")
     return ScriptRunConfig(
-        source_directory=str(snapshot_root_directory),
-        script=entry_script_relative,
-        arguments=script_params)
+        source_directory=str(snapshot_root_directory), script=entry_script_relative, arguments=script_params
+    )
 
 
-def effective_experiment_name(experiment_name: Optional[str],
-                              entry_script: Optional[PathOrString] = None) -> str:
+def effective_experiment_name(experiment_name: Optional[str], entry_script: Optional[PathOrString] = None) -> str:
     """Choose the experiment name to use for the run. If provided in the environment variable HIML_EXPERIMENT_NAME,
     then use that. Otherwise, use the argument `experiment_name`, or fall back to the default based on the
     entry point script. If script in the form "foo/bar/baz.py", then the experiment name will be "baz". If the script is
@@ -418,26 +441,27 @@ def effective_experiment_name(experiment_name: Optional[str],
     return cleaned_value
 
 
-def submit_run_v2(workspace: Optional[Workspace],
-                  environment: EnvironmentV2,
-                  experiment_name: Optional[str] = None,
-                  input_datasets_v2: Optional[Dict[str, Input]] = None,
-                  output_datasets_v2: Optional[Dict[str, Output]] = None,
-                  snapshot_root_directory: Optional[Path] = None,
-                  entry_script: Optional[PathOrString] = None,
-                  script_params: Optional[List[str]] = None,
-                  compute_target: Optional[str] = None,
-                  tags: Optional[Dict[str, str]] = None,
-                  docker_shm_size: str = "",
-                  wait_for_completion: bool = False,
-                  identity_based_auth: bool = False,
-                  workspace_config_path: Optional[PathOrString] = None,
-                  ml_client: Optional[MLClient] = None,
-                  hyperparam_args: Optional[Dict[str, Any]] = None,
-                  num_nodes: int = 1,
-                  pytorch_processes_per_node: Optional[int] = None,
-                  display_name: Optional[str] = None,
-                  ) -> Job:
+def submit_run_v2(
+    workspace: Optional[Workspace],
+    environment: EnvironmentV2,
+    experiment_name: Optional[str] = None,
+    input_datasets_v2: Optional[Dict[str, Input]] = None,
+    output_datasets_v2: Optional[Dict[str, Output]] = None,
+    snapshot_root_directory: Optional[Path] = None,
+    entry_script: Optional[PathOrString] = None,
+    script_params: Optional[List[str]] = None,
+    compute_target: Optional[str] = None,
+    tags: Optional[Dict[str, str]] = None,
+    docker_shm_size: str = "",
+    wait_for_completion: bool = False,
+    identity_based_auth: bool = False,
+    workspace_config_path: Optional[PathOrString] = None,
+    ml_client: Optional[MLClient] = None,
+    hyperparam_args: Optional[Dict[str, Any]] = None,
+    num_nodes: int = 1,
+    pytorch_processes_per_node: Optional[int] = None,
+    display_name: Optional[str] = None,
+) -> Job:
     """
     Starts a v2 AML Job on a given workspace by submitting a command
 
@@ -475,7 +499,7 @@ def submit_run_v2(workspace: Optional[Workspace],
             ml_client = get_ml_client(
                 subscription_id=workspace.subscription_id,
                 resource_group=workspace.resource_group,
-                workspace_name=workspace.name
+                workspace_name=workspace.name,
             )
         elif workspace_config_path is not None:
             ml_client = get_ml_client(workspace_config_path=workspace_config_path)
@@ -553,7 +577,7 @@ def submit_run_v2(workspace: Optional[Workspace],
 
         job_to_submit = command_job.sweep(
             compute=compute_target,  # AML docs suggest setting this here although already passed to command
-            **hyperparam_args
+            **hyperparam_args,
         )
 
         # AML docs state to reset certain properties here which aren't picked up from the
@@ -575,10 +599,9 @@ def submit_run_v2(workspace: Optional[Workspace],
     return returned_job
 
 
-def download_job_outputs_logs(ml_client: MLClient,
-                              job_name: str,
-                              file_to_download_path: str = "",
-                              download_dir: Optional[PathOrString] = None) -> None:
+def download_job_outputs_logs(
+    ml_client: MLClient, job_name: str, file_to_download_path: str = "", download_dir: Optional[PathOrString] = None
+) -> None:
     """
     Download output files from an mlflow job. Outputs will be downloaded to a folder named
     `<download_dir>/<job_name>` where download_dir is either provided to this function,
@@ -596,14 +619,15 @@ def download_job_outputs_logs(ml_client: MLClient,
     ml_client.jobs.download(job_name, output_name=file_to_download_path, download_path=download_dir)
 
 
-def submit_run(workspace: Workspace,
-               experiment_name: str,
-               script_run_config: Union[ScriptRunConfig, HyperDriveConfig],
-               tags: Optional[Dict[str, str]] = None,
-               wait_for_completion: bool = False,
-               wait_for_completion_show_output: bool = False,
-               display_name: Optional[str] = None,
-               ) -> Run:
+def submit_run(
+    workspace: Workspace,
+    experiment_name: str,
+    script_run_config: Union[ScriptRunConfig, HyperDriveConfig],
+    tags: Optional[Dict[str, str]] = None,
+    wait_for_completion: bool = False,
+    wait_for_completion_show_output: bool = False,
+    display_name: Optional[str] = None,
+) -> Run:
     """
     Starts an AzureML run on a given workspace, via the script_run_config.
 
@@ -626,13 +650,14 @@ def submit_run(workspace: Workspace,
     user_agent.append(SDK_NAME, SDK_VERSION)
     run = experiment.submit(script_run_config)
     if tags is None:
-        if hasattr(script_run_config, 'arguments') and \
-                script_run_config.arguments is not None:
+        if hasattr(script_run_config, 'arguments') and script_run_config.arguments is not None:
             # It is probably a ScriptRunConfig
             tags = {"commandline_args": " ".join(script_run_config.arguments)}
-        elif hasattr(script_run_config, 'run_config') and \
-                hasattr(script_run_config.run_config, 'arguments') and \
-                script_run_config.run_config.arguments is not None:
+        elif (
+            hasattr(script_run_config, 'run_config')
+            and hasattr(script_run_config.run_config, 'arguments')
+            and script_run_config.run_config.arguments is not None
+        ):
             # It is probably a HyperDriveConfig
             tags = {"commandline_args": " ".join(script_run_config.run_config.arguments)}
     run.set_tags(tags)
@@ -650,12 +675,11 @@ def submit_run(workspace: Workspace,
     print("==============================================================================\n")
     if wait_for_completion:
         print("Waiting for the completion of the AzureML run.")
-        run.wait_for_completion(show_output=wait_for_completion_show_output,
-                                wait_post_processing=True,
-                                raise_on_error=True)
+        run.wait_for_completion(
+            show_output=wait_for_completion_show_output, wait_post_processing=True, raise_on_error=True
+        )
         if not is_run_and_child_runs_completed(run):
-            raise ValueError(f"Run {run.id} in experiment {run.experiment.name} or one of its child "
-                             "runs failed.")
+            raise ValueError(f"Run {run.id} in experiment {run.experiment.name} or one of its child runs failed.")
         print("AzureML completed.")
     return run
 
@@ -707,8 +731,9 @@ def create_v2_inputs(ml_client: MLClient, input_datasets: List[DatasetConfig]) -
         f"{V2_INPUT_ASSET_IDENTIFIER}{i}": Input(  # type: ignore
             type=data_asset.type,  # type: ignore
             path=data_asset.path,
-            mode=InputOutputModes.MOUNT if input_datasets[i].use_mounting else InputOutputModes.DOWNLOAD
-        ) for i, data_asset in enumerate(input_assets)
+            mode=InputOutputModes.MOUNT if input_datasets[i].use_mounting else InputOutputModes.DOWNLOAD,
+        )
+        for i, data_asset in enumerate(input_assets)
     }
 
 
@@ -728,43 +753,44 @@ def create_v2_outputs(ml_client: MLClient, output_datasets: List[DatasetConfig])
             type=data_asset.type,  # type: ignore
             path=data_asset.path,
             mode=InputOutputModes.MOUNT,  # hard-coded to mount for now, as this is the only mode that doesn't break
-        ) for i, data_asset in enumerate(output_assets)
+        )
+        for i, data_asset in enumerate(output_assets)
     }
 
 
 def submit_to_azure_if_needed(  # type: ignore
-        compute_cluster_name: str = "",
-        entry_script: Optional[PathOrString] = None,
-        aml_workspace: Optional[Workspace] = None,
-        workspace_config_file: Optional[PathOrString] = None,
-        ml_client: Optional[MLClient] = None,
-        snapshot_root_directory: Optional[PathOrString] = None,
-        script_params: Optional[List[str]] = None,
-        conda_environment_file: Optional[PathOrString] = None,
-        aml_environment_name: str = "",
-        experiment_name: Optional[str] = None,
-        environment_variables: Optional[Dict[str, str]] = None,
-        pip_extra_index_url: str = "",
-        private_pip_wheel_path: Optional[PathOrString] = None,
-        docker_base_image: str = DEFAULT_DOCKER_BASE_IMAGE,
-        docker_shm_size: str = DEFAULT_DOCKER_SHM_SIZE,
-        ignored_folders: Optional[List[PathOrString]] = None,
-        default_datastore: str = "",
-        input_datasets: Optional[List[StrOrDatasetConfig]] = None,
-        output_datasets: Optional[List[StrOrDatasetConfig]] = None,
-        num_nodes: int = 1,
-        wait_for_completion: bool = False,
-        wait_for_completion_show_output: bool = False,
-        max_run_duration: str = "",
-        submit_to_azureml: Optional[bool] = None,
-        tags: Optional[Dict[str, str]] = None,
-        after_submission: Optional[Union[Callable[[Run], None], Callable[[Job, MLClient], None]]] = None,
-        hyperdrive_config: Optional[HyperDriveConfig] = None,
-        hyperparam_args: Optional[Dict[str, Any]] = None,
-        strictly_aml_v1: bool = False,
-        identity_based_auth: bool = False,
-        pytorch_processes_per_node_v2: Optional[int] = None,
-        display_name: Optional[str] = None,
+    compute_cluster_name: str = "",
+    entry_script: Optional[PathOrString] = None,
+    aml_workspace: Optional[Workspace] = None,
+    workspace_config_file: Optional[PathOrString] = None,
+    ml_client: Optional[MLClient] = None,
+    snapshot_root_directory: Optional[PathOrString] = None,
+    script_params: Optional[List[str]] = None,
+    conda_environment_file: Optional[PathOrString] = None,
+    aml_environment_name: str = "",
+    experiment_name: Optional[str] = None,
+    environment_variables: Optional[Dict[str, str]] = None,
+    pip_extra_index_url: str = "",
+    private_pip_wheel_path: Optional[PathOrString] = None,
+    docker_base_image: str = DEFAULT_DOCKER_BASE_IMAGE,
+    docker_shm_size: str = DEFAULT_DOCKER_SHM_SIZE,
+    ignored_folders: Optional[List[PathOrString]] = None,
+    default_datastore: str = "",
+    input_datasets: Optional[List[StrOrDatasetConfig]] = None,
+    output_datasets: Optional[List[StrOrDatasetConfig]] = None,
+    num_nodes: int = 1,
+    wait_for_completion: bool = False,
+    wait_for_completion_show_output: bool = False,
+    max_run_duration: str = "",
+    submit_to_azureml: Optional[bool] = None,
+    tags: Optional[Dict[str, str]] = None,
+    after_submission: Optional[Union[Callable[[Run], None], Callable[[Job, MLClient], None]]] = None,
+    hyperdrive_config: Optional[HyperDriveConfig] = None,
+    hyperparam_args: Optional[Dict[str, Any]] = None,
+    strictly_aml_v1: bool = False,
+    identity_based_auth: bool = False,
+    pytorch_processes_per_node_v2: Optional[int] = None,
+    display_name: Optional[str] = None,
 ) -> AzureRunInfo:  # pragma: no cover
     """
     Submit a folder to Azure, if needed and run it.
@@ -840,10 +866,8 @@ def submit_to_azure_if_needed(  # type: ignore
     health_azure_package_setup()
     workspace_config_path = _str_to_path(workspace_config_file)
     snapshot_root_directory = _str_to_path(snapshot_root_directory)
-    cleaned_input_datasets = _replace_string_datasets(input_datasets or [],
-                                                      default_datastore_name=default_datastore)
-    cleaned_output_datasets = _replace_string_datasets(output_datasets or [],
-                                                       default_datastore_name=default_datastore)
+    cleaned_input_datasets = _replace_string_datasets(input_datasets or [], default_datastore_name=default_datastore)
+    cleaned_output_datasets = _replace_string_datasets(output_datasets or [], default_datastore_name=default_datastore)
 
     # The present function will most likely be called from the script once it is running in AzureML.
     # The '--azureml' flag will not be present anymore, but we don't want to rely on that. From Run.get_context we
@@ -860,10 +884,7 @@ def submit_to_azure_if_needed(  # type: ignore
         submit_to_azureml = AZUREML_FLAG in sys.argv[1:]
     if not submit_to_azureml:
         # Set the environment variables for local execution.
-        environment_variables = {
-            **DEFAULT_ENVIRONMENT_VARIABLES,
-            **(environment_variables or {})
-        }
+        environment_variables = {**DEFAULT_ENVIRONMENT_VARIABLES, **(environment_variables or {})}
 
         for k, v in environment_variables.items():
             os.environ[k] = v
@@ -874,11 +895,13 @@ def submit_to_azure_if_needed(  # type: ignore
         logs_folder = Path.cwd() / LOGS_FOLDER
         logs_folder.mkdir(exist_ok=True)
 
-        mounted_input_datasets, mount_contexts = setup_local_datasets(cleaned_input_datasets,
-                                                                      strictly_aml_v1,
-                                                                      aml_workspace=aml_workspace,
-                                                                      ml_client=ml_client,
-                                                                      workspace_config_path=workspace_config_path)
+        mounted_input_datasets, mount_contexts = setup_local_datasets(
+            cleaned_input_datasets,
+            strictly_aml_v1,
+            aml_workspace=aml_workspace,
+            ml_client=ml_client,
+            workspace_config_path=workspace_config_path,
+        )
 
         return AzureRunInfo(
             input_datasets=mounted_input_datasets,
@@ -887,7 +910,7 @@ def submit_to_azure_if_needed(  # type: ignore
             run=None,
             is_running_in_azure_ml=False,
             output_folder=output_folder,
-            logs_folder=logs_folder
+            logs_folder=logs_folder,
         )
 
     if snapshot_root_directory is None:
@@ -900,8 +923,9 @@ def submit_to_azure_if_needed(  # type: ignore
     if conda_environment_file is None:
         conda_environment_file = find_file_in_parent_to_pythonpath(CONDA_ENVIRONMENT_FILE)
         if conda_environment_file is None:
-            raise ValueError(f"No conda environment file {CONDA_ENVIRONMENT_FILE} found in {Path.cwd()} "
-                             "or any parent directory.")
+            raise ValueError(
+                f"No conda environment file {CONDA_ENVIRONMENT_FILE} found in {Path.cwd()} or any parent directory."
+            )
         print(f"Using the Conda environment from this file: {conda_environment_file}")
     conda_environment_file = _str_to_path(conda_environment_file)
 
@@ -940,22 +964,22 @@ def submit_to_azure_if_needed(  # type: ignore
             else:
                 config_to_submit = script_run_config
 
-            run = submit_run(workspace=workspace,
-                             experiment_name=effective_experiment_name(experiment_name, script_run_config.script),
-                             script_run_config=config_to_submit,
-                             tags=tags,
-                             display_name=display_name,
-                             wait_for_completion=wait_for_completion,
-                             wait_for_completion_show_output=wait_for_completion_show_output)
+            run = submit_run(
+                workspace=workspace,
+                experiment_name=effective_experiment_name(experiment_name, script_run_config.script),
+                script_run_config=config_to_submit,
+                tags=tags,
+                display_name=display_name,
+                wait_for_completion=wait_for_completion,
+                wait_for_completion_show_output=wait_for_completion_show_output,
+            )
             if after_submission is not None:
                 after_submission(run)  # type: ignore
         else:
-
             if conda_environment_file is None:
                 raise ValueError("Argument 'conda_environment_file' must be specified when using AzureML v2")
             environment = create_python_environment_v2(
-                conda_environment_file=conda_environment_file,
-                docker_base_image=docker_base_image
+                conda_environment_file=conda_environment_file, docker_base_image=docker_base_image
             )
             if entry_script is None:
                 entry_script = Path(sys.argv[0])
@@ -965,24 +989,25 @@ def submit_to_azure_if_needed(  # type: ignore
             input_datasets_v2 = create_v2_inputs(ml_client, cleaned_input_datasets)
             output_datasets_v2 = create_v2_outputs(ml_client, cleaned_output_datasets)
 
-            job = submit_run_v2(workspace=workspace,
-                                input_datasets_v2=input_datasets_v2,
-                                output_datasets_v2=output_datasets_v2,
-                                experiment_name=experiment_name,
-                                environment=registered_env,
-                                snapshot_root_directory=snapshot_root_directory,
-                                entry_script=entry_script,
-                                script_params=script_params,
-                                compute_target=compute_cluster_name,
-                                tags=tags,
-                                display_name=display_name,
-                                docker_shm_size=docker_shm_size,
-                                wait_for_completion=wait_for_completion,
-                                identity_based_auth=identity_based_auth,
-                                hyperparam_args=hyperparam_args,
-                                num_nodes=num_nodes,
-                                pytorch_processes_per_node=pytorch_processes_per_node_v2,
-                                )
+            job = submit_run_v2(
+                workspace=workspace,
+                input_datasets_v2=input_datasets_v2,
+                output_datasets_v2=output_datasets_v2,
+                experiment_name=experiment_name,
+                environment=registered_env,
+                snapshot_root_directory=snapshot_root_directory,
+                entry_script=entry_script,
+                script_params=script_params,
+                compute_target=compute_cluster_name,
+                tags=tags,
+                display_name=display_name,
+                docker_shm_size=docker_shm_size,
+                wait_for_completion=wait_for_completion,
+                identity_based_auth=identity_based_auth,
+                hyperparam_args=hyperparam_args,
+                num_nodes=num_nodes,
+                pytorch_processes_per_node=pytorch_processes_per_node_v2,
+            )
 
             if after_submission is not None:
                 after_submission(job, ml_client)  # type: ignore
@@ -1007,7 +1032,7 @@ def convert_himl_to_azureml_datasets(
     cleaned_input_datasets: List[DatasetConfig],
     cleaned_output_datasets: List[DatasetConfig],
     workspace: Workspace,
-    strictly_aml_v1: bool
+    strictly_aml_v1: bool,
 ) -> Tuple[Dict[str, DatasetConsumptionConfig], Dict[str, OutputFileDatasetConfig]]:
     """
     Convert the cleaned input and output datasets into dictionaries of DatasetConsumptionConfigs for use in AzureML.
@@ -1053,8 +1078,8 @@ def _get_script_params(script_params: Optional[List[str]] = None) -> List[str]:
 
 
 def _generate_azure_datasets(
-        cleaned_input_datasets: List[DatasetConfig],
-        cleaned_output_datasets: List[DatasetConfig]) -> AzureRunInfo:
+    cleaned_input_datasets: List[DatasetConfig], cleaned_output_datasets: List[DatasetConfig]
+) -> AzureRunInfo:
     """
     Generate returned datasets when running in AzureML.
 
@@ -1065,20 +1090,25 @@ def _generate_azure_datasets(
     if is_amulet_job():
         input_data_mount_folder = Path(os.environ[ENV_AMLT_DATAREFERENCE_DATA])
         logging.info(f"Path to mounted data: {ENV_AMLT_DATAREFERENCE_DATA}: {str(input_data_mount_folder)}")
-        returned_input_datasets = [input_data_mount_folder / input_dataset.name for input_dataset in
-                                   cleaned_input_datasets]
+        returned_input_datasets = [
+            input_data_mount_folder / input_dataset.name for input_dataset in cleaned_input_datasets
+        ]
 
         output_data_mount_folder = Path(os.environ[ENV_AMLT_DATAREFERENCE_OUTPUT])
         logging.info(f"Path to output datasets: {output_data_mount_folder}")
-        returned_output_datasets = [output_data_mount_folder / output_dataset.name for output_dataset in
-                                    cleaned_output_datasets]
+        returned_output_datasets = [
+            output_data_mount_folder / output_dataset.name for output_dataset in cleaned_output_datasets
+        ]
         logging.info(f"Stitched returned input datasets: {returned_input_datasets}")
         logging.info(f"Stitched returned output datasets: {returned_output_datasets}")
     else:
-        returned_input_datasets = [Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)])
-                                   for index in range(len(cleaned_input_datasets))]
-        returned_output_datasets = [Path(RUN_CONTEXT.output_datasets[_output_dataset_key(index)])
-                                    for index in range(len(cleaned_output_datasets))]
+        returned_input_datasets = [
+            Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)]) for index in range(len(cleaned_input_datasets))
+        ]
+        returned_output_datasets = [
+            Path(RUN_CONTEXT.output_datasets[_output_dataset_key(index)])
+            for index in range(len(cleaned_output_datasets))
+        ]
     return AzureRunInfo(
         input_datasets=returned_input_datasets,  # type: ignore
         output_datasets=returned_output_datasets,  # type: ignore
@@ -1086,7 +1116,8 @@ def _generate_azure_datasets(
         run=RUN_CONTEXT,
         is_running_in_azure_ml=True,
         output_folder=Path.cwd() / OUTPUT_FOLDER,
-        logs_folder=Path.cwd() / LOGS_FOLDER)
+        logs_folder=Path.cwd() / LOGS_FOLDER,
+    )
 
 
 def _get_dataset_names_from_string(sys_arg: str, pattern: str) -> Path:
@@ -1113,8 +1144,9 @@ def _extract_v2_data_asset_from_env_vars(asset_num: int, asset_type_identifier: 
     return Path(asset_path_str)
 
 
-def _generate_v2_azure_datasets(cleaned_input_datasets: List[DatasetConfig],
-                                cleaned_output_datasets: List[DatasetConfig]) -> AzureRunInfo:
+def _generate_v2_azure_datasets(
+    cleaned_input_datasets: List[DatasetConfig], cleaned_output_datasets: List[DatasetConfig]
+) -> AzureRunInfo:
     """
     Generate returned datasets when running in AzureML. Assumes this is v2 Job, so we need to get
     the input datasets from the command line args
@@ -1124,12 +1156,10 @@ def _generate_v2_azure_datasets(cleaned_input_datasets: List[DatasetConfig],
     :return: The AzureRunInfo containing the AzureML input and output dataset lists etc.
     """
     returned_input_datasets = [
-        _extract_v2_data_asset_from_env_vars(i, V2_INPUT_ASSET_IDENTIFIER)
-        for i in range(len(cleaned_input_datasets))
+        _extract_v2_data_asset_from_env_vars(i, V2_INPUT_ASSET_IDENTIFIER) for i in range(len(cleaned_input_datasets))
     ]
     returned_output_datasets = [
-        _extract_v2_data_asset_from_env_vars(i, V2_OUTPUT_ASSET_IDENTIFIER)
-        for i in range(len(cleaned_output_datasets))
+        _extract_v2_data_asset_from_env_vars(i, V2_OUTPUT_ASSET_IDENTIFIER) for i in range(len(cleaned_output_datasets))
     ]
 
     return AzureRunInfo(
@@ -1139,7 +1169,8 @@ def _generate_v2_azure_datasets(cleaned_input_datasets: List[DatasetConfig],
         run=RUN_CONTEXT,
         is_running_in_azure_ml=True,
         output_folder=Path.cwd() / OUTPUT_FOLDER,
-        logs_folder=Path.cwd() / LOGS_FOLDER)
+        logs_folder=Path.cwd() / LOGS_FOLDER,
+    )
 
 
 @contextmanager
@@ -1175,10 +1206,10 @@ def main() -> None:
     parser = ArgumentParser()
     parser.add_argument("-p", "--workspace_config_file", type=str, required=False, help="AzureML workspace config file")
     parser.add_argument("-c", "--compute_cluster_name", type=str, required=True, help="AzureML cluster name")
-    parser.add_argument("-y", "--snapshot_root_directory", type=str, required=True,
-                        help="Root of snapshot to upload to AzureML")
-    parser.add_argument("-t", "--entry_script", type=str, required=True,
-                        help="The script to run in AzureML")
+    parser.add_argument(
+        "-y", "--snapshot_root_directory", type=str, required=True, help="Root of snapshot to upload to AzureML"
+    )
+    parser.add_argument("-t", "--entry_script", type=str, required=True, help="The script to run in AzureML")
     parser.add_argument("-d", "--conda_environment_file", type=str, required=True, help="The environment to use")
 
     args = parser.parse_args()

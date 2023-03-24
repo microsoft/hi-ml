@@ -3,31 +3,34 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from contextlib import contextmanager
+import os
 import shutil
 import sys
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional
+from unittest import mock
 from unittest.mock import patch, MagicMock, DEFAULT, create_autospec
 
 import pytest
-from _pytest.capture import SysCapture
+from pytest import CaptureFixture
 from azureml.train.hyperdrive import HyperDriveConfig
 
 from health_azure import AzureRunInfo, DatasetConfig
+from health_azure.himl import OUTPUT_FOLDER
+from health_azure.utils import ENV_LOCAL_RANK, ENV_NODE_RANK
 from health_azure.paths import ENVIRONMENT_YAML_FILE_NAME
 from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.deep_learning_config import WorkflowParams
 from health_ml.experiment_config import DEBUG_DDP_ENV_VAR, DebugDDPOptions
 from health_ml.lightning_container import LightningContainer
-from health_ml.runner import Runner
+from health_ml.runner import Runner, create_logging_filename, run_with_logging
 from health_ml.utils.common_utils import change_working_directory
 from health_ml.utils.fixed_paths import repository_root_directory
 
 
 @pytest.fixture
 def mock_runner(tmp_path: Path) -> Runner:
-    """A test fixture that creates a Runner object in a temporary folder.
-    """
+    """A test fixture that creates a Runner object in a temporary folder."""
 
     return Runner(project_root=tmp_path)
 
@@ -42,16 +45,33 @@ def change_working_folder_and_add_environment(tmp_path: Path) -> Generator:
         yield
 
 
-@pytest.mark.parametrize("model_name, cluster, num_nodes, should_raise_value_error", [
-    ("HelloWorld", "dummyCluster", 1, False),
-    ("", "", None, True),
-    ("HelloWorld", "", None, False),
-    ("a", None, 0, True),
-    (None, "b", 10, True),
-    ("HelloWorld", "b", 10, False)
-])
-def test_parse_and_load_model(mock_runner: Runner, model_name: Optional[str], cluster: Optional[str],
-                              num_nodes: Optional[int], should_raise_value_error: bool) -> None:
+class HelloWorldWithVariant(HelloWorld):
+    def set_model_variant(self, variant_name: str) -> None:
+        if variant_name == "var1":
+            self.max_epochs = 1
+        elif variant_name == "var2":
+            self.max_epochs = 2
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize(
+    "model_name, cluster, num_nodes, should_raise_value_error",
+    [
+        ("HelloWorld", "dummyCluster", 1, False),
+        ("", "", None, True),
+        ("HelloWorld", "", None, False),
+        ("a", None, 0, True),
+        (None, "b", 10, True),
+        ("HelloWorld", "b", 10, False),
+    ],
+)
+def test_parse_and_load_model(
+    mock_runner: Runner,
+    model_name: Optional[str],
+    cluster: Optional[str],
+    num_nodes: Optional[int],
+    should_raise_value_error: bool,
+) -> None:
     """
     Test that command line args are parsed, a LightningContainer is instantiated with the expected attributes
     and a ParserResult object is returned, with the expected attributes. If model_name cannot be found in the
@@ -82,6 +102,36 @@ def test_parse_and_load_model(mock_runner: Runner, model_name: Optional[str], cl
             assert isinstance(mock_runner.lightning_container, LightningContainer)
             assert mock_runner.lightning_container.initialized
             assert mock_runner.lightning_container.model_name == model_name
+
+
+@pytest.mark.fast
+def test_parse_and_load_model_with_variant(mock_runner: Runner) -> None:
+    """
+    Test that models are loaded correctly when using an argument for choosing the model variant.
+    """
+    variant = "var1"
+    args = [""]
+    args.append("--model=testhiml.test_runner.HelloWorldWithVariant")
+    args.append(f"--model_variant={variant}")
+
+    model = HelloWorldWithVariant()
+    assert model.max_epochs == 20
+    model.set_model_variant(variant)
+    epochs_after_variant = model.max_epochs
+
+    # Check if the model variant is really chosen
+    with patch.object(sys, "argv", new=args):
+        mock_runner.parse_and_load_model()
+        assert isinstance(mock_runner.lightning_container, HelloWorldWithVariant)
+        assert mock_runner.lightning_container.max_epochs == epochs_after_variant
+
+    # Any parameters specified on the commandline should have higher priority than what is done in the model variant
+    max_epochs = 123
+    args.append(f"--max_epochs={max_epochs}")
+    with patch.object(sys, "argv", new=args):
+        mock_runner.parse_and_load_model()
+        assert isinstance(mock_runner.lightning_container, HelloWorldWithVariant)
+        assert mock_runner.lightning_container.max_epochs == max_epochs
 
 
 @pytest.mark.parametrize("debug_ddp", ["OFF", "INFO", "DETAIL"])
@@ -156,23 +206,26 @@ def test_run(mock_runner: Runner) -> None:
 @patch("health_ml.runner.choose_conda_env_file")
 @patch("health_ml.runner.get_workspace")
 @pytest.mark.fast
-def test_submit_to_azureml_if_needed(mock_get_workspace: MagicMock,
-                                     mock_get_env_files: MagicMock,
-                                     mock_runner: Runner
-                                     ) -> None:
-    def _mock_dont_submit_to_aml(input_datasets: List[DatasetConfig],
-                                 submit_to_azureml: bool, strictly_aml_v1: bool,  # type: ignore
-                                 environment_variables: Dict[str, Any],  # type: ignore
-                                 default_datastore: Optional[str],  # type: ignore
-                                 ) -> AzureRunInfo:
+def test_submit_to_azureml_if_needed(
+    mock_get_workspace: MagicMock, mock_get_env_files: MagicMock, mock_runner: Runner
+) -> None:
+    def _mock_dont_submit_to_aml(
+        input_datasets: List[DatasetConfig],
+        submit_to_azureml: bool,
+        strictly_aml_v1: bool,  # type: ignore
+        environment_variables: Dict[str, Any],  # type: ignore
+        default_datastore: Optional[str],  # type: ignore
+    ) -> AzureRunInfo:
         datasets_input = [d.target_folder for d in input_datasets] if input_datasets else []
-        return AzureRunInfo(input_datasets=datasets_input,
-                            output_datasets=[],
-                            mount_contexts=[],
-                            run=None,
-                            is_running_in_azure_ml=False,
-                            output_folder=None,  # type: ignore
-                            logs_folder=None)  # type: ignore
+        return AzureRunInfo(
+            input_datasets=datasets_input,
+            output_datasets=[],
+            mount_contexts=[],
+            run=None,
+            is_running_in_azure_ml=False,
+            output_folder=None,
+            logs_folder=None,
+        )
 
     mock_get_env_files.return_value = Path("some_file.txt")
 
@@ -223,8 +276,7 @@ def test_crossval_config() -> None:
     """
     mock_tuning_config = "foo"
     container = HelloWorld()
-    with patch("health_ml.configs.hello_world.HelloWorld.get_parameter_tuning_config",
-               return_value=mock_tuning_config):
+    with patch("health_ml.configs.hello_world.HelloWorld.get_parameter_tuning_config", return_value=mock_tuning_config):
         # Without any flags set, no Hyperdrive config should be returned
         assert container.get_hyperdrive_config() is None
         # To trigger a hyperparameter search, the commandline flag for hyperdrive must be present
@@ -259,10 +311,12 @@ def test_submit_to_azure_hyperdrive(mock_runner: Runner) -> None:
     Test if the hyperdrive configurations are passed to the submission function if using cross validation.
     """
     crossval_count = 2
-    _test_hyperdrive_submission(mock_runner,
-                                commandline_arg=f"--crossval_count={crossval_count}",
-                                expected_argument_name=WorkflowParams.CROSSVAL_INDEX_ARG_NAME,
-                                expected_argument_values=list(map(str, range(crossval_count))))
+    _test_hyperdrive_submission(
+        mock_runner,
+        commandline_arg=f"--crossval_count={crossval_count}",
+        expected_argument_name=WorkflowParams.CROSSVAL_INDEX_ARG_NAME,
+        expected_argument_values=list(map(str, range(crossval_count))),
+    )
 
 
 def test_submit_to_azure_differents_seeds(mock_runner: Runner) -> None:
@@ -270,16 +324,17 @@ def test_submit_to_azure_differents_seeds(mock_runner: Runner) -> None:
     Test if the hyperdrive configurations are passed to the submission function if running with dfferent seeds.
     """
     num_seeds = 2
-    _test_hyperdrive_submission(mock_runner,
-                                commandline_arg=f"--different_seeds={num_seeds}",
-                                expected_argument_name=WorkflowParams.RANDOM_SEED_ARG_NAME,
-                                expected_argument_values=list(map(str, range(num_seeds))))
+    _test_hyperdrive_submission(
+        mock_runner,
+        commandline_arg=f"--different_seeds={num_seeds}",
+        expected_argument_name=WorkflowParams.RANDOM_SEED_ARG_NAME,
+        expected_argument_values=list(map(str, range(num_seeds))),
+    )
 
 
-def _test_hyperdrive_submission(mock_runner: Runner,
-                                commandline_arg: str,
-                                expected_argument_name: str,
-                                expected_argument_values: List[str]) -> None:
+def _test_hyperdrive_submission(
+    mock_runner: Runner, commandline_arg: str, expected_argument_name: str, expected_argument_values: List[str]
+) -> None:
     model_name = "HelloWorld"
     arguments = ["", f"--model={model_name}", "--cluster=foo", commandline_arg, "--strictly_aml_v1=True"]
     # Use a special simplified environment file only for the tests here. Copy that to a temp folder, then let the runner
@@ -330,21 +385,19 @@ def test_submit_to_azure_docker(mock_runner: Runner) -> None:
             assert call_kwargs["docker_shm_size"] == docker_shm_size
 
 
-def test_runner_help(mock_runner: Runner, capsys: SysCapture) -> None:
-    """Test if the runner outputs default values correctly then using --help
-    """
+def test_runner_help(mock_runner: Runner, capsys: CaptureFixture) -> None:
+    """Test if the runner outputs default values correctly then using --help"""
     arguments = ["", "--help"]
     with pytest.raises(SystemExit):
         with patch.object(sys, "argv", arguments):
             mock_runner.run()
-    stdout: str = capsys.readouterr().out  # type: ignore
+    stdout: str = capsys.readouterr().out
     # There are at least 3 parameters in ExperimentConfig that should print with defaults
     assert stdout.count("(default: ") > 3
 
 
 def test_run_hello_world(mock_runner: Runner) -> None:
-    """Test running a model end-to-end via the commandline runner
-    """
+    """Test running a model end-to-end via the commandline runner"""
     model_name = "HelloWorld"
     arguments = ["", f"--model={model_name}"]
     with patch("health_ml.runner.get_workspace") as mock_get_workspace:
@@ -360,8 +413,7 @@ def test_run_hello_world(mock_runner: Runner) -> None:
 
 
 def test_invalid_args(mock_runner: Runner) -> None:
-    """Test if invalid commandline arguments raise an error.
-    """
+    """Test if invalid commandline arguments raise an error."""
     invalid_arg = "--no_such_argument"
     arguments = ["", "--model=HelloWorld", invalid_arg]
     with patch.object(sys, "argv", arguments):
@@ -372,8 +424,7 @@ def test_invalid_args(mock_runner: Runner) -> None:
 
 
 def test_invalid_profiler(mock_runner: Runner) -> None:
-    """Test if invalid profiler commandline arguments raise an error.
-    """
+    """Test if invalid profiler commandline arguments raise an error."""
     invalid_profile = "--pl_profiler=foo"
     arguments = ["", "--model=HelloWorld", invalid_profile]
     with patch.object(sys, "argv", arguments):
@@ -393,3 +444,79 @@ def test_custom_datastore_outside_aml(mock_runner: Runner) -> None:
                     mock_runner.run()
         mock_submit_to_azure_if_needed.assert_called_once()
         assert mock_submit_to_azure_if_needed.call_args[1]["default_datastore"] == datastore
+
+
+@pytest.mark.fast
+def test_logging_filename_default(tmp_path: Path) -> None:
+    """Creating a logging filename without node/rank information"""
+    with change_working_directory(tmp_path):
+        result = create_logging_filename()
+        assert result.name.endswith("node0_rank0.txt")
+        assert result.parents[0].name == "console_logs"
+        assert result.parents[1].name == OUTPUT_FOLDER
+        assert result.parents[2] == tmp_path
+        assert result.parent.is_dir()
+
+
+@pytest.mark.fast
+def test_logging_filename_noderank() -> None:
+    """Creating a logging filename with node/rank information"""
+    with patch.dict(os.environ, {ENV_LOCAL_RANK: "1", ENV_NODE_RANK: "2"}):
+        result = create_logging_filename()
+        assert result.name.endswith("node2_rank1.txt")
+
+
+@pytest.mark.fast
+def test_logging_filename_outputs(tmp_path: Path) -> None:
+    """Creating a logging filename when already in the outputs folder should not add an output folder"""
+    folder = tmp_path / OUTPUT_FOLDER
+    folder.mkdir()
+    with change_working_directory(folder):
+        result = create_logging_filename()
+        assert result.parents[0].name == "console_logs"
+        assert result.parents[1].name == OUTPUT_FOLDER
+        assert result.parents[2] == tmp_path
+
+
+@pytest.mark.fast
+def test_run_with_logging(tmp_path: Path, capsys: CaptureFixture) -> None:
+    """Test wheter log file creation works and handles exceptions correctly"""
+    logging_filename = tmp_path / "file.txt"
+    something = "something"
+
+    def print_something(_: Any) -> None:
+        print(something)
+
+    with mock.patch("health_ml.runner.create_logging_filename", return_value=logging_filename):
+        with mock.patch("health_ml.runner.is_running_in_azure_ml", return_value=True):
+            with mock.patch("health_ml.runner.run") as mock_run:
+                # Anything that is printed to the console should be contained in the output file
+                mock_run.side_effect = print_something
+                run_with_logging(tmp_path)
+                assert logging_filename.is_file()
+                # The printed string should be in both the output file and in the captured stdout
+                contents = logging_filename.read_text()
+                assert something in contents
+                stdout: str = capsys.readouterr().out
+                assert something in stdout
+
+                logging_filename.unlink()
+                # An exception in the runner should be written to the output file and only then raised
+                mock_run.side_effect = ValueError
+                with pytest.raises(ValueError):
+                    run_with_logging(tmp_path)
+                assert logging_filename.is_file()
+                contents = logging_filename.read_text()
+                assert contents.startswith("Traceback")
+                assert "ValueError" in contents
+
+
+@pytest.mark.fast
+def test_run_without_logging(tmp_path: Path) -> None:
+    """When not running in AzureML, console output should not be redirected"""
+    with mock.patch("health_ml.runner.is_running_in_azure_ml", return_value=False):
+        with mock.patch("health_ml.runner.create_logging_filename") as mock_create_filename:
+            with mock.patch("health_ml.runner.run") as mock_run:
+                run_with_logging(tmp_path)
+                mock_create_filename.assert_not_called()
+                mock_run.assert_called_once()

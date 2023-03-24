@@ -18,7 +18,7 @@ def sieve(n: int) -> List[int]:
     """
     all_numbers = [True] * n
 
-    for i in range(2, int(n ** 0.5 + 1)):
+    for i in range(2, int(n**0.5 + 1)):
         if all_numbers[i]:
             for f in range(i * i, n, i):
                 all_numbers[f] = False
@@ -35,7 +35,8 @@ def main() -> None:
         default_datastore="himldatasets",
         output_datasets=["himl_sample4_output"],
         wait_for_completion=True,
-        wait_for_completion_show_output=True)
+        wait_for_completion_show_output=True,
+    )
 
     parser = ArgumentParser()
     parser.add_argument("-n", "--count", type=int, default=100, required=False, help="Maximum value (not included)")

@@ -17,11 +17,9 @@ class EpochTimers:
     Contains all information necessary to compute the IO metrics: Epoch times, batch times, loading times.
     """
 
-    def __init__(self,
-                 max_batch_load_time_seconds: float = 0.5,
-                 max_load_time_warnings: int = 3,
-                 max_load_time_epochs: int = 5
-                 ) -> None:
+    def __init__(
+        self, max_batch_load_time_seconds: float = 0.5, max_load_time_warnings: int = 3, max_load_time_epochs: int = 5
+    ) -> None:
         """
         :param max_batch_load_time_seconds: The maximum expected loading time for a minibatch (given in seconds).
             If the loading time exceeds this threshold, a warning is printed.
@@ -101,10 +99,12 @@ class EpochTimers:
             self.num_load_time_exceeded += 1
             self.total_extra_load_time += item_load_time
             if self.num_load_time_warnings < self.max_load_time_warnings and self.should_warn_in_this_epoch:
-                logging.warning(f"{message_prefix}: Loading minibatch {batch_index} took {item_load_time:0.2f} sec. "
-                                "This can mean that there are not enough data loader worker processes, or that there "
-                                "is a performance problem in loading. This warning will be printed at most "
-                                f"{self.max_load_time_warnings} times in at most {self.max_load_time_epochs} epochs.")
+                logging.warning(
+                    f"{message_prefix}: Loading minibatch {batch_index} took {item_load_time:0.2f} sec. "
+                    "This can mean that there are not enough data loader worker processes, or that there "
+                    "is a performance problem in loading. This warning will be printed at most "
+                    f"{self.max_load_time_warnings} times in at most {self.max_load_time_epochs} epochs."
+                )
                 self.num_load_time_warnings += 1
         return item_load_time
 
@@ -155,11 +155,9 @@ class BatchTimeCallback(Callback):
     VAL_PREFIX = "val/"
     """The prefix for all metrics collected during validation."""
 
-    def __init__(self,
-                 max_batch_load_time_seconds: float = 0.5,
-                 max_load_time_warnings: int = 3,
-                 max_load_time_epochs: int = 5
-                 ) -> None:
+    def __init__(
+        self, max_batch_load_time_seconds: float = 0.5, max_load_time_warnings: int = 3, max_load_time_epochs: int = 5
+    ) -> None:
         """
         :param max_batch_load_time_seconds: The maximum expected loading time for a minibatch (given in seconds).
             If the loading time exceeds this threshold, a warning is printed. The maximum number of such warnings is
@@ -173,12 +171,16 @@ class BatchTimeCallback(Callback):
             epochs 0 and 3, no further warnings about increased loading time would be printed from epoch 4 onwards.
         """
         # Timers for monitoring data loading time
-        self.train_timers = EpochTimers(max_batch_load_time_seconds=max_batch_load_time_seconds,
-                                        max_load_time_warnings=max_load_time_warnings,
-                                        max_load_time_epochs=max_load_time_epochs)
-        self.val_timers = EpochTimers(max_batch_load_time_seconds=max_batch_load_time_seconds,
-                                      max_load_time_warnings=max_load_time_warnings,
-                                      max_load_time_epochs=max_load_time_epochs)
+        self.train_timers = EpochTimers(
+            max_batch_load_time_seconds=max_batch_load_time_seconds,
+            max_load_time_warnings=max_load_time_warnings,
+            max_load_time_epochs=max_load_time_epochs,
+        )
+        self.val_timers = EpochTimers(
+            max_batch_load_time_seconds=max_batch_load_time_seconds,
+            max_load_time_warnings=max_load_time_warnings,
+            max_load_time_epochs=max_load_time_epochs,
+        )
         self.module: Optional[LightningModule] = None
 
     def on_fit_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
@@ -212,42 +214,46 @@ class BatchTimeCallback(Callback):
         self.write_and_log_epoch_time(is_training=True)
         self.write_and_log_epoch_time(is_training=False)
 
-    def on_train_batch_start(self,  # type: ignore
-                             trainer: Trainer,
-                             pl_module: LightningModule,
-                             batch: Any,
-                             batch_idx: int,
-                             dataloader_idx: int,
-                             ) -> None:
+    def on_train_batch_start(
+        self,  # type: ignore
+        trainer: Trainer,
+        pl_module: LightningModule,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int,
+    ) -> None:
         self.batch_start(batch_idx=batch_idx, is_training=True)
 
-    def on_validation_batch_start(self,
-                                  trainer: Trainer,
-                                  pl_module: LightningModule,
-                                  batch: Any,
-                                  batch_idx: int,
-                                  dataloader_idx: int,
-                                  ) -> None:
+    def on_validation_batch_start(
+        self,
+        trainer: Trainer,
+        pl_module: LightningModule,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int,
+    ) -> None:
         self.batch_start(batch_idx=batch_idx, is_training=False)
 
-    def on_train_batch_end(self,  # type: ignore
-                           trainer: Trainer,
-                           pl_module: LightningModule,
-                           outputs: Any,
-                           batch: Any,
-                           batch_idx: int,
-                           dataloader_idx: int,
-                           ) -> None:
+    def on_train_batch_end(
+        self,  # type: ignore
+        trainer: Trainer,
+        pl_module: LightningModule,
+        outputs: Any,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int,
+    ) -> None:
         self.batch_end(is_training=True)
 
-    def on_validation_batch_end(self,
-                                trainer: Trainer,
-                                pl_module: LightningModule,
-                                outputs: Any,
-                                batch: Any,
-                                batch_idx: int,
-                                dataloader_idx: int,
-                                ) -> None:
+    def on_validation_batch_end(
+        self,
+        trainer: Trainer,
+        pl_module: LightningModule,
+        outputs: Any,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int,
+    ) -> None:
         self.batch_end(is_training=False)
 
     @rank_zero_only
@@ -275,13 +281,8 @@ class BatchTimeCallback(Callback):
         """
         timers = self.get_timers(is_training=is_training)
         batch_time = timers.batch_end()
-        self.log_metric(self.BATCH_TIME + " avg",
-                        value=batch_time,
-                        is_training=is_training)
-        self.log_metric(self.BATCH_TIME + " max",
-                        value=batch_time,
-                        is_training=is_training,
-                        reduce_max=True)
+        self.log_metric(self.BATCH_TIME + " avg", value=batch_time, is_training=is_training)
+        self.log_metric(self.BATCH_TIME + " max", value=batch_time, is_training=is_training, reduce_max=True)
 
     @rank_zero_only
     def write_and_log_epoch_time(self, is_training: bool) -> None:
@@ -296,22 +297,23 @@ class BatchTimeCallback(Callback):
         epoch_time_seconds = timers.total_epoch_time
         status = "training" if is_training else "validation"
         assert self.module is not None
-        logging.info(f"Epoch {self.module.current_epoch} {status} took {epoch_time_seconds:0.2f}sec, of which waiting "
-                     f"for data took {timers.total_load_time:0.2f} sec total.")
+        logging.info(
+            f"Epoch {self.module.current_epoch} {status} took {epoch_time_seconds:0.2f}sec, of which waiting "
+            f"for data took {timers.total_load_time:0.2f} sec total."
+        )
         if timers.num_load_time_exceeded > 0 and timers.should_warn_in_this_epoch:
-            logging.warning("The dataloaders were not fast enough to always supply the next batch in less than "
-                            f"{timers.max_batch_load_time_seconds:0.2f}sec.")
+            logging.warning(
+                "The dataloaders were not fast enough to always supply the next batch in less than "
+                f"{timers.max_batch_load_time_seconds:0.2f}sec."
+            )
             logging.warning(
                 f"In this epoch, {timers.num_load_time_exceeded} out of {timers.num_batches} batches exceeded the load "
-                f"time threshold. Total loading time for the slow batches was {timers.total_extra_load_time:0.2f}sec.")
+                f"time threshold. Total loading time for the slow batches was {timers.total_extra_load_time:0.2f}sec."
+            )
         # This metric is only written at rank zero, and hence must not be synchronized across workers. If attempted,
         # training will get stuck.
-        self.log_metric(self.EPOCH_TIME,
-                        value=epoch_time_seconds,
-                        is_training=is_training)
-        self.log_metric(self.EXCESS_LOADING_TIME,
-                        value=timers.total_extra_load_time,
-                        is_training=is_training)
+        self.log_metric(self.EPOCH_TIME, value=epoch_time_seconds, is_training=is_training)
+        self.log_metric(self.EXCESS_LOADING_TIME, value=timers.total_extra_load_time, is_training=is_training)
 
     @rank_zero_only
     def log_metric(self, name_suffix: str, value: float, is_training: bool, reduce_max: bool = False) -> None:
@@ -329,9 +331,14 @@ class BatchTimeCallback(Callback):
         # block training.
         prefix = self.TRAIN_PREFIX if is_training else self.VAL_PREFIX
         assert self.module is not None
-        self.module.log(name=self.METRICS_PREFIX + prefix + name_suffix, value=value,  # type: ignore
-                        on_step=False, on_epoch=True, sync_dist=False,
-                        reduce_fx=max if reduce_max else torch.mean)
+        self.module.log(
+            name=self.METRICS_PREFIX + prefix + name_suffix,
+            value=value,  # type: ignore
+            on_step=False,
+            on_epoch=True,
+            sync_dist=False,
+            reduce_fx=max if reduce_max else torch.mean,
+        )
 
     def get_timers(self, is_training: bool) -> EpochTimers:
         """
@@ -387,8 +394,13 @@ class TrainingDiagnoticsCallback(Callback):
         )
 
     def on_train_batch_end(
-        self, trainer: Trainer, pl_module: LightningModule, outputs: STEP_OUTPUT, batch: Any, batch_idx: int,
-        unused: int = 0
+        self,
+        trainer: Trainer,
+        pl_module: LightningModule,
+        outputs: STEP_OUTPUT,
+        batch: Any,
+        batch_idx: int,
+        unused: int = 0,
     ) -> None:
         logging.info(
             f"Reached from on_train_batch_end on global rank {pl_module.global_rank} for batch_idx {batch_idx}"
@@ -402,20 +414,28 @@ class TrainingDiagnoticsCallback(Callback):
         )
 
     def on_validation_batch_end(
-        self, trainer: Trainer, pl_module: LightningModule, outputs: Optional[STEP_OUTPUT], batch: Any, batch_idx: int,
-        dataloader_idx: int
+        self,
+        trainer: Trainer,
+        pl_module: LightningModule,
+        outputs: Optional[STEP_OUTPUT],
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int,
     ) -> None:
         logging.info(
             f"Reached from on_validation_batch_end on global rank {pl_module.global_rank} for batch_idx {batch_idx}"
         )
 
     def on_test_batch_end(
-        self, trainer: Trainer, pl_module: LightningModule, outputs: Optional[STEP_OUTPUT], batch: Any, batch_idx: int,
-        dataloader_idx: int
+        self,
+        trainer: Trainer,
+        pl_module: LightningModule,
+        outputs: Optional[STEP_OUTPUT],
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int,
     ) -> None:
-        logging.info(
-            f"Reached from on_test_batch_end on global rank {pl_module.global_rank} for batch_idx {batch_idx}"
-        )
+        logging.info(f"Reached from on_test_batch_end on global rank {pl_module.global_rank} for batch_idx {batch_idx}")
 
     def on_test_batch_start(
         self, trainer: Trainer, pl_module: LightningModule, batch: Any, batch_idx: int, unused: int = 0

@@ -59,8 +59,7 @@ def _create_slides_images(tmp_path: Path) -> MockPandaSlidesGenerator:
 
 @pytest.fixture(scope="module")
 def temp_panda_dataset(tmp_path_factory: pytest.TempPathFactory) -> Generator:
-    """A fixture that creates a PandaDataset object with randomly created slides.
-    """
+    """A fixture that creates a PandaDataset object with randomly created slides."""
     tmp_path = tmp_path_factory.mktemp("mock_panda")
     _create_slides_images(tmp_path)
     usecols = [PandaDataset.SLIDE_ID_COLUMN, PandaDataset.MASK_COLUMN]
@@ -69,8 +68,7 @@ def temp_panda_dataset(tmp_path_factory: pytest.TempPathFactory) -> Generator:
 
 @pytest.fixture(scope="module")
 def temp_slides(tmp_path_factory: pytest.TempPathFactory) -> Generator:
-    """A fixture that creates a folder (Path object) with randomly created slides.
-    """
+    """A fixture that creates a folder (Path object) with randomly created slides."""
     tmp_path = tmp_path_factory.mktemp("mock_wsi")
     _create_slides_images(tmp_path)
     yield tmp_path
@@ -78,8 +76,7 @@ def temp_slides(tmp_path_factory: pytest.TempPathFactory) -> Generator:
 
 @pytest.fixture(scope="module")
 def temp_slides_dataset(tmp_path_factory: pytest.TempPathFactory) -> Generator:
-    """A fixture that creates a SlidesDataset object with randomly created slides.
-    """
+    """A fixture that creates a SlidesDataset object with randomly created slides."""
     tmp_path = tmp_path_factory.mktemp("mock_slides")
     wsi_generator = _create_slides_images(tmp_path)
     # Create a CSV file with the 3 required columns for montage creation. Mask is optional.
@@ -191,9 +188,8 @@ def test_restrict_dataset_with_index() -> None:
 
 @pytest.mark.parametrize("exclude_items", [True, False])
 def test_montage_included_and_excluded1(
-        tmp_path: Path,
-        temp_slides_dataset: SlidesDataset,
-        exclude_items: bool) -> None:
+    tmp_path: Path, temp_slides_dataset: SlidesDataset, exclude_items: bool
+) -> None:
     """Check that a montage with exclusion list is handled correctly."""
     config = MontageCreation()
     out_path = tmp_path / "montage"
@@ -399,14 +395,20 @@ def test_montage_from_slides_dataset(tmp_path: Path, temp_slides_dataset: Slides
 def test_montage_via_args(tmp_path: Path, temp_slides: Path) -> None:
     """Test if montage creation can be invoked correctly via commandline args."""
     outputs = tmp_path / "outputs"
-    with mock.patch("sys.argv",
-                    [
-                        "",
-                        "--dataset", str(temp_slides),
-                        "--image_glob_pattern", "**/*.tiff",
-                        "--output_path", str(outputs),
-                        "--width", "200"
-                    ]):
+    with mock.patch(
+        "sys.argv",
+        [
+            "",
+            "--dataset",
+            str(temp_slides),
+            "--image_glob_pattern",
+            "**/*.tiff",
+            "--output_path",
+            str(outputs),
+            "--width",
+            "200",
+        ],
+    ):
         script_main()
         montage = outputs / MONTAGE_FILE
         assert montage.is_file()

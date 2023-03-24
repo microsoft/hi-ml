@@ -13,8 +13,7 @@ def main() -> None:
 
     workspace = get_workspace()
 
-    run = get_most_recent_run(run_recovery_file=path / RUN_RECOVERY_FILE,
-                              workspace=workspace)
+    run = get_most_recent_run(run_recovery_file=path / RUN_RECOVERY_FILE, workspace=workspace)
 
     # Either download all outputs:
     # run.download_files(prefix="outputs", output_directory=str(path))

@@ -13,8 +13,7 @@ def main() -> None:
 
     workspace = get_workspace()
 
-    run = get_most_recent_run(run_recovery_file=path / RUN_RECOVERY_FILE,
-                              workspace=workspace)
+    run = get_most_recent_run(run_recovery_file=path / RUN_RECOVERY_FILE, workspace=workspace)
     log_root = path / "logs"
     log_root.mkdir(exist_ok=False)
     run.get_all_logs(destination=str(log_root))

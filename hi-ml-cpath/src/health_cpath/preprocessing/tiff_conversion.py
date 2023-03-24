@@ -39,6 +39,7 @@ class ConvertWSIToTiffd(MapTransform):
     at the lowest magnification. The tiff file is saved with the compression specified by the compression parameter with
     a fixed tile size. This works with all supported wsi formats by openslide.
     """
+
     OBJECTIVE_POWER_KEY = "openslide.objective-power"
     RESOLUTION_UNIT_KEY = "tiff.ResolutionUnit"
     RESOLUTION_UNIT = ResolutionUnit.CENTIMETER
@@ -48,7 +49,7 @@ class ConvertWSIToTiffd(MapTransform):
         self,
         output_folder: Path,
         image_key: str = SlideKey.IMAGE,
-        target_magnifications: Optional[List[float]] = [10.],
+        target_magnifications: Optional[List[float]] = [10.0],
         add_lowest_magnification: bool = False,
         default_base_objective_power: Optional[float] = None,
         replace_ampersand_by: str = UNDERSCORE,
@@ -240,6 +241,7 @@ class ConvertWSIToTiffd(MapTransform):
     def __call__(self, data: Dict) -> Dict:
         src_path = Path(data[self.image_key])
         tiff_path = self.get_tiff_path(src_path)
-        if not tiff_path.exists():
+        # if the tiff file does not exist or if it exists but is empty, we convert the wsi to tiff
+        if not tiff_path.exists() or (tiff_path.exists() and tiff_path.stat().st_size == 0):
             self.convert_wsi(src_path, tiff_path)
         return data

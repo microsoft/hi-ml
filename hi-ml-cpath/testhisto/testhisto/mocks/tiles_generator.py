@@ -61,14 +61,16 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
         mock_metadata: dict = {col: [] for col in csv_columns}
 
         n_tiles_side = self.img_size // self.tile_size
-        total_n_tiles = n_tiles_side ** 2
+        total_n_tiles = n_tiles_side**2
         tiles_count = 0
 
         # This is to make sure that the dataset contains at least one sample from each isup grade class.
-        isup_grades = np.tile(list(self.ISUP_GRADE_MAPPING.keys()), self.n_slides // PANDA_N_CLASSES + 1,)
+        isup_grades = np.tile(
+            list(self.ISUP_GRADE_MAPPING.keys()),
+            self.n_slides // PANDA_N_CLASSES + 1,
+        )
 
         for slide_id in range(self.n_slides):
-
             data_provider = np.random.choice(self.DATA_PROVIDERS_VALUES)
             isup_grade = isup_grades[slide_id]
             gleason_score = np.random.choice(self.ISUP_GRADE_MAPPING[isup_grade])
@@ -129,7 +131,7 @@ class MockPandaTilesGenerator(MockHistoDataGenerator):
                 raise NotImplementedError
 
             tile_filename = self.dest_data_path / row[PandaTilesDataset.IMAGE_COLUMN]
-            save_image(tile.div(255.), tile_filename)
+            save_image(tile.div(255.0), tile_filename)
             random_mask = torch.randint(0, 256, size=(self.n_channels, self.tile_size, self.tile_size))
             mask_filename = self.dest_data_path / row[self.MASK_COLUMN]
             save_image(random_mask.div(255), mask_filename)
