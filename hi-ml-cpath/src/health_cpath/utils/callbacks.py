@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import cv2
 from PIL import Image
+import gc
 
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -684,7 +685,10 @@ class MILGradCamCallback(Callback):
         self.plot_cam(cams, batch[SlideKey.IMAGE], topk_idx, batch[ResultsKey.SLIDE_ID],
                       outputs[ResultsKey.TRUE_LABEL], outputs[ResultsKey.PRED_LABEL], self.layer_name)
 
-        # Clean up
+        # Clean up, TODO: This is not helping and could potentially be removed, in addition the things in on batch
+        # start could be moved to on epoch start
         torch.set_grad_enabled(False)
         self.activation_hook.remove()
         self.activations_of_selected_layer = None
+        gc.collect()
+        torch.cuda.empty_cache()
