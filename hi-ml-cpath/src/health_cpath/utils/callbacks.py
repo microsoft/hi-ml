@@ -566,6 +566,7 @@ class MILGradCamCallback(Callback):
     """
     Callback for computing Grad-CAM on the output of a MIL model during evaluation.
     """
+
     def __init__(self, layer_name: str = 'layer4') -> None:
         super().__init__()
         self.layer_name = layer_name
@@ -610,8 +611,15 @@ class MILGradCamCallback(Callback):
         return cam.cpu().numpy(), topk_idx.cpu().numpy()
 
     @staticmethod
-    def plot_cam(cams: np.ndarray, tiles: torch.Tensor, topk_idx: np.ndarray, slide_id: str, true_label: torch.Tensor,
-                 pred_label: torch.Tensor, layer_name: str) -> None:
+    def plot_cam(
+        cams: np.ndarray,
+        tiles: torch.Tensor,
+        topk_idx: np.ndarray,
+        slide_id: str,
+        true_label: torch.Tensor,
+        pred_label: torch.Tensor,
+        layer_name: str,
+    ) -> None:
         """
         Plot CAM images for each of the top k tiles.
 
@@ -626,6 +634,7 @@ class MILGradCamCallback(Callback):
         Returns:
             None
         """
+
         def interpolate_image(image: np.ndarray, size: Tuple[int, int]) -> np.ndarray:
             image_pil = Image.fromarray(image)
             image_interp = image_pil.resize(size=size, resample=Image.BILINEAR)
@@ -642,13 +651,13 @@ class MILGradCamCallback(Callback):
         axs = axs.flatten()
 
         for i, (tile, cam) in enumerate(zip(tiles, cams)):
-            ax_tile, ax_heatmap = axs[i], axs[i+10]
+            ax_tile, ax_heatmap = axs[i], axs[i + 10]
 
             # From tensor to array
             tile = np.uint8(255 * tile.permute(1, 2, 0).numpy())
 
             # Prepare heatmap
-            heatmap = np.clip(cam, 0., 1.)
+            heatmap = np.clip(cam, 0.0, 1.0)
             heatmap = np.uint8(255 * heatmap)
             heatmap = interpolate_image(heatmap, size=(224, 224))
             heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_BONE)
@@ -656,8 +665,12 @@ class MILGradCamCallback(Callback):
             superimposed_img = np.uint8(heatmap * 0.7 + tile * 0.3)
 
             ax_tile.imshow(tile, interpolation='nearest', aspect='auto', extent=(0, tile.shape[1], tile.shape[0], 0))
-            ax_heatmap.imshow(superimposed_img, interpolation='nearest', aspect='auto',
-                              extent=(0, superimposed_img.shape[1], superimposed_img.shape[0], 0))
+            ax_heatmap.imshow(
+                superimposed_img,
+                interpolation='nearest',
+                aspect='auto',
+                extent=(0, superimposed_img.shape[1], superimposed_img.shape[0], 0),
+            )
 
             ax_tile.axis('off')
             ax_heatmap.axis('off')
@@ -666,7 +679,9 @@ class MILGradCamCallback(Callback):
         file_name = f"slide_{slide_id}_layer_name_{layer_name}_true_label_{true_label}_pred_label_{pred_label}.png"
         plt.savefig(file_name)
 
-    def on_validation_batch_start(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", batch: Any, batch_idx: int, dataloader_idx: int) -> None:
+    def on_validation_batch_start(
+        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", batch: Any, batch_idx: int, dataloader_idx: int
+    ) -> None:
         torch.set_grad_enabled(True)
 
         selected_layer = getattr(pl_module.encoder.feature_extractor_fn, self.layer_name)
@@ -674,16 +689,30 @@ class MILGradCamCallback(Callback):
             params.requires_grad = True
         self.activation_hook = selected_layer.register_forward_hook(self.forward_hook)
 
-    def on_validation_batch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule",
-                                outputs: Any, batch: Any, batch_idx: int, unused: int = 0) -> None:
+    def on_validation_batch_end(
+        self,
+        trainer: "pl.Trainer",
+        pl_module: "pl.LightningModule",
+        outputs: Any,
+        batch: Any,
+        batch_idx: int,
+        unused: int = 0,
+    ) -> None:
         # Compute gradcam
-        cams, topk_idx = self.compute_grad_cam(outputs[ResultsKey.BAG_LOGITS],
-                                               self.activations_of_selected_layer,
-                                               outputs[ResultsKey.BAG_ATTN])
+        cams, topk_idx = self.compute_grad_cam(
+            outputs[ResultsKey.BAG_LOGITS], self.activations_of_selected_layer, outputs[ResultsKey.BAG_ATTN]
+        )
 
         # Plot CAM
-        self.plot_cam(cams, batch[SlideKey.IMAGE], topk_idx, batch[ResultsKey.SLIDE_ID],
-                      outputs[ResultsKey.TRUE_LABEL], outputs[ResultsKey.PRED_LABEL], self.layer_name)
+        self.plot_cam(
+            cams,
+            batch[SlideKey.IMAGE],
+            topk_idx,
+            batch[ResultsKey.SLIDE_ID],
+            outputs[ResultsKey.TRUE_LABEL],
+            outputs[ResultsKey.PRED_LABEL],
+            self.layer_name,
+        )
 
         # Clean up, TODO: This is not helping and could potentially be removed, in addition the things in on batch
         # start could be moved to on epoch start
