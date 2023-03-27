@@ -312,6 +312,8 @@ class DatasetConfig:
             this will be the name given to the newly created dataset.
         :param datastore: The name of the AzureML datastore that holds the dataset. This can be empty if the AzureML
             workspace has only a single datastore, or if the default datastore should be used.
+        :param overwrite_existing: Only applies to uploading datasets. If True, the dataset will be overwritten if it
+            already exists. If False, the dataset creation will fail if the dataset already exists.
         :param version: The version of the dataset that should be used. This is only used for input datasets.
             If the version is not specified, the latest version will be used.
         :param use_mounting: If True, the dataset will be "mounted", that is, individual files will be read
@@ -449,8 +451,7 @@ class DatasetConfig:
 
         :param workspace: The AzureML workspace to read from.
         :param dataset_index: Suffix for using datasets as named inputs, the dataset will be marked OUTPUT_{index}
-        :param overwrite: If True, overwrite the dataset if it already exists. Only applies if use_mounting is False.
-        :return:
+        :return: An AzureML OutputFileDatasetConfig object, representing the output dataset.
         """
         status = f"Output dataset {self.name} (index {dataset_index}) will be "
         datastore = get_datastore(workspace, self.datastore)
