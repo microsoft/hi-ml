@@ -464,9 +464,15 @@ def test_retrieving_v2_data_asset_does_not_increment() -> None:
 
 
 @pytest.mark.parametrize(
-    ["asset_name", "version"], [(TEST_DATA_ASSET_NAME, None), (TEST_DATA_ASSET_NAME, "1"), ("", 1)]
+    ["asset_name", "datastore_name", "version"],
+    [
+        (TEST_DATA_ASSET_NAME, TEST_DATASTORE_NAME, None),
+        (TEST_DATA_ASSET_NAME, "", None),
+        (TEST_DATA_ASSET_NAME, TEST_DATASTORE_NAME, "1"),
+        ("", TEST_DATASTORE_NAME, 1),
+    ],
 )
-def test_create_v2_data_asset(asset_name: str, version: Optional[str]) -> None:
+def test_create_v2_data_asset(asset_name: str, datastore_name: str, version: Optional[str]) -> None:
     try:
         data_asset = _create_v2_data_asset(
             ml_client=TEST_ML_CLIENT,
@@ -483,6 +489,8 @@ def test_create_v2_data_asset(asset_name: str, version: Optional[str]) -> None:
     except ValueError as ex:
         if asset_name == "":
             assert "Cannot create data asset with empty name." in str(ex)
+        elif datastore_name == "":
+            assert "Cannot create data asset with empty datastore name." in str(ex)
         else:
             pytest.fail(f"Unexpected error: {ex}")
 
