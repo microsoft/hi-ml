@@ -43,7 +43,7 @@ To simplify usage, the `hi-ml` package creates AzureML datasets for you. All you
 From that point on, you can drop a folder of files in the container that holds your data. Within the `hi-ml` package,
 just reference the name of the folder, and the package will create a dataset for you, if it does not yet exist.
 
-## Using the datasets (SDK v1)
+## Using the datasets - SDK v1
 
 The simplest way of specifying that your script uses a folder of data from blob storage is as follows: Add the
 `input_datasets` argument to your call of `submit_to_azure_if_needed` like this:
@@ -53,7 +53,8 @@ from health_azure import submit_to_azure_if_needed
 run_info = submit_to_azure_if_needed(...,
                                      input_datasets=["my_folder"],
                                      default_datastore="my_datastore",
-                                     strictly_aml_v1=True)
+                                     strictly_aml_v1=True,
+                                    )
 input_folder = run_info.input_datasets[0]
 ```
 
@@ -82,7 +83,8 @@ run_info = submit_to_azure_if_needed(...,
                                      input_datasets=["my_folder"],
                                      output_datasets=["new_dataset"],
                                      default_datastore="my_datastore",
-                                     strictly_aml_v1=True))
+                                     strictly_aml_v1=True,
+                                    )
 input_folder = run_info.input_datasets[0]
 output_folder = run_info.output_datasets[0]
 ```
@@ -112,7 +114,8 @@ output_dataset = DatasetConfig(name="new_dataset", datastore="my_datastore", use
 run_info = submit_to_azure_if_needed(...,
                                      input_datasets=[input_dataset],
                                      output_datasets=[output_dataset],
-                                     strictly_aml_v1=True)
+                                     strictly_aml_v1=True,
+                                    )
 input_folder = run_info.input_datasets[0]
 output_folder = run_info.output_datasets[0]
 ```
@@ -130,10 +133,12 @@ from pathlib import Path
 from health_azure import DatasetConfig, submit_to_azure_if_needed
 input_dataset = DatasetConfig(name="my_folder",
                               datastore="my_datastore",
-                              local_folder=Path("/datasets/my_folder_local")
+                              local_folder=Path("/datasets/my_folder_local"),
+                             )
 run_info = submit_to_azure_if_needed(...,
                                      input_datasets=[input_dataset],
-                                     strictly_aml_v1=True)
+                                     strictly_aml_v1=True,
+                                    )
 input_folder = run_info.input_datasets[0]
 ```
 
@@ -156,10 +161,12 @@ from health_azure import DatasetConfig, submit_to_azure_if_needed
 input_dataset = DatasetConfig(name="my_folder",
                               datastore="my_datastore",
                               use_mounting=True,
-                              target_folder="/tmp/mnist")
+                              target_folder="/tmp/mnist",
+                             )
 run_info = submit_to_azure_if_needed(...,
                                      input_datasets=[input_dataset],
-                                     strictly_aml_v1=True)
+                                     strictly_aml_v1=True,
+                                    )
 # Input_folder will now be "/tmp/mnist"
 input_folder = run_info.input_datasets[0]
 ```
@@ -173,13 +180,15 @@ When creating an output dataset with the same name as an existing dataset, the d
 ```python
 from health_azure import DatasetConfig, submit_to_azure_if_needed
 output_dataset = DatasetConfig(name="my_folder",
-                              datastore="my_datastore",
-                              overwrite_existing=False)
+                               datastore="my_datastore",
+                               overwrite_existing=False,
+                              )
 
 # fails if output dataset already exists:
 run_info = submit_to_azure_if_needed(...,
                                      output_datasets=[output_dataset],
-                                     strictly_aml_v1=True)
+                                     strictly_aml_v1=True,
+                                    )
 
 ```
 
@@ -193,7 +202,8 @@ If you do need a specific version, use the `version` argument in the `DatasetCon
 from health_azure import DatasetConfig, submit_to_azure_if_needed
 input_dataset = DatasetConfig(name="my_folder",
                               datastore="my_datastore",
-                              version=7)
+                              version=7,
+                             )
 run_info = submit_to_azure_if_needed(...,
                                      input_datasets=[input_dataset])
 input_folder = run_info.input_datasets[0]
