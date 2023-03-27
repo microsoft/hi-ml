@@ -301,6 +301,7 @@ class DatasetConfig:
         self,
         name: str,
         datastore: str = "",
+        overwrite_existing: bool = True,
         version: Optional[int] = None,
         use_mounting: Optional[bool] = None,
         target_folder: Optional[PathOrString] = None,
@@ -331,6 +332,7 @@ class DatasetConfig:
             raise ValueError("The name of the dataset must be a non-empty string.")
         self.name = name
         self.datastore = datastore
+        self.overwrite_existing = overwrite_existing
         self.version = version
         self.use_mounting = use_mounting
         # If target_folder is "" then convert to None
@@ -440,9 +442,7 @@ class DatasetConfig:
         else:
             return None
 
-    def to_output_dataset(
-        self, workspace: Workspace, dataset_index: int, overwrite: bool = True
-    ) -> OutputFileDatasetConfig:
+    def to_output_dataset(self, workspace: Workspace, dataset_index: int) -> OutputFileDatasetConfig:
         """
         Creates a configuration to write a script output to an AzureML dataset. The name and datastore of this new
         dataset will be taken from the present object.
@@ -467,7 +467,7 @@ class DatasetConfig:
             result = dataset.as_mount()
         else:
             status += "uploaded when the job completes."
-            result = dataset.as_upload(overwrite=overwrite)
+            result = dataset.as_upload(overwrite=self.overwrite_existing)
         logging.info(status)
         return result
 
