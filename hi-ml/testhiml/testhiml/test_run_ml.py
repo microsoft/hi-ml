@@ -18,7 +18,7 @@ from pytorch_lightning import LightningModule
 import mlflow
 from pytorch_lightning import Trainer
 
-from health_ml.configs.hello_world import HelloWorld  # type: ignore
+from health_ml.configs.hello_world import TEST_MAE_FILE, TEST_MSE_FILE, HelloWorld  # type: ignore
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
 from health_ml.ml_runner import MLRunner
@@ -356,7 +356,7 @@ def test_run_inference(ml_runner_with_container: MLRunner, regression_datadir: P
         output_dir = ml_runner_with_container.container.outputs_folder
         if not output_dir.is_dir():
             return False
-        expected_files = ["test_mse.txt", "test_mae.txt"]
+        expected_files = [TEST_MSE_FILE, TEST_MAE_FILE]
         return all([(output_dir / p).exists() for p in expected_files])
 
     expected_ckpt_path = ml_runner_with_container.container.outputs_folder / "checkpoints" / "last.ckpt"
@@ -540,9 +540,9 @@ def test_inference_only_metrics_correctness(ml_runner_with_run_id: MLRunner, reg
     ml_runner_with_run_id.container.run_inference_only = True
     ml_runner_with_run_id.container.local_dataset_dir = regression_datadir
     ml_runner_with_run_id.run()
-    with open(ml_runner_with_run_id.container.outputs_folder / "test_mse.txt") as f:
+    with open(ml_runner_with_run_id.container.outputs_folder / TEST_MSE_FILE) as f:
         mse = float(f.readlines()[0])
     assert isclose(mse, 0.010806690901517868, abs_tol=1e-3)
-    with open(ml_runner_with_run_id.container.outputs_folder / "test_mae.txt") as f:
+    with open(ml_runner_with_run_id.container.outputs_folder / TEST_MAE_FILE) as f:
         mae = float(f.readlines()[0])
     assert isclose(mae, 0.08260975033044815, abs_tol=1e-3)

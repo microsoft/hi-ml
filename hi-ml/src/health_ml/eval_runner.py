@@ -4,6 +4,12 @@ from health_ml.ml_runner import RunnerBase
 
 
 class EvalRunner(RunnerBase):
+    def validate(self) -> None:
+        if self.container.src_checkpoint is None or self.container.src_checkpoint.checkpoint == "":
+            raise ValueError(
+                "To use model evaluation, you need to provide a checkpoint to use, via the --src_checkpoint argument."
+            )
+
     def run(self) -> None:
         self.init_inference()
 

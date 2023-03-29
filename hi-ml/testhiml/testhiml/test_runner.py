@@ -19,20 +19,13 @@ from health_azure import AzureRunInfo, DatasetConfig
 from health_azure.himl import OUTPUT_FOLDER
 from health_azure.utils import ENV_LOCAL_RANK, ENV_NODE_RANK
 from health_azure.paths import ENVIRONMENT_YAML_FILE_NAME
-from health_ml.configs.hello_world import HelloWorld  # type: ignore
+from health_ml.configs.hello_world import TEST_MAE_FILE, TEST_MSE_FILE, HelloWorld  # type: ignore
 from health_ml.deep_learning_config import WorkflowParams
 from health_ml.experiment_config import DEBUG_DDP_ENV_VAR, DebugDDPOptions
 from health_ml.lightning_container import LightningContainer
 from health_ml.runner import Runner, create_logging_filename, run_with_logging
 from health_ml.utils.common_utils import change_working_directory
 from health_ml.utils.fixed_paths import repository_root_directory
-
-
-@pytest.fixture
-def mock_runner(tmp_path: Path) -> Runner:
-    """A test fixture that creates a Runner object in a temporary folder."""
-
-    return Runner(project_root=tmp_path)
 
 
 @contextmanager
@@ -407,7 +400,7 @@ def test_run_hello_world(mock_runner: Runner) -> None:
         # time-consuming auth
         mock_get_workspace.assert_not_called()
         # Summary.txt is written at start, the other files during inference
-        expected_files = ["experiment_summary.txt", "test_mae.txt", "test_mse.txt"]
+        expected_files = ["experiment_summary.txt", TEST_MSE_FILE, TEST_MAE_FILE]
         for file in expected_files:
             assert (mock_runner.lightning_container.outputs_folder / file).is_file(), f"Missing file: {file}"
 

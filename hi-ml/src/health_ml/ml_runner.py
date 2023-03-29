@@ -95,6 +95,12 @@ class RunnerBase:
         # This is passed to trainer.validate and trainer.test in inference mode
         self.inference_checkpoint: Optional[str] = None
 
+    def validate() -> None:
+        """
+        Checks if all arguments and settings of the object are correct.
+        """
+        pass
+
     def setup_azureml(self) -> None:
         """
         Execute setup steps that are specific to AzureML.
@@ -152,7 +158,7 @@ class RunnerBase:
         self.container.create_filesystem(self.project_root)
 
         # configure recovery container if provided
-        self.checkpoint_handler.download_recovery_checkpoints_or_weights()  # type: ignore
+        self.checkpoint_handler.download_recovery_checkpoints_or_weights()
 
         # Create an AzureML run for logging if running outside AzureML.
         self.create_logger()
@@ -179,6 +185,10 @@ class RunnerBase:
             self.azureml_run_for_logging = run
 
     def get_data_module(self) -> LightningDataModule:
+        """
+        Reads the datamodule that should be used for training or valuation from the container. This must be
+        overridden in subclasses.
+        """
         raise NotImplementedError()
 
     def init_inference(self) -> None:
