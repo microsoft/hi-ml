@@ -11,7 +11,7 @@ from typing import Dict, List, Optional
 
 import torch
 from azureml.core import Run
-from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning import LightningDataModule, Trainer, seed_everything
 
 from health_azure import AzureRunInfo
 from health_azure.logging import logging_section, print_message_with_rank_pid
@@ -63,18 +63,22 @@ def check_dataset_folder_exists(local_dataset: PathOrString) -> Path:
     return expected_dir
 
 
-class MLRunner:
+class RunnerBase:
+    """
+    A base class with operations that are shared between the training/test runner and the evaluation-only runner.
+    """
+
     def __init__(
         self, experiment_config: ExperimentConfig, container: LightningContainer, project_root: Optional[Path] = None
     ) -> None:
         """
-        Driver class to run a ML experiment. Note that the project root argument MUST be supplied when using hi-ml
+        Driver class to run an ML experiment. Note that the project root argument MUST be supplied when using hi-ml
         as a package!
 
         :param experiment_config: The ExperimentConfig object to use for training.
         :param container: The LightningContainer object to use for training.
         :param project_root: Project root. This should only be omitted if calling run_ml from the test suite. Supplying
-        it is crucial when using hi-ml as a package or submodule!
+            it is crucial when using hi-ml as a package or submodule!
         """
         self.container = container
         self.experiment_config = experiment_config
@@ -88,28 +92,30 @@ class MLRunner:
         self.trainer: Optional[Trainer] = None
         self.azureml_run_for_logging: Optional[Run] = None
         self.mlflow_run_for_logging: Optional[str] = None
-        self.inference_checkpoint: Optional[str] = None  # Passed to trainer.validate and trainer.test in inference mode
+        # This is passed to trainer.validate and trainer.test in inference mode
+        self.inference_checkpoint: Optional[str] = None
 
-    def set_run_tags_from_parent(self) -> None:
+    def setup_azureml(self) -> None:
         """
-        Set metadata for the run
+        Execute setup steps that are specific to AzureML.
         """
-        assert PARENT_RUN_CONTEXT, "This function should only be called in a Hyperdrive run."
-        run_tags_parent = PARENT_RUN_CONTEXT.get_tags()
-        tags_to_copy = [
-            "tag",
-            "model_name",
-            "execution_mode",
-            "recovered_from",
-            "friendly_name",
-            "build_number",
-            "build_user",
-            RUN_RECOVERY_FROM_ID_KEY_NAME,
-        ]
-        new_tags = {tag: run_tags_parent.get(tag, "") for tag in tags_to_copy}
-        new_tags[RUN_RECOVERY_ID_KEY] = create_run_recovery_id(run=RUN_CONTEXT)
-        new_tags[EFFECTIVE_RANDOM_SEED_KEY_NAME] = str(self.container.get_effective_random_seed())
-        RUN_CONTEXT.set_tags(new_tags)
+        if PARENT_RUN_CONTEXT is not None:
+            # Set metadata for the run in AzureML if running in a Hyperdrive job.
+            run_tags_parent = PARENT_RUN_CONTEXT.get_tags()
+            tags_to_copy = [
+                "tag",
+                "model_name",
+                "execution_mode",
+                "recovered_from",
+                "friendly_name",
+                "build_number",
+                "build_user",
+                RUN_RECOVERY_FROM_ID_KEY_NAME,
+            ]
+            new_tags = {tag: run_tags_parent.get(tag, "") for tag in tags_to_copy}
+            new_tags[RUN_RECOVERY_ID_KEY] = create_run_recovery_id(run=RUN_CONTEXT)
+            new_tags[EFFECTIVE_RANDOM_SEED_KEY_NAME] = str(self.container.get_effective_random_seed())
+            RUN_CONTEXT.set_tags(new_tags)
 
     def setup(self, azure_run_info: Optional[AzureRunInfo] = None) -> None:
         """
@@ -125,6 +131,7 @@ class MLRunner:
             # Set up the paths to the datasets. azure_run_info already has all necessary information, using either
             # the provided local datasets for VM runs, or the AzureML mount points when running in AML.
             # This must happen before container setup because that could already read datasets.
+            logging.info("Setting tags from parent run.")
             input_datasets = azure_run_info.input_datasets
             logging.info(f"Setting the following datasets as local datasets: {input_datasets}")
             if len(input_datasets) > 0:
@@ -147,15 +154,86 @@ class MLRunner:
         # configure recovery container if provided
         self.checkpoint_handler.download_recovery_checkpoints_or_weights()  # type: ignore
 
+        # Create an AzureML run for logging if running outside AzureML.
+        self.create_logger()
+
         self.container.setup()
         self.container.create_lightning_module_and_store()
         self._has_setup_run = True
 
-        is_offline_run = not is_running_in_azure_ml(RUN_CONTEXT)
-        # Get the AzureML context in which the script is running
-        if not is_offline_run and PARENT_RUN_CONTEXT is not None:
-            logging.info("Setting tags from parent run.")
-            self.set_run_tags_from_parent()
+        if is_running_in_azure_ml():
+            self.setup_azureml()
+
+    def create_logger(self) -> None:
+        """
+        Create an AzureML run for logging if running outside AzureML. This run will be used for metrics logging
+        during both training and inference. We can't rely on the automatically generated run inside the AzureMLLogger
+        class because two of those logger objects will be created, so training and inference metrics would be logged
+        in different runs.
+        """
+        if self.container.log_from_vm:
+            run = create_aml_run_object(experiment_name=self.container.effective_experiment_name)
+            # Display name should already be set when creating the Run object, but in some scenarios this
+            # does not happen. Hence, set it again.
+            run.display_name = self.container.tag if self.container.tag else None
+            self.azureml_run_for_logging = run
+
+    def get_data_module(self) -> LightningDataModule:
+        raise NotImplementedError()
+
+    def init_inference(self) -> None:
+        """Prepare the runner for inference: validation or test. The following steps are performed:
+        1. Get the checkpoint to use for inference. This is either the checkpoint from the last training epoch or the
+        one specified in src_checkpoint argument.
+        2. If the container has a run_extra_val_epoch method, call it to run an extra validation epoch.
+        3. Create a new trainer instance for inference. This is necessary because the trainer is created with a single
+        device in contrast to training that uses DDP if multiple GPUs are available.
+        4. Create a new data module instance for inference to account for any requested changes in the dataloading
+        parameters (e.g. batch_size, max_num_workers, etc) as part of on_run_extra_validation_epoch.
+        """
+        self.inference_checkpoint = str(self.checkpoint_handler.get_checkpoint_to_test())
+        if self.container.run_extra_val_epoch:
+            self.container.on_run_extra_validation_epoch()
+        self.set_trainer_for_inference()
+        self.data_module = self.get_data_module()
+
+    def run_inference(self) -> None:
+        """Run inference on the test set for all models. This is done by calling the LightningModule.test_step method.
+        If the LightningModule.test_step method is not overridden, then this method does nothing. The cwd is changed to
+        the outputs folder so that the model can write to current working directory, and still everything is put into
+        the right place in AzureML (there, only the contents of the "outputs" folder is treated as a result file).
+        """
+        if self.container.has_custom_test_step():
+            logging.info("Running inference via the LightningModule.test_step method")
+            with change_working_directory(self.container.outputs_folder):
+                assert self.trainer, "Trainer should be initialized before inference. Call self.init_inference()."
+                _ = self.trainer.test(
+                    self.container.model, datamodule=self.data_module, ckpt_path=self.inference_checkpoint
+                )
+        else:
+            logging.warning("None of the suitable test methods is overridden. Skipping inference completely.")
+
+    def run(self) -> None:
+        pass
+
+    def run_and_cleanup(self) -> None:
+        """
+        Run the training or evaluation via `self.run` and cleanup afterwards.
+        """
+        self.setup()
+        try:
+            self.run()
+        finally:
+            if self.azureml_run_for_logging is not None:
+                try:
+                    self.azureml_run_for_logging.complete()
+                except Exception as ex:
+                    logging.error("Failed to complete AzureML run: %s", ex)
+
+
+class MLRunner(RunnerBase):
+    def get_data_module(self) -> LightningDataModule:
+        return self.container.get_data_module()
 
     def get_multiple_trainloader_mode(self) -> str:
         # Workaround for a bug in PL 1.5.5: We need to pass the cycle mode for the training data as a trainer argument
@@ -190,18 +268,7 @@ class MLRunner:
         seed_everything(self.container.get_effective_random_seed(), workers=True)
 
         # Get the container's datamodule
-        self.data_module = self.container.get_data_module()
-
-        # Create an AzureML run for logging if running outside AzureML. This run will be used for metrics logging
-        # during both training and inference. We can't rely on the automatically generated run inside the AzureMLLogger
-        # class because two of those logger objects will be created, so training and inference metrics would be logged
-        # in different runs.
-        if self.container.log_from_vm:
-            run = create_aml_run_object(experiment_name=self.container.effective_experiment_name)
-            # Display name should already be set when creating the Run object, but in some scenarios this
-            # does not happen. Hence, set it again.
-            run.display_name = self.container.tag if self.container.tag else None
-            self.azureml_run_for_logging = run
+        self.data_module = self.get_data_module()
 
         if not self.container.run_inference_only:
             checkpoint_path_for_recovery = self.checkpoint_handler.get_recovery_or_checkpoint_path_train()
@@ -289,22 +356,6 @@ class MLRunner:
             mlflow_run_for_logging=mlflow_run_id,
         )
 
-    def init_inference(self) -> None:
-        """Prepare the runner for inference: validation or test. The following steps are performed:
-        1. Get the checkpoint to use for inference. This is either the checkpoint from the last training epoch or the
-        one specified in src_checkpoint argument.
-        2. If the container has a run_extra_val_epoch method, call it to run an extra validation epoch.
-        3. Create a new trainer instance for inference. This is necessary because the trainer is created with a single
-        device in contrast to training that uses DDP if multiple GPUs are available.
-        4. Create a new data module instance for inference to account for any requested changes in the dataloading
-        parameters (e.g. batch_size, max_num_workers, etc) as part of on_run_extra_validation_epoch.
-        """
-        self.inference_checkpoint = str(self.checkpoint_handler.get_checkpoint_to_test())
-        if self.container.run_extra_val_epoch:
-            self.container.on_run_extra_validation_epoch()
-        self.set_trainer_for_inference()
-        self.data_module = self.container.get_data_module()
-
     def run_training(self) -> None:
         """
         The main training loop. It creates the Pytorch model based on the configuration options passed in,
@@ -333,22 +384,6 @@ class MLRunner:
                 )
         else:
             logging.info("Skipping extra validation because the user has not requested it.")
-
-    def run_inference(self) -> None:
-        """Run inference on the test set for all models. This is done by calling the LightningModule.test_step method.
-        If the LightningModule.test_step method is not overridden, then this method does nothing. The cwd is changed to
-        the outputs folder so that the model can write to current working directory, and still everything is put into
-        the right place in AzureML (there, only the contents of the "outputs" folder is treated as a result file).
-        """
-        if self.container.has_custom_test_step():
-            logging.info("Running inference via the LightningModule.test_step method")
-            with change_working_directory(self.container.outputs_folder):
-                assert self.trainer, "Trainer should be initialized before inference. Call self.init_inference()."
-                _ = self.trainer.test(
-                    self.container.model, datamodule=self.data_module, ckpt_path=self.inference_checkpoint
-                )
-        else:
-            logging.warning("None of the suitable test methods is overridden. Skipping inference completely.")
 
     def run_regression_test(self) -> None:
         if self.container.regression_test_folder:
@@ -392,32 +427,23 @@ class MLRunner:
         """
         Driver function to run a ML experiment
         """
-        self.setup()
-        try:
-            self.init_training()
+        self.init_training()
 
-            if not self.container.run_inference_only:
-                # Backup the environment variables in case we need to run a second training in the unit tests.
-                environ_before_training = dict(os.environ)
+        if not self.container.run_inference_only:
+            # Backup the environment variables in case we need to run a second training in the unit tests.
+            environ_before_training = dict(os.environ)
 
-                with logging_section("Model training"):
-                    self.run_training()
+            with logging_section("Model training"):
+                self.run_training()
 
-                self.end_training(environ_before_training)
+            self.end_training(environ_before_training)
 
-            self.init_inference()
+        self.init_inference()
 
-            with logging_section("Model validation"):
-                self.run_validation()
+        with logging_section("Model validation"):
+            self.run_validation()
 
-            with logging_section("Model inference"):
-                self.run_inference()
+        with logging_section("Model inference"):
+            self.run_inference()
 
-            self.run_regression_test()
-
-        finally:
-            if self.azureml_run_for_logging is not None:
-                try:
-                    self.azureml_run_for_logging.complete()
-                except Exception as ex:
-                    logging.error("Failed to complete AzureML run: %s", ex)
+        self.run_regression_test()

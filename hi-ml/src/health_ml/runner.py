@@ -17,6 +17,8 @@ from typing import Dict, List, Optional, Tuple
 
 from azureml.core import Workspace
 
+from health_ml.eval_runner import EvalRunner
+
 # Add hi-ml packages to sys.path so that AML can find them if we are using the runner directly from the git repo
 himl_root = Path(__file__).resolve().parent.parent.parent.parent
 folders_to_add = [himl_root / "hi-ml" / "src", himl_root / "hi-ml-azure" / "src", himl_root / "hi-ml-cpath" / "src"]
@@ -325,15 +327,24 @@ class Runner:
             assert azure_run_info.run is not None
             azure_run_info.run.set_tags(self.additional_run_tags(sys.argv[1:]))
 
-        # Set environment variables for multi-node training if needed. This function will terminate early
-        # if it detects that it is not in a multi-node environment.
-        if self.experiment_config.num_nodes > 1:
-            set_environment_variables_for_multi_node()
-        self.ml_runner = MLRunner(
-            experiment_config=self.experiment_config, container=self.lightning_container, project_root=self.project_root
-        )
-        self.ml_runner.setup(azure_run_info)
-        self.ml_runner.run()
+        if self.experiment_config.mode == "train":
+            # Set environment variables for multi-node training if needed. This function will terminate early
+            # if it detects that it is not in a multi-node environment.
+            if self.experiment_config.num_nodes > 1:
+                set_environment_variables_for_multi_node()
+            self.ml_runner = MLRunner(
+                experiment_config=self.experiment_config,
+                container=self.lightning_container,
+                project_root=self.project_root,
+            )
+            self.ml_runner.setup(azure_run_info)
+            self.ml_runner.run_and_cleanup()
+        elif self.experiment_config.mode == "eval":
+            self.eval_runner = EvalRunner()
+            self.eval_runner.setup(azure_run_info)
+            self.eval_runner.run_and_cleanup()
+        else:
+            raise ValueError(f"Unknown mode {self.experiment_config.mode}")
 
 
 def run(project_root: Path) -> Tuple[LightningContainer, AzureRunInfo]:

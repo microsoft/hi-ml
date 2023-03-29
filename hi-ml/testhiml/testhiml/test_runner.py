@@ -428,9 +428,8 @@ def test_invalid_profiler(mock_runner: Runner) -> None:
     invalid_profile = "--pl_profiler=foo"
     arguments = ["", "--model=HelloWorld", invalid_profile]
     with patch.object(sys, "argv", arguments):
-        with pytest.raises(ValueError) as ex:
+        with pytest.raises(ValueError, match="Unsupported profiler."):
             mock_runner.run()
-        assert "Unsupported profiler." in str(ex)
 
 
 def test_custom_datastore_outside_aml(mock_runner: Runner) -> None:
