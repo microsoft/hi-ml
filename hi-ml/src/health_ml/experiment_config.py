@@ -82,3 +82,8 @@ class ExperimentConfig(param.Parameterized):
         doc="The maximum runtime that is allowed for this job in AzureML. This is given as a floating"
         "point number with a string suffix s, m, h, d for seconds, minutes, hours, day. Examples: '3.5h', '2d'",
     )
+    # TODO: Should/can this be an enum?
+    mode: str = param.String(
+        default="train",
+        doc="The mode to run the experiment in. Can be one of 'train', 'eval'",
+    )
