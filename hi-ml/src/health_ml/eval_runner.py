@@ -5,7 +5,6 @@ from health_ml.ml_runner import RunnerBase
 
 class EvalRunner(RunnerBase):
     def run(self) -> None:
-
         self.init_inference()
 
         with logging_section("Model inference"):
