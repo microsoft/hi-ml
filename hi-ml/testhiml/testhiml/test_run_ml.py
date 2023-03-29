@@ -21,7 +21,7 @@ from pytorch_lightning import Trainer
 from health_ml.configs.hello_world import HelloWorld  # type: ignore
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
-from health_ml.run_ml import MLRunner
+from health_ml.ml_runner import MLRunner
 from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_ml.utils.common_utils import is_gpu_available
