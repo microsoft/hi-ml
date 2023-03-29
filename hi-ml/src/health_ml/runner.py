@@ -17,8 +17,6 @@ from typing import Dict, List, Optional, Tuple
 
 from azureml.core import Workspace
 
-from health_ml.eval_runner import EvalRunner
-
 # Add hi-ml packages to sys.path so that AML can find them if we are using the runner directly from the git repo
 himl_root = Path(__file__).resolve().parent.parent.parent.parent
 folders_to_add = [himl_root / "hi-ml" / "src", himl_root / "hi-ml-azure" / "src", himl_root / "hi-ml-cpath" / "src"]
@@ -32,9 +30,9 @@ from health_azure.datasets import create_dataset_configs  # noqa: E402
 from health_azure.himl import DEFAULT_DOCKER_BASE_IMAGE, OUTPUT_FOLDER  # noqa: E402
 from health_azure.logging import logging_to_stdout  # noqa: E402
 from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
-from health_azure.utils import (
+from health_azure.utils import (  # noqa: E402
     ENV_LOCAL_RANK,
-    ENV_NODE_RANK,  # noqa: E402
+    ENV_NODE_RANK,
     get_workspace,
     get_ml_client,
     is_local_rank_zero,
@@ -48,6 +46,7 @@ from health_azure.utils import (
     is_global_rank_zero,
 )
 
+from health_ml.eval_runner import EvalRunner  # noqa: E402
 from health_ml.experiment_config import DEBUG_DDP_ENV_VAR, ExperimentConfig  # noqa: E402
 from health_ml.lightning_container import LightningContainer  # noqa: E402
 from health_ml.ml_runner import MLRunner  # noqa: E402
