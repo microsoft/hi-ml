@@ -191,6 +191,20 @@ class RunnerBase:
         """
         raise NotImplementedError()
 
+    def set_trainer_for_inference(self) -> None:
+        """Set the runner's PL Trainer object that should be used when running inference on the validation or test set.
+        We run inference on a single device because distributed strategies such as DDP use DistributedSampler
+        internally, which replicates some samples to make sure all devices have the same batch size in case of
+        uneven inputs which biases the results."""
+        mlflow_run_id = get_mlflow_run_id_from_trainer(self.trainer)
+        self.container.max_num_gpus = self.container.max_num_gpus_inference
+        self.trainer, _ = create_lightning_trainer(
+            container=self.container,
+            num_nodes=1,
+            azureml_run_for_logging=self.azureml_run_for_logging,
+            mlflow_run_for_logging=mlflow_run_id,
+        )
+
     def init_inference(self) -> None:
         """Prepare the runner for inference: validation or test. The following steps are performed:
         1. Get the checkpoint to use for inference. This is either the checkpoint from the last training epoch or the
@@ -226,11 +240,11 @@ class RunnerBase:
     def run(self) -> None:
         pass
 
-    def run_and_cleanup(self) -> None:
+    def run_and_cleanup(self, azure_run_info: AzureRunInfo) -> None:
         """
         Run the training or evaluation via `self.run` and cleanup afterwards.
         """
-        self.setup()
+        self.setup(azure_run_info)
         try:
             self.run()
         finally:
@@ -351,20 +365,6 @@ class MLRunner(RunnerBase):
         if self.container.is_crossvalidation_child_run:
             return self.container.crossval_index == 0
         return True
-
-    def set_trainer_for_inference(self) -> None:
-        """Set the runner's PL Trainer object that should be used when running inference on the validation or test set.
-        We run inference on a single device because distributed strategies such as DDP use DistributedSampler
-        internally, which replicates some samples to make sure all devices have the same batch size in case of
-        uneven inputs which biases the results."""
-        mlflow_run_id = get_mlflow_run_id_from_trainer(self.trainer)
-        self.container.max_num_gpus = self.container.max_num_gpus_inference
-        self.trainer, _ = create_lightning_trainer(
-            container=self.container,
-            num_nodes=1,
-            azureml_run_for_logging=self.azureml_run_for_logging,
-            mlflow_run_for_logging=mlflow_run_id,
-        )
 
     def run_training(self) -> None:
         """

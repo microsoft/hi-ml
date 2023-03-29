@@ -11,8 +11,8 @@ class EvalRunner(RunnerBase):
             )
 
     def run(self) -> None:
+        self.container.outputs_folder.mkdir(exist_ok=True, parents=True)
         self.init_inference()
-
         with logging_section("Model inference"):
             self.run_inference()
 

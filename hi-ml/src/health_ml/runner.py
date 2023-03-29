@@ -337,8 +337,7 @@ class Runner:
                 project_root=self.project_root,
             )
             self.ml_runner.validate()
-            self.ml_runner.setup(azure_run_info)
-            self.ml_runner.run_and_cleanup()
+            self.ml_runner.run_and_cleanup(azure_run_info)
         elif self.experiment_config.mode == "eval":
             self.eval_runner = EvalRunner(
                 experiment_config=self.experiment_config,
@@ -347,8 +346,7 @@ class Runner:
             )
             # TODO: DRY, move runner.run out?
             self.eval_runner.validate()
-            self.eval_runner.setup(azure_run_info)
-            self.eval_runner.run_and_cleanup()
+            self.eval_runner.run_and_cleanup(azure_run_info)
         else:
             raise ValueError(f"Unknown mode {self.experiment_config.mode}")
 

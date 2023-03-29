@@ -82,7 +82,7 @@ class HelloWorldDataModule(LightningDataModule):
     A data module that gives the training, validation and test data for a simple 1-dim regression task.
     """
 
-    def __init__(self, crossval_count: int, crossval_index: Optional[int], seed: int = 0) -> None:
+    def __init__(self, crossval_count: int, crossval_index: Optional[int] = None, seed: int = 0) -> None:
         super().__init__()
         n_total = 200
         xy = _create_1d_regression_dataset(n=n_total, seed=seed)
@@ -272,7 +272,7 @@ class HelloWorld(LightningContainer):
     # This method is optional. Override it to supply a data module to use for evaluating the model on a new dataset.
     # Only the test data loader from the data module will be used.
     def get_eval_data_module(self) -> LightningDataModule:
-        return HelloWorldDataModule(seed=1)
+        return HelloWorldDataModule(crossval_count=1, seed=1)
 
     def get_callbacks(self) -> List[Callback]:
         if self.save_checkpoint:
