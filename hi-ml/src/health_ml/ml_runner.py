@@ -129,7 +129,7 @@ class RunnerBase:
         Lightning modules.
 
         :param azure_run_info: When running in AzureML or on a local VM, this contains the paths to the datasets.
-        This can be missing when running in unit tests, where the local dataset paths are already populated.
+            This can be missing when running in unit tests, where the local dataset paths are already populated.
         """
         if self._has_setup_run:
             return
@@ -240,9 +240,12 @@ class RunnerBase:
     def run(self) -> None:
         pass
 
-    def run_and_cleanup(self, azure_run_info: AzureRunInfo) -> None:
+    def run_and_cleanup(self, azure_run_info: Optional[AzureRunInfo] = None) -> None:
         """
         Run the training or evaluation via `self.run` and cleanup afterwards.
+
+        :param azure_run_info: When running in AzureML or on a local VM, this contains the paths to the datasets.
+            This can be missing when running in unit tests, where the local dataset paths are already populated.
         """
         self.setup(azure_run_info)
         try:
