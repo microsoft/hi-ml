@@ -46,9 +46,7 @@ class ImageEncoder(nn.Module):
 
         return encoder
 
-    def forward(self,
-                current_image: torch.Tensor,
-                return_patch_embeddings: bool = False) -> ImageEncoderOutputType:
+    def forward(self, current_image: torch.Tensor, return_patch_embeddings: bool = False) -> ImageEncoderOutputType:
         """Get image global and patch embeddings"""
 
         patch_emb = self.encoder(current_image)
@@ -99,19 +97,26 @@ class MultiImageEncoder(ImageEncoder):
 
         backbone_output_feature_dim = get_encoder_output_dim(self.encoder, device=get_module_device(self))
 
-        self.backbone_to_vit = nn.Conv2d(in_channels=backbone_output_feature_dim, out_channels=output_dim,
-                                         kernel_size=1, stride=1, padding=0, bias=False)
+        self.backbone_to_vit = nn.Conv2d(
+            in_channels=backbone_output_feature_dim,
+            out_channels=output_dim,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            bias=False,
+        )
         self.vit_pooler = VisionTransformerPooler(input_dim=output_dim, grid_shape=grid_shape)
 
         # Missing image embedding
         self.missing_previous_emb = nn.Parameter(torch.zeros(1, output_dim, 1, 1))
-        trunc_normal_(self.missing_previous_emb, std=.02)
+        trunc_normal_(self.missing_previous_emb, std=0.02)
 
-    def forward(self,  # type: ignore[override]
-                current_image: torch.Tensor,
-                previous_image: Optional[torch.Tensor] = None,
-                return_patch_embeddings: bool = False) -> ImageEncoderOutputType:
-
+    def forward(  # type: ignore[override]
+        self,
+        current_image: torch.Tensor,
+        previous_image: Optional[torch.Tensor] = None,
+        return_patch_embeddings: bool = False,
+    ) -> ImageEncoderOutputType:
         batch_size = current_image.shape[0]
 
         if previous_image is not None:

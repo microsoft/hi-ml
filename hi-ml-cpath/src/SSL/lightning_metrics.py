@@ -22,6 +22,7 @@ class MetricType(Enum):
     """
     Contains the different metrics that are computed.
     """
+
     # Any result of loss computation, depending on what's configured in the model.
     LOSS = "Loss"
 

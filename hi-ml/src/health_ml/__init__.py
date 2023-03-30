@@ -6,7 +6,4 @@ from health_ml.run_ml import MLRunner
 from health_ml.runner import Runner
 
 
-__all__ = [
-    "MLRunner",
-    "Runner"
-]
+__all__ = ["MLRunner", "Runner"]

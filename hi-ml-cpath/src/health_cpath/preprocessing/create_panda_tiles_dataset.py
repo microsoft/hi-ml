@@ -42,9 +42,10 @@ CSV_COLUMNS = (
 TMP_SUFFIX = "_tmp"
 
 
-def select_tile(mask_tile: np.ndarray, occupancy_threshold: float) \
-        -> Union[Tuple[bool, float], Tuple[np.ndarray, np.ndarray]]:
-    if occupancy_threshold < 0. or occupancy_threshold > 1.:
+def select_tile(
+    mask_tile: np.ndarray, occupancy_threshold: float
+) -> Union[Tuple[bool, float], Tuple[np.ndarray, np.ndarray]]:
+    if occupancy_threshold < 0.0 or occupancy_threshold > 1.0:
         raise ValueError("Tile occupancy threshold must be between 0 and 1")
     # mask_tile has shape (N, C, H, W)
     foreground_mask = mask_tile > 0
@@ -54,10 +55,10 @@ def select_tile(mask_tile: np.ndarray, occupancy_threshold: float) \
     return selected[:, 0], occupancy[:, 0]
 
 
-def generate_tiles(sample: dict, tile_size: int, occupancy_threshold: float) \
-        -> Tuple[np.ndarray, np.ndarray, List[Box], np.ndarray, int]:
-    image_tiles, tile_locations = tiling.tile_array_2d(sample['image'], tile_size=tile_size,
-                                                       constant_values=255)
+def generate_tiles(
+    sample: dict, tile_size: int, occupancy_threshold: float
+) -> Tuple[np.ndarray, np.ndarray, List[Box], np.ndarray, int]:
+    image_tiles, tile_locations = tiling.tile_array_2d(sample['image'], tile_size=tile_size, constant_values=255)
     assert tile_locations.ndim == 2
     mask_tiles, _ = tiling.tile_array_2d(sample['mask'], tile_size=tile_size, constant_values=0)
 
@@ -87,8 +88,7 @@ def generate_tiles(sample: dict, tile_size: int, occupancy_threshold: float) \
 
 # TODO refactor this to separate metadata identification from saving. We might want the metadata
 # even if the saving fails
-def save_tile(sample: dict, image_tile: np.ndarray, mask_tile: np.ndarray,
-              tile_box: Box, output_dir: Path) -> dict:
+def save_tile(sample: dict, image_tile: np.ndarray, mask_tile: np.ndarray, tile_box: Box, output_dir: Path) -> dict:
     slide_id = sample[SlideKey.SLIDE_ID]
     tile_id = get_tile_id(slide_id, tile_box)
     image_tile_filename = f"train_images/{tile_id}.png"
@@ -114,8 +114,16 @@ def save_tile(sample: dict, image_tile: np.ndarray, mask_tile: np.ndarray,
     return tile_metadata
 
 
-def process_slide(sample: dict, level: int, margin: int, tile_size: int, occupancy_threshold: int,
-                  output_dir: Path, tile_progress: bool = False, filter_slide: str = '') -> None:
+def process_slide(
+    sample: dict,
+    level: int,
+    margin: int,
+    tile_size: int,
+    occupancy_threshold: int,
+    output_dir: Path,
+    tile_progress: bool = False,
+    filter_slide: str = '',
+) -> None:
     slide_id = sample[SlideKey.SLIDE_ID]
     if filter_slide not in slide_id:
         return
@@ -153,8 +161,9 @@ def process_slide(sample: dict, level: int, margin: int, tile_size: int, occupan
             return
 
         print(f"Tiling slide {slide_id} ...")
-        image_tiles, mask_tiles, tile_boxes, occupancies, num_discarded = \
-            generate_tiles(sample, tile_size, occupancy_threshold)
+        image_tiles, mask_tiles, tile_boxes, occupancies, num_discarded = generate_tiles(
+            sample, tile_size, occupancy_threshold
+        )
         n_tiles = image_tiles.shape[0]
 
         for i in tqdm(range(n_tiles), f"Tiles ({slide_id[:6]}…)", unit="img", disable=not tile_progress):
@@ -176,10 +185,17 @@ def process_slide(sample: dict, level: int, margin: int, tile_size: int, occupan
         dataset_csv_file.close()
 
 
-def main(panda_dir: Union[str, Path], root_output_dir: str, level: int, tile_size: int,
-         margin: int, occupancy_threshold: float, parallel: bool = False, overwrite: bool = False,
-         filter_slide: str = '') -> None:
-
+def main(
+    panda_dir: Union[str, Path],
+    root_output_dir: str,
+    level: int,
+    tile_size: int,
+    margin: int,
+    occupancy_threshold: float,
+    parallel: bool = False,
+    overwrite: bool = False,
+    filter_slide: str = '',
+) -> None:
     # Ignoring some types here because mypy is getting confused with the MONAI Dataset class
     # to select a subsample use keyword n_slides
     dataset = Dataset(PandaDataset(panda_dir))  # type: ignore
@@ -192,9 +208,16 @@ def main(panda_dir: Union[str, Path], root_output_dir: str, level: int, tile_siz
     print(f"Command: \"{' '.join(sys.argv)}\"")
     print(f"Creating dataset of level-{level} {tile_size}x{tile_size} PANDA tiles at: {output_dir}")
 
-    func = functools.partial(process_slide, level=level, margin=margin, tile_size=tile_size,
-                             occupancy_threshold=occupancy_threshold, output_dir=output_dir,
-                             tile_progress=not parallel, filter_slide=filter_slide)
+    func = functools.partial(
+        process_slide,
+        level=level,
+        margin=margin,
+        tile_size=tile_size,
+        occupancy_threshold=occupancy_threshold,
+        output_dir=output_dir,
+        tile_progress=not parallel,
+        filter_slide=filter_slide,
+    )
 
     if parallel:
         import multiprocessing
@@ -221,11 +244,7 @@ if __name__ == '__main__':
         default="/tmp/datasets/PANDA",
         help="Folder with the PANDA dataset. For example, '/tmp/datasets/PANDA'",
     )
-    parser.add_argument(
-        "--output-dir",
-        type=str,
-        default="/datasetdrive/PANDA_20X_level_0_224"
-    )
+    parser.add_argument("--output-dir", type=str, default="/datasetdrive/PANDA_20X_level_0_224")
     parser.add_argument(
         "--level",
         type=int,
@@ -261,7 +280,7 @@ if __name__ == '__main__':
         "--filter-slide",
         type=str,
         default="",  # filtering for "b896" gives 4 slides, good for debugging
-        help="Process only slides whose ID contain this substring. Useful for debugging"
+        help="Process only slides whose ID contain this substring. Useful for debugging",
     )
     args = parser.parse_args()
 

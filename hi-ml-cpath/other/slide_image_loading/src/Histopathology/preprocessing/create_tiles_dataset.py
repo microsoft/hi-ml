@@ -16,8 +16,18 @@ from tqdm import tqdm
 from health_cpath.datasets.panda_dataset import LoadPandaROId, PandaDataset
 from health_cpath.preprocessing import tiling
 
-CSV_COLUMNS = ['slide_id', 'tile_id', 'image', 'mask', 'tile_x', 'tile_y', 'occupancy',
-               'data_provider', 'slide_isup_grade', 'slide_gleason_score']
+CSV_COLUMNS = [
+    'slide_id',
+    'tile_id',
+    'image',
+    'mask',
+    'tile_x',
+    'tile_y',
+    'occupancy',
+    'data_provider',
+    'slide_isup_grade',
+    'slide_gleason_score',
+]
 TMP_SUFFIX = "_tmp"
 
 logging.basicConfig(format='%(asctime)s %(message)s', filemode='w')
@@ -25,9 +35,8 @@ logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
 
-def select_tile(mask_tile: np.ndarray, occupancy_threshold: float) \
-        -> Tuple[np.ndarray, np.ndarray]:
-    if occupancy_threshold < 0. or occupancy_threshold > 1.:
+def select_tile(mask_tile: np.ndarray, occupancy_threshold: float) -> Tuple[np.ndarray, np.ndarray]:
+    if occupancy_threshold < 0.0 or occupancy_threshold > 1.0:
         raise ValueError("Tile occupancy threshold must be between 0 and 1")
     foreground_mask = mask_tile > 0
     occupancy = foreground_mask.mean(axis=(-2, -1))
@@ -49,10 +58,10 @@ def save_image(array_chw: np.ndarray, path: Path) -> None:
     pil_image.convert('RGB').save(path)
 
 
-def generate_tiles(sample: dict, tile_size: int, occupancy_threshold: float) \
-        -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int]:
-    image_tiles, tile_locations = tiling.tile_array_2d(sample['image'], tile_size=tile_size,
-                                                       constant_values=255)
+def generate_tiles(
+    sample: dict, tile_size: int, occupancy_threshold: float
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int]:
+    image_tiles, tile_locations = tiling.tile_array_2d(sample['image'], tile_size=tile_size, constant_values=255)
     mask_tiles, _ = tiling.tile_array_2d(sample['mask'], tile_size=tile_size, constant_values=0)
 
     selected: np.ndarray
@@ -73,8 +82,9 @@ def generate_tiles(sample: dict, tile_size: int, occupancy_threshold: float) \
 
 # TODO refactor this to separate metadata identification from saving. We might want the metadata
 # even if the saving fails
-def save_tile(sample: dict, image_tile: np.ndarray, mask_tile: np.ndarray,
-              tile_location: Sequence[int], output_dir: Path) -> dict:
+def save_tile(
+    sample: dict, image_tile: np.ndarray, mask_tile: np.ndarray, tile_location: Sequence[int], output_dir: Path
+) -> dict:
     slide_id = sample['image_id']
     descriptor = get_tile_descriptor(tile_location)
     image_tile_filename = f"train_images/{descriptor}.png"
@@ -98,10 +108,17 @@ def save_tile(sample: dict, image_tile: np.ndarray, mask_tile: np.ndarray,
     return tile_metadata
 
 
-def process_slide(image_wsi_reader: str, save_images: bool,
-                  sample: dict, level: int, margin: int, tile_size: int, occupancy_threshold: int,
-                  output_dir: Path, tile_progress: bool = False
-                  ) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
+def process_slide(
+    image_wsi_reader: str,
+    save_images: bool,
+    sample: dict,
+    level: int,
+    margin: int,
+    tile_size: int,
+    occupancy_threshold: int,
+    output_dir: Path,
+    tile_progress: bool = False,
+) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
     slide_id = sample['image_id']
     slide_dir: Path = output_dir / (slide_id + "/")
     logging.info(f">>> Slide dir {slide_dir}")
@@ -126,16 +143,16 @@ def process_slide(image_wsi_reader: str, save_images: bool,
             sample = loader(sample)  # load 'image' and 'mask' from disk
 
             logging.info(f"Tiling slide {slide_id} ...")
-            image_tiles, mask_tiles, tile_locations, occupancies, _ = \
-                generate_tiles(sample, tile_size, occupancy_threshold)
+            image_tiles, mask_tiles, tile_locations, occupancies, _ = generate_tiles(
+                sample, tile_size, occupancy_threshold
+            )
             if not save_images:
                 return image_tiles, mask_tiles, tile_locations, occupancies
             n_tiles = image_tiles.shape[0]
 
             for i in tqdm(range(n_tiles), f"Tiles ({slide_id[:6]}…)", unit="img", disable=not tile_progress):
                 try:
-                    tile_metadata = save_tile(sample, image_tiles[i], mask_tiles[i], tile_locations[i],
-                                              slide_dir)
+                    tile_metadata = save_tile(sample, image_tiles[i], mask_tiles[i], tile_locations[i], slide_dir)
                     tile_metadata['occupancy'] = occupancies[i]
                     tile_metadata['image'] = os.path.join(slide_dir.name, tile_metadata['image'])
                     tile_metadata['mask'] = os.path.join(slide_dir.name, tile_metadata['mask'])
@@ -146,8 +163,9 @@ def process_slide(image_wsi_reader: str, save_images: bool,
                     descriptor = get_tile_descriptor(tile_locations[i]) + '\n'
                     failed_tiles_file.write(descriptor)
                     traceback.print_exc()
-                    warnings.warn(f"An error occurred while saving tile "
-                                  f"{get_tile_id(slide_id, tile_locations[i])}: {e}")
+                    warnings.warn(
+                        f"An error occurred while saving tile " f"{get_tile_id(slide_id, tile_locations[i])}: {e}"
+                    )
 
             dataset_csv_file.close()
             failed_tiles_file.close()
@@ -169,16 +187,23 @@ def merge_dataset_csv_files(dataset_dir: Path) -> Path:
             logging.info(f"Merging slide {slide_csv}")
             content = slide_csv.read_text()
             if not first_file:
-                content = content[content.index('\n') + 1:]  # discard header row for all but the first file
+                content = content[content.index('\n') + 1 :]  # discard header row for all but the first file
             full_csv_file.write(content)
             first_file = False
     return full_csv
 
 
-def main(process_slide: Callable,
-         panda_dir: Union[str, Path], root_output_dir: Union[str, Path], level: int, tile_size: int,
-         margin: int, occupancy_threshold: float, parallel: bool = False, overwrite: bool = False) -> None:
-
+def main(
+    process_slide: Callable,
+    panda_dir: Union[str, Path],
+    root_output_dir: Union[str, Path],
+    level: int,
+    tile_size: int,
+    margin: int,
+    occupancy_threshold: float,
+    parallel: bool = False,
+    overwrite: bool = False,
+) -> None:
     # Ignoring some types here because mypy is getting confused with the MONAI Dataset class
     # to select a subsample use keyword n_slides
     dataset = Dataset(PandaDataset(panda_dir))  # type: ignore
@@ -190,9 +215,15 @@ def main(process_slide: Callable,
         shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True, exist_ok=not overwrite)
 
-    func = functools.partial(process_slide, level=level, margin=margin, tile_size=tile_size,
-                             occupancy_threshold=occupancy_threshold, output_dir=output_dir,
-                             tile_progress=not parallel)
+    func = functools.partial(
+        process_slide,
+        level=level,
+        margin=margin,
+        tile_size=tile_size,
+        occupancy_threshold=occupancy_threshold,
+        output_dir=output_dir,
+        tile_progress=not parallel,
+    )
 
     if parallel:
         import multiprocessing

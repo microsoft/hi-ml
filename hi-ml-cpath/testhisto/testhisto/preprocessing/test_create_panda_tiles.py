@@ -17,12 +17,15 @@ def test_generate_slide_tiles() -> None:
     image_level_0[4:6, 0:4] = fg_value
     image_level_0[6:8, 2:4] = fg_value
     image_level_0[8:10, 2:6] = fg_value
-    image_level_1 = np.array((
-        (fg_value, fg_value, bg_value),
-        (bg_value, fg_value, bg_value),
-        (bg_value, fg_value, fg_value),
-    ), np.uint8)
-    mask_level_1 = (image_level_1 == fg_value)
+    image_level_1 = np.array(
+        (
+            (fg_value, fg_value, bg_value),
+            (bg_value, fg_value, bg_value),
+            (bg_value, fg_value, fg_value),
+        ),
+        np.uint8,
+    )
+    mask_level_1 = image_level_1 == fg_value
     # Add channel dimensions
     image_level_1 = np.array(3 * (image_level_1,))
     mask_level_1 = mask_level_1[np.newaxis]

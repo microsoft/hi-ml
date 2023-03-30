@@ -27,14 +27,16 @@ TENSORBOARD_DIR = ROOT_DIR / "tensorboard_logs"
 
 
 class HimlTensorboardConfig(azure_util.AmlRunScriptConfig):
-    log_dir: Path = param.ClassSelector(class_=Path, default=Path("outputs"), instantiate=False,
-                                        doc="Path to directory in which Tensorboard  files"
-                                            "(summarywriter and TB logs) are stored")
+    log_dir: Path = param.ClassSelector(
+        class_=Path,
+        default=Path("outputs"),
+        instantiate=False,
+        doc="Path to directory in which Tensorboard  files (summarywriter and TB logs) are stored",
+    )
     port: int = param.Integer(default=6006, doc="The port to run Tensorboard on")
 
 
 class WrappedTensorboard(Tensorboard):
-
     def __init__(self, remote_root: str, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.remote_root = remote_root
@@ -66,7 +68,8 @@ class WrappedTensorboard(Tensorboard):
                 remote_root=self.remote_root,
                 executor=self._executor,
                 event=self._event,
-                session=self._session)
+                session=self._session,
+            )
             self._run_watchers.append(run_watcher)
 
         for w in self._run_watchers:
@@ -78,25 +81,22 @@ class WrappedTensorboard(Tensorboard):
         # sometimes, sys.executable might not give us what we want (i.e. in a notebook), and then we just have to hope
         # that "python" will give us something useful
         python_binary = sys.executable or "python"
-        python_command = [
-            python_binary, "-m", "tensorboard.main",
-            "--port", str(self._port)
-        ]
+        python_command = [python_binary, "-m", "tensorboard.main", "--port", str(self._port)]
         if len(local_log_dirs) > 1:
             # logdir_spec is not recommended but it is the only working way to display multiple dirs
             logdir_str = ','.join(local_log_dirs)
             python_command.append("--logdir_spec")
-            logging.info("Loading tensorboard files for > 1 run. You may notice reduced functionality as noted "
-                         "here: https://github.com/tensorflow/tensorboard#logdir--logdir_spec-legacy-mode ")
+            logging.info(
+                "Loading tensorboard files for > 1 run. You may notice reduced functionality as noted "
+                "here: https://github.com/tensorflow/tensorboard#logdir--logdir_spec-legacy-mode "
+            )
         else:
             logdir_str = run_local_root
             python_command.append("--logdir")
 
         python_command.append(logdir_str)
 
-        self._tb_proc = Popen(
-            python_command,
-            stderr=PIPE, stdout=PIPE, universal_newlines=True)
+        self._tb_proc = Popen(python_command, stderr=PIPE, stdout=PIPE, universal_newlines=True)
         if os.name == "nt":
             self._win32_kill_subprocess_on_exit(self._tb_proc)
 
@@ -114,8 +114,10 @@ def main() -> None:  # pragma: no cover
     config_path = tb_config.config_file
 
     if not config_path:
-        logging.info("You have not provided a config path. Therefore we will try to find one in your "
-                     "current directory, and its parents")
+        logging.info(
+            "You have not provided a config path. Therefore we will try to find one in your "
+            "current directory, and its parents"
+        )
 
     workspace = get_workspace(aml_workspace=None, workspace_config_path=config_path)
 
@@ -131,10 +133,9 @@ def main() -> None:  # pragma: no cover
 
     remote_logs_dir = local_logs_dir.relative_to(ROOT_DIR)
 
-    ts = WrappedTensorboard(remote_root=str(remote_logs_dir) + '/',
-                            runs=runs,
-                            local_root=str(local_logs_dir),
-                            port='6006')
+    ts = WrappedTensorboard(
+        remote_root=str(remote_logs_dir) + '/', runs=runs, local_root=str(local_logs_dir), port='6006'
+    )
 
     ts.start()
     print("=============================================================================\n\n")

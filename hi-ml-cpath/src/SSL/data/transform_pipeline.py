@@ -7,16 +7,20 @@ from typing import Any, Callable, List, Union
 import PIL
 import torch
 
-from torchvision.transforms import CenterCrop, ColorJitter, Compose, RandomAffine, RandomErasing, \
-    RandomHorizontalFlip, RandomResizedCrop, Resize
+from torchvision.transforms import (
+    CenterCrop,
+    ColorJitter,
+    Compose,
+    RandomAffine,
+    RandomErasing,
+    RandomHorizontalFlip,
+    RandomResizedCrop,
+    Resize,
+)
 from torchvision.transforms.functional import to_tensor
 from yacs.config import CfgNode
 
-from SSL.data.image_transforms import (
-    AddGaussianNoise,
-    ElasticTransform,
-    ExpandChannels,
-    RandomGamma)
+from SSL.data.image_transforms import AddGaussianNoise, ElasticTransform, ExpandChannels, RandomGamma
 
 ImageData = Union[PIL.Image.Image, torch.Tensor]
 
@@ -33,9 +37,9 @@ class ImageTransformationPipeline:
     """
 
     # noinspection PyMissingConstructor
-    def __init__(self,
-                 transforms: Union[Callable, List[Callable]],
-                 use_different_transformation_per_channel: bool = False):
+    def __init__(
+        self, transforms: Union[Callable, List[Callable]], use_different_transformation_per_channel: bool = False
+    ):
         """
         :param transforms: List of transformations to apply to images. Supports out of the boxes torchvision transforms
         as they accept data of arbitrary dimension. You can also define your own transform class but be aware that you
@@ -69,8 +73,10 @@ class ImageTransformationPipeline:
             # Some transforms assume the order of dimension is [..., C, H, W] so permute first and last dimension to
             # obtain [Z, C, H, W]
             if len(image.shape) != 4:
-                raise ValueError(f"ScalarDataset should load images as 4D tensor [C, Z, H, W]. The input tensor here"
-                                 f"was of shape {image.shape}. This is unexpected.")
+                raise ValueError(
+                    f"ScalarDataset should load images as 4D tensor [C, Z, H, W]. The input tensor here"
+                    f"was of shape {image.shape}. This is unexpected."
+                )
             image = torch.transpose(image, 1, 0)
 
         if not self.use_different_transformation_per_channel:
@@ -90,9 +96,9 @@ class ImageTransformationPipeline:
         return self.transform_image(data)
 
 
-def create_transforms_from_config(config: CfgNode,
-                                  apply_augmentations: bool,
-                                  expand_channels: bool = True) -> ImageTransformationPipeline:
+def create_transforms_from_config(
+    config: CfgNode, apply_augmentations: bool, expand_channels: bool = True
+) -> ImageTransformationPipeline:
     """
     Defines the image transformations pipeline from a config file. It has been designed for Chest X-Ray
     images but it can be used for other types of images data, type of augmentations to use and strength are
@@ -108,17 +114,20 @@ def create_transforms_from_config(config: CfgNode,
         transforms.append(ExpandChannels())
     if apply_augmentations:
         if config.augmentation.use_random_affine:
-            transforms.append(RandomAffine(
-                degrees=config.augmentation.random_affine.max_angle,
-                translate=(config.augmentation.random_affine.max_horizontal_shift,
-                           config.augmentation.random_affine.max_vertical_shift),
-                shear=config.augmentation.random_affine.max_shear
-            ))
+            transforms.append(
+                RandomAffine(
+                    degrees=config.augmentation.random_affine.max_angle,
+                    translate=(
+                        config.augmentation.random_affine.max_horizontal_shift,
+                        config.augmentation.random_affine.max_vertical_shift,
+                    ),
+                    shear=config.augmentation.random_affine.max_shear,
+                )
+            )
         if config.augmentation.use_random_crop:
-            transforms.append(RandomResizedCrop(
-                scale=config.augmentation.random_crop.scale,
-                size=config.preprocess.resize
-            ))
+            transforms.append(
+                RandomResizedCrop(scale=config.augmentation.random_crop.scale, size=config.preprocess.resize)
+            )
         else:
             transforms.append(Resize(size=config.preprocess.resize))
         if config.augmentation.use_random_horizontal_flip:
@@ -126,30 +135,35 @@ def create_transforms_from_config(config: CfgNode,
         if config.augmentation.use_gamma_transform:
             transforms.append(RandomGamma(scale=config.augmentation.gamma.scale))
         if config.augmentation.use_random_color:
-            transforms.append(ColorJitter(
-                brightness=config.augmentation.random_color.brightness,
-                contrast=config.augmentation.random_color.contrast,
-                saturation=config.augmentation.random_color.saturation
-            ))
+            transforms.append(
+                ColorJitter(
+                    brightness=config.augmentation.random_color.brightness,
+                    contrast=config.augmentation.random_color.contrast,
+                    saturation=config.augmentation.random_color.saturation,
+                )
+            )
         if config.augmentation.use_elastic_transform:
-            transforms.append(ElasticTransform(
-                alpha=config.augmentation.elastic_transform.alpha,
-                sigma=config.augmentation.elastic_transform.sigma,
-                p_apply=config.augmentation.elastic_transform.p_apply
-            ))
+            transforms.append(
+                ElasticTransform(
+                    alpha=config.augmentation.elastic_transform.alpha,
+                    sigma=config.augmentation.elastic_transform.sigma,
+                    p_apply=config.augmentation.elastic_transform.p_apply,
+                )
+            )
         transforms.append(CenterCrop(config.preprocess.center_crop_size))
         if config.augmentation.use_random_erasing:
-            transforms.append(RandomErasing(
-                scale=config.augmentation.random_erasing.scale,
-                ratio=config.augmentation.random_erasing.ratio
-            ))
+            transforms.append(
+                RandomErasing(
+                    scale=config.augmentation.random_erasing.scale, ratio=config.augmentation.random_erasing.ratio
+                )
+            )
         if config.augmentation.add_gaussian_noise:
-            transforms.append(AddGaussianNoise(
-                p_apply=config.augmentation.gaussian_noise.p_apply,
-                std=config.augmentation.gaussian_noise.std
-            ))
+            transforms.append(
+                AddGaussianNoise(
+                    p_apply=config.augmentation.gaussian_noise.p_apply, std=config.augmentation.gaussian_noise.std
+                )
+            )
     else:
-        transforms += [Resize(size=config.preprocess.resize),
-                       CenterCrop(config.preprocess.center_crop_size)]
+        transforms += [Resize(size=config.preprocess.resize), CenterCrop(config.preprocess.center_crop_size)]
     pipeline = ImageTransformationPipeline(transforms)
     return pipeline

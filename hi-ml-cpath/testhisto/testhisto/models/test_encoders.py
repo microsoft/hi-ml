@@ -43,10 +43,12 @@ def get_simclr_imagenet_encoder() -> TileEncoder:
 
 
 def get_ssl_encoder(download_dir: Path) -> TileEncoder:
-    downloader = CheckpointDownloader(run_id=TEST_SSL_RUN_ID,
-                                      download_dir=download_dir,
-                                      checkpoint_filename=LAST_CHECKPOINT_FILE_NAME,
-                                      remote_checkpoint_dir=Path(DEFAULT_AML_CHECKPOINT_DIR))
+    downloader = CheckpointDownloader(
+        run_id=TEST_SSL_RUN_ID,
+        download_dir=download_dir,
+        checkpoint_filename=LAST_CHECKPOINT_FILE_NAME,
+        remote_checkpoint_dir=Path(DEFAULT_AML_CHECKPOINT_DIR),
+    )
     downloader.download_checkpoint_if_necessary()
     return SSLEncoder(pl_checkpoint_path=downloader.local_checkpoint_path, tile_size=TILE_SIZE)
 
@@ -55,8 +57,7 @@ def get_histo_ssl_encoder() -> TileEncoder:
     return HistoSSLEncoder(tile_size=TILE_SIZE)
 
 
-def _test_encoder(encoder: nn.Module, input_dims: Tuple[int, ...], output_dim: int,
-                  batch_size: int = 5) -> None:
+def _test_encoder(encoder: nn.Module, input_dims: Tuple[int, ...], output_dim: int, batch_size: int = 5) -> None:
     if isinstance(encoder, nn.Module):
         for param_name, param in encoder.named_parameters():
             assert not param.requires_grad, f"Feature extractor has unfrozen parameters: {param_name}"
@@ -68,16 +69,15 @@ def _test_encoder(encoder: nn.Module, input_dims: Tuple[int, ...], output_dim: i
     assert features.shape == (batch_size, output_dim)
 
 
-@pytest.mark.parametrize("create_encoder_fn", [get_supervised_imagenet_encoder,
-                                               get_simclr_imagenet_encoder,
-                                               get_histo_ssl_encoder,
-                                               get_ssl_encoder
-                                               ])
+@pytest.mark.parametrize(
+    "create_encoder_fn",
+    [get_supervised_imagenet_encoder, get_simclr_imagenet_encoder, get_histo_ssl_encoder, get_ssl_encoder],
+)
 def test_encoder(create_encoder_fn: Callable[[], TileEncoder], tmp_path: Path) -> None:
     if create_encoder_fn == get_ssl_encoder:
         download_dir = tmp_path / "ssl_downloaded_weights"
         download_dir.mkdir()
-        encoder = create_encoder_fn(download_dir=download_dir)   # type: ignore
+        encoder = create_encoder_fn(download_dir=download_dir)  # type: ignore
     else:
         encoder = create_encoder_fn()
     _test_encoder(encoder, input_dims=encoder.input_dim, output_dim=encoder.num_encoding)
@@ -86,12 +86,7 @@ def test_encoder(create_encoder_fn: Callable[[], TileEncoder], tmp_path: Path) -
 def _dummy_classifier() -> nn.Module:
     input_size = np.prod(INPUT_DIMS)
     hidden_dim = 10
-    return nn.Sequential(
-        nn.Flatten(),
-        nn.Linear(input_size, hidden_dim),
-        nn.Tanh(),
-        nn.Linear(hidden_dim, 1)
-    )
+    return nn.Sequential(nn.Flatten(), nn.Linear(input_size, hidden_dim), nn.Tanh(), nn.Linear(hidden_dim, 1))
 
 
 @pytest.mark.parametrize("create_classifier_fn", [resnet18, _dummy_classifier])

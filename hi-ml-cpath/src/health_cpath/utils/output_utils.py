@@ -51,8 +51,9 @@ def validate_class_names(class_names: Optional[Sequence[str]], n_classes: int) -
     if class_names is None:
         class_names = [str(i) for i in range(effective_n_classes)]
     if len(class_names) != effective_n_classes:
-        raise ValueError(f"Mismatch in number of class names ({class_names}) and number"
-                         f"of classes ({effective_n_classes})")
+        raise ValueError(
+            f"Mismatch in number of class names ({class_names}) and number" f"of classes ({effective_n_classes})"
+        )
     return tuple(class_names)
 
 
@@ -124,8 +125,7 @@ def collate_results_on_cpu(epoch_results: EpochResultsType) -> ResultsType:
             batch_elements = batch_results[key]
             if key == ResultsKey.LOSS:
                 batch_elements = [batch_elements]
-            batch_elements = [elem.cpu() if isinstance(elem, torch.Tensor) else elem
-                              for elem in batch_elements]
+            batch_elements = [elem.cpu() if isinstance(elem, torch.Tensor) else elem for elem in batch_elements]
             results[key].extend(batch_elements)
     return results
 
@@ -136,8 +136,9 @@ def save_outputs_csv(results: ResultsType, outputs_dir: Path) -> None:
     list_slide_dicts: List[Dict[ResultsKey, Any]] = []
     # any column can be used here, the assumption is that the first dimension is the N of slides
     for slide_idx in range(len(results[ResultsKey.SLIDE_ID])):
-        slide_dict = {key: results[key][slide_idx] for key in results
-                      if key not in [ResultsKey.FEATURES, ResultsKey.LOSS]}
+        slide_dict = {
+            key: results[key][slide_idx] for key in results if key not in [ResultsKey.FEATURES, ResultsKey.LOSS]
+        }
         list_slide_dicts.append(slide_dict)
 
     assert outputs_dir.is_dir(), f"No such dir: {outputs_dir}"
@@ -192,21 +193,30 @@ class OutputsPolicy:
             self._best_metric_epoch = contents[self._BEST_EPOCH_KEY]
             self._best_metric_value = contents[self._BEST_VALUE_KEY]
             if contents[self._PRIMARY_METRIC_KEY] != self.primary_val_metric:
-                raise ValueError(f"Expected primary metric '{self.primary_val_metric}', but found "
-                                 f"'{contents[self._PRIMARY_METRIC_KEY]}' in {self.best_metric_file_path}")
+                raise ValueError(
+                    f"Expected primary metric '{self.primary_val_metric}', but found "
+                    f"'{contents[self._PRIMARY_METRIC_KEY]}' in {self.best_metric_file_path}"
+                )
         else:
             self._best_metric_epoch = 0
             self._best_metric_value = float('-inf') if self.maximise else float('inf')
 
     def _save_best_metric(self) -> None:
         """Save best metric epoch, value, and name to disk, to allow recovery (e.g. in case of pre-emption)."""
-        contents = {self._BEST_EPOCH_KEY: self._best_metric_epoch,
-                    self._BEST_VALUE_KEY: self._best_metric_value,
-                    self._PRIMARY_METRIC_KEY: self.primary_val_metric.value}
+        contents = {
+            self._BEST_EPOCH_KEY: self._best_metric_epoch,
+            self._BEST_VALUE_KEY: self._best_metric_value,
+            self._PRIMARY_METRIC_KEY: self.primary_val_metric.value,
+        }
         YAML().dump(contents, self.best_metric_file_path)
 
-    def should_save_validation_outputs(self, metrics_dict: Mapping[MetricsKey, Metric], epoch: int,
-                                       is_global_rank_zero: bool = True, on_extra_val: bool = False) -> bool:
+    def should_save_validation_outputs(
+        self,
+        metrics_dict: Mapping[MetricsKey, Metric],
+        epoch: int,
+        is_global_rank_zero: bool = True,
+        on_extra_val: bool = False,
+    ) -> bool:
         """Determine whether validation outputs should be saved given the current epoch's metrics.
 
         :param metrics_dict: Current epoch's metrics dictionary from
@@ -256,12 +266,20 @@ class OutputsPolicy:
 class DeepMILOutputsHandler:
     """Class that manages writing validation and test outputs for DeepMIL models."""
 
-    def __init__(self, outputs_root: Path, n_classes: int, tile_size: int, loading_params: LoadingParams,
-                 class_names: Optional[Sequence[str]], primary_val_metric: MetricsKey,
-                 maximise: bool, val_plot_options: Collection[PlotOption],
-                 test_plot_options: Collection[PlotOption],
-                 save_intermediate_outputs: bool = True,
-                 stratify_plots_by: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        outputs_root: Path,
+        n_classes: int,
+        tile_size: int,
+        loading_params: LoadingParams,
+        class_names: Optional[Sequence[str]],
+        primary_val_metric: MetricsKey,
+        maximise: bool,
+        val_plot_options: Collection[PlotOption],
+        test_plot_options: Collection[PlotOption],
+        save_intermediate_outputs: bool = True,
+        stratify_plots_by: Optional[str] = None,
+    ) -> None:
         """
         :param outputs_root: Root directory where to save all produced outputs.
         :param n_classes: Number of MIL classes (set `n_classes=1` for binary).
@@ -280,9 +298,9 @@ class DeepMILOutputsHandler:
         self.outputs_root = outputs_root
         self.n_classes = n_classes
         self.class_names = validate_class_names(class_names, self.n_classes)
-        self.outputs_policy = OutputsPolicy(outputs_root=outputs_root,
-                                            primary_val_metric=primary_val_metric,
-                                            maximise=maximise)
+        self.outputs_policy = OutputsPolicy(
+            outputs_root=outputs_root, primary_val_metric=primary_val_metric, maximise=maximise
+        )
         self.save_intermediate_outputs = save_intermediate_outputs
         self.tiles_selector: Optional[TilesSelector] = None
         self.val_plots_handler = DeepMILPlotsHandler(
@@ -291,7 +309,7 @@ class DeepMILOutputsHandler:
             class_names=self.class_names,
             stage=ModelKey.VAL,
             loading_params=deepcopy(loading_params),
-            stratify_plots_by=stratify_plots_by
+            stratify_plots_by=stratify_plots_by,
         )
         self.test_plots_handler = DeepMILPlotsHandler(
             plot_options=test_plot_options,
@@ -299,7 +317,7 @@ class DeepMILOutputsHandler:
             class_names=self.class_names,
             stage=ModelKey.TEST,
             loading_params=deepcopy(loading_params),
-            stratify_plots_by=stratify_plots_by
+            stratify_plots_by=stratify_plots_by,
         )
 
     @property
@@ -352,8 +370,14 @@ class DeepMILOutputsHandler:
         plots_handler = self.val_plots_handler if stage == ModelKey.VAL else self.test_plots_handler
         plots_handler.save_plots(outputs_dir, self.tiles_selector, results)
 
-    def save_validation_outputs(self, epoch_results: EpochResultsType, metrics_dict: Mapping[MetricsKey, Metric],
-                                epoch: int, is_global_rank_zero: bool = True, on_extra_val: bool = False) -> None:
+    def save_validation_outputs(
+        self,
+        epoch_results: EpochResultsType,
+        metrics_dict: Mapping[MetricsKey, Metric],
+        epoch: int,
+        is_global_rank_zero: bool = True,
+        on_extra_val: bool = False,
+    ) -> None:
         """Render and save validation epoch outputs, according to the configured :py:class:`OutputsPolicy`.
 
         :param epoch_results: Aggregated results from all epoch batches, as passed to :py:meth:`validation_epoch_end()`.
@@ -377,8 +401,7 @@ class DeepMILOutputsHandler:
             # First move existing outputs to a temporary directory, to avoid mixing
             # outputs of different epochs in case writing fails halfway through
             if self.validation_outputs_dir.exists():
-                replace_directory(source=self.validation_outputs_dir,
-                                  target=self.previous_validation_outputs_dir)
+                replace_directory(source=self.validation_outputs_dir, target=self.previous_validation_outputs_dir)
 
             self._save_outputs(epoch_results, self.validation_outputs_dir, ModelKey.VAL)
 

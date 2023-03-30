@@ -87,8 +87,8 @@ class HelloWorldDataModule(LightningDataModule):
         n_val = 50
         self.test = HelloWorldDataset(xy=xy[:n_test])
         if crossval_count <= 1:
-            self.val = HelloWorldDataset(xy=xy[n_test:(n_test + n_val)])
-            self.train = HelloWorldDataset(xy=xy[(n_test + n_val):])
+            self.val = HelloWorldDataset(xy=xy[n_test : (n_test + n_val)])
+            self.train = HelloWorldDataset(xy=xy[(n_test + n_val) :])
         else:
             # This could be done via a library function like sklearn's KFold function, but we don't want to add
             # scikit-learn as a dependency just for this example.
@@ -268,12 +268,16 @@ class HelloWorld(LightningContainer):
 
     def get_callbacks(self) -> List[Callback]:
         if self.save_checkpoint:
-            return [ModelCheckpoint(dirpath=self.checkpoint_folder,
-                                    monitor="val_loss",
-                                    filename="checkpoint",
-                                    auto_insert_metric_name=False,
-                                    mode="min"),
-                    *super().get_callbacks()]
+            return [
+                ModelCheckpoint(
+                    dirpath=self.checkpoint_folder,
+                    monitor="val_loss",
+                    filename="checkpoint",
+                    auto_insert_metric_name=False,
+                    mode="min",
+                ),
+                *super().get_callbacks(),
+            ]
         else:
             return super().get_callbacks()
 

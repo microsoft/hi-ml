@@ -14,8 +14,7 @@ import pytest
 import ruamel.yaml
 from ruamel.yaml.comments import CommentedMap as OrderedDict, CommentedSeq as OrderedList
 
-from health_ml.utils.reports import (HTMLReport, IMAGE_KEY_HTML, TABLE_KEY_HTML, REPORT_CONTENTS_KEY,
-                                     ReportComponentKey)
+from health_ml.utils.reports import HTMLReport, IMAGE_KEY_HTML, TABLE_KEY_HTML, REPORT_CONTENTS_KEY, ReportComponentKey
 
 
 @pytest.fixture
@@ -28,7 +27,7 @@ def html_report(tmp_path: Path) -> HTMLReport:
 
 @pytest.fixture
 def dummy_df() -> pd.DataFrame:
-    return pd.DataFrame({"A": list(range(20)), "B": [3.14159 * (r ** 2) for r in range(20)]})
+    return pd.DataFrame({"A": list(range(20)), "B": [3.14159 * (r**2) for r in range(20)]})
 
 
 @pytest.fixture
@@ -185,14 +184,18 @@ def test_html_report_render(html_report: HTMLReport, dummy_df: pd.DataFrame) -> 
     plt.savefig(fig_path)
     html_report.add_images([fig_path])
 
-    df2 = pd.DataFrame({"Shape": ["square", "circle", "triangle"], "colour": ["Red", "Blue", "Yellow"],
-                        "A very very very very very very very very very very very very very very very long title": [
-                            1, 2, 3]})
+    df2 = pd.DataFrame(
+        {
+            "Shape": ["square", "circle", "triangle"],
+            "colour": ["Red", "Blue", "Yellow"],
+            "A very very very very very very very very very very very very very very very long title": [1, 2, 3],
+        }
+    )
     html_report.add_tables(tables=[df2])
 
     html_report.add_text("Area vs radius chart", tag_class="h3")
 
-    df3 = pd.DataFrame({"A": list(range(20)), "B": [3.14159 * (r ** 2) for r in range(20)]})
+    df3 = pd.DataFrame({"A": list(range(20)), "B": [3.14159 * (r**2) for r in range(20)]})
     fig, ax = plt.subplots(1, 1)
     ax.plot(df3[["A"]], df3[["B"]])
     ax.set_xlabel("Radius")
@@ -223,12 +226,18 @@ def test_html_report_read_config(html_report: HTMLReport, dummy_df: pd.DataFrame
 
     plt.plot(dummy_df[[dummy_df_cols[0]]], dummy_df[[dummy_df_cols[1]]])
 
-    report_config_contents = OrderedDict({
-        REPORT_CONTENTS_KEY: OrderedList([
-            {ReportComponentKey.TYPE.value: ReportComponentKey.TABLE.value,
-             ReportComponentKey.VALUE.value: table_path}
-        ])
-    })
+    report_config_contents = OrderedDict(
+        {
+            REPORT_CONTENTS_KEY: OrderedList(
+                [
+                    {
+                        ReportComponentKey.TYPE.value: ReportComponentKey.TABLE.value,
+                        ReportComponentKey.VALUE.value: table_path,
+                    }
+                ]
+            )
+        }
+    )
     report_config_path = tmp_path / "report_config.yml"
     with open(report_config_path, "w+") as f_path:
         ruamel.yaml.dump(report_config_contents, f_path)
@@ -269,18 +278,26 @@ def mock_table_dir(tmp_path: Path) -> Path:
 
 
 @patch("pandas.read_csv")
-def test_add_yaml_contents_to_report_tables(mock_read_csv: MagicMock, mock_table_dir: Path, html_report: HTMLReport
-                                            ) -> None:
+def test_add_yaml_contents_to_report_tables(
+    mock_read_csv: MagicMock, mock_table_dir: Path, html_report: HTMLReport
+) -> None:
     mock_read_csv.return_value = "dummy_df"
     html_template_before = html_report._remove_html_end(html_report.template)
 
     # pass in yaml contents with a mock folder path containing 3 csv files and check that 3 table tags
     # get added to the report
-    yaml_contents_with_table_dir = OrderedDict({
-        REPORT_CONTENTS_KEY: OrderedList([
-            {ReportComponentKey.TYPE.value: ReportComponentKey.TABLE.value,
-             ReportComponentKey.VALUE.value: mock_table_dir}
-        ])})
+    yaml_contents_with_table_dir = OrderedDict(
+        {
+            REPORT_CONTENTS_KEY: OrderedList(
+                [
+                    {
+                        ReportComponentKey.TYPE.value: ReportComponentKey.TABLE.value,
+                        ReportComponentKey.VALUE.value: mock_table_dir,
+                    }
+                ]
+            )
+        }
+    )
 
     html_report.add_yaml_contents_to_report(yaml_contents_with_table_dir)
     html_template_difference = html_report.template.replace(html_template_before, "")
@@ -289,11 +306,18 @@ def test_add_yaml_contents_to_report_tables(mock_read_csv: MagicMock, mock_table
     html_template_before = html_report._remove_html_end(html_report.template)
 
     # Now add single path
-    yaml_contents_with_table_path = OrderedDict({
-        REPORT_CONTENTS_KEY: OrderedList([
-            {ReportComponentKey.TYPE.value: ReportComponentKey.TABLE.value,
-             ReportComponentKey.VALUE.value: next(mock_table_dir.iterdir())}
-        ])})
+    yaml_contents_with_table_path = OrderedDict(
+        {
+            REPORT_CONTENTS_KEY: OrderedList(
+                [
+                    {
+                        ReportComponentKey.TYPE.value: ReportComponentKey.TABLE.value,
+                        ReportComponentKey.VALUE.value: next(mock_table_dir.iterdir()),
+                    }
+                ]
+            )
+        }
+    )
 
     html_report.add_yaml_contents_to_report(yaml_contents_with_table_path)
     html_template_difference = html_report.template.replace(html_template_before, "")
@@ -305,11 +329,18 @@ def test_add_yaml_contents_to_report_images(html_report: HTMLReport, dummy_fig_f
     html_template_before = html_report._remove_html_end(html_report.template)
 
     # Now add image folder - first as a gallery
-    yaml_contents_with_img_dir_gallery = OrderedDict({
-        REPORT_CONTENTS_KEY: OrderedList([
-            {ReportComponentKey.TYPE.value: ReportComponentKey.IMAGE_GALLERY.value,
-             ReportComponentKey.VALUE.value: str(dummy_fig_folder)}
-        ])})
+    yaml_contents_with_img_dir_gallery = OrderedDict(
+        {
+            REPORT_CONTENTS_KEY: OrderedList(
+                [
+                    {
+                        ReportComponentKey.TYPE.value: ReportComponentKey.IMAGE_GALLERY.value,
+                        ReportComponentKey.VALUE.value: str(dummy_fig_folder),
+                    }
+                ]
+            )
+        }
+    )
 
     with patch.object(HTMLReport, "load_imgs_onto_subplot", return_value=plt.figure()):
         html_report.add_yaml_contents_to_report(yaml_contents_with_img_dir_gallery)
@@ -320,11 +351,18 @@ def test_add_yaml_contents_to_report_images(html_report: HTMLReport, dummy_fig_f
     html_template_before = html_report._remove_html_end(html_report.template)
 
     # add image folder as separate images
-    yaml_contents_with_img_dir = OrderedDict({
-        REPORT_CONTENTS_KEY: OrderedList([
-            {ReportComponentKey.TYPE.value: ReportComponentKey.IMAGE.value,
-             ReportComponentKey.VALUE.value: str(dummy_fig_folder)}
-        ])})
+    yaml_contents_with_img_dir = OrderedDict(
+        {
+            REPORT_CONTENTS_KEY: OrderedList(
+                [
+                    {
+                        ReportComponentKey.TYPE.value: ReportComponentKey.IMAGE.value,
+                        ReportComponentKey.VALUE.value: str(dummy_fig_folder),
+                    }
+                ]
+            )
+        }
+    )
 
     with patch.object(HTMLReport, "load_imgs_onto_subplot", return_value=plt.figure()):
         html_report.add_yaml_contents_to_report(yaml_contents_with_img_dir)
@@ -335,11 +373,18 @@ def test_add_yaml_contents_to_report_images(html_report: HTMLReport, dummy_fig_f
     html_template_before = html_report._remove_html_end(html_report.template)
 
     # Now add single image path
-    yaml_contents_with_img_path = OrderedDict({
-        REPORT_CONTENTS_KEY: OrderedList([
-            {ReportComponentKey.TYPE.value: ReportComponentKey.IMAGE.value,
-             ReportComponentKey.VALUE.value: str(next(dummy_fig_folder.iterdir()))}
-        ])})
+    yaml_contents_with_img_path = OrderedDict(
+        {
+            REPORT_CONTENTS_KEY: OrderedList(
+                [
+                    {
+                        ReportComponentKey.TYPE.value: ReportComponentKey.IMAGE.value,
+                        ReportComponentKey.VALUE.value: str(next(dummy_fig_folder.iterdir())),
+                    }
+                ]
+            )
+        }
+    )
 
     html_report.add_yaml_contents_to_report(yaml_contents_with_img_path)
     html_template_difference = html_report.template.replace(html_template_before, "")
@@ -351,11 +396,18 @@ def test_add_yaml_contents_to_report_text(html_report: HTMLReport) -> None:
     html_template_before = html_report._remove_html_end(html_report.template)
     num_existing_paragraphs = 0
 
-    yaml_contents_with_text = OrderedDict({
-        REPORT_CONTENTS_KEY: OrderedList([
-            {ReportComponentKey.TYPE.value: ReportComponentKey.TEXT.value,
-             ReportComponentKey.VALUE.value: "dummy_text"}
-        ])})
+    yaml_contents_with_text = OrderedDict(
+        {
+            REPORT_CONTENTS_KEY: OrderedList(
+                [
+                    {
+                        ReportComponentKey.TYPE.value: ReportComponentKey.TEXT.value,
+                        ReportComponentKey.VALUE.value: "dummy_text",
+                    }
+                ]
+            )
+        }
+    )
 
     html_report.add_yaml_contents_to_report(yaml_contents_with_text)
     html_template_difference = html_report.template.replace(html_template_before, "")
@@ -394,21 +446,30 @@ def test_add_image_gallery(html_report: HTMLReport, dummy_fig_folder: Path) -> N
 
 
 @patch("azureml.core.Run")
-def test_download_report_contents_from_aml(mock_run: MagicMock, html_report: HTMLReport, dummy_df: pd.DataFrame,
-                                           dummy_fig_folder: Path, tmp_path: Path) -> None:
+def test_download_report_contents_from_aml(
+    mock_run: MagicMock, html_report: HTMLReport, dummy_df: pd.DataFrame, dummy_fig_folder: Path, tmp_path: Path
+) -> None:
     num_children = 3
     table_path = tmp_path / "dummy_table.csv"
     dummy_df.to_csv(table_path)
 
     run_id = "run_id_123"
-    report_contents = OrderedList([
-        {ReportComponentKey.TYPE.value: ReportComponentKey.IMAGE.value,
-         ReportComponentKey.VALUE.value: str(next(dummy_fig_folder.iterdir()))},
-        {ReportComponentKey.TYPE.value: ReportComponentKey.IMAGE_GALLERY.value,
-         ReportComponentKey.VALUE.value: str(dummy_fig_folder)},
-        {ReportComponentKey.TYPE.value: ReportComponentKey.TABLE.value,
-         ReportComponentKey.VALUE.value: str(table_path)}
-    ])
+    report_contents = OrderedList(
+        [
+            {
+                ReportComponentKey.TYPE.value: ReportComponentKey.IMAGE.value,
+                ReportComponentKey.VALUE.value: str(next(dummy_fig_folder.iterdir())),
+            },
+            {
+                ReportComponentKey.TYPE.value: ReportComponentKey.IMAGE_GALLERY.value,
+                ReportComponentKey.VALUE.value: str(dummy_fig_folder),
+            },
+            {
+                ReportComponentKey.TYPE.value: ReportComponentKey.TABLE.value,
+                ReportComponentKey.VALUE.value: str(table_path),
+            },
+        ]
+    )
     hyperdrive_hyperparam_name = "learning_rate"
     with patch("health_ml.utils.reports.get_aml_run_from_run_id") as mock_get_run:
         mock_run = MagicMock()
@@ -419,8 +480,9 @@ def test_download_report_contents_from_aml(mock_run: MagicMock, html_report: HTM
             # mock the behaviour of downloading a file for each of the child runs
             mock_download.return_value = ["dummy_path_{i}" for i in range(num_children)]
 
-            updated_contents = html_report.download_report_contents_from_aml(run_id, report_contents,
-                                                                             hyperdrive_hyperparam_name)
+            updated_contents = html_report.download_report_contents_from_aml(
+                run_id, report_contents, hyperdrive_hyperparam_name
+            )
 
             mock_get_run.assert_called_once()
             assert mock_download.call_count == len(report_contents)
@@ -443,10 +505,9 @@ def test_zip_folder(html_report: HTMLReport, dummy_df: pd.DataFrame) -> None:
     plt.savefig(fig_path)
     html_report.add_images([fig_path])
 
-    df2 = pd.DataFrame({"Shape": ["square", "circle", "triangle"],
-                        "colour": ["Red", "Blue", "Yellow"],
-                        "Number ": [1, 2, 3]
-                        })
+    df2 = pd.DataFrame(
+        {"Shape": ["square", "circle", "triangle"], "colour": ["Red", "Blue", "Yellow"], "Number ": [1, 2, 3]}
+    )
     html_report.add_tables(tables=[df2])
 
     html_report.add_text("Area vs radius chart", tag_class="h3")

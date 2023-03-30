@@ -19,11 +19,9 @@ class MLP(nn.Module):
     :param use_1x1_convs: Use 1x1 conv kernels instead of 2D linear transformations for speed and memory efficiency.
     """
 
-    def __init__(self,
-                 input_dim: int,
-                 output_dim: int,
-                 hidden_dim: Optional[int] = None,
-                 use_1x1_convs: bool = False) -> None:
+    def __init__(
+        self, input_dim: int, output_dim: int, hidden_dim: Optional[int] = None, use_1x1_convs: bool = False
+    ) -> None:
         super().__init__()
 
         if use_1x1_convs:
@@ -44,7 +42,8 @@ class MLP(nn.Module):
                 projection_layer(**linear_proj_1_args),
                 normalisation_layer(hidden_dim),
                 nn.ReLU(inplace=True),
-                projection_layer(**linear_proj_2_args))
+                projection_layer(**linear_proj_2_args),
+            )
         else:
             self.model = nn.Linear(input_dim, output_dim)  # type: ignore
 
@@ -66,7 +65,6 @@ class MultiTaskModel(nn.Module):
     """
 
     def __init__(self, input_dim: int, classifier_hidden_dim: Optional[int], num_classes: int, num_tasks: int):
-
         super().__init__()
 
         self.num_classes = num_classes

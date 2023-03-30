@@ -18,8 +18,9 @@ from testazure.utils_testazure import himl_azure_root, DEFAULT_IGNORE_FOLDERS
 here = Path(__file__).parent.resolve()
 
 
-def render_environment_yaml(environment_yaml_path: Path, version: str, run_requirements: bool,
-                            extra_options: Optional[Dict[str, str]] = None) -> None:
+def render_environment_yaml(
+    environment_yaml_path: Path, version: str, run_requirements: bool, extra_options: Optional[Dict[str, str]] = None
+) -> None:
     """
     Rewrite the environment.yml template with version into a file at environment_yaml_path.
 
@@ -71,9 +72,13 @@ def render_environment_yaml(environment_yaml_path: Path, version: str, run_requi
     environment_yaml_path.write_text(r)
 
 
-def render_test_script(entry_script_path: Path, extra_options: Dict[str, str],
-                       compute_cluster_name: str, environment_yaml_path: Path,
-                       workspace_config_file_arg: str = "WORKSPACE_CONFIG_JSON") -> None:
+def render_test_script(
+    entry_script_path: Path,
+    extra_options: Dict[str, str],
+    compute_cluster_name: str,
+    environment_yaml_path: Path,
+    workspace_config_file_arg: str = "WORKSPACE_CONFIG_JSON",
+) -> None:
     """
     Rewrite the template with standard options, and extra options into a file at entry_script_path.
 
@@ -131,6 +136,7 @@ if __name__ == '__main__':
     render_test_script(test_folder / "test1.py", {}, "demo_cluster", test_folder / "environment1.yml")
 
     from uuid import uuid4
+
     message_guid = uuid4().hex
 
     extra_options: Dict[str, str] = {
@@ -162,7 +168,7 @@ if __name__ == '__main__':
         'body': 'print(f"The message was: {args.message}")',
         'imports': """
 import json
-import shutil"""
+import shutil""",
     }
 
     render_test_script(test_folder / "test2.py", extra_options, "demo_cluster", test_folder / "environment2.yml")

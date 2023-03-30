@@ -20,8 +20,14 @@ from torch.functional import Tensor
 from health_ml.utils.common_utils import is_gpu_available, is_windows
 from health_ml.utils.fixed_paths import OutputFolderForTests
 from health_cpath.utils.viz_utils import (
-    plot_attention_histogram, plot_attention_tiles, plot_scores_hist, resize_and_save, plot_slide,
-    plot_heatmap_overlay, plot_normalized_confusion_matrix, save_figure
+    plot_attention_histogram,
+    plot_attention_tiles,
+    plot_scores_hist,
+    resize_and_save,
+    plot_slide,
+    plot_heatmap_overlay,
+    plot_normalized_confusion_matrix,
+    save_figure,
 )
 from health_cpath.utils.naming import ResultsKey, SlideKey
 from health_cpath.utils.heatmap_utils import location_selected_tiles
@@ -67,44 +73,74 @@ def assert_equal_lists(pred: List, expected: List) -> None:
                 raise TypeError("Unexpected list composition")
 
 
-test_dict = {ResultsKey.SLIDE_ID: [[1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3], [4, 4, 4, 4],
-                                   [5, 5, 5, 5], [6, 6, 6, 6], [7, 7, 7, 7], [8, 8, 8, 8]],
-             ResultsKey.IMAGE_PATH: [[1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4],
-                                     [1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4]],
-             ResultsKey.CLASS_PROBS: [Tensor([0.6, 0.4]), Tensor([0.3, 0.7]), Tensor([0.6, 0.4]), Tensor([0.0, 1.0]),
-                                      Tensor([0.7, 0.3]), Tensor([0.8, 0.2]), Tensor([0.1, 0.9]), Tensor([0.01, 0.99])],
-             ResultsKey.TRUE_LABEL: [0, 1, 1, 1, 1, 0, 0, 0],
-             ResultsKey.PROB: [0.6, 0.7, 0.6, 1.0, 0.7, 0.8, 0.9, 0.99],
-             ResultsKey.BAG_ATTN:
-                 [Tensor([[0.10, 0.00, 0.20, 0.15]]),
-                  Tensor([[0.10, 0.18, 0.15, 0.13]]),
-                  Tensor([[0.25, 0.23, 0.20, 0.21]]),
-                  Tensor([[0.33, 0.31, 0.37, 0.35]]),
-                  Tensor([[0.43, 0.01, 0.07, 0.25]]),
-                  Tensor([[0.53, 0.11, 0.17, 0.55]]),
-                  Tensor([[0.63, 0.21, 0.27, 0.05]]),
-                  Tensor([[0.73, 0.31, 0.37, 0.15]])],
-             ResultsKey.TILE_LEFT:
-                 [Tensor([200, 200, 424, 424]),
-                  Tensor([200, 200, 424, 424]),
-                  Tensor([200, 200, 424, 424]),
-                  Tensor([200, 200, 424, 424])],
-             ResultsKey.TILE_TOP:
-                 [Tensor([200, 424, 200, 424]),
-                  Tensor([200, 200, 424, 424]),
-                  Tensor([200, 200, 424, 424]),
-                  Tensor([200, 200, 424, 424])],
-             ResultsKey.TILE_RIGHT:
-                 [Tensor([200, 424, 424, 424]),
-                  Tensor([200, 424, 424, 424]),
-                  Tensor([200, 200, 424, 424]),
-                  Tensor([200, 200, 424, 424])],
-             ResultsKey.TILE_BOTTOM:
-                 [Tensor([200, 424, 200, 424]),
-                  Tensor([200, 200, 424, 424]),
-                  Tensor([200, 424, 424, 424]),
-                  Tensor([200, 200, 424, 424])],
-             }
+test_dict = {
+    ResultsKey.SLIDE_ID: [
+        [1, 1, 1, 1],
+        [2, 2, 2, 2],
+        [3, 3, 3, 3],
+        [4, 4, 4, 4],
+        [5, 5, 5, 5],
+        [6, 6, 6, 6],
+        [7, 7, 7, 7],
+        [8, 8, 8, 8],
+    ],
+    ResultsKey.IMAGE_PATH: [
+        [1, 2, 3, 4],
+        [1, 2, 3, 4],
+        [1, 2, 3, 4],
+        [1, 2, 3, 4],
+        [1, 2, 3, 4],
+        [1, 2, 3, 4],
+        [1, 2, 3, 4],
+        [1, 2, 3, 4],
+    ],
+    ResultsKey.CLASS_PROBS: [
+        Tensor([0.6, 0.4]),
+        Tensor([0.3, 0.7]),
+        Tensor([0.6, 0.4]),
+        Tensor([0.0, 1.0]),
+        Tensor([0.7, 0.3]),
+        Tensor([0.8, 0.2]),
+        Tensor([0.1, 0.9]),
+        Tensor([0.01, 0.99]),
+    ],
+    ResultsKey.TRUE_LABEL: [0, 1, 1, 1, 1, 0, 0, 0],
+    ResultsKey.PROB: [0.6, 0.7, 0.6, 1.0, 0.7, 0.8, 0.9, 0.99],
+    ResultsKey.BAG_ATTN: [
+        Tensor([[0.10, 0.00, 0.20, 0.15]]),
+        Tensor([[0.10, 0.18, 0.15, 0.13]]),
+        Tensor([[0.25, 0.23, 0.20, 0.21]]),
+        Tensor([[0.33, 0.31, 0.37, 0.35]]),
+        Tensor([[0.43, 0.01, 0.07, 0.25]]),
+        Tensor([[0.53, 0.11, 0.17, 0.55]]),
+        Tensor([[0.63, 0.21, 0.27, 0.05]]),
+        Tensor([[0.73, 0.31, 0.37, 0.15]]),
+    ],
+    ResultsKey.TILE_LEFT: [
+        Tensor([200, 200, 424, 424]),
+        Tensor([200, 200, 424, 424]),
+        Tensor([200, 200, 424, 424]),
+        Tensor([200, 200, 424, 424]),
+    ],
+    ResultsKey.TILE_TOP: [
+        Tensor([200, 424, 200, 424]),
+        Tensor([200, 200, 424, 424]),
+        Tensor([200, 200, 424, 424]),
+        Tensor([200, 200, 424, 424]),
+    ],
+    ResultsKey.TILE_RIGHT: [
+        Tensor([200, 424, 424, 424]),
+        Tensor([200, 424, 424, 424]),
+        Tensor([200, 200, 424, 424]),
+        Tensor([200, 200, 424, 424]),
+    ],
+    ResultsKey.TILE_BOTTOM: [
+        Tensor([200, 424, 200, 424]),
+        Tensor([200, 200, 424, 424]),
+        Tensor([200, 424, 424, 424]),
+        Tensor([200, 200, 424, 424]),
+    ],
+}
 
 
 @pytest.mark.skipif(is_windows(), reason="Rendering is different on Windows")
@@ -125,7 +161,7 @@ def test_plot_pr_curve(test_output_dirs: OutputFolderForTests) -> None:
     _, ax = plt.subplots()
     true_labels = test_dict[ResultsKey.TRUE_LABEL]
     scores = test_dict[ResultsKey.PROB]
-    plot_pr_curve(labels=true_labels, scores=scores, legend_label='', ax=ax)            # type: ignore
+    plot_pr_curve(labels=true_labels, scores=scores, legend_label='', ax=ax)  # type: ignore
     file = Path(test_output_dirs.root_dir) / "plot_pr_curve.png"
     resize_and_save(5, 5, file)
     assert file.exists()
@@ -140,7 +176,7 @@ def test_plot_roc_curve(test_output_dirs: OutputFolderForTests) -> None:
     _, ax = plt.subplots()
     true_labels = test_dict[ResultsKey.TRUE_LABEL]
     scores = test_dict[ResultsKey.PROB]
-    plot_roc_curve(labels=true_labels, scores=scores, legend_label='', ax=ax)           # type: ignore
+    plot_roc_curve(labels=true_labels, scores=scores, legend_label='', ax=ax)  # type: ignore
     file = Path(test_output_dirs.root_dir) / "plot_roc_curve.png"
     resize_and_save(5, 5, file)
     assert file.exists()
@@ -195,9 +231,7 @@ def assert_plot_tiles_figure(tiles_fig: plt.Figure, fig_name: str, test_output_d
 
 @pytest.mark.skipif(is_windows(), reason="Rendering is different on Windows")
 def test_plot_top_bottom_tiles(slide_node: SlideNode, test_output_dirs: OutputFolderForTests) -> None:
-    top_tiles_fig = plot_attention_tiles(
-        case="FN", slide_node=slide_node, top=True, num_columns=4, figsize=(10, 10)
-    )
+    top_tiles_fig = plot_attention_tiles(case="FN", slide_node=slide_node, top=True, num_columns=4, figsize=(10, 10))
     assert top_tiles_fig is not None
     bottom_tiles_fig = plot_attention_tiles(
         case="FN", slide_node=slide_node, top=False, num_columns=4, figsize=(10, 10)
@@ -274,13 +308,15 @@ def test_plot_heatmap_overlay(add_extra_slide_plot: bool, test_output_dirs: Outp
     slide_dict = {SlideKey.IMAGE: slide_image, SlideKey.ORIGIN: location_bbox, SlideKey.SCALE: 1}
     extra_slide_dict = {SlideKey.IMAGE: extra_image, SlideKey.ORIGIN: location_bbox, SlideKey.SCALE: 1}
     tile_size = 224
-    fig = plot_heatmap_overlay(case="FN",
-                               slide_node=slide_node,
-                               slide_dict=slide_dict,
-                               results=test_dict,  # type: ignore
-                               tile_size=tile_size,
-                               should_upscale_coords=False,
-                               extra_slide_dict=extra_slide_dict if add_extra_slide_plot else None)
+    fig = plot_heatmap_overlay(
+        case="FN",
+        slide_node=slide_node,
+        slide_dict=slide_dict,
+        results=test_dict,  # type: ignore
+        tile_size=tile_size,
+        should_upscale_coords=False,
+        extra_slide_dict=extra_slide_dict if add_extra_slide_plot else None,
+    )
     assert isinstance(fig, matplotlib.figure.Figure)
     filename = "heatmap_overlay_extra.png" if add_extra_slide_plot else "heatmap_overlay.png"
     file = Path(test_output_dirs.root_dir) / "plot_heatmap_overlay.png"
@@ -329,14 +365,20 @@ def test_location_selected_tiles(level: int, should_upscale_coords: bool) -> Non
 
     slide_ids = [item[0] for item in test_dict[ResultsKey.SLIDE_ID]]  # type: ignore
     slide_idx = slide_ids.index(slide)
-    coords = np.transpose([test_dict[ResultsKey.TILE_LEFT][slide_idx].cpu().numpy(),  # type: ignore
-                           test_dict[ResultsKey.TILE_TOP][slide_idx].cpu().numpy()])  # type: ignore
+    coords = np.transpose(
+        [
+            test_dict[ResultsKey.TILE_LEFT][slide_idx].cpu().numpy(),  # type: ignore
+            test_dict[ResultsKey.TILE_TOP][slide_idx].cpu().numpy(),
+        ]
+    )  # type: ignore
 
     coords = coords // factor if should_upscale_coords else coords
-    tile_coords_transformed = location_selected_tiles(tile_coords=coords,
-                                                      location_bbox=location_bbox,
-                                                      scale_factor=factor,
-                                                      should_upscale_coords=should_upscale_coords)
+    tile_coords_transformed = location_selected_tiles(
+        tile_coords=coords,
+        location_bbox=location_bbox,
+        scale_factor=factor,
+        should_upscale_coords=should_upscale_coords,
+    )
     tile_xs, tile_ys = tile_coords_transformed.T
     assert min(tile_xs) >= 0
     assert max(tile_xs) <= slide_image.shape[2] // factor

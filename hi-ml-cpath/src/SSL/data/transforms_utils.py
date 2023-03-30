@@ -13,10 +13,12 @@ from yacs.config import CfgNode
 from SSL.data.transform_pipeline import create_transforms_from_config
 
 
-def get_ssl_transforms_from_config(config: CfgNode,
-                                   return_two_views_per_sample: bool,
-                                   use_training_augmentations_for_validation: bool = False,
-                                   expand_channels: bool = True) -> Tuple[Any, Any]:
+def get_ssl_transforms_from_config(
+    config: CfgNode,
+    return_two_views_per_sample: bool,
+    use_training_augmentations_for_validation: bool = False,
+    expand_channels: bool = True,
+) -> Tuple[Any, Any]:
     """
     Returns training and validation transforms for CXR.
     Transformations are constructed in the following way:
@@ -37,11 +39,10 @@ def get_ssl_transforms_from_config(config: CfgNode,
     :param expand_channels: if True the expand channel transformation
     will be added to the transformation passed through the config. This is needed for single channel images as CXR.
     """
-    train_transforms = create_transforms_from_config(config, apply_augmentations=True,
-                                                     expand_channels=expand_channels)
-    val_transforms = create_transforms_from_config(config,
-                                                   apply_augmentations=use_training_augmentations_for_validation,
-                                                   expand_channels=expand_channels)
+    train_transforms = create_transforms_from_config(config, apply_augmentations=True, expand_channels=expand_channels)
+    val_transforms = create_transforms_from_config(
+        config, apply_augmentations=use_training_augmentations_for_validation, expand_channels=expand_channels
+    )
     if return_two_views_per_sample:
         train_transforms = DualViewTransformWrapper(train_transforms)  # type: ignore
         val_transforms = DualViewTransformWrapper(val_transforms)  # type: ignore

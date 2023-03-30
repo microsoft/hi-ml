@@ -47,7 +47,9 @@
     "[python]": {
       "editor.rulers": [
         120
-      ]
+      ],
+      "editor.formatOnSave": true,
+      "editor.defaultFormatter": "ms-python.black-formatter",
     },
     // The settings below are specific to this project,
     // and may override settings in the workspace configuration.

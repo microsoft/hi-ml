@@ -23,7 +23,8 @@ class _MLP(nn.Module):
             nn.Linear(input_dim, hidden_dim, bias=False),
             nn.BatchNorm1d(hidden_dim),
             nn.ReLU(inplace=True),
-            nn.Linear(hidden_dim, output_dim, bias=True))
+            nn.Linear(hidden_dim, output_dim, bias=True),
+        )
 
     def forward(self, x: T) -> T:
         x = self.model(x)

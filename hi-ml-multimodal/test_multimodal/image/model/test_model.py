@@ -9,8 +9,10 @@ import pytest
 import torch
 from health_multimodal.image.model.model import ImageModel, MultiImageModel
 from health_multimodal.image.model.modules import MultiTaskModel
-from health_multimodal.image.model.pretrained import get_biovil_resnet, get_biovil_t_image_encoder
-from health_multimodal.image.model.types import ImageEncoderType, ImageModelOutput
+from health_multimodal.image.model.pretrained import get_biovil_image_encoder
+from health_multimodal.image.model.pretrained import get_biovil_t_image_encoder
+from health_multimodal.image.model.types import ImageEncoderType
+from health_multimodal.image.model.types import ImageModelOutput
 
 
 def test_loading_biovilt_pretrained_model() -> None:
@@ -22,12 +24,14 @@ def test_frozen_cnn_model() -> None:
     Checks if the mode of module parameters is set correctly.
     """
 
-    model = ImageModel(img_encoder_type=ImageEncoderType.RESNET18,
-                       joint_feature_size=4,
-                       num_classes=2,
-                       freeze_encoder=True,
-                       classifier_hidden_dim=24,
-                       num_tasks=1)
+    model = ImageModel(
+        img_encoder_type=ImageEncoderType.RESNET18,
+        joint_feature_size=4,
+        num_classes=2,
+        freeze_encoder=True,
+        classifier_hidden_dim=24,
+        num_tasks=1,
+    )
 
     assert not model.encoder.training
     assert not model.projector.training
@@ -46,12 +50,14 @@ def test_frozen_cnn_model() -> None:
     assert isinstance(model.classifier, MultiTaskModel)
     assert not model.classifier.training
 
-    model = ImageModel(img_encoder_type='resnet18',
-                       joint_feature_size=4,
-                       num_classes=2,
-                       freeze_encoder=False,
-                       classifier_hidden_dim=24,
-                       num_tasks=1)
+    model = ImageModel(
+        img_encoder_type='resnet18',
+        joint_feature_size=4,
+        num_classes=2,
+        freeze_encoder=False,
+        classifier_hidden_dim=24,
+        num_tasks=1,
+    )
     assert model.encoder.training
     assert model.projector.training
     assert model.classifier.training  # type: ignore
@@ -66,12 +72,14 @@ def test_image_get_patchwise_projected_embeddings(img_encoder_type: str) -> None
     num_classes = 2
     num_tasks = 1
     joint_feature_size = 4
-    model = ImageModel(img_encoder_type=img_encoder_type,
-                       joint_feature_size=joint_feature_size,
-                       num_classes=num_classes,
-                       freeze_encoder=True,
-                       classifier_hidden_dim=None,
-                       num_tasks=num_tasks)
+    model = ImageModel(
+        img_encoder_type=img_encoder_type,
+        joint_feature_size=joint_feature_size,
+        num_classes=num_classes,
+        freeze_encoder=True,
+        classifier_hidden_dim=None,
+        num_tasks=num_tasks,
+    )
     model.train()
     with pytest.raises(AssertionError) as ex:
         model.get_patchwise_projected_embeddings(torch.rand(size=(2, 3, 448, 448)), normalize=True)
@@ -107,7 +115,8 @@ def test_image_get_patchwise_projected_embeddings(img_encoder_type: str) -> None
 
 
 @pytest.mark.skip(
-    reason="Torch hub models are not supported yet since BioViL and BioViL-T require the hi-ml-multimodal package")
+    reason="Torch hub models are not supported yet since BioViL and BioViL-T require the hi-ml-multimodal package"
+)
 @torch.no_grad()
 def test_hubconf() -> None:
     """Test that instantiating the image model using the PyTorch Hub is consistent with older methods."""
@@ -115,7 +124,7 @@ def test_hubconf() -> None:
 
     github = 'microsoft/hi-ml:main'
     model_hub = torch.hub.load(github, 'biovil_resnet', pretrained=True)
-    model_himl = get_biovil_resnet()
+    model_himl = get_biovil_image_encoder()
 
     output_hub: ImageModelOutput = model_hub(image)
     output_himl: ImageModelOutput = model_himl(image)
@@ -133,8 +142,9 @@ def test_multi_image_model() -> None:
     with pytest.raises(AssertionError, match="MultiImageModel only supports MultiImageEncoder"):
         MultiImageModel(img_encoder_type=ImageEncoderType.RESNET18, joint_feature_size=joint_feature_size)
 
-    model = MultiImageModel(img_encoder_type=ImageEncoderType.RESNET18_MULTI_IMAGE,
-                            joint_feature_size=joint_feature_size)
+    model = MultiImageModel(
+        img_encoder_type=ImageEncoderType.RESNET18_MULTI_IMAGE, joint_feature_size=joint_feature_size
+    )
     assert model.encoder.training
     assert model.projector.training
 

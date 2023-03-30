@@ -12,8 +12,7 @@ from health_cpath.datasets.tcga_prad_dataset import TcgaPradDataset
 from health_cpath.utils.naming import SlideKey
 
 
-@pytest.mark.skipif(not os.path.isdir(TCGA_PRAD_DATASET_DIR),
-                    reason="TCGA-PRAD dataset is unavailable")
+@pytest.mark.skipif(not os.path.isdir(TCGA_PRAD_DATASET_DIR), reason="TCGA-PRAD dataset is unavailable")
 def test_dataset() -> None:
     dataset = TcgaPradDataset(TCGA_PRAD_DATASET_DIR)
 

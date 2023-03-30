@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import argparse
+from io import TextIOWrapper
 import logging
 import math
 import numbers
@@ -37,15 +38,16 @@ class AzureMLLogger(LightningLoggerBase):
     The name under which hyperparameters are written to the AzureML run.
     """
 
-    def __init__(self,
-                 enable_logging_outside_azure_ml: Optional[bool] = False,
-                 experiment_name: str = "azureml_logger",
-                 run: Optional[Run] = None,
-                 run_name: Optional[str] = None,
-                 workspace: Optional[Workspace] = None,
-                 workspace_config_path: Optional[Path] = None,
-                 snapshot_directory: Optional[PathOrString] = None
-                 ) -> None:
+    def __init__(
+        self,
+        enable_logging_outside_azure_ml: Optional[bool] = False,
+        experiment_name: str = "azureml_logger",
+        run: Optional[Run] = None,
+        run_name: Optional[str] = None,
+        workspace: Optional[Workspace] = None,
+        workspace_config_path: Optional[Path] = None,
+        snapshot_directory: Optional[PathOrString] = None,
+    ) -> None:
         """
         :param enable_logging_outside_azure_ml: If True, the AzureML logger will write metrics to AzureML even if
             executed outside of an AzureML run (for example, when working on a separate virtual machine). If False,
@@ -77,11 +79,13 @@ class AzureMLLogger(LightningLoggerBase):
                 self.has_user_provided_run = True
             else:
                 try:
-                    self.run = create_aml_run_object(experiment_name=experiment_name,
-                                                     run_name=run_name,
-                                                     workspace=workspace,
-                                                     workspace_config_path=workspace_config_path,
-                                                     snapshot_directory=snapshot_directory)
+                    self.run = create_aml_run_object(
+                        experiment_name=experiment_name,
+                        run_name=run_name,
+                        workspace=workspace,
+                        workspace_config_path=workspace_config_path,
+                        snapshot_directory=snapshot_directory,
+                    )
                     # Display name should already be set when creating the run object, but this does not happen.
                     # In unit tests, the run has the expected display name, but not here. Hence, set it again.
                     self.run.display_name = run_name
@@ -91,8 +95,10 @@ class AzureMLLogger(LightningLoggerBase):
             print(f"Writing metrics to run {self.run.id} in experiment {self.run.experiment.name}.")
             print(f"To check progress, visit this URL: {self.run.get_portal_url()}")
         else:
-            print("AzureMLLogger will not write any logs because it is running outside AzureML, and the "
-                  "'enable_logging_outside_azure_ml' flag is set to False")
+            print(
+                "AzureMLLogger will not write any logs because it is running outside AzureML, and the "
+                "'enable_logging_outside_azure_ml' flag is set to False"
+            )
 
     @rank_zero_only
     def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
@@ -127,8 +133,9 @@ class AzureMLLogger(LightningLoggerBase):
         params_final = _preprocess_hyperparams(params)
         if len(params_final) > 0:
             # Log hyperparameters as a table with 2 columns. Each "step" is one hyperparameter
-            self.run.log_table(self.HYPERPARAMS_NAME, {"name": list(params_final.keys()),
-                                                       "value": list(params_final.values())})
+            self.run.log_table(
+                self.HYPERPARAMS_NAME, {"name": list(params_final.keys()), "value": list(params_final.values())}
+            )
 
     def experiment(self) -> Any:
         return None
@@ -172,11 +179,7 @@ class AzureMLProgressBar(ProgressBarBase):
     PROGRESS_STAGE_PREDICT = "Prediction"
     """A string that indicates that the trainer loop is presently in prediction mode."""
 
-    def __init__(self,
-                 refresh_rate: int = 50,
-                 print_timestamp: bool = True,
-                 write_to_logging_info: bool = False
-                 ):
+    def __init__(self, refresh_rate: int = 50, print_timestamp: bool = True, write_to_logging_info: bool = False):
         """
         :param refresh_rate: The number of steps after which the progress should be printed out.
         :param print_timestamp: If True, each message that the progress bar prints will be prefixed with the current
@@ -189,7 +192,7 @@ class AzureMLProgressBar(ProgressBarBase):
         self._enabled = True
         self.stage = ""
         self.stage_start_time = 0.0
-        self.total_num_batches = 0.
+        self.total_num_batches = 0.0
         self.write_to_logging_info = write_to_logging_info
         self.print_timestamp = print_timestamp
 
@@ -279,8 +282,9 @@ class AzureMLProgressBar(ProgressBarBase):
             seconds = int(time_sec % 60)
             return f"{minutes:02}:{seconds:02}"
 
-        should_update = (self.is_enabled and (batches_processed % self.refresh_rate == 0
-                                              or batches_processed == self.total_num_batches))  # noqa: W503
+        should_update = self.is_enabled and (
+            batches_processed % self.refresh_rate == 0 or batches_processed == self.total_num_batches
+        )  # noqa: W503
         if not should_update:
             return
         prefix = f"{self.stage}"
@@ -299,9 +303,11 @@ class AzureMLProgressBar(ProgressBarBase):
             fraction_completed = batches_processed / self.total_num_batches
             percent_completed = int(fraction_completed * 100)
             estimated_epoch_duration = time_elapsed / fraction_completed
-            message = (f"{prefix}{batches_processed:4}/{self.total_num_batches} ({percent_completed:3}%) completed. "
-                       f"{time_elapsed_min} since epoch start, estimated total epoch time ~ "
-                       f"{to_minutes(estimated_epoch_duration)}")
+            message = (
+                f"{prefix}{batches_processed:4}/{self.total_num_batches} ({percent_completed:3}%) completed. "
+                f"{time_elapsed_min} since epoch start, estimated total epoch time ~ "
+                f"{to_minutes(estimated_epoch_duration)}"
+            )
         self._print(message)
 
     def _print(self, message: str) -> None:
@@ -334,12 +340,14 @@ def _preprocess_hyperparams(params: Any) -> Dict[str, str]:
     return {str(key): str(value) for key, value in params_final.items()}
 
 
-def log_on_epoch(module: LightningModule,
-                 name: Optional[str] = None,
-                 value: Optional[Any] = None,
-                 metrics: Optional[Mapping[str, Any]] = None,
-                 reduce_fx: Callable = torch.mean,
-                 sync_dist: Optional[bool] = None) -> None:
+def log_on_epoch(
+    module: LightningModule,
+    name: Optional[str] = None,
+    value: Optional[Any] = None,
+    metrics: Optional[Mapping[str, Any]] = None,
+    reduce_fx: Callable = torch.mean,
+    sync_dist: Optional[bool] = None,
+) -> None:
     """
     Write a dictionary with metrics and/or an individual metric as a name/value pair to the loggers of the given module.
     Metrics are always logged upon epoch completion.
@@ -371,11 +379,7 @@ def log_on_epoch(module: LightningModule,
         else value
         for key, value in metrics.items()
     }
-    module.log_dict(metrics_as_tensors,
-                    on_epoch=True,
-                    on_step=False,
-                    sync_dist=is_sync_dist,
-                    reduce_fx=reduce_fx)
+    module.log_dict(metrics_as_tensors, on_epoch=True, on_step=False, sync_dist=is_sync_dist, reduce_fx=reduce_fx)
 
 
 def log_learning_rate(module: LightningModule, name: str = "learning_rate") -> None:
@@ -402,3 +406,39 @@ def log_learning_rate(module: LightningModule, name: str = "learning_rate") -> N
             full_name = name if singleton_lr else f"{name}/{i}/{j}"
             logged[full_name] = lr_j
     log_on_epoch(module, metrics=logged)
+
+
+class ConsoleAndFileOutput(TextIOWrapper):
+    """A file-like object that writes to both the console (sys.stdout) and an output file.
+    The caller needs to ensure that the file is closed properly after using this object.
+
+    :param TextIOWrapper: The file to write to.
+    """
+
+    def __init__(self, file: TextIOWrapper) -> None:
+        self.file = file
+        self.sys_stdout = sys.stdout
+
+    def write(self, __buffer: Any) -> int:
+        """Writes the buffer to both the file and to the console.
+
+        :param __buffer: The buffer to write.
+        :return: The number of bytes written to the console
+        """
+        self.file.write(__buffer)
+        return self.sys_stdout.write(__buffer)
+
+    def flush(self) -> None:
+        """Flush both the output file and the console."""
+        self.file.flush()
+        self.sys_stdout.flush()
+
+    def isatty(self) -> bool:
+        """Returns if the given file is a terminal. Since the class is writing to a file, this always returns False."""
+        return False
+
+    def read(self, size: int = -1) -> str:  # type: ignore
+        raise NotImplementedError("Read is not supported")
+
+    def readline(self, size: int = -1) -> str:  # type: ignore
+        raise NotImplementedError("Readline is not supported")

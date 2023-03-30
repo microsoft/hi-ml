@@ -29,10 +29,10 @@ def mount_dataset(dataset_id: str, tmp_root: str = "/tmp/datasets", aml_workspac
 
 if __name__ == '__main__':
     import argparse
+
     parser = argparse.ArgumentParser()
     # Run this script as "python mount_azure_dataset.py --dataset_id TCGA-CRCk"
-    parser.add_argument('--dataset_id', type=str,
-                        help='Name of the Azure dataset e.g. PANDA or TCGA-CRCk')
+    parser.add_argument('--dataset_id', type=str, help='Name of the Azure dataset e.g. PANDA or TCGA-CRCk')
     args = parser.parse_args()
     # It is essential that the mount context is returned from the mounting function and referenced here.
     # If not, mounting will be stopped, and the files are no longer available.

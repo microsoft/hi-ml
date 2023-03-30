@@ -21,28 +21,29 @@ class TiffConversionConfig(param.Parameterized):
     image_key: SlideKey = param.ClassSelector(
         class_=SlideKey,
         default=SlideKey.IMAGE,
-        doc="The key of the image in the dataset. This is used to get the path of the src file."
+        doc="The key of the image in the dataset. This is used to get the path of the src file.",
     )
     target_magnifications: Optional[List[float]] = param.List(
-        default=[5.0], class_=float,
+        default=[5.0],
+        class_=float,
         doc="The magnifications that will be saved in the tiff files. Use None for all available magnifications.",
     )
     add_lowest_magnification: bool = param.Boolean(
         default=False,
         doc="If True, the lowest magnification will be saved in the tiff files in addition to the target "
-            "magnifications. If False, only the specified magnifications will be saved. This is especially useful for "
-            "costly computations that can be applied at a lower magnification.",
+        "magnifications. If False, only the specified magnifications will be saved. This is especially useful for "
+        "costly computations that can be applied at a lower magnification.",
     )
     default_base_objective_power: Optional[float] = param.Number(
         default=None,
         doc="The objective power of the base magnification of the originale whole slide image. This is used to "
-            "calculate the levels corresponding to the target magnifications. If None, the objective power will be "
-            "extracted from the properties of the src file.",
+        "calculate the levels corresponding to the target magnifications. If None, the objective power will be "
+        "extracted from the properties of the src file.",
     )
     replace_ampersand_by: str = param.String(
         default=UNDERSCORE,
         doc="The character that will replace the ampersand in the file name. & (as in H&E) can be problematic in some "
-            "file systems. It is recommended to use _ instead.",
+        "file systems. It is recommended to use _ instead.",
     )
     compression: COMPRESSION = param.ClassSelector(
         default=COMPRESSION.ADOBE_DEFLATE,
@@ -59,7 +60,7 @@ class TiffConversionConfig(param.Parameterized):
     converted_dataset_csv: str = param.String(
         default="",
         doc="The name of the new dataset csv file that will be created for the converted data. If None, the default "
-            "name of the original dataset will be used.",
+        "name of the original dataset will be used.",
     )
 
     def get_transform(self, output_folder: Path) -> ConvertWSIToTiffd:

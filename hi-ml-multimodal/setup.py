@@ -8,7 +8,7 @@ from setuptools import find_namespace_packages, setup  # type: ignore
 
 
 long_description = Path("README.md").read_text(encoding="utf-8")
-version = "0.1.3"
+version = "0.2.0"
 package_name = "hi-ml-multimodal"
 install_requires = Path("requirements_run.txt").read_text().splitlines()
 
@@ -28,7 +28,7 @@ setup(
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Medical Science Apps.",
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.7"
+        "Programming Language :: Python :: 3.9",
     ],
     license="MIT License",
     packages=find_namespace_packages(where="src"),

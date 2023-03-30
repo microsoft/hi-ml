@@ -124,7 +124,7 @@ def test_multi_resolution_tiling(level: int, mock_panda_slides_root_dir_diagonal
     batch_size = 1
     tile_count = 16
     channels = 3
-    tile_size = 28 // 2 ** level
+    tile_size = 28 // 2**level
     assert_batch_index = 0
     datamodule = PandaSlidesDataModule(
         root_path=mock_panda_slides_root_dir_diagonal,
@@ -143,14 +143,14 @@ def test_multi_resolution_tiling(level: int, mock_panda_slides_root_dir_diagonal
         original_tile = get_original_tile(mock_panda_slides_root_dir_diagonal, wsi_id)
         for i in range(tile_count):
             # multi resolution mock data has been created via 2 factor downsampling
-            assert (original_tile[:, :: 2 ** level, :: 2 ** level] == tiles[assert_batch_index][i].numpy()).all()
+            assert (original_tile[:, :: 2**level, :: 2**level] == tiles[assert_batch_index][i].numpy()).all()
 
 
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_overlapping_tiles(batch_size: int, mock_panda_slides_root_dir_diagonal: Path) -> None:
-    overlap = .5
+    overlap = 0.5
     expected_tile_matches = 16
     min_expected_tile_count = 32
     assert_batch_index = 0
@@ -178,7 +178,7 @@ def test_overlapping_tiles(batch_size: int, mock_panda_slides_root_dir_diagonal:
 def test_train_test_transforms(mock_panda_slides_root_dir_diagonal: Path) -> None:
     def get_transforms_dict() -> Dict[ModelKey, Union[Callable, None]]:
         train_transform = RandFlipd(keys=[SlideKey.IMAGE], spatial_axis=0, prob=1.0)
-        return {ModelKey.TRAIN: train_transform, ModelKey.VAL: None, ModelKey.TEST: None}   # type: ignore
+        return {ModelKey.TRAIN: train_transform, ModelKey.VAL: None, ModelKey.TEST: None}  # type: ignore
 
     def retrieve_tiles(dataloader: DataLoader) -> Dict[str, torch.Tensor]:
         tiles_dict = {}
@@ -224,7 +224,7 @@ def test_train_test_transforms(mock_panda_slides_root_dir_diagonal: Path) -> Non
 
 
 class MockPandaSlidesDataModule(SlidesDataModule):
-    """ MockPandaSlidesDataModule is the child class of SlidesDataModule specific to PANDA dataset
+    """MockPandaSlidesDataModule is the child class of SlidesDataModule specific to PANDA dataset
     Method get_splits() returns the train, val, test splits from the PANDA dataset. Here we return the same subsets for
     train/val and test to make sure train_dataloader returns a fixed n_tiles and test and validation dataloaders return
     all available tiles in the whole slide image for whole slide inference.

@@ -58,7 +58,7 @@ class RunPytestConfig(param.Parameterized):
         default="",
         doc="This value is used as an argument to --cov of pytest to collect code coverage for the specified pyhton "
         "module. For example, in the subfolder hi-ml-cpath, one can collect code coverage for the "
-        "histopathology module by setting `module=histopathology`. If set to '' (default), no coverage is collected."
+        "histopathology module by setting `module=histopathology`. If set to '' (default), no coverage is collected.",
     )
     cluster: str = param.String(default="", doc="The name of the AzureML compute cluster where the script should run.")
     conda_env: str = param.String(
@@ -68,15 +68,17 @@ class RunPytestConfig(param.Parameterized):
         default="run_pytest", doc="The name of the AzureML experiment where the run should start."
     )
     max_run_duration: str = param.String(
-        default="30m", doc="The maximum runtime that is allowed for this job in AzureML. This is given as a floating"
-        "point number with a string suffix s, m, h, d for seconds, minutes, hours, day. Examples: '3.5h', '2d'"
+        default="30m",
+        doc="The maximum runtime that is allowed for this job in AzureML. This is given as a floating"
+        "point number with a string suffix s, m, h, d for seconds, minutes, hours, day. Examples: '3.5h', '2d'",
     )
     add_to_sys_path: str = param.String(
         default="",
-        doc="A folder name that should be added to sys.path. The folder name should be relative to repository root."
+        doc="A folder name that should be added to sys.path. The folder name should be relative to repository root.",
     )
-    strictly_aml_v1: bool = param.Boolean(default=True, doc="If True (default), use AzureML v1 SDK. If False, use "
-                                          "the v2 of the SDK")
+    strictly_aml_v1: bool = param.Boolean(
+        default=True, doc="If True (default), use AzureML v1 SDK. If False, use the v2 of the SDK"
+    )
 
 
 def run_pytest(folder_to_test: str, pytest_mark: str, coverage_module: str) -> None:
@@ -96,9 +98,14 @@ def run_pytest(folder_to_test: str, pytest_mark: str, coverage_module: str) -> N
     pytest_args = [folder_to_test, f"--junitxml={str(results_file)}"]
 
     if coverage_module:
-        pytest_args += [f"--cov={coverage_module}", "--cov-branch", "--cov-report=html",
-                        f"--cov-report=xml:{OUTPUT_FOLDER}/{PYTEST_GPU_COVERAGE_FILE}",
-                        "--cov-report=term-missing", "--cov-config=.coveragerc"]
+        pytest_args += [
+            f"--cov={coverage_module}",
+            "--cov-branch",
+            "--cov-report=html",
+            f"--cov-report=xml:{OUTPUT_FOLDER}/{PYTEST_GPU_COVERAGE_FILE}",
+            "--cov-report=term-missing",
+            "--cov-config=.coveragerc",
+        ]
     if pytest_mark:
         pytest_args += ["-m", pytest_mark]
     logging.info(f"Starting pytest with these args: {pytest_args}")

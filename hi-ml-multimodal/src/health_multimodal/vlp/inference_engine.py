@@ -21,16 +21,14 @@ from health_multimodal.text import TextInferenceEngine
 class ImageTextInferenceEngine:
     """Functions related to inference on :class:`ImageTextModel`."""
 
-    def __init__(self,
-                 image_inference_engine: ImageInferenceEngine,
-                 text_inference_engine: TextInferenceEngine) -> None:
+    def __init__(
+        self, image_inference_engine: ImageInferenceEngine, text_inference_engine: TextInferenceEngine
+    ) -> None:
         self.image_inference_engine = image_inference_engine
         self.text_inference_engine = text_inference_engine
 
     @torch.no_grad()
-    def get_similarity_score_from_raw_data(self,
-                                           image_path: Path,
-                                           query_text: Union[List[str], str]) -> float:
+    def get_similarity_score_from_raw_data(self, image_path: Path, query_text: Union[List[str], str]) -> float:
         """Compute the cosine similarity score between an image and one or more strings.
 
         If multiple strings are passed, their embeddings are averaged before L2-normalization.
@@ -56,10 +54,9 @@ class ImageTextInferenceEngine:
 
         return cos_similarity.item()
 
-    def get_similarity_map_from_raw_data(self,
-                                         image_path: Path,
-                                         query_text: str,
-                                         interpolation: str = "nearest") -> np.ndarray:
+    def get_similarity_map_from_raw_data(
+        self, image_path: Path, query_text: str, interpolation: str = "nearest"
+    ) -> np.ndarray:
         """Return a heatmap of the similarities between each patch embedding from the image and the text embedding.
 
         :param image_path: Path to the input chest X-ray, either a DICOM or JPEG file.
@@ -91,9 +88,9 @@ class ImageTextInferenceEngine:
         return resized_sim_map
 
     @staticmethod
-    def _get_similarity_map_from_embeddings(projected_patch_embeddings: torch.Tensor,
-                                            projected_text_embeddings: torch.Tensor,
-                                            sigma: float = 1.5) -> torch.Tensor:
+    def _get_similarity_map_from_embeddings(
+        projected_patch_embeddings: torch.Tensor, projected_text_embeddings: torch.Tensor, sigma: float = 1.5
+    ) -> torch.Tensor:
         """Get smoothed similarity map for a given image patch embeddings and text embeddings.
 
         :param projected_patch_embeddings: [n_patches_h, n_patches_w, feature_size]
@@ -106,15 +103,21 @@ class ImageTextInferenceEngine:
         assert projected_text_embeddings.dim() == 2
         patch_wise_similarity = projected_patch_embeddings.view(-1, feature_size) @ projected_text_embeddings.t()
         patch_wise_similarity = patch_wise_similarity.reshape(n_patches_h, n_patches_w).cpu().numpy()
-        smoothed_similarity_map = torch.tensor(ndimage.gaussian_filter(
-            patch_wise_similarity, sigma=(sigma, sigma), order=0))
+        smoothed_similarity_map = torch.tensor(
+            ndimage.gaussian_filter(patch_wise_similarity, sigma=(sigma, sigma), order=0)
+        )
         return smoothed_similarity_map
 
     @staticmethod
     def convert_similarity_to_image_size(
-            similarity_map: torch.Tensor, width: int, height: int, resize_size: Optional[int],
-            crop_size: Optional[int], val_img_transform: Optional[Callable] = None,
-            interpolation: str = "nearest") -> np.ndarray:
+        similarity_map: torch.Tensor,
+        width: int,
+        height: int,
+        resize_size: Optional[int],
+        crop_size: Optional[int],
+        val_img_transform: Optional[Callable] = None,
+        interpolation: str = "nearest",
+    ) -> np.ndarray:
         """
         Convert similarity map from raw patch grid to original image size,
         taking into account whether the image has been resized and/or cropped prior to entering the network.

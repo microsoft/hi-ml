@@ -383,7 +383,7 @@ def test_run_inference(ml_runner_with_container: MLRunner, regression_datadir: P
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
 @pytest.mark.parametrize("run_inference_only", [True, False])
 def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with_container: MLRunner) -> None:
-    """Test that model runner gets called """
+    """Test that model runner gets called"""
     ml_runner_with_container.container.run_inference_only = run_inference_only
     ml_runner_with_container.container.run_extra_val_epoch = run_extra_val_epoch
     ml_runner_with_container.setup()

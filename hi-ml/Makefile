@@ -55,8 +55,12 @@ mypy:
 	mypy --install-types --show-error-codes --non-interactive --package health_ml
 	mypy --install-types --show-error-codes --non-interactive --package testhiml
 
+# run black check
+black:
+	black . --check --diff
+
 # run basic checks, assuming test requirements already installed
-check: flake8 mypy
+check: flake8 mypy black
 
 # run pytest on package, assuming test requirements already installed
 pytest:

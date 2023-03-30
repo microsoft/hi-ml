@@ -11,8 +11,7 @@ from pytorch_lightning.trainer.supporters import CombinedLoader
 from SSL.data.cifar_datasets import HimlCifar10
 from SSL.data.cxr_datasets import RSNAKaggleCXR
 from SSL.data.datamodules import CombinedDataModule, HimlVisionDataModule
-from SSL.data.transforms_utils import CIFARLinearHeadTransform, \
-    CIFARTrainTransform, get_ssl_transforms_from_config
+from SSL.data.transforms_utils import CIFARLinearHeadTransform, CIFARTrainTransform, get_ssl_transforms_from_config
 from SSL.lightning_containers.ssl_container import SSLContainer, SSLDatasetName
 from SSL.utils import SSLDataModuleType, load_yaml_augmentation_config
 from SSL.configs.CXR_SSL_configs import path_encoder_augmentation_cxr
@@ -27,16 +26,17 @@ def test_weights_module() -> None:
     """
     Tests if weights in CXR data module are correctly initialized
     """
-    transforms = get_ssl_transforms_from_config(cxr_augmentation_config,
-                                                return_two_views_per_sample=True)
-    data_module = HimlVisionDataModule(dataset_cls=RSNAKaggleCXR,
-                                       return_index=False,
-                                       train_transforms=transforms[0],
-                                       val_transforms=transforms[1],
-                                       data_dir=str(path_to_test_dataset),
-                                       batch_size=1,
-                                       seed=1,
-                                       num_workers=0)
+    transforms = get_ssl_transforms_from_config(cxr_augmentation_config, return_two_views_per_sample=True)
+    data_module = HimlVisionDataModule(
+        dataset_cls=RSNAKaggleCXR,
+        return_index=False,
+        train_transforms=transforms[0],
+        val_transforms=transforms[1],
+        data_dir=str(path_to_test_dataset),
+        batch_size=1,
+        seed=1,
+        num_workers=0,
+    )
     data_module.setup()
     class_weights = data_module.compute_class_weights()
     assert class_weights is not None
@@ -56,16 +56,18 @@ def test_vision_module() -> None:
     Test properties of loaded CIFAR datasets via VisionDataModule.
     Tests as well that the transforms return data in the expected type and shape.
     """
-    data_module = HimlVisionDataModule(dataset_cls=HimlCifar10,
-                                       val_split=0.1,
-                                       return_index=False,
-                                       train_transforms=CIFARTrainTransform(32),
-                                       val_transforms=CIFARLinearHeadTransform(32),
-                                       data_dir=None,
-                                       batch_size=5,
-                                       shuffle=False,
-                                       num_workers=0,
-                                       drop_last=True)
+    data_module = HimlVisionDataModule(
+        dataset_cls=HimlCifar10,
+        val_split=0.1,
+        return_index=False,
+        train_transforms=CIFARTrainTransform(32),
+        val_transforms=CIFARLinearHeadTransform(32),
+        data_dir=None,
+        batch_size=5,
+        shuffle=False,
+        num_workers=0,
+        drop_last=True,
+    )
     data_module.prepare_data()
     data_module.setup()
     assert len(data_module.dataset_train) == 45000
@@ -92,14 +94,16 @@ def test_vision_datamodule_with_return_index() -> None:
     Tests that the return index flag, modifies __getitem__ as expected i.e.
     returns the index on top of the transformed image and label.
     """
-    data_module = HimlVisionDataModule(dataset_cls=HimlCifar10,
-                                       return_index=True,
-                                       train_transforms=CIFARLinearHeadTransform(32),
-                                       val_transforms=None,
-                                       data_dir=None,
-                                       batch_size=5,
-                                       shuffle=False,
-                                       num_workers=0)
+    data_module = HimlVisionDataModule(
+        dataset_cls=HimlCifar10,
+        return_index=True,
+        train_transforms=CIFARLinearHeadTransform(32),
+        val_transforms=None,
+        data_dir=None,
+        batch_size=5,
+        shuffle=False,
+        num_workers=0,
+    )
     data_module.prepare_data()
     data_module.setup()
     training_batch = next(iter(data_module.train_dataloader()))
@@ -115,15 +119,19 @@ def test_get_transforms_in_ssl_container_for_cxr_data() -> None:
     Tests that the internal _get_transforms function returns data of the expected type of CXR.
     Tests that is_ssl_encoder_module induces the correct type of transform pipeline (dual vs single view).
     """
-    test_container = SSLContainer(linear_head_dataset_name=SSLDatasetName.RSNAKaggleCXR,
-                                  ssl_training_dataset_name=SSLDatasetName.NIHCXR,
-                                  ssl_augmentation_config=path_encoder_augmentation_cxr)
+    test_container = SSLContainer(
+        linear_head_dataset_name=SSLDatasetName.RSNAKaggleCXR,
+        ssl_training_dataset_name=SSLDatasetName.NIHCXR,
+        ssl_augmentation_config=path_encoder_augmentation_cxr,
+    )
     test_container._load_config()
-    dual_view_transform, _ = test_container._get_transforms(augmentation_config=test_container.ssl_augmentation_params,
-                                                            dataset_name=SSLDatasetName.NIHCXR,
-                                                            is_ssl_encoder_module=True)
+    dual_view_transform, _ = test_container._get_transforms(
+        augmentation_config=test_container.ssl_augmentation_params,
+        dataset_name=SSLDatasetName.NIHCXR,
+        is_ssl_encoder_module=True,
+    )
 
-    test_img = PIL.Image.fromarray(np.ones([312, 312]) * 255.).convert("L")
+    test_img = PIL.Image.fromarray(np.ones([312, 312]) * 255.0).convert("L")
     v1, v2 = dual_view_transform(test_img)
     # Images should be cropped to 224 x 224 and expanded to 3 channels according to config
     assert v1.shape == v2.shape == torch.Size([3, 224, 224])
@@ -135,7 +143,8 @@ def test_get_transforms_in_ssl_container_for_cxr_data() -> None:
     single_view_transform, _ = test_container._get_transforms(
         augmentation_config=test_container.ssl_augmentation_params,
         dataset_name=SSLDatasetName.NIHCXR,
-        is_ssl_encoder_module=False)
+        is_ssl_encoder_module=False,
+    )
     v1 = single_view_transform(test_img)
     # Images should be cropped to 224 x 224 and expanded to 3 channels according to config
     assert v1.shape == torch.Size([3, 224, 224])
@@ -148,9 +157,9 @@ def test_get_transforms_in_SSL_container_for_cifar_data() -> None:
     Tests that is_ssl_encoder_module induces the correct type of transform pipeline (dual vs single view).
     """
     test_container = SSLContainer()
-    dual_view_transform, _ = test_container._get_transforms(augmentation_config=None,
-                                                            dataset_name=SSLDatasetName.CIFAR10,
-                                                            is_ssl_encoder_module=True)
+    dual_view_transform, _ = test_container._get_transforms(
+        augmentation_config=None, dataset_name=SSLDatasetName.CIFAR10, is_ssl_encoder_module=True
+    )
     img_array_with_black_square = np.ones([32, 32, 3], dtype=np.uint8)
     img_array_with_black_square[10:20, 10:20, :] = 255
     test_img = PIL.Image.fromarray(img_array_with_black_square)
@@ -160,9 +169,9 @@ def test_get_transforms_in_SSL_container_for_cifar_data() -> None:
     # Two returned images should be different
     assert (v1 != v2).any()
 
-    single_view_transform, _ = test_container._get_transforms(augmentation_config=None,
-                                                              dataset_name=SSLDatasetName.CIFAR10,
-                                                              is_ssl_encoder_module=False)
+    single_view_transform, _ = test_container._get_transforms(
+        augmentation_config=None, dataset_name=SSLDatasetName.CIFAR10, is_ssl_encoder_module=False
+    )
     v1 = single_view_transform(test_img)
     # Images should be cropped to 224 x 224 and expanded to 3 channels according to config
     assert v1.shape == torch.Size([3, 32, 32])
@@ -172,49 +181,53 @@ def test_combined_data_module() -> None:
     """
     Tests the behavior of CombinedDataModule
     """
-    _, val_transform = get_ssl_transforms_from_config(cxr_augmentation_config,
-                                                      return_two_views_per_sample=False)
+    _, val_transform = get_ssl_transforms_from_config(cxr_augmentation_config, return_two_views_per_sample=False)
 
     # Datamodule expected to have 12 training batches - 3 val
-    long_data_module = HimlVisionDataModule(dataset_cls=RSNAKaggleCXR,
-                                            val_split=0.2,
-                                            return_index=True,
-                                            train_transforms=None,
-                                            val_transforms=val_transform,
-                                            data_dir=str(path_to_test_dataset),
-                                            # 300 images in total in test dataset
-                                            batch_size=20,
-                                            shuffle=False,
-                                            num_workers=0)
+    long_data_module = HimlVisionDataModule(
+        dataset_cls=RSNAKaggleCXR,
+        val_split=0.2,
+        return_index=True,
+        train_transforms=None,
+        val_transforms=val_transform,
+        data_dir=str(path_to_test_dataset),
+        # 300 images in total in test dataset
+        batch_size=20,
+        shuffle=False,
+        num_workers=0,
+    )
     long_data_module.setup()
     # Datamodule expected to have 4 training batches - 1 val
-    short_data_module = HimlVisionDataModule(dataset_cls=RSNAKaggleCXR,
-                                             val_split=0.2,
-                                             return_index=True,
-                                             train_transforms=None,
-                                             val_transforms=val_transform,
-                                             data_dir=str(path_to_test_dataset),
-                                             # 300 images in total in test dataset
-                                             batch_size=60,
-                                             shuffle=False,
-                                             num_workers=0)
+    short_data_module = HimlVisionDataModule(
+        dataset_cls=RSNAKaggleCXR,
+        val_split=0.2,
+        return_index=True,
+        train_transforms=None,
+        val_transforms=val_transform,
+        data_dir=str(path_to_test_dataset),
+        # 300 images in total in test dataset
+        batch_size=60,
+        shuffle=False,
+        num_workers=0,
+    )
     short_data_module.setup()
 
-    combined_loader = CombinedDataModule(encoder_module=long_data_module,
-                                         linear_head_module=short_data_module,
-                                         use_balanced_loss_linear_head=False)
+    combined_loader = CombinedDataModule(
+        encoder_module=long_data_module, linear_head_module=short_data_module, use_balanced_loss_linear_head=False
+    )
 
     assert combined_loader.num_classes == 2
     # we don't want to compute the weights for balanced loss
     assert combined_loader.class_weights is None
 
     # Check the behavior if we want to compute the weights for balanced loss
-    combined_loader = CombinedDataModule(encoder_module=long_data_module,
-                                         linear_head_module=short_data_module,
-                                         use_balanced_loss_linear_head=True)
+    combined_loader = CombinedDataModule(
+        encoder_module=long_data_module, linear_head_module=short_data_module, use_balanced_loss_linear_head=True
+    )
     assert combined_loader.class_weights is not None
-    assert torch.isclose(combined_loader.class_weights,
-                         torch.tensor([0.21, 0.79], dtype=torch.float32), atol=1e-3).all()
+    assert torch.isclose(
+        combined_loader.class_weights, torch.tensor([0.21, 0.79], dtype=torch.float32), atol=1e-3
+    ).all()
 
     indices_classifier_module_short = []
     val_dataloader = combined_loader.val_dataloader()
