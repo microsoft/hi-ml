@@ -109,11 +109,13 @@ def get_biovil_t_linear_image_classifier(biovilt_checkpoint_path: str) -> ImageM
     num_tasks = 8
 
     model_type = ImageEncoderType.RESNET50_MULTI_IMAGE
-    image_model = ImageModel(img_encoder_type=model_type,
-                             joint_feature_size=JOINT_FEATURE_SIZE,
-                             pretrained_model_path=biovilt_checkpoint_path,
-                             num_classes=num_classes,
-                             num_tasks=num_tasks,
-                             classifier_hidden_dim=None)
+    image_model = ImageModel(
+        img_encoder_type=model_type,
+        joint_feature_size=JOINT_FEATURE_SIZE,
+        pretrained_model_path=biovilt_checkpoint_path,
+        num_classes=num_classes,
+        num_tasks=num_tasks,
+        classifier_hidden_dim=None,
+    )
 
     return image_model
