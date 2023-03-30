@@ -95,7 +95,7 @@ class RunnerBase:
         # This is passed to trainer.validate and trainer.test in inference mode
         self.inference_checkpoint: Optional[str] = None
 
-    def validate() -> None:
+    def validate(self) -> None:
         """
         Checks if all arguments and settings of the object are correct.
         """
