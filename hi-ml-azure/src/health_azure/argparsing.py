@@ -198,18 +198,19 @@ def _enum_from_string(enum_class: Type[Enum]) -> Callable:
     :return: A parser function that maps the string to a an Enum value.
     """
     # Get a dictionary that maps lower case enum names to enum values
-    values = {}
-    for name, value in enum_class.__members__.items():
-        lower_value = value.lower()
-        if lower_value in values:
-            raise ValueError(f"Enum values must be unique when lower cased, but found: {lower_value}")
-        values[lower_value] = name
+    value_to_member = {}
+    for member in enum_class.__members__.values():
+        lower_value = str(member.value).lower()
+        if lower_value in value_to_member:
+            raise ValueError(f"Enum values must be unique when lower cased. Duplicate: {lower_value}")
+        value_to_member[lower_value] = member
 
-    correct_values = ", ".join(values.keys())
+    correct_values = ", ".join(value_to_member.keys())
+
     def parse_enum(x: str) -> Enum:
-        if x.lower() not in values:
-            raise ValueError(f"Invalid value '{x}' for enum {enum_class.__name__}. Must be one of {correct_values}")
-        return values[x.lower()]
+        if x.lower() not in value_to_member:
+            raise ValueError(f"Invalid value '{x}' for Enum {enum_class.__name__}. Must be one of {correct_values}")
+        return value_to_member[x.lower()]
 
     return parse_enum
 
@@ -279,7 +280,7 @@ def _add_overrideable_config_args_to_parser(config: param.Parameterized, parser:
 
             get_type = to_tuple
         elif isinstance(_p, param.ClassSelector):
-            get_type = _enum_from_string(_p.class_) if isinstance(_p.class_, Enum) else _p.class_
+            get_type = _enum_from_string(_p.class_) if issubclass(_p.class_, Enum) else _p.class_
         elif isinstance(_p, CustomTypeParam):
             get_type = _p.from_string
 

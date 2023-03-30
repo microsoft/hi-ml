@@ -509,14 +509,43 @@ def test_add_and_validate(dummy_model_config: DummyConfig) -> None:
     assert dummy_model_config.int_param == new_int_param
 
 
+def test_duplicate_enum() -> None:
+    """Test parsing of enum values where the values are not unique when lower cased."""
+
+    class DuplicateEnum(Enum):
+        A = "abc"
+        B = "ABC"
+
+    with pytest.raises(ValueError, match="Enum values must be unique when lower cased. Duplicate: abc"):
+        _enum_from_string(DuplicateEnum)
+
+
 def test_enum_from_string() -> None:
-    class CorrectEnum1(Enum):
+    """Test converting from strings to Enum cases."""
+
+    class MyEnum(Enum):
         A = 1
         B = 2
 
-    class CorrectEnum2(Enum):
-        A = "AA"
-        B = "BB"
+    parser = _enum_from_string(MyEnum)
+    with pytest.raises(ValueError, match="Invalid value 'A' for enum MyEnum. Must be one of 1, 2"):
+        parser("A")
 
-    with pytest.raises(ValueError, match="Invalid value 'A' for enum CorrectEnum1. Must be one of 1, 2"):
-        _enum_from_string(CorrectEnum1)("A")
+    assert parser("1") == MyEnum.A
+    assert parser("2") == MyEnum.B
+
+
+def test_parse_enum_from_param() -> None:
+    class MyEnum(Enum):
+        A = 1
+        B = 2
+
+    class MyParam(param.Parameterized):
+        my_enum = param.ClassSelector(class_=MyEnum, default=MyEnum.A)
+
+    config = MyParam()
+    parse_args_and_update_config(config, ["--my_enum", "2"])
+    assert config.my_enum == MyEnum.B
+
+    with pytest.raises(ArgumentError, match="argument --my_enum: invalid parse_enum value: 'A'"):
+        parse_args_and_update_config(config, ["--my_enum", "A"])
