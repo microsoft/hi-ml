@@ -12,7 +12,7 @@ from health_ml.configs.hello_world import (
     HelloWorldDataModule,
 )
 from health_ml.eval_runner import EvalRunner
-from health_ml.experiment_config import ExperimentConfig
+from health_ml.experiment_config import ExperimentConfig, RunnerMode
 from health_ml.runner import Runner
 from health_ml.utils.checkpoint_utils import CheckpointParser
 from testhiml.test_run_ml import ml_runner_with_container
@@ -56,7 +56,7 @@ def test_eval_runner_methods_called(hello_world_checkpoint: Path, tmp_path: Path
     container = HelloWorld()
     container.src_checkpoint = CheckpointParser(hello_world_checkpoint)
     eval_runner = EvalRunner(
-        container=container, experiment_config=ExperimentConfig(mode="eval"), project_root=tmp_path
+        container=container, experiment_config=ExperimentConfig(mode=RunnerMode.EVAL), project_root=tmp_path
     )
     with patch("health_ml.configs.hello_world.HelloWorld.get_eval_data_module") as mock_get_data_module:
         mock_get_data_module.return_value = HelloWorldDataModule(crossval_count=1, seed=1)

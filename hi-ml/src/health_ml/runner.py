@@ -47,7 +47,7 @@ from health_azure.utils import (  # noqa: E402
 )
 
 from health_ml.eval_runner import EvalRunner  # noqa: E402
-from health_ml.experiment_config import DEBUG_DDP_ENV_VAR, ExperimentConfig  # noqa: E402
+from health_ml.experiment_config import DEBUG_DDP_ENV_VAR, ExperimentConfig, RunnerMode  # noqa: E402
 from health_ml.lightning_container import LightningContainer  # noqa: E402
 from health_ml.ml_runner import MLRunner  # noqa: E402
 from health_ml.utils import fixed_paths  # noqa: E402
@@ -326,7 +326,7 @@ class Runner:
             assert azure_run_info.run is not None
             azure_run_info.run.set_tags(self.additional_run_tags(sys.argv[1:]))
 
-        if self.experiment_config.mode == "train":
+        if self.experiment_config.mode == RunnerMode.TRAIN:
             # Set environment variables for multi-node training if needed. This function will terminate early
             # if it detects that it is not in a multi-node environment.
             if self.experiment_config.num_nodes > 1:
@@ -338,7 +338,7 @@ class Runner:
             )
             self.ml_runner.validate()
             self.ml_runner.run_and_cleanup(azure_run_info)
-        elif self.experiment_config.mode == "eval":
+        elif self.experiment_config.mode == RunnerMode.EVAL:
             self.eval_runner = EvalRunner(
                 experiment_config=self.experiment_config,
                 container=self.lightning_container,
