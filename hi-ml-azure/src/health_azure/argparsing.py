@@ -13,10 +13,11 @@ from argparse import (
     Namespace,
 )
 from dataclasses import dataclass
+from enum import Enum
 import json
 import logging
 import sys
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Type, Union
 import param
 
 
@@ -189,6 +190,30 @@ def create_argparser(
     return parser
 
 
+def _enum_from_string(enum_class: Type[Enum]) -> Callable:
+    """
+    Parse a string as an enum. The string must be a valid member of the enum, but matching is not case sensitive.
+
+    :param enum_class: Enum class to parse string as.
+    :return: A parser function that maps the string to a an Enum value.
+    """
+    # Get a dictionary that maps lower case enum names to enum values
+    values = {}
+    for name, value in enum_class.__members__.items():
+        lower_value = value.lower()
+        if lower_value in values:
+            raise ValueError(f"Enum values must be unique when lower cased, but found: {lower_value}")
+        values[lower_value] = name
+
+    correct_values = ", ".join(values.keys())
+    def parse_enum(x: str) -> Enum:
+        if x.lower() not in values:
+            raise ValueError(f"Invalid value '{x}' for enum {enum_class.__name__}. Must be one of {correct_values}")
+        return values[x.lower()]
+
+    return parse_enum
+
+
 def _add_overrideable_config_args_to_parser(config: param.Parameterized, parser: ArgumentParser) -> ArgumentParser:
     """
     Adds all overridable fields of the config class to the given argparser.
@@ -254,7 +279,7 @@ def _add_overrideable_config_args_to_parser(config: param.Parameterized, parser:
 
             get_type = to_tuple
         elif isinstance(_p, param.ClassSelector):
-            get_type = _p.class_
+            get_type = _enum_from_string(_p.class_) if isinstance(_p.class_, Enum) else _p.class_
         elif isinstance(_p, CustomTypeParam):
             get_type = _p.from_string
 

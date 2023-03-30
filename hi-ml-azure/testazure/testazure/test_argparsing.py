@@ -20,6 +20,7 @@ from health_azure.argparsing import (
     IntTuple,
     ListOrDictParam,
     _add_overrideable_config_args_to_parser,
+    _enum_from_string,
     apply_overrides,
     create_argparser,
     get_overridable_parameters,
@@ -506,3 +507,16 @@ def test_add_and_validate(dummy_model_config: DummyConfig) -> None:
 
     assert dummy_model_config.string_param == new_string_param
     assert dummy_model_config.int_param == new_int_param
+
+
+def test_enum_from_string() -> None:
+    class CorrectEnum1(Enum):
+        A = 1
+        B = 2
+
+    class CorrectEnum2(Enum):
+        A = "AA"
+        B = "BB"
+
+    with pytest.raises(ValueError, match="Invalid value 'A' for enum CorrectEnum1. Must be one of 1, 2"):
+        _enum_from_string(CorrectEnum1)("A")
