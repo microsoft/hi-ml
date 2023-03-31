@@ -83,12 +83,12 @@ check: flake8 mypy pyright black
 
 # bump version from specified part (major, minor or patch) (dry run). Usage:
 # $ make bump_version_dry part=patch
-bump_version_dry:
+bump_version_dry: pip_test
 	bump2version $(part) --verbose --dry-run --allow-dirty
 
 # bump version from specified part (major, minor or patch). Usage:
 # $ make bump_version part=patch
-bump_version:
+bump_version: pip_test
 	bump2version $(part) --verbose
 
 # build Python package
