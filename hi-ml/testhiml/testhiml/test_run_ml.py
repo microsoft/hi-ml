@@ -28,9 +28,10 @@ from health_ml.utils.common_utils import EFFECTIVE_RANDOM_SEED_KEY_NAME, is_gpu_
 from health_ml.utils.lightning_loggers import HimlMLFlowLogger, StoringLogger, get_mlflow_run_id_from_trainer
 from health_azure.utils import ENV_EXPERIMENT_NAME, is_global_rank_zero
 from testazure.utils_testazure import DEFAULT_WORKSPACE, experiment_for_unittests
-from testhiml.utils.fixed_paths_for_tests import mock_run_id
+from testhiml.utils.fixed_paths_for_tests import full_test_data_path, mock_run_id
 
 no_gpu = not is_gpu_available()
+hello_world_checkpoint = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
 
 
 @pytest.fixture()
@@ -69,11 +70,14 @@ def ml_runner_with_container(tmp_path: Path) -> Generator:
 
 
 @pytest.fixture()
-def ml_runner_with_run_id() -> Generator:
+def ml_runner_with_src_ckpt() -> Generator:
+    """
+    A fixture with a training runner for the HelloWorld model that has a src_checkpoint set.
+    """
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     container.save_checkpoint = True
-    container.src_checkpoint = CheckpointParser(mock_run_id(id=0))
+    container.src_checkpoint = CheckpointParser(hello_world_checkpoint)
     runner = TrainingRunner(experiment_config=experiment_config, container=container)
     runner.setup()
     yield runner
@@ -267,49 +271,52 @@ def test_end_training(max_num_gpus_inf: int) -> None:
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
 @pytest.mark.parametrize("run_inference_only", [True, False])
 def test_init_inference(
-    run_inference_only: bool, run_extra_val_epoch: bool, max_num_gpus_inf: int, ml_runner_with_run_id: TrainingRunner
+    run_inference_only: bool,
+    run_extra_val_epoch: bool,
+    max_num_gpus_inf: int,
+    ml_runner_with_src_ckpt: TrainingRunner,
 ) -> None:
-    ml_runner_with_run_id.container.run_inference_only = run_inference_only
-    ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
-    ml_runner_with_run_id.container.max_num_gpus_inference = max_num_gpus_inf
-    assert ml_runner_with_run_id.container.max_num_gpus == -1  # This is the default value of max_num_gpus
-    ml_runner_with_run_id.init_training()
+    ml_runner_with_src_ckpt.container.run_inference_only = run_inference_only
+    ml_runner_with_src_ckpt.container.run_extra_val_epoch = run_extra_val_epoch
+    ml_runner_with_src_ckpt.container.max_num_gpus_inference = max_num_gpus_inf
+    assert ml_runner_with_src_ckpt.container.max_num_gpus == -1  # This is the default value of max_num_gpus
+    ml_runner_with_src_ckpt.init_training()
     if run_inference_only:
         expected_mlflow_run_id = None
     else:
-        assert ml_runner_with_run_id.trainer is not None
-        expected_mlflow_run_id = ml_runner_with_run_id.trainer.loggers[1].run_id  # type: ignore
+        assert ml_runner_with_src_ckpt.trainer is not None
+        expected_mlflow_run_id = ml_runner_with_src_ckpt.trainer.loggers[1].run_id  # type: ignore
     if not run_inference_only:
-        ml_runner_with_run_id.checkpoint_handler.additional_training_done()
+        ml_runner_with_src_ckpt.checkpoint_handler.additional_training_done()
     with patch("health_ml.runner_base.create_lightning_trainer") as mock_create_trainer:
-        with patch.object(ml_runner_with_run_id.container, "get_checkpoint_to_test") as mock_get_checkpoint_to_test:
-            with patch.object(ml_runner_with_run_id.container, "get_data_module") as mock_get_data_module:
+        with patch.object(ml_runner_with_src_ckpt.container, "get_checkpoint_to_test") as mock_get_checkpoint_to_test:
+            with patch.object(ml_runner_with_src_ckpt.container, "get_data_module") as mock_get_data_module:
                 mock_checkpoint = MagicMock(is_file=MagicMock(return_value=True))
                 mock_get_checkpoint_to_test.return_value = mock_checkpoint
                 mock_trainer = MagicMock()
                 mock_create_trainer.return_value = mock_trainer, MagicMock()
                 mock_get_data_module.return_value = "dummy_data_module"
 
-                assert ml_runner_with_run_id.inference_checkpoint is None
-                assert not ml_runner_with_run_id.container.model._on_extra_val_epoch
+                assert ml_runner_with_src_ckpt.inference_checkpoint is None
+                assert not ml_runner_with_src_ckpt.container.model._on_extra_val_epoch
 
-                ml_runner_with_run_id.init_inference()
+                ml_runner_with_src_ckpt.init_inference()
 
-                expected_ckpt = str(ml_runner_with_run_id.checkpoint_handler.trained_weights_path)
+                expected_ckpt = str(ml_runner_with_src_ckpt.checkpoint_handler.trained_weights_path)
                 expected_ckpt = expected_ckpt if run_inference_only else str(mock_checkpoint)
-                assert ml_runner_with_run_id.inference_checkpoint == expected_ckpt
+                assert ml_runner_with_src_ckpt.inference_checkpoint == expected_ckpt
 
-                assert hasattr(ml_runner_with_run_id.container.model, "on_run_extra_validation_epoch")
-                assert ml_runner_with_run_id.container.model._on_extra_val_epoch == run_extra_val_epoch
+                assert hasattr(ml_runner_with_src_ckpt.container.model, "on_run_extra_validation_epoch")
+                assert ml_runner_with_src_ckpt.container.model._on_extra_val_epoch == run_extra_val_epoch
 
                 mock_create_trainer.assert_called_once()
-                assert ml_runner_with_run_id.trainer == mock_trainer
-                assert ml_runner_with_run_id.container.max_num_gpus == max_num_gpus_inf
-                assert mock_create_trainer.call_args[1]["container"] == ml_runner_with_run_id.container
+                assert ml_runner_with_src_ckpt.trainer == mock_trainer
+                assert ml_runner_with_src_ckpt.container.max_num_gpus == max_num_gpus_inf
+                assert mock_create_trainer.call_args[1]["container"] == ml_runner_with_src_ckpt.container
                 assert mock_create_trainer.call_args[1]["num_nodes"] == 1
                 assert mock_create_trainer.call_args[1]["mlflow_run_for_logging"] == expected_mlflow_run_id
                 mock_get_data_module.assert_called_once()
-                assert ml_runner_with_run_id.data_module == "dummy_data_module"
+                assert ml_runner_with_src_ckpt.data_module == "dummy_data_module"
 
 
 @pytest.mark.parametrize("run_inference_only", [True, False])
@@ -317,24 +324,24 @@ def test_init_inference(
 def test_run_validation(
     run_extra_val_epoch: bool,
     run_inference_only: bool,
-    ml_runner_with_run_id: TrainingRunner,
+    ml_runner_with_src_ckpt: TrainingRunner,
     caplog: LogCaptureFixture,
 ) -> None:
-    ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
-    ml_runner_with_run_id.container.run_inference_only = run_inference_only
-    ml_runner_with_run_id.init_training()
+    ml_runner_with_src_ckpt.container.run_extra_val_epoch = run_extra_val_epoch
+    ml_runner_with_src_ckpt.container.run_inference_only = run_inference_only
+    ml_runner_with_src_ckpt.init_training()
     mock_datamodule = MagicMock()
     with patch("health_ml.runner_base.create_lightning_trainer") as mock_create_trainer:
-        with patch.object(ml_runner_with_run_id.container, "get_data_module", return_value=mock_datamodule):
+        with patch.object(ml_runner_with_src_ckpt.container, "get_data_module", return_value=mock_datamodule):
             mock_trainer = MagicMock()
             mock_create_trainer.return_value = mock_trainer, MagicMock()
-            ml_runner_with_run_id.init_inference()
-            assert ml_runner_with_run_id.trainer == mock_trainer
+            ml_runner_with_src_ckpt.init_inference()
+            assert ml_runner_with_src_ckpt.trainer == mock_trainer
             mock_trainer.validate = Mock()
-            ml_runner_with_run_id.run_validation()
+            ml_runner_with_src_ckpt.run_validation()
             if run_extra_val_epoch or run_inference_only:
                 mock_trainer.validate.assert_called_once()
-                assert mock_trainer.validate.call_args[1]["ckpt_path"] == ml_runner_with_run_id.inference_checkpoint
+                assert mock_trainer.validate.call_args[1]["ckpt_path"] == ml_runner_with_src_ckpt.inference_checkpoint
                 assert mock_trainer.validate.call_args[1]["datamodule"] == mock_datamodule
             else:
                 assert "Skipping extra validation" in caplog.messages[-1]
@@ -427,45 +434,45 @@ def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with
 
 
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
-def test_run_inference_only(run_extra_val_epoch: bool, ml_runner_with_run_id: TrainingRunner) -> None:
+def test_run_inference_only(run_extra_val_epoch: bool, ml_runner_with_src_ckpt: TrainingRunner) -> None:
     """Test inference only mode. Validation should be run regardless of run_extra_val_epoch status."""
-    ml_runner_with_run_id.container.run_inference_only = True
-    ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
-    assert ml_runner_with_run_id.checkpoint_handler.trained_weights_path
+    ml_runner_with_src_ckpt.container.run_inference_only = True
+    ml_runner_with_src_ckpt.container.run_extra_val_epoch = run_extra_val_epoch
+    assert ml_runner_with_src_ckpt.checkpoint_handler.trained_weights_path
     mock_datamodule = MagicMock()
     with patch("health_ml.runner_base.create_lightning_trainer") as mock_create_trainer:
-        with patch.object(ml_runner_with_run_id.container, "get_data_module", return_value=mock_datamodule):
+        with patch.object(ml_runner_with_src_ckpt.container, "get_data_module", return_value=mock_datamodule):
             with patch.multiple(
-                ml_runner_with_run_id,
+                ml_runner_with_src_ckpt,
                 run_training=mock.DEFAULT,
             ) as mocks:
                 mock_trainer = MagicMock()
                 mock_create_trainer.return_value = mock_trainer, MagicMock()
-                ml_runner_with_run_id.run()
+                ml_runner_with_src_ckpt.run()
                 mock_create_trainer.assert_called_once()
                 mocks["run_training"].assert_not_called()
 
                 mock_trainer.validate.assert_called_once()
-                assert mock_trainer.validate.call_args[1]["ckpt_path"] == ml_runner_with_run_id.inference_checkpoint
+                assert mock_trainer.validate.call_args[1]["ckpt_path"] == ml_runner_with_src_ckpt.inference_checkpoint
                 assert mock_trainer.validate.call_args[1]["datamodule"] == mock_datamodule
                 mock_trainer.test.assert_called_once()
-                assert mock_trainer.test.call_args[1]["ckpt_path"] == ml_runner_with_run_id.inference_checkpoint
+                assert mock_trainer.test.call_args[1]["ckpt_path"] == ml_runner_with_src_ckpt.inference_checkpoint
                 assert mock_trainer.test.call_args[1]["datamodule"] == mock_datamodule
 
 
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
-def test_resume_training_from_run_id(run_extra_val_epoch: bool, ml_runner_with_run_id: TrainingRunner) -> None:
-    ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
-    ml_runner_with_run_id.container.max_num_gpus = 0
-    ml_runner_with_run_id.container.max_epochs += 10
-    assert ml_runner_with_run_id.checkpoint_handler.trained_weights_path
+def test_resume_training_from_run_id(run_extra_val_epoch: bool, ml_runner_with_src_ckpt: TrainingRunner) -> None:
+    ml_runner_with_src_ckpt.container.run_extra_val_epoch = run_extra_val_epoch
+    ml_runner_with_src_ckpt.container.max_num_gpus = 0
+    ml_runner_with_src_ckpt.container.max_epochs += 10
+    assert ml_runner_with_src_ckpt.checkpoint_handler.trained_weights_path
     mock_trainer = MagicMock()
     with patch("health_ml.runner_base.create_lightning_trainer", return_value=(mock_trainer, MagicMock())):
-        with patch.object(ml_runner_with_run_id.container, "get_checkpoint_to_test") as mock_get_checkpoint_to_test:
-            with patch.object(ml_runner_with_run_id, "run_inference") as mock_run_inference:
+        with patch.object(ml_runner_with_src_ckpt.container, "get_checkpoint_to_test") as mock_get_checkpoint_to_test:
+            with patch.object(ml_runner_with_src_ckpt, "run_inference") as mock_run_inference:
                 with patch("health_ml.training_runner.cleanup_checkpoints") as mock_cleanup_ckpt:
                     mock_get_checkpoint_to_test.return_value = MagicMock(is_file=MagicMock(return_value=True))
-                    ml_runner_with_run_id.run()
+                    ml_runner_with_src_ckpt.run()
                     mock_get_checkpoint_to_test.assert_called_once()
                     mock_cleanup_ckpt.assert_called_once()
                     assert mock_trainer.validate.called == run_extra_val_epoch
@@ -476,7 +483,7 @@ def test_model_weights_when_resume_training() -> None:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     container.max_num_gpus = 0
-    container.src_checkpoint = CheckpointParser(mock_run_id(id=0))
+    container.src_checkpoint = CheckpointParser(hello_world_checkpoint)
     container.resume_training = True
     runner = TrainingRunner(experiment_config=experiment_config, container=container)
     runner.setup()
@@ -555,13 +562,13 @@ def test_get_mlflow_run_id_from_trainer() -> None:
         assert run_id == mock_run_id
 
 
-def test_inference_only_metrics_correctness(ml_runner_with_run_id: TrainingRunner, regression_datadir: Path) -> None:
-    ml_runner_with_run_id.container.run_inference_only = True
-    ml_runner_with_run_id.container.local_dataset_dir = regression_datadir
-    ml_runner_with_run_id.run()
-    with open(ml_runner_with_run_id.container.outputs_folder / TEST_MSE_FILE) as f:
+def test_inference_only_metrics_correctness(ml_runner_with_src_ckpt: TrainingRunner, regression_datadir: Path) -> None:
+    ml_runner_with_src_ckpt.container.run_inference_only = True
+    ml_runner_with_src_ckpt.container.local_dataset_dir = regression_datadir
+    ml_runner_with_src_ckpt.run()
+    with open(ml_runner_with_src_ckpt.container.outputs_folder / TEST_MSE_FILE) as f:
         mse = float(f.readlines()[0])
     assert isclose(mse, 0.010806690901517868, abs_tol=1e-3)
-    with open(ml_runner_with_run_id.container.outputs_folder / TEST_MAE_FILE) as f:
+    with open(ml_runner_with_src_ckpt.container.outputs_folder / TEST_MAE_FILE) as f:
         mae = float(f.readlines()[0])
     assert isclose(mae, 0.08260975033044815, abs_tol=1e-3)
