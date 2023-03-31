@@ -56,7 +56,7 @@ from azure.identity import (
     InteractiveBrowserCredential,
 )
 
-from health_azure.argparsing import RunIdOrListParam
+from health_azure.argparsing import EXPERIMENT_RUN_SEPARATOR, RunIdOrListParam
 
 
 logger = logging.getLogger(__name__)

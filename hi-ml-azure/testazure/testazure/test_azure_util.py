@@ -34,6 +34,7 @@ from azure.core.exceptions import ClientAuthenticationError, ResourceNotFoundErr
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
 import health_azure.utils as util
+from health_azure.argparsing import EXPERIMENT_RUN_SEPARATOR
 from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore, effective_experiment_name
 from health_azure.utils import (
     ENV_MASTER_ADDR,
@@ -91,7 +92,7 @@ def test_create_run_recovery_id(mock_run: MagicMock) -> None:
     mock_run.id = RUN_ID
     mock_run.experiment.name = EXPERIMENT_NAME
     recovery_id = util.create_run_recovery_id(mock_run)
-    assert recovery_id == EXPERIMENT_NAME + util.EXPERIMENT_RUN_SEPARATOR + RUN_ID
+    assert recovery_id == EXPERIMENT_NAME + EXPERIMENT_RUN_SEPARATOR + RUN_ID
 
 
 @patch("health_azure.utils.Workspace")
@@ -101,7 +102,7 @@ def test_fetch_run(mock_run: MagicMock, mock_experiment: MagicMock, mock_workspa
     mock_run.id = RUN_ID
     mock_run.experiment = mock_experiment
     mock_experiment.name = EXPERIMENT_NAME
-    recovery_id = EXPERIMENT_NAME + util.EXPERIMENT_RUN_SEPARATOR + RUN_ID
+    recovery_id = EXPERIMENT_NAME + EXPERIMENT_RUN_SEPARATOR + RUN_ID
     mock_run.number = RUN_NUMBER
     with mock.patch("health_azure.utils.get_run", return_value=mock_run):
         run_to_recover = util.fetch_run(mock_workspace, recovery_id)
@@ -146,7 +147,7 @@ def test_split_recovery_id_fails() -> None:
     Other tests test the main branch of split_recovery_id, but they do not test the exceptions
     """
     with pytest.raises(ValueError) as e:
-        id = util.EXPERIMENT_RUN_SEPARATOR.join([str(i) for i in range(3)])
+        id = EXPERIMENT_RUN_SEPARATOR.join([str(i) for i in range(3)])
         util.split_recovery_id(id)
         assert str(e.value) == f"recovery_id must be in the format: 'experiment_name:run_id', but got: {id}"
     with pytest.raises(ValueError) as e:
@@ -1060,15 +1061,15 @@ def test_get_latest_aml_run_from_experiment_remote() -> None:
 @pytest.mark.parametrize("mock_run_id", ["run_abc_123", "experiment1:run_bcd_456"])
 def test_get_aml_run_from_run_id(mock_workspace: MagicMock, mock_run_id: str) -> None:
     def _mock_get_run(run_id: str) -> MockRun:
-        if len(mock_run_id.split(util.EXPERIMENT_RUN_SEPARATOR)) > 1:
-            return MockRun(mock_run_id.split(util.EXPERIMENT_RUN_SEPARATOR)[1])
+        if len(mock_run_id.split(EXPERIMENT_RUN_SEPARATOR)) > 1:
+            return MockRun(mock_run_id.split(EXPERIMENT_RUN_SEPARATOR)[1])
         return MockRun(mock_run_id)
 
     mock_workspace.get_run = _mock_get_run
 
     aml_run = util.get_aml_run_from_run_id(mock_run_id, aml_workspace=mock_workspace)
-    if len(mock_run_id.split(util.EXPERIMENT_RUN_SEPARATOR)) > 1:
-        mock_run_id = mock_run_id.split(util.EXPERIMENT_RUN_SEPARATOR)[1]
+    if len(mock_run_id.split(EXPERIMENT_RUN_SEPARATOR)) > 1:
+        mock_run_id = mock_run_id.split(EXPERIMENT_RUN_SEPARATOR)[1]
 
     assert aml_run.id == mock_run_id
 
@@ -1475,8 +1476,8 @@ def test_script_config_run_src(arguments: List[str], run_id: Union[str, List[str
             for script_config_run, expected_run_id in zip(script_config.run, run_id):
                 assert script_config_run == expected_run_id
         else:
-            if len(run_id.split(util.EXPERIMENT_RUN_SEPARATOR)) > 1:
-                assert script_config.run == [run_id.split(util.EXPERIMENT_RUN_SEPARATOR)[1]]
+            if len(run_id.split(EXPERIMENT_RUN_SEPARATOR)) > 1:
+                assert script_config.run == [run_id.split(EXPERIMENT_RUN_SEPARATOR)[1]]
             else:
                 assert script_config.run == [run_id]
 
