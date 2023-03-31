@@ -237,8 +237,8 @@ def test_convert_wsi_to_tiff_existing_empty_file(
     assert tiff_path.stat().st_size > 0
     messages = caplog.messages
     assert "Converted" in messages[0]
-    assert "Source file size in 0.02 MB" in messages[1]
-    assert "Tiff file size in 0.01 MB" in messages[1]
+    assert "Source file size 0.02 MB" in messages[1]
+    assert "Tiff file size 0.01 MB" in messages[2]
 
 
 def test_tiff_conversion_config(mock_panda_slides_root_dir: Path, tmp_path: Path) -> None:
