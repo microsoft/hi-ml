@@ -21,6 +21,7 @@ from pytorch_lightning import Trainer
 from health_ml.configs.hello_world import TEST_MAE_FILE, TEST_MSE_FILE, HelloWorld  # type: ignore
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
+from health_ml.runner_base import RunnerBase
 from health_ml.training_runner import TrainingRunner
 from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.checkpoint_utils import CheckpointParser
@@ -77,7 +78,7 @@ def ml_runner_with_src_ckpt() -> Generator:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     container.save_checkpoint = True
-    container.src_checkpoint = CheckpointParser(hello_world_checkpoint)
+    container.src_checkpoint = CheckpointParser(str(hello_world_checkpoint))
     runner = TrainingRunner(experiment_config=experiment_config, container=container)
     runner.setup()
     yield runner
@@ -97,6 +98,15 @@ def regression_datadir(tmp_path: Path) -> Generator:
     np.savetxt(data_path, xy.numpy(), delimiter=",")
     yield tmp_path
     shutil.rmtree(tmp_path)
+
+
+def create_mlflow_trash_folder(runner: RunnerBase):
+    """Create a trash folder where MLFlow expects its deleted runs.
+    This is a workaround for sporadic test failures: When reading out the run_id, MLFlow checks its own
+    deleted runs folder, but that (or one of its parents) does not exist
+    """
+    trash_folder = runner.container.outputs_folder / "mlruns" / ".trash"
+    trash_folder.mkdir(exist_ok=True, parents=True)
 
 
 def test_ml_runner_setup(ml_runner_no_setup: TrainingRunner) -> None:
@@ -285,6 +295,7 @@ def test_init_inference(
         expected_mlflow_run_id = None
     else:
         assert ml_runner_with_src_ckpt.trainer is not None
+        create_mlflow_trash_folder(ml_runner_with_src_ckpt)
         expected_mlflow_run_id = ml_runner_with_src_ckpt.trainer.loggers[1].run_id  # type: ignore
     if not run_inference_only:
         ml_runner_with_src_ckpt.checkpoint_handler.additional_training_done()
@@ -331,6 +342,7 @@ def test_run_validation(
     ml_runner_with_src_ckpt.container.run_inference_only = run_inference_only
     ml_runner_with_src_ckpt.init_training()
     mock_datamodule = MagicMock()
+    create_mlflow_trash_folder(ml_runner_with_src_ckpt)
     with patch("health_ml.runner_base.create_lightning_trainer") as mock_create_trainer:
         with patch.object(ml_runner_with_src_ckpt.container, "get_data_module", return_value=mock_datamodule):
             mock_trainer = MagicMock()
@@ -483,7 +495,7 @@ def test_model_weights_when_resume_training() -> None:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     container.max_num_gpus = 0
-    container.src_checkpoint = CheckpointParser(hello_world_checkpoint)
+    container.src_checkpoint = CheckpointParser(str(hello_world_checkpoint))
     container.resume_training = True
     runner = TrainingRunner(experiment_config=experiment_config, container=container)
     runner.setup()
