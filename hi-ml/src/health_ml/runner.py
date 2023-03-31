@@ -49,7 +49,7 @@ from health_azure.utils import (  # noqa: E402
 from health_ml.eval_runner import EvalRunner  # noqa: E402
 from health_ml.experiment_config import DEBUG_DDP_ENV_VAR, ExperimentConfig, RunnerMode  # noqa: E402
 from health_ml.lightning_container import LightningContainer  # noqa: E402
-from health_ml.training_runner import MLRunner  # noqa: E402
+from health_ml.training_runner import TrainingRunner  # noqa: E402
 from health_ml.utils import fixed_paths  # noqa: E402
 from health_ml.utils.logging import ConsoleAndFileOutput  # noqa: E402
 from health_ml.utils.common_utils import check_conda_environment, choose_conda_env_file, is_linux  # noqa: E402
@@ -105,8 +105,8 @@ class Runner:
         self.project_root = project_root
         self.experiment_config: ExperimentConfig = ExperimentConfig()
         self.lightning_container: LightningContainer = None  # type: ignore
-        # This field stores the MLRunner object that has been created in the most recent call to the run() method.
-        self.ml_runner: Optional[MLRunner] = None
+        # This field stores the TrainingRunner object that has been created in the most recent call to the run() method.
+        self.ml_runner: Optional[TrainingRunner] = None
 
     def parse_and_load_model(self) -> ParserResult:
         """
@@ -331,7 +331,7 @@ class Runner:
             # if it detects that it is not in a multi-node environment.
             if self.experiment_config.num_nodes > 1:
                 set_environment_variables_for_multi_node()
-            self.ml_runner = MLRunner(
+            self.ml_runner = TrainingRunner(
                 experiment_config=self.experiment_config,
                 container=self.lightning_container,
                 project_root=self.project_root,

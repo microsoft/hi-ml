@@ -34,7 +34,7 @@ from health_ml.utils.common_utils import (
 from health_ml.utils.regression_test_utils import REGRESSION_TEST_METRICS_FILENAME, compare_folders_and_run_outputs
 
 
-class MLRunner(RunnerBase):
+class TrainingRunner(RunnerBase):
     def get_data_module(self) -> LightningDataModule:
         return self.container.get_data_module()
 

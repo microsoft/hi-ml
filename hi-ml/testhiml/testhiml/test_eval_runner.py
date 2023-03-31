@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from health_ml import MLRunner
+from health_ml import TrainingRunner
 from health_ml.configs.hello_world import (
     TEST_MAE_FILE,
     TEST_MSE_FILE,
@@ -19,7 +19,7 @@ from testhiml.test_run_ml import ml_runner_with_container
 
 
 @pytest.fixture(scope="function")
-def hello_world_checkpoint(ml_runner_with_container: MLRunner, tmp_path: Path) -> Path:
+def hello_world_checkpoint(ml_runner_with_container: TrainingRunner, tmp_path: Path) -> Path:
     container = ml_runner_with_container.container
     container.set_output_to(tmp_path)
     container.max_epochs = 5
@@ -39,7 +39,7 @@ def test_eval_runner_no_checkpoint(mock_runner: Runner) -> None:
 def test_eval_runner_end_to_end(mock_runner: Runner, hello_world_checkpoint: Path) -> None:
     """Test the end-to-end integration of the EvalRunner class into the overall Runner"""
     arguments = ["", f"--model=HelloWorld", "--mode=eval", f"--src_checkpoint={hello_world_checkpoint}"]
-    with patch("health_ml.training_runner.MLRunner.run_and_cleanup") as mock_training_run:
+    with patch("health_ml.training_runner.TrainingRunner.run_and_cleanup") as mock_training_run:
         with patch.object(sys, "argv", arguments):
             mock_runner.run()
         # The training runner should not be invoked

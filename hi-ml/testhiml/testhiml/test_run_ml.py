@@ -21,7 +21,7 @@ from pytorch_lightning import Trainer
 from health_ml.configs.hello_world import TEST_MAE_FILE, TEST_MSE_FILE, HelloWorld  # type: ignore
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
-from health_ml.training_runner import MLRunner
+from health_ml.training_runner import TrainingRunner
 from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_ml.utils.common_utils import EFFECTIVE_RANDOM_SEED_KEY_NAME, is_gpu_available
@@ -34,11 +34,11 @@ no_gpu = not is_gpu_available()
 
 
 @pytest.fixture()
-def ml_runner_no_setup(tmp_path: Path) -> MLRunner:
+def ml_runner_no_setup(tmp_path: Path) -> TrainingRunner:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = LightningContainer(num_epochs=1)
     container.set_output_to(tmp_path)
-    runner = MLRunner(experiment_config=experiment_config, container=container)
+    runner = TrainingRunner(experiment_config=experiment_config, container=container)
     return runner
 
 
@@ -47,7 +47,7 @@ def ml_runner(tmp_path: Path) -> Generator:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = LightningContainer(num_epochs=1)
     container.set_output_to(tmp_path)
-    runner = MLRunner(experiment_config=experiment_config, container=container)
+    runner = TrainingRunner(experiment_config=experiment_config, container=container)
     runner.setup()
     yield runner
     output_dir = runner.container.file_system_config.outputs_folder
@@ -60,7 +60,7 @@ def ml_runner_with_container(tmp_path: Path) -> Generator:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     container.set_output_to(tmp_path)
-    runner = MLRunner(experiment_config=experiment_config, container=container)
+    runner = TrainingRunner(experiment_config=experiment_config, container=container)
     runner.setup()
     yield runner
     output_dir = runner.container.file_system_config.outputs_folder
@@ -74,7 +74,7 @@ def ml_runner_with_run_id() -> Generator:
     container = HelloWorld()
     container.save_checkpoint = True
     container.src_checkpoint = CheckpointParser(mock_run_id(id=0))
-    runner = MLRunner(experiment_config=experiment_config, container=container)
+    runner = TrainingRunner(experiment_config=experiment_config, container=container)
     runner.setup()
     yield runner
     output_dir = runner.container.file_system_config.outputs_folder
@@ -95,7 +95,7 @@ def regression_datadir(tmp_path: Path) -> Generator:
     shutil.rmtree(tmp_path)
 
 
-def test_ml_runner_setup(ml_runner_no_setup: MLRunner) -> None:
+def test_ml_runner_setup(ml_runner_no_setup: TrainingRunner) -> None:
     """Check that all the necessary methods get called during setup"""
     assert not ml_runner_no_setup._has_setup_run
     with patch.object(ml_runner_no_setup, "container", spec=LightningContainer) as mock_container:
@@ -115,7 +115,7 @@ def test_ml_runner_setup(ml_runner_no_setup: MLRunner) -> None:
                     assert ml_runner_no_setup._has_setup_run
 
 
-def test_setup_azureml(ml_runner: MLRunner) -> None:
+def test_setup_azureml(ml_runner: TrainingRunner) -> None:
     """Test that setup_azureml causes set_tags to get called when running in Hyperdrive"""
     with patch("health_ml.runner_base.RUN_CONTEXT") as mock_run_context:
         ml_runner.setup_azureml()
@@ -138,14 +138,14 @@ def test_setup_azureml(ml_runner: MLRunner) -> None:
             assert EFFECTIVE_RANDOM_SEED_KEY_NAME in call_args
 
 
-def test_get_multiple_trainloader_mode(ml_runner: MLRunner) -> None:
+def test_get_multiple_trainloader_mode(ml_runner: TrainingRunner) -> None:
     ml_runner.init_training()
     multiple_trainloader_mode = ml_runner.get_multiple_trainloader_mode()
     assert multiple_trainloader_mode == "max_size_cycle", "train_loader_cycle_mode is available now, "
     "`get_multiple_trainloader_mode` workaround can be safely removed."
 
 
-def _test_init_training(run_inference_only: bool, ml_runner: MLRunner, caplog: LogCaptureFixture) -> None:
+def _test_init_training(run_inference_only: bool, ml_runner: TrainingRunner, caplog: LogCaptureFixture) -> None:
     """Test that training is initialized correctly"""
     ml_runner.container.run_inference_only = run_inference_only
     ml_runner.setup()
@@ -193,7 +193,7 @@ def _test_init_training(run_inference_only: bool, ml_runner: MLRunner, caplog: L
 
 
 @pytest.mark.parametrize("run_inference_only", [True, False])
-def test_init_training_cpu(run_inference_only: bool, ml_runner: MLRunner, caplog: LogCaptureFixture) -> None:
+def test_init_training_cpu(run_inference_only: bool, ml_runner: TrainingRunner, caplog: LogCaptureFixture) -> None:
     """Test that training is initialized correctly"""
     ml_runner.container.max_num_gpus = 0
     _test_init_training(run_inference_only, ml_runner, caplog)
@@ -202,7 +202,7 @@ def test_init_training_cpu(run_inference_only: bool, ml_runner: MLRunner, caplog
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 @pytest.mark.parametrize("run_inference_only", [True, False])
-def test_init_training_gpu(run_inference_only: bool, ml_runner: MLRunner, caplog: LogCaptureFixture) -> None:
+def test_init_training_gpu(run_inference_only: bool, ml_runner: TrainingRunner, caplog: LogCaptureFixture) -> None:
     """Test that training is initialized correctly in DDP mode"""
     _test_init_training(run_inference_only, ml_runner, caplog)
 
@@ -210,7 +210,7 @@ def test_init_training_gpu(run_inference_only: bool, ml_runner: MLRunner, caplog
 def test_run_training() -> None:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
-    runner = MLRunner(experiment_config=experiment_config, container=container)
+    runner = TrainingRunner(experiment_config=experiment_config, container=container)
 
     with patch.object(container, "get_data_module") as mock_get_data_module:
         with patch("health_ml.training_runner.create_lightning_trainer") as mock_create_trainer:
@@ -241,7 +241,7 @@ def test_end_training(max_num_gpus_inf: int) -> None:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     container.max_num_gpus_inference = max_num_gpus_inf
-    runner = MLRunner(experiment_config=experiment_config, container=container)
+    runner = TrainingRunner(experiment_config=experiment_config, container=container)
 
     with patch.object(container, "get_data_module"):
         with patch("health_ml.training_runner.create_lightning_trainer", return_value=(MagicMock(), MagicMock())):
@@ -267,7 +267,7 @@ def test_end_training(max_num_gpus_inf: int) -> None:
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
 @pytest.mark.parametrize("run_inference_only", [True, False])
 def test_init_inference(
-    run_inference_only: bool, run_extra_val_epoch: bool, max_num_gpus_inf: int, ml_runner_with_run_id: MLRunner
+    run_inference_only: bool, run_extra_val_epoch: bool, max_num_gpus_inf: int, ml_runner_with_run_id: TrainingRunner
 ) -> None:
     ml_runner_with_run_id.container.run_inference_only = run_inference_only
     ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
@@ -315,7 +315,10 @@ def test_init_inference(
 @pytest.mark.parametrize("run_inference_only", [True, False])
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
 def test_run_validation(
-    run_extra_val_epoch: bool, run_inference_only: bool, ml_runner_with_run_id: MLRunner, caplog: LogCaptureFixture
+    run_extra_val_epoch: bool,
+    run_inference_only: bool,
+    ml_runner_with_run_id: TrainingRunner,
+    caplog: LogCaptureFixture,
 ) -> None:
     ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
     ml_runner_with_run_id.container.run_inference_only = run_inference_only
@@ -348,7 +351,7 @@ def test_model_extra_val_epoch_missing_hook(caplog: LogCaptureFixture) -> None:
         container = HelloWorld()
         container.create_lightning_module_and_store()
         container.run_extra_val_epoch = True
-        runner = MLRunner(experiment_config=experiment_config, container=container)
+        runner = TrainingRunner(experiment_config=experiment_config, container=container)
         runner.setup()
         runner.checkpoint_handler.additional_training_done()
         runner.container.outputs_folder.mkdir(parents=True, exist_ok=True)
@@ -362,7 +365,7 @@ def test_model_extra_val_epoch_missing_hook(caplog: LogCaptureFixture) -> None:
                     assert "Hook `on_run_extra_validation_epoch` is not implemented" in latest_message
 
 
-def test_run_inference(ml_runner_with_container: MLRunner, regression_datadir: Path) -> None:
+def test_run_inference(ml_runner_with_container: TrainingRunner, regression_datadir: Path) -> None:
     """
     Test that run_inference gets called as expected.
     """
@@ -398,7 +401,7 @@ def test_run_inference(ml_runner_with_container: MLRunner, regression_datadir: P
 
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
 @pytest.mark.parametrize("run_inference_only", [True, False])
-def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with_container: MLRunner) -> None:
+def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with_container: TrainingRunner) -> None:
     """Test that model runner gets called"""
     ml_runner_with_container.container.run_inference_only = run_inference_only
     ml_runner_with_container.container.run_extra_val_epoch = run_extra_val_epoch
@@ -424,7 +427,7 @@ def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with
 
 
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
-def test_run_inference_only(run_extra_val_epoch: bool, ml_runner_with_run_id: MLRunner) -> None:
+def test_run_inference_only(run_extra_val_epoch: bool, ml_runner_with_run_id: TrainingRunner) -> None:
     """Test inference only mode. Validation should be run regardless of run_extra_val_epoch status."""
     ml_runner_with_run_id.container.run_inference_only = True
     ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
@@ -451,7 +454,7 @@ def test_run_inference_only(run_extra_val_epoch: bool, ml_runner_with_run_id: ML
 
 
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
-def test_resume_training_from_run_id(run_extra_val_epoch: bool, ml_runner_with_run_id: MLRunner) -> None:
+def test_resume_training_from_run_id(run_extra_val_epoch: bool, ml_runner_with_run_id: TrainingRunner) -> None:
     ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
     ml_runner_with_run_id.container.max_num_gpus = 0
     ml_runner_with_run_id.container.max_epochs += 10
@@ -475,7 +478,7 @@ def test_model_weights_when_resume_training() -> None:
     container.max_num_gpus = 0
     container.src_checkpoint = CheckpointParser(mock_run_id(id=0))
     container.resume_training = True
-    runner = MLRunner(experiment_config=experiment_config, container=container)
+    runner = TrainingRunner(experiment_config=experiment_config, container=container)
     runner.setup()
     assert runner.checkpoint_handler.trained_weights_path.is_file()  # type: ignore
     with patch("health_ml.training_runner.create_lightning_trainer") as mock_create_trainer:
@@ -498,7 +501,7 @@ def test_log_on_vm(log_from_vm: bool) -> None:
     tag = f"test_log_on_vm [{log_from_vm}]"
     container.tag = tag
     container.log_from_vm = log_from_vm
-    runner = MLRunner(experiment_config=experiment_config, container=container)
+    runner = TrainingRunner(experiment_config=experiment_config, container=container)
     # When logging to AzureML, need to provide the unit test AML workspace.
     # When not logging to AzureML, no workspace (and no authentication) should be needed.
     if log_from_vm:
@@ -552,7 +555,7 @@ def test_get_mlflow_run_id_from_trainer() -> None:
         assert run_id == mock_run_id
 
 
-def test_inference_only_metrics_correctness(ml_runner_with_run_id: MLRunner, regression_datadir: Path) -> None:
+def test_inference_only_metrics_correctness(ml_runner_with_run_id: TrainingRunner, regression_datadir: Path) -> None:
     ml_runner_with_run_id.container.run_inference_only = True
     ml_runner_with_run_id.container.local_dataset_dir = regression_datadir
     ml_runner_with_run_id.run()
