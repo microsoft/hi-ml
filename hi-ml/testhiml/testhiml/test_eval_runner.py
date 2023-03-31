@@ -19,7 +19,7 @@ from testhiml.test_run_ml import ml_runner_with_container
 
 
 @pytest.fixture(scope="function")
-def hello_world_checkpoint(ml_runner_with_container: MLRunner, tmp_path: Path) -> None:
+def hello_world_checkpoint(ml_runner_with_container: MLRunner, tmp_path: Path) -> Path:
     container = ml_runner_with_container.container
     container.set_output_to(tmp_path)
     container.max_epochs = 5
@@ -54,7 +54,7 @@ def test_eval_runner_end_to_end(mock_runner: Runner, hello_world_checkpoint: Pat
 def test_eval_runner_methods_called(hello_world_checkpoint: Path, tmp_path: Path) -> None:
     """Test if the eval runner uses the right data module from the HelloWorld model"""
     container = HelloWorld()
-    container.src_checkpoint = CheckpointParser(hello_world_checkpoint)
+    container.src_checkpoint = CheckpointParser(str(hello_world_checkpoint))
     eval_runner = EvalRunner(
         container=container, experiment_config=ExperimentConfig(mode=RunnerMode.EVAL), project_root=tmp_path
     )

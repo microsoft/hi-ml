@@ -97,8 +97,8 @@ def test_ml_runner_setup(ml_runner_no_setup: MLRunner) -> None:
     assert not ml_runner_no_setup._has_setup_run
     with patch.object(ml_runner_no_setup, "container", spec=LightningContainer) as mock_container:
         with patch.object(ml_runner_no_setup, "checkpoint_handler", spec=CheckpointHandler) as mock_checkpoint_handler:
-            with patch("health_ml.run_ml.seed_everything") as mock_seed:
-                with patch("health_ml.run_ml.seed_monai_if_available") as mock_seed_monai:
+            with patch("health_ml.ml_runner.seed_everything") as mock_seed:
+                with patch("health_ml.ml_runner.seed_monai_if_available") as mock_seed_monai:
                     ml_runner_no_setup.setup()
                     mock_container.get_effective_random_seed.assert_called()
                     mock_seed.assert_called_once()
@@ -110,20 +110,21 @@ def test_ml_runner_setup(ml_runner_no_setup: MLRunner) -> None:
                     assert ml_runner_no_setup._has_setup_run
 
 
-def test_set_run_tags_from_parent(ml_runner: MLRunner) -> None:
-    """Test that set_run_tags_from_parents causes set_tags to get called"""
+def test_setup_azureml(ml_runner: MLRunner) -> None:
+    """Test that setup_azureml causes set_tags to get called"""
     with pytest.raises(AssertionError) as ae:
-        ml_runner.set_run_tags_from_parent()
+        ml_runner.setup_azureml()
         assert "should only be called in a Hyperdrive run" in str(ae)
 
-    with patch("health_ml.run_ml.PARENT_RUN_CONTEXT") as mock_parent_run_context:
-        with patch("health_ml.run_ml.RUN_CONTEXT") as mock_run_context:
+    with patch("health_ml.ml_runner.PARENT_RUN_CONTEXT") as mock_parent_run_context:
+        with patch("health_ml.ml_runner.RUN_CONTEXT") as mock_run_context:
             mock_parent_run_context.get_tags.return_value = {"tag": "dummy_tag"}
-            ml_runner.set_run_tags_from_parent()
+            ml_runner.setup_azureml()
             mock_run_context.set_tags.assert_called()
 
 
 def test_get_multiple_trainloader_mode(ml_runner: MLRunner) -> None:
+    ml_runner.init_training()
     multiple_trainloader_mode = ml_runner.get_multiple_trainloader_mode()
     assert multiple_trainloader_mode == "max_size_cycle", "train_loader_cycle_mode is available now, "
     "`get_multiple_trainloader_mode` workaround can be safely removed."
@@ -137,13 +138,13 @@ def _test_init_training(run_inference_only: bool, ml_runner: MLRunner, caplog: L
     assert ml_runner.trainer is None
     assert ml_runner.storing_logger is None
 
-    with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+    with patch("health_ml.ml_runner.create_lightning_trainer") as mock_create_trainer:
         with patch.object(ml_runner.container, "get_data_module") as mock_get_data_module:
-            with patch("health_ml.run_ml.write_experiment_summary_file") as mock_write_experiment_summary_file:
+            with patch("health_ml.ml_runner.write_experiment_summary_file") as mock_write_experiment_summary_file:
                 with patch.object(
                     ml_runner.checkpoint_handler, "get_recovery_or_checkpoint_path_train"
                 ) as mock_get_recovery_or_checkpoint_path_train:
-                    with patch("health_ml.run_ml.seed_everything") as mock_seed:
+                    with patch("health_ml.ml_runner.seed_everything") as mock_seed:
                         mock_create_trainer.return_value = MagicMock(), MagicMock()
                         mock_get_recovery_or_checkpoint_path_train.return_value = "dummy_path"
 
@@ -197,7 +198,7 @@ def test_run_training() -> None:
     runner = MLRunner(experiment_config=experiment_config, container=container)
 
     with patch.object(container, "get_data_module") as mock_get_data_module:
-        with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+        with patch("health_ml.ml_runner.create_lightning_trainer") as mock_create_trainer:
             runner.setup()
             mock_trainer = MagicMock()
             mock_storing_logger = MagicMock()
@@ -228,14 +229,14 @@ def test_end_training(max_num_gpus_inf: int) -> None:
     runner = MLRunner(experiment_config=experiment_config, container=container)
 
     with patch.object(container, "get_data_module"):
-        with patch("health_ml.run_ml.create_lightning_trainer", return_value=(MagicMock(), MagicMock())):
+        with patch("health_ml.ml_runner.create_lightning_trainer", return_value=(MagicMock(), MagicMock())):
             runner.setup()
             runner.init_training()
             runner.run_training()
 
         with patch.object(runner.checkpoint_handler, "additional_training_done") as mock_additional_training_done:
             with patch.object(runner, "after_ddp_cleanup") as mock_after_ddp_cleanup:
-                with patch("health_ml.run_ml.cleanup_checkpoints") as mock_cleanup_ckpt:
+                with patch("health_ml.ml_runner.cleanup_checkpoints") as mock_cleanup_ckpt:
                     environ_before_training = {"old": "environ"}
                     runner.end_training(environ_before_training=environ_before_training)
                     mock_additional_training_done.assert_called_once()
@@ -265,7 +266,7 @@ def test_init_inference(
         expected_mlflow_run_id = ml_runner_with_run_id.trainer.loggers[1].run_id  # type: ignore
     if not run_inference_only:
         ml_runner_with_run_id.checkpoint_handler.additional_training_done()
-    with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+    with patch("health_ml.ml_runner.create_lightning_trainer") as mock_create_trainer:
         with patch.object(ml_runner_with_run_id.container, "get_checkpoint_to_test") as mock_get_checkpoint_to_test:
             with patch.object(ml_runner_with_run_id.container, "get_data_module") as mock_get_data_module:
                 mock_checkpoint = MagicMock(is_file=MagicMock(return_value=True))
@@ -305,7 +306,7 @@ def test_run_validation(
     ml_runner_with_run_id.container.run_inference_only = run_inference_only
     ml_runner_with_run_id.init_training()
     mock_datamodule = MagicMock()
-    with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+    with patch("health_ml.ml_runner.create_lightning_trainer") as mock_create_trainer:
         with patch.object(ml_runner_with_run_id.container, "get_data_module", return_value=mock_datamodule):
             mock_trainer = MagicMock()
             mock_create_trainer.return_value = mock_trainer, MagicMock()
@@ -337,7 +338,7 @@ def test_model_extra_val_epoch_missing_hook(caplog: LogCaptureFixture) -> None:
         runner.checkpoint_handler.additional_training_done()
         runner.container.outputs_folder.mkdir(parents=True, exist_ok=True)
         with patch.object(container, "get_data_module"):
-            with patch("health_ml.run_ml.create_lightning_trainer", return_value=(MagicMock(), MagicMock())):
+            with patch("health_ml.ml_runner.create_lightning_trainer", return_value=(MagicMock(), MagicMock())):
                 with patch.object(runner.container, "get_checkpoint_to_test") as mock_get_checkpoint_to_test:
                     mock_get_checkpoint_to_test.return_value = MagicMock(is_file=MagicMock(return_value=True))
                     runner.init_inference()
@@ -389,7 +390,7 @@ def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with
     ml_runner_with_container.setup()
     assert not ml_runner_with_container.checkpoint_handler.has_continued_training
 
-    with patch("health_ml.run_ml.create_lightning_trainer", return_value=(MagicMock(), MagicMock())):
+    with patch("health_ml.ml_runner.create_lightning_trainer", return_value=(MagicMock(), MagicMock())):
         with patch.multiple(
             ml_runner_with_container,
             checkpoint_handler=mock.DEFAULT,
@@ -414,7 +415,7 @@ def test_run_inference_only(run_extra_val_epoch: bool, ml_runner_with_run_id: ML
     ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
     assert ml_runner_with_run_id.checkpoint_handler.trained_weights_path
     mock_datamodule = MagicMock()
-    with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+    with patch("health_ml.ml_runner.create_lightning_trainer") as mock_create_trainer:
         with patch.object(ml_runner_with_run_id.container, "get_data_module", return_value=mock_datamodule):
             with patch.multiple(
                 ml_runner_with_run_id,
@@ -441,10 +442,10 @@ def test_resume_training_from_run_id(run_extra_val_epoch: bool, ml_runner_with_r
     ml_runner_with_run_id.container.max_epochs += 10
     assert ml_runner_with_run_id.checkpoint_handler.trained_weights_path
     mock_trainer = MagicMock()
-    with patch("health_ml.run_ml.create_lightning_trainer", return_value=(mock_trainer, MagicMock())):
+    with patch("health_ml.ml_runner.create_lightning_trainer", return_value=(mock_trainer, MagicMock())):
         with patch.object(ml_runner_with_run_id.container, "get_checkpoint_to_test") as mock_get_checkpoint_to_test:
             with patch.object(ml_runner_with_run_id, "run_inference") as mock_run_inference:
-                with patch("health_ml.run_ml.cleanup_checkpoints") as mock_cleanup_ckpt:
+                with patch("health_ml.ml_runner.cleanup_checkpoints") as mock_cleanup_ckpt:
                     mock_get_checkpoint_to_test.return_value = MagicMock(is_file=MagicMock(return_value=True))
                     ml_runner_with_run_id.run()
                     mock_get_checkpoint_to_test.assert_called_once()
@@ -462,7 +463,7 @@ def test_model_weights_when_resume_training() -> None:
     runner = MLRunner(experiment_config=experiment_config, container=container)
     runner.setup()
     assert runner.checkpoint_handler.trained_weights_path.is_file()  # type: ignore
-    with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+    with patch("health_ml.ml_runner.create_lightning_trainer") as mock_create_trainer:
         mock_create_trainer.return_value = MagicMock(), MagicMock()
         runner.init_training()
         mock_create_trainer.assert_called_once()
@@ -487,9 +488,9 @@ def test_log_on_vm(log_from_vm: bool) -> None:
     # When not logging to AzureML, no workspace (and no authentication) should be needed.
     if log_from_vm:
         with patch("health_azure.utils.get_workspace", return_value=DEFAULT_WORKSPACE.workspace):
-            runner.run()
+            runner.run_and_cleanup()
     else:
-        runner.run()
+        runner.run_and_cleanup()
     # The PL trainer object is created in the init_training method.
     # Check that the AzureML logger is set up correctly.
     assert runner.trainer is not None
