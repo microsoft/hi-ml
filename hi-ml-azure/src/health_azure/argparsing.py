@@ -193,9 +193,12 @@ def create_argparser(
 def _enum_from_string(enum_class: Type[Enum]) -> Callable:
     """
     Parse a string as an enum. The string must be a valid member of the enum, but matching is not case sensitive.
+    Strings are matched based on the Enum member value, not the member name.
 
     :param enum_class: Enum class to parse string as.
-    :return: A parser function that maps the string to a an Enum value.
+    :return: A parser function that maps the string to an Enum value.
+    :raises ValueError: If the Enum has multiple members that have the same value.
+    :raises ValueError: If the value to parse does not match any of the Enum member values.
     """
     # Get a dictionary that maps lower case enum names to enum values
     value_to_member = {}
