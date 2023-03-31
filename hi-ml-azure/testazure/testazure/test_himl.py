@@ -1782,7 +1782,12 @@ def test_create_v2_inputs(already_exists: bool) -> None:
 
     for use_mounting in [True, False]:
         mock_input_dataconfigs = [
-            DatasetConfig(name="dummy_dataset", use_mounting=use_mounting, version=int(mock_data_version))
+            DatasetConfig(
+                name="dummy_dataset",
+                datastore="dummy_datastore",
+                use_mounting=use_mounting,
+                version=int(mock_data_version),
+            )
         ]
         inputs = himl.create_v2_inputs(mock_ml_client, mock_input_dataconfigs)
         assert isinstance(inputs, Dict)

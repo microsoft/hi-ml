@@ -128,6 +128,11 @@ def _get_or_create_v1_dataset(datastore_name: str, dataset_name: str, workspace:
     try:
         azureml_dataset = _retrieve_v1_dataset(dataset_name, workspace)
     except UserErrorException:
+        if datastore_name == "":
+            raise ValueError(
+                "When creating a new dataset, a datastore name must be provided. Please specify a datastore name using "
+                "the --datastore flag"
+            )
         azureml_dataset = _create_v1_dataset(datastore_name, dataset_name, workspace)
     return azureml_dataset
 
