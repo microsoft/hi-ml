@@ -43,7 +43,7 @@ To simplify usage, the `hi-ml` package creates AzureML datasets for you. All you
 From that point on, you can drop a folder of files in the container that holds your data. Within the `hi-ml` package,
 just reference the name of the folder, and the package will create a dataset for you, if it does not yet exist.
 
-## Using the datasets - SDK v1
+## Using the datasets
 
 The simplest way of specifying that your script uses a folder of data from blob storage is as follows: Add the
 `input_datasets` argument to your call of `submit_to_azure_if_needed` like this:
@@ -53,7 +53,6 @@ from health_azure import submit_to_azure_if_needed
 run_info = submit_to_azure_if_needed(...,
                                      input_datasets=["my_folder"],
                                      default_datastore="my_datastore",
-                                     strictly_aml_v1=True,
                                     )
 input_folder = run_info.input_datasets[0]
 ```
@@ -83,7 +82,6 @@ run_info = submit_to_azure_if_needed(...,
                                      input_datasets=["my_folder"],
                                      output_datasets=["new_dataset"],
                                      default_datastore="my_datastore",
-                                     strictly_aml_v1=True,
                                     )
 input_folder = run_info.input_datasets[0]
 output_folder = run_info.output_datasets[0]
@@ -114,7 +112,6 @@ output_dataset = DatasetConfig(name="new_dataset", datastore="my_datastore", use
 run_info = submit_to_azure_if_needed(...,
                                      input_datasets=[input_dataset],
                                      output_datasets=[output_dataset],
-                                     strictly_aml_v1=True,
                                     )
 input_folder = run_info.input_datasets[0]
 output_folder = run_info.output_datasets[0]
@@ -137,7 +134,6 @@ input_dataset = DatasetConfig(name="my_folder",
                              )
 run_info = submit_to_azure_if_needed(...,
                                      input_datasets=[input_dataset],
-                                     strictly_aml_v1=True,
                                     )
 input_folder = run_info.input_datasets[0]
 ```
@@ -165,7 +161,6 @@ input_dataset = DatasetConfig(name="my_folder",
                              )
 run_info = submit_to_azure_if_needed(...,
                                      input_datasets=[input_dataset],
-                                     strictly_aml_v1=True,
                                     )
 # Input_folder will now be "/tmp/mnist"
 input_folder = run_info.input_datasets[0]
@@ -175,7 +170,7 @@ This is also true when running locally - if `local_folder` is not specified and 
 
 ### Overwriting existing output datasets
 
-When creating an output dataset with the same name as an existing dataset, the default behaviour of `hi-ml` is to overwrite the existing dataset to avoid uploading errors. If you wish to disable this behaviour, it can be controlled using the `overwrite_existing` parameter:
+When creating an output dataset with the same name as an existing dataset, the default behaviour of `hi-ml` is to overwrite the existing datasets. This is as if a run fails during the upload stage, corrupt files may be created. Allowing overwriting means that these corrupt datasets will not cause errors. If you wish to disable this behaviour, it can be controlled using the `overwrite_existing` parameter (only available in sdk v1, hence setting `strictly_aml_v1=True`):
 
 ```python
 from health_azure import DatasetConfig, submit_to_azure_if_needed
@@ -205,6 +200,7 @@ input_dataset = DatasetConfig(name="my_folder",
                               version=7,
                              )
 run_info = submit_to_azure_if_needed(...,
-                                     input_datasets=[input_dataset])
+                                     input_datasets=[input_dataset],
+                                    )
 input_folder = run_info.input_datasets[0]
 ```
