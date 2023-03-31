@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 
 from pathlib import Path
+from pytest import LogCaptureFixture
 from monai.data.wsi_reader import WSIReader
 from health_cpath.datasets.panda_dataset import PandaDataset
 from health_cpath.preprocessing.loading import WSIBackend
@@ -213,13 +214,17 @@ def test_convert_wsi_to_tiff(add_low_mag: bool, wsi_samples: WSISamplesType, tmp
 
 @pytest.mark.gpu
 @skipif_no_gpu()  # cucim is not available on cpu
-def test_convert_wsi_to_tiff_existing_empty_file(wsi_samples: WSISamplesType, tmp_path: Path) -> None:
+def test_convert_wsi_to_tiff_existing_empty_file(
+    wsi_samples: WSISamplesType, tmp_path: Path, caplog: LogCaptureFixture
+) -> None:
     target_mag = 2.5
     transform = ConvertWSIToTiffd(
         output_folder=tmp_path,
         target_magnifications=[target_mag],
         default_base_objective_power=target_mag,
         tile_size=16,
+        min_file_size=0,
+        verbose=True,
     )
     tiff_path = transform.get_tiff_path(wsi_samples[0][SlideKey.IMAGE])
     # Create an empty file
@@ -230,6 +235,10 @@ def test_convert_wsi_to_tiff_existing_empty_file(wsi_samples: WSISamplesType, tm
     for sample in wsi_samples:
         transform(sample)
     assert tiff_path.stat().st_size > 0
+    messages = caplog.messages
+    assert "Converted" in messages[0]
+    assert "Source file size in 0.02 MB" in messages[1]
+    assert "Tiff file size in 0.01 MB" in messages[1]
 
 
 def test_tiff_conversion_config(mock_panda_slides_root_dir: Path, tmp_path: Path) -> None:

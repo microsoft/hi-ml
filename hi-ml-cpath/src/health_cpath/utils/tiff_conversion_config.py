@@ -62,6 +62,16 @@ class TiffConversionConfig(param.Parameterized):
         doc="The name of the new dataset csv file that will be created for the converted data. If None, the default "
         "name of the original dataset will be used.",
     )
+    min_file_size: int = param.Integer(
+        default=0,
+        doc="The minimum size of the tiff file in bytes. If the tiff file is smaller than this size, it will get "
+        "overwritten. Defaults to 0.",
+    )
+    verbose: bool = param.Boolean(
+        default=False,
+        doc="If True, the progress of the conversion will be logged including src and tiff file sizes. "
+        "Defaults to False.",
+    )
 
     def get_transform(self, output_folder: Path) -> ConvertWSIToTiffd:
         """Get the transform that will be used to convert the src files to tiff files."""
@@ -74,6 +84,8 @@ class TiffConversionConfig(param.Parameterized):
             replace_ampersand_by=self.replace_ampersand_by,
             compression=self.compression,
             tile_size=self.tile_size,
+            min_file_size=self.min_file_size,
+            verbose=self.verbose,
         )
 
     def create_dataset_csv_for_converted_data(self, output_folder: Path) -> None:
