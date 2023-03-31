@@ -21,7 +21,7 @@ from pytorch_lightning import Trainer
 from health_ml.configs.hello_world import TEST_MAE_FILE, TEST_MSE_FILE, HelloWorld  # type: ignore
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
-from health_ml.ml_runner import MLRunner
+from health_ml.training_runner import MLRunner
 from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_ml.utils.common_utils import EFFECTIVE_RANDOM_SEED_KEY_NAME, is_gpu_available
@@ -153,13 +153,13 @@ def _test_init_training(run_inference_only: bool, ml_runner: MLRunner, caplog: L
     assert ml_runner.trainer is None
     assert ml_runner.storing_logger is None
 
-    with patch("health_ml.ml_runner.create_lightning_trainer") as mock_create_trainer:
+    with patch("health_ml.training_runner.create_lightning_trainer") as mock_create_trainer:
         with patch.object(ml_runner.container, "get_data_module") as mock_get_data_module:
-            with patch("health_ml.ml_runner.write_experiment_summary_file") as mock_write_experiment_summary_file:
+            with patch("health_ml.training_runner.write_experiment_summary_file") as mock_write_experiment_summary_file:
                 with patch.object(
                     ml_runner.checkpoint_handler, "get_recovery_or_checkpoint_path_train"
                 ) as mock_get_recovery_or_checkpoint_path_train:
-                    with patch("health_ml.ml_runner.seed_everything") as mock_seed:
+                    with patch("health_ml.training_runner.seed_everything") as mock_seed:
                         mock_create_trainer.return_value = MagicMock(), MagicMock()
                         mock_get_recovery_or_checkpoint_path_train.return_value = "dummy_path"
 
@@ -213,7 +213,7 @@ def test_run_training() -> None:
     runner = MLRunner(experiment_config=experiment_config, container=container)
 
     with patch.object(container, "get_data_module") as mock_get_data_module:
-        with patch("health_ml.ml_runner.create_lightning_trainer") as mock_create_trainer:
+        with patch("health_ml.training_runner.create_lightning_trainer") as mock_create_trainer:
             runner.setup()
             mock_trainer = MagicMock()
             mock_storing_logger = MagicMock()
@@ -244,14 +244,14 @@ def test_end_training(max_num_gpus_inf: int) -> None:
     runner = MLRunner(experiment_config=experiment_config, container=container)
 
     with patch.object(container, "get_data_module"):
-        with patch("health_ml.ml_runner.create_lightning_trainer", return_value=(MagicMock(), MagicMock())):
+        with patch("health_ml.training_runner.create_lightning_trainer", return_value=(MagicMock(), MagicMock())):
             runner.setup()
             runner.init_training()
             runner.run_training()
 
         with patch.object(runner.checkpoint_handler, "additional_training_done") as mock_additional_training_done:
             with patch.object(runner, "after_ddp_cleanup") as mock_after_ddp_cleanup:
-                with patch("health_ml.ml_runner.cleanup_checkpoints") as mock_cleanup_ckpt:
+                with patch("health_ml.training_runner.cleanup_checkpoints") as mock_cleanup_ckpt:
                     environ_before_training = {"old": "environ"}
                     runner.end_training(environ_before_training=environ_before_training)
                     mock_additional_training_done.assert_called_once()
@@ -460,7 +460,7 @@ def test_resume_training_from_run_id(run_extra_val_epoch: bool, ml_runner_with_r
     with patch("health_ml.runner_base.create_lightning_trainer", return_value=(mock_trainer, MagicMock())):
         with patch.object(ml_runner_with_run_id.container, "get_checkpoint_to_test") as mock_get_checkpoint_to_test:
             with patch.object(ml_runner_with_run_id, "run_inference") as mock_run_inference:
-                with patch("health_ml.ml_runner.cleanup_checkpoints") as mock_cleanup_ckpt:
+                with patch("health_ml.training_runner.cleanup_checkpoints") as mock_cleanup_ckpt:
                     mock_get_checkpoint_to_test.return_value = MagicMock(is_file=MagicMock(return_value=True))
                     ml_runner_with_run_id.run()
                     mock_get_checkpoint_to_test.assert_called_once()
@@ -478,7 +478,7 @@ def test_model_weights_when_resume_training() -> None:
     runner = MLRunner(experiment_config=experiment_config, container=container)
     runner.setup()
     assert runner.checkpoint_handler.trained_weights_path.is_file()  # type: ignore
-    with patch("health_ml.ml_runner.create_lightning_trainer") as mock_create_trainer:
+    with patch("health_ml.training_runner.create_lightning_trainer") as mock_create_trainer:
         mock_create_trainer.return_value = MagicMock(), MagicMock()
         runner.init_training()
         mock_create_trainer.assert_called_once()

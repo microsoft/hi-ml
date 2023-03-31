@@ -13,7 +13,7 @@ import pytest
 
 from health_azure.utils import create_aml_run_object
 from health_ml.experiment_config import ExperimentConfig
-from health_ml.ml_runner import MLRunner
+from health_ml.training_runner import MLRunner
 from health_ml.configs.hello_world import HelloWorld
 from health_ml.utils.regression_test_utils import (
     CONTENTS_MISMATCH,

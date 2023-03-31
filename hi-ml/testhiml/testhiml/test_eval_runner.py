@@ -39,7 +39,7 @@ def test_eval_runner_no_checkpoint(mock_runner: Runner) -> None:
 def test_eval_runner_end_to_end(mock_runner: Runner, hello_world_checkpoint: Path) -> None:
     """Test the end-to-end integration of the EvalRunner class into the overall Runner"""
     arguments = ["", f"--model=HelloWorld", "--mode=eval", f"--src_checkpoint={hello_world_checkpoint}"]
-    with patch("health_ml.ml_runner.MLRunner.run_and_cleanup") as mock_training_run:
+    with patch("health_ml.training_runner.MLRunner.run_and_cleanup") as mock_training_run:
         with patch.object(sys, "argv", arguments):
             mock_runner.run()
         # The training runner should not be invoked

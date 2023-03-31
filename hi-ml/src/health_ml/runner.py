@@ -49,7 +49,7 @@ from health_azure.utils import (  # noqa: E402
 from health_ml.eval_runner import EvalRunner  # noqa: E402
 from health_ml.experiment_config import DEBUG_DDP_ENV_VAR, ExperimentConfig, RunnerMode  # noqa: E402
 from health_ml.lightning_container import LightningContainer  # noqa: E402
-from health_ml.ml_runner import MLRunner  # noqa: E402
+from health_ml.training_runner import MLRunner  # noqa: E402
 from health_ml.utils import fixed_paths  # noqa: E402
 from health_ml.utils.logging import ConsoleAndFileOutput  # noqa: E402
 from health_ml.utils.common_utils import check_conda_environment, choose_conda_env_file, is_linux  # noqa: E402
