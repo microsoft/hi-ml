@@ -47,6 +47,7 @@ class IllegalCustomTypeNoValidate(CustomTypeParam):
         return x
 
 
+@pytest.mark.fast
 def test_create_argparse(dummy_model_config: DummyConfig) -> None:
     with patch("health_azure.argparsing._add_overrideable_config_args_to_parser") as mock_add_args:
         parser = create_argparser(dummy_model_config)
@@ -54,6 +55,7 @@ def test_create_argparse(dummy_model_config: DummyConfig) -> None:
         assert isinstance(parser, ArgumentParser)
 
 
+@pytest.mark.fast
 def test_add_args(dummy_model_config: DummyConfig) -> None:
     parser = ArgumentParser()
     # assert that calling parse_args on a default ArgumentParser returns an empty Namespace
@@ -70,6 +72,7 @@ def test_add_args(dummy_model_config: DummyConfig) -> None:
         assert args.string_param == "Hello"
 
 
+@pytest.mark.fast
 def test_parse_args(dummy_model_config: DummyConfig) -> None:
     new_string_arg = "dummy_string"
     new_args = ["--string_param", new_string_arg]
@@ -206,6 +209,7 @@ def check_parsing_fails(parameterized_config_and_parser: Tuple[ParamClass, Argum
         (["--other_args=['foo','bar'"], None, None, False),
     ],
 )
+@pytest.mark.fast
 def test_create_parser(
     parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser],
     args: List[str],
@@ -240,6 +244,7 @@ def test_create_parser(
         ('0', False),
     ],
 )
+@pytest.mark.fast
 def test_parsing_bools(
     parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser], flag: str, expected_value: bool
 ) -> None:
@@ -254,6 +259,7 @@ def test_parsing_bools(
     )
 
 
+@pytest.mark.fast
 def test_argparse_usage(capsys: pytest.CaptureFixture) -> None:
     """Test if the auto-generated argument parser prints out defaults and usage information."""
 
@@ -292,6 +298,7 @@ def test_argparse_usage(capsys: pytest.CaptureFixture) -> None:
         (["--floats="], "floats", []),
     ],
 )
+@pytest.mark.fast
 def test_override_list(
     parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser],
     args: List[str],
@@ -302,6 +309,7 @@ def test_override_list(
     check_parsing_succeeds(parameterized_config_and_parser, args, expected_key, expected_value)
 
 
+@pytest.mark.fast
 def test_argparse_usage_empty(capsys: CaptureFixture) -> None:
     """Test if the auto-generated argument parser prints out defaults and auto-generated usage information."""
 
@@ -361,6 +369,7 @@ def test_apply_overrides(parameterized_config_and_parser: Tuple[ParamClass, Argu
         assert mock_report_on_overrides.call_count == 1
 
 
+@pytest.mark.fast
 def test_report_on_overrides(
     parameterized_config_and_parser: Tuple[ParamClass, ArgumentParser], caplog: LogCaptureFixture
 ) -> None:
@@ -409,6 +418,7 @@ class IllegalParamClassNoString(param.Parameterized):
     )
 
 
+@pytest.mark.fast
 def test_cant_parse_param_type() -> None:
     """
     Assert that a TypeError is raised when trying to add a custom type with no from_string method as an argument
@@ -440,6 +450,7 @@ class MyScriptConfig(param.Parameterized):
     even_number: int = EvenNumberParam(2, doc="your choice of even number", allow_None=False)
 
 
+@pytest.mark.fast
 def test_parse_args_and_apply_overrides() -> None:
     config = MyScriptConfig()
     assert config.even_number == 2
@@ -474,12 +485,14 @@ def test_parse_args_and_apply_overrides() -> None:
             assert "must not be None" in str(e.value)
 
 
+@pytest.mark.fast
 def test_parse_illegal_params() -> None:
     with pytest.raises(TypeError) as e:
         ParamClass(readonly="abc")
     assert "cannot be modified" in str(e.value)
 
 
+@pytest.mark.fast
 def test_config_add_and_validate() -> None:
     config = ParamClass()
     assert config.name.startswith("ParamClass")
@@ -499,6 +512,7 @@ def dummy_model_config() -> DummyConfig:
     return DummyConfig(param1=string_param, param2=int_param)
 
 
+@pytest.mark.fast
 def test_add_and_validate(dummy_model_config: DummyConfig) -> None:
     new_string_param = "new_dummy"
     new_int_param = 2
@@ -509,6 +523,7 @@ def test_add_and_validate(dummy_model_config: DummyConfig) -> None:
     assert dummy_model_config.int_param == new_int_param
 
 
+@pytest.mark.fast
 def test_duplicate_enum() -> None:
     """Test parsing of enum values where the values are not unique when lower cased."""
 
@@ -520,6 +535,7 @@ def test_duplicate_enum() -> None:
         _enum_from_string(DuplicateEnum)
 
 
+@pytest.mark.fast
 def test_enum_from_string() -> None:
     """Test converting from strings to Enum cases."""
 
@@ -528,13 +544,14 @@ def test_enum_from_string() -> None:
         B = 2
 
     parser = _enum_from_string(MyEnum)
-    with pytest.raises(ValueError, match="Invalid value 'A' for enum MyEnum. Must be one of 1, 2"):
+    with pytest.raises(ValueError, match="Invalid value 'A' for Enum MyEnum. Must be one of 1, 2"):
         parser("A")
 
     assert parser("1") == MyEnum.A
     assert parser("2") == MyEnum.B
 
 
+@pytest.mark.fast
 def test_parse_enum_from_param() -> None:
     class MyEnum(Enum):
         A = 1
