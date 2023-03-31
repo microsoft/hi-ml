@@ -55,6 +55,8 @@ class ConvertWSIToTiffd(MapTransform):
         replace_ampersand_by: str = UNDERSCORE,
         compression: COMPRESSION = COMPRESSION.ADOBE_DEFLATE,
         tile_size: int = 512,
+        min_file_size: int = 0,
+        verbose: bool = False,
     ) -> None:
         """
         :param output_folder: The directory where the tiff file will be saved.
@@ -76,6 +78,9 @@ class ConvertWSIToTiffd(MapTransform):
             aka ZLIB that is lossless compression. Make sure to use one of these options (RAW, LZW, JPEG, JPEG2000) so
             that the converted files are readable by cucim.
         :param tile_size: The size of the tiles that are used to write the tiff file, defaults to 512.
+        :param min_file_size: The minimum size of the tiff file in bytes. If the tiff file is smaller than this size, it
+            will get overwritten. Defaults to 0.
+        :param verbose: A flag to enable verbose logging, defaults to False.
         """
         self.output_folder = output_folder
         self.image_key = image_key
@@ -88,6 +93,8 @@ class ConvertWSIToTiffd(MapTransform):
         self.wsi_reader = WSIReader(backend=WSIBackend.OPENSLIDE)
         self.compression = compression
         self.tile_size = tile_size
+        self.min_file_size = min_file_size
+        self.verbose = verbose
 
     def get_tiff_path(self, src_path: Path) -> Path:
         """Returns the path to the tiff file that will be created from the src file. The tiff file is saved in the
@@ -242,6 +249,10 @@ class ConvertWSIToTiffd(MapTransform):
         src_path = Path(data[self.image_key])
         tiff_path = self.get_tiff_path(src_path)
         # if the tiff file does not exist or if it exists but is empty, we convert the wsi to tiff
-        if not tiff_path.exists() or (tiff_path.exists() and tiff_path.stat().st_size == 0):
+        if not tiff_path.exists() or (tiff_path.exists() and tiff_path.stat().st_size <= self.min_file_size):
             self.convert_wsi(src_path, tiff_path)
+        if self.verbose:
+            logging.info(f"Converted {src_path} to {tiff_path}")
+            logging.info(f"Source file size {src_path.stat().st_size / 1e6:.2f} MB")
+            logging.info(f"Tiff file size {tiff_path.stat().st_size / 1e6:.2f} MB")
         return data
