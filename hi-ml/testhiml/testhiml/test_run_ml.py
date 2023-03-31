@@ -100,7 +100,7 @@ def regression_datadir(tmp_path: Path) -> Generator:
     shutil.rmtree(tmp_path)
 
 
-def create_mlflow_trash_folder(runner: RunnerBase):
+def create_mlflow_trash_folder(runner: RunnerBase) -> None:
     """Create a trash folder where MLFlow expects its deleted runs.
     This is a workaround for sporadic test failures: When reading out the run_id, MLFlow checks its own
     deleted runs folder, but that (or one of its parents) does not exist
