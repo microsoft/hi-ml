@@ -1,7 +1,7 @@
 from pytorch_lightning import LightningDataModule
 
 from health_azure.logging import logging_section
-from health_ml.runner_base import RunnerBase
+from health_ml.ml_runner import RunnerBase
 
 
 class EvalRunner(RunnerBase):
