@@ -6,11 +6,12 @@
 import param
 import sys
 from pathlib import Path
-import health_azure.utils as azure_util
+from health_azure.argparsing import parse_args_and_update_config
 from health_azure.himl import download_job_outputs_logs
+from health_azure.utils import AmlRunScriptConfig, get_ml_client, get_workspace
 
 
-class HimlDownloadConfig(azure_util.AmlRunScriptConfig):
+class HimlDownloadConfig(AmlRunScriptConfig):
     output_dir: Path = param.ClassSelector(
         class_=Path,
         default=Path("outputs"),
@@ -31,15 +32,15 @@ class HimlDownloadConfig(azure_util.AmlRunScriptConfig):
 
 def main() -> None:  # pragma: no cover
     download_config = HimlDownloadConfig()
-    download_config = azure_util.parse_args_and_update_config(download_config, sys.argv[1:])
+    download_config = parse_args_and_update_config(download_config, sys.argv[1:])
 
     output_dir = download_config.output_dir
     output_dir.mkdir(exist_ok=True)
 
     files_to_download = download_config.files_to_download
 
-    workspace = azure_util.get_workspace()
-    ml_client = azure_util.get_ml_client(
+    workspace = get_workspace()
+    ml_client = get_ml_client(
         subscription_id=workspace.subscription_id,
         resource_group=workspace.resource_group,
         workspace_name=workspace.name,

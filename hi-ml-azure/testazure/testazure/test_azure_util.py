@@ -10,7 +10,6 @@ import logging
 import os
 import sys
 import time
-from argparse import ArgumentError
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional, Union
 from unittest import mock
@@ -34,7 +33,7 @@ from azure.core.exceptions import ClientAuthenticationError, ResourceNotFoundErr
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
 import health_azure.utils as util
-from health_azure.argparsing import EXPERIMENT_RUN_SEPARATOR
+from health_azure.argparsing import EXPERIMENT_RUN_SEPARATOR, parse_args_and_update_config
 from health_azure.himl import AML_IGNORE_FILE, append_to_amlignore, effective_experiment_name
 from health_azure.utils import (
     ENV_MASTER_ADDR,
@@ -1330,7 +1329,7 @@ def test_get_run_source(
     arguments = ["", "--run", dummy_recovery_id]
     with patch.object(sys, "argv", arguments):
         script_config = util.AmlRunScriptConfig()
-        script_config = util.parse_args_and_update_config(script_config, arguments)
+        script_config = parse_args_and_update_config(script_config, arguments)
 
         if isinstance(script_config.run, List):
             assert isinstance(script_config.run[0], str)
@@ -1470,7 +1469,7 @@ def test_upload_to_datastore(tmp_path: Path, overwrite: bool) -> None:
 def test_script_config_run_src(arguments: List[str], run_id: Union[str, List[str]]) -> None:
     with patch.object(sys, "argv", arguments):
         script_config = util.AmlRunScriptConfig()
-        script_config = util.parse_args_and_update_config(script_config, arguments)
+        script_config = parse_args_and_update_config(script_config, arguments)
 
         if isinstance(run_id, list):
             for script_config_run, expected_run_id in zip(script_config.run, run_id):
