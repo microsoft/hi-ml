@@ -301,6 +301,7 @@ class DatasetConfig:
         self,
         name: str,
         datastore: str = "",
+        overwrite_existing: bool = True,
         version: Optional[int] = None,
         use_mounting: Optional[bool] = None,
         target_folder: Optional[PathOrString] = None,
@@ -311,6 +312,8 @@ class DatasetConfig:
             this will be the name given to the newly created dataset.
         :param datastore: The name of the AzureML datastore that holds the dataset. This can be empty if the AzureML
             workspace has only a single datastore, or if the default datastore should be used.
+        :param overwrite_existing: Only applies to uploading datasets. If True, the dataset will be overwritten if it
+            already exists. If False, the dataset creation will fail if the dataset already exists.
         :param version: The version of the dataset that should be used. This is only used for input datasets.
             If the version is not specified, the latest version will be used.
         :param use_mounting: If True, the dataset will be "mounted", that is, individual files will be read
@@ -331,6 +334,7 @@ class DatasetConfig:
             raise ValueError("The name of the dataset must be a non-empty string.")
         self.name = name
         self.datastore = datastore
+        self.overwrite_existing = overwrite_existing
         self.version = version
         self.use_mounting = use_mounting
         # If target_folder is "" then convert to None
@@ -447,7 +451,7 @@ class DatasetConfig:
 
         :param workspace: The AzureML workspace to read from.
         :param dataset_index: Suffix for using datasets as named inputs, the dataset will be marked OUTPUT_{index}
-        :return:
+        :return: An AzureML OutputFileDatasetConfig object, representing the output dataset.
         """
         status = f"Output dataset {self.name} (index {dataset_index}) will be "
         datastore = get_datastore(workspace, self.datastore)
@@ -464,7 +468,7 @@ class DatasetConfig:
             result = dataset.as_mount()
         else:
             status += "uploaded when the job completes."
-            result = dataset.as_upload()
+            result = dataset.as_upload(overwrite=self.overwrite_existing)
         logging.info(status)
         return result
 
