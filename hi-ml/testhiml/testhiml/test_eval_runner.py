@@ -50,7 +50,7 @@ def test_eval_runner_methods_called(tmp_path: Path) -> None:
     container = HelloWorld()
     container.src_checkpoint = CheckpointParser(str(hello_world_checkpoint))
     eval_runner = EvalRunner(
-        container=container, experiment_config=ExperimentConfig(mode=RunnerMode.EVAL), project_root=tmp_path
+        container=container, experiment_config=ExperimentConfig(mode=RunnerMode.EVAL_FULL), project_root=tmp_path
     )
     with patch("health_ml.configs.hello_world.HelloWorld.get_eval_data_module") as mock_get_data_module:
         mock_get_data_module.return_value = HelloWorldDataModule(crossval_count=1, seed=1)
@@ -66,7 +66,7 @@ def test_eval_runner_no_extra_validation_epoch_called(tmp_path: Path) -> None:
     container.run_extra_val_epoch = True
     container.src_checkpoint = CheckpointParser(str(hello_world_checkpoint))
     eval_runner = EvalRunner(
-        container=container, experiment_config=ExperimentConfig(mode=RunnerMode.EVAL), project_root=tmp_path
+        container=container, experiment_config=ExperimentConfig(mode=RunnerMode.EVAL_FULL), project_root=tmp_path
     )
     with patch("health_ml.configs.hello_world.HelloRegression.on_run_extra_validation_epoch") as mock_hook:
         eval_runner.run_and_cleanup()

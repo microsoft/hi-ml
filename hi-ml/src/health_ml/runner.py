@@ -337,7 +337,7 @@ class Runner:
                 container=self.lightning_container,
                 project_root=self.project_root,
             )
-        elif self.experiment_config.mode == RunnerMode.EVAL:
+        elif self.experiment_config.mode == RunnerMode.EVAL_FULL:
             self.ml_runner = EvalRunner(
                 experiment_config=self.experiment_config,
                 container=self.lightning_container,
