@@ -191,18 +191,19 @@ class RunnerBase:
         )
 
     def init_inference(self) -> None:
-        """Prepare the runner for inference: validation or test. The following steps are performed:
+        """Prepare the runner for inference on validation set, test set, or a full dataset.
+        The following steps are performed:
+
         1. Get the checkpoint to use for inference. This is either the checkpoint from the last training epoch or the
         one specified in src_checkpoint argument.
-        2. If the container has a run_extra_val_epoch method, call it to run an extra validation epoch.
-        3. Create a new trainer instance for inference. This is necessary because the trainer is created with a single
+
+        2. Create a new trainer instance for inference. This is necessary because the trainer is created with a single
         device in contrast to training that uses DDP if multiple GPUs are available.
-        4. Create a new data module instance for inference to account for any requested changes in the dataloading
+
+        3. Create a new data module instance for inference to account for any requested changes in the dataloading
         parameters (e.g. batch_size, max_num_workers, etc) as part of on_run_extra_validation_epoch.
         """
         self.inference_checkpoint = str(self.checkpoint_handler.get_checkpoint_to_test())
-        if self.container.run_extra_val_epoch:
-            self.container.on_run_extra_validation_epoch()
         self.set_trainer_for_inference()
         self.data_module = self.get_data_module()
 
