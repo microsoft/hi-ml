@@ -161,16 +161,6 @@ class TrainingRunner(RunnerBase):
             assert logger is not None
             logger.finalize('success')
 
-    def init_inference(self) -> None:
-        """
-        Prepare the trainer for running inference on the validation and test set. This chooses a checkpoint,
-        initializes the PL Trainer object, and chooses the right data module. Afterwards, the hook for running
-        inference on the validation set is run (`LightningContainer.on_run_extra_validation_epoch`)
-        """
-        super().init_inference()
-        if self.container.run_extra_val_epoch:
-            self.container.on_run_extra_validation_epoch()
-
     def run_validation(self) -> None:
         """Run validation on the validation set for all models to save time/memory consuming outputs. This is done in
         inference only mode or when the user has requested an extra validation epoch. The cwd is changed to the outputs
