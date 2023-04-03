@@ -8,7 +8,7 @@ from typing import Optional
 
 import param
 
-from health_azure.utils import create_argparser
+from health_azure.argparsing import create_argparser
 
 
 class AzureRunConfig(param.Parameterized):

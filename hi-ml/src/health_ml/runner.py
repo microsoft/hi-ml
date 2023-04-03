@@ -25,6 +25,7 @@ for folder in folders_to_add:
         sys.path.insert(0, str(folder))
 
 from health_azure import AzureRunInfo, submit_to_azure_if_needed  # noqa: E402
+from health_azure.argparsing import create_argparser, parse_arguments, ParserResult, apply_overrides  # noqa: E402
 from health_azure.amulet import prepare_amulet_job, is_amulet_job  # noqa: E402
 from health_azure.datasets import create_dataset_configs  # noqa: E402
 from health_azure.himl import DEFAULT_DOCKER_BASE_IMAGE, OUTPUT_FOLDER  # noqa: E402
@@ -38,10 +39,6 @@ from health_azure.utils import (
     is_local_rank_zero,
     is_running_in_azure_ml,
     set_environment_variables_for_multi_node,
-    create_argparser,
-    parse_arguments,
-    ParserResult,
-    apply_overrides,
     filter_v2_input_output_args,
     is_global_rank_zero,
 )
