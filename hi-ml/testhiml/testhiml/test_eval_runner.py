@@ -24,7 +24,7 @@ hello_world_checkpoint = full_test_data_path(suffix="hello_world_checkpoint.ckpt
 
 def test_eval_runner_no_checkpoint(mock_runner: Runner) -> None:
     """Test of the evaluation mode fails if no checkpoint source is provided"""
-    arguments = ["", f"--model=HelloWorld", "--mode=eval"]
+    arguments = ["", f"--model=HelloWorld", f"--mode={RunnerMode.EVAL_FULL.value}"]
     with pytest.raises(ValueError, match="To use model evaluation, you need to provide a checkpoint to use"):
         with patch.object(sys, "argv", arguments):
             mock_runner.run()
@@ -32,7 +32,12 @@ def test_eval_runner_no_checkpoint(mock_runner: Runner) -> None:
 
 def test_eval_runner_end_to_end(mock_runner: Runner) -> None:
     """Test the end-to-end integration of the EvalRunner class into the overall Runner"""
-    arguments = ["", f"--model=HelloWorld", "--mode=eval", f"--src_checkpoint={hello_world_checkpoint}"]
+    arguments = [
+        "",
+        f"--model=HelloWorld",
+        f"--mode={RunnerMode.EVAL_FULL.value}",
+        f"--src_checkpoint={hello_world_checkpoint}",
+    ]
     with patch("health_ml.training_runner.TrainingRunner.run_and_cleanup") as mock_training_run:
         with patch.object(sys, "argv", arguments):
             mock_runner.run()
