@@ -15,7 +15,7 @@ from health_ml.eval_runner import EvalRunner
 from health_ml.experiment_config import ExperimentConfig, RunnerMode
 from health_ml.runner import Runner
 from health_ml.utils.checkpoint_utils import CheckpointParser
-from testhiml.test_run_ml import ml_runner_with_container
+from testhiml.test_training_runner import ml_runner_with_container
 
 
 @pytest.fixture(scope="function")

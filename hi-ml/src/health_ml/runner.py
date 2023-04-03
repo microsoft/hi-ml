@@ -49,6 +49,7 @@ from health_azure.utils import (  # noqa: E402
 from health_ml.eval_runner import EvalRunner  # noqa: E402
 from health_ml.experiment_config import DEBUG_DDP_ENV_VAR, ExperimentConfig, RunnerMode  # noqa: E402
 from health_ml.lightning_container import LightningContainer  # noqa: E402
+from health_ml.runner_base import RunnerBase  # noqa: E402
 from health_ml.training_runner import TrainingRunner  # noqa: E402
 from health_ml.utils import fixed_paths  # noqa: E402
 from health_ml.utils.logging import ConsoleAndFileOutput  # noqa: E402
@@ -106,7 +107,7 @@ class Runner:
         self.experiment_config: ExperimentConfig = ExperimentConfig()
         self.lightning_container: LightningContainer = None  # type: ignore
         # This field stores the TrainingRunner object that has been created in the most recent call to the run() method.
-        self.ml_runner: Optional[TrainingRunner] = None
+        self.ml_runner: Optional[RunnerBase] = None
 
     def parse_and_load_model(self) -> ParserResult:
         """
@@ -336,19 +337,16 @@ class Runner:
                 container=self.lightning_container,
                 project_root=self.project_root,
             )
-            self.ml_runner.validate()
-            self.ml_runner.run_and_cleanup(azure_run_info)
         elif self.experiment_config.mode == RunnerMode.EVAL:
-            self.eval_runner = EvalRunner(
+            self.ml_runner = EvalRunner(
                 experiment_config=self.experiment_config,
                 container=self.lightning_container,
                 project_root=self.project_root,
             )
-            # TODO: DRY, move runner.run out?
-            self.eval_runner.validate()
-            self.eval_runner.run_and_cleanup(azure_run_info)
         else:
             raise ValueError(f"Unknown mode {self.experiment_config.mode}")
+        self.ml_runner.validate()
+        self.ml_runner.run_and_cleanup(azure_run_info)
 
 
 def run(project_root: Path) -> Tuple[LightningContainer, AzureRunInfo]:
