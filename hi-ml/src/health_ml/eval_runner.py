@@ -17,8 +17,8 @@ class EvalRunner(RunnerBase):
             )
 
     def run(self) -> None:
-        """Start the core workflow that the class implements: Initialize the trainer and run inference on the
-        inference dataset."""
+        """Start the core workflow that the class implements: Initialize a PL Trainer object and use that to run
+        inference on the inference dataset."""
         self.container.outputs_folder.mkdir(exist_ok=True, parents=True)
         self.init_inference()
         with logging_section("Model inference"):

@@ -15,17 +15,11 @@ from health_ml.eval_runner import EvalRunner
 from health_ml.experiment_config import ExperimentConfig, RunnerMode
 from health_ml.runner import Runner
 from health_ml.utils.checkpoint_utils import CheckpointParser
-from testhiml.test_training_runner import ml_runner_with_container
+from testhiml.test_training_runner import training_runner_hello_world
+from testhiml.utils.fixed_paths_for_tests import full_test_data_path
 
 
-@pytest.fixture(scope="function")
-def hello_world_checkpoint(ml_runner_with_container: TrainingRunner, tmp_path: Path) -> Path:
-    container = ml_runner_with_container.container
-    container.set_output_to(tmp_path)
-    container.max_epochs = 5
-    ml_runner_with_container.run()
-    # Read out the trained checkpoint and use the runner in eval mode
-    return container.get_checkpoint_to_test()
+hello_world_checkpoint = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
 
 
 def test_eval_runner_no_checkpoint(mock_runner: Runner) -> None:
@@ -36,7 +30,7 @@ def test_eval_runner_no_checkpoint(mock_runner: Runner) -> None:
             mock_runner.run()
 
 
-def test_eval_runner_end_to_end(mock_runner: Runner, hello_world_checkpoint: Path) -> None:
+def test_eval_runner_end_to_end(mock_runner: Runner) -> None:
     """Test the end-to-end integration of the EvalRunner class into the overall Runner"""
     arguments = ["", f"--model=HelloWorld", "--mode=eval", f"--src_checkpoint={hello_world_checkpoint}"]
     with patch("health_ml.training_runner.TrainingRunner.run_and_cleanup") as mock_training_run:
@@ -51,7 +45,7 @@ def test_eval_runner_end_to_end(mock_runner: Runner, hello_world_checkpoint: Pat
             assert (output_folder / file_name).exists()
 
 
-def test_eval_runner_methods_called(hello_world_checkpoint: Path, tmp_path: Path) -> None:
+def test_eval_runner_methods_called(tmp_path: Path) -> None:
     """Test if the eval runner uses the right data module from the HelloWorld model"""
     container = HelloWorld()
     container.src_checkpoint = CheckpointParser(str(hello_world_checkpoint))
