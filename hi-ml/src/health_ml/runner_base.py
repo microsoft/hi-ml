@@ -44,7 +44,7 @@ def check_dataset_folder_exists(local_dataset: PathOrString) -> Path:
     expected_dir = Path(local_dataset)
     if not expected_dir.is_dir():
         raise FileNotFoundError(f"The model uses a dataset in {expected_dir}, but that does not exist.")
-    logging.info(f"Model training will use the local dataset provided in {expected_dir}")
+    logging.info(f"Model will use the local dataset provided in {expected_dir}")
     return expected_dir
 
 
