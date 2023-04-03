@@ -56,3 +56,17 @@ def test_eval_runner_methods_called(tmp_path: Path) -> None:
         mock_get_data_module.return_value = HelloWorldDataModule(crossval_count=1, seed=1)
         eval_runner.run_and_cleanup()
         mock_get_data_module.assert_called_once_with()
+
+
+def test_eval_runner_no_extra_validation_epoch_called(tmp_path: Path) -> None:
+    """
+    Ensure that the eval runner does not invoke the hook the extra validation epoch that is used by the training runner.
+    """
+    container = HelloWorld()
+    container.src_checkpoint = CheckpointParser(str(hello_world_checkpoint))
+    eval_runner = EvalRunner(
+        container=container, experiment_config=ExperimentConfig(mode=RunnerMode.EVAL), project_root=tmp_path
+    )
+    with patch("health_ml.configs.hello_world.HelloRegression.on_run_extra_validation_epoch") as mock_hook:
+        eval_runner.run_and_cleanup()
+        mock_hook.assert_not_called()
