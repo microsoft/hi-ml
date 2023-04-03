@@ -12,7 +12,7 @@ class DebugDDPOptions(Enum):
 
 class RunnerMode(Enum):
     TRAIN = "train"
-    EVAL = "eval"
+    EVAL = "eval_full"
 
 
 DEBUG_DDP_ENV_VAR = "TORCH_DISTRIBUTED_DEBUG"
@@ -90,5 +90,7 @@ class ExperimentConfig(param.Parameterized):
     mode: str = param.ClassSelector(
         class_=RunnerMode,
         default=RunnerMode.TRAIN,
-        doc="The mode to run the experiment in. Can be one of 'train', 'eval'",
+        doc="The mode to run the experiment in. Can be one of 'train' (training and evaluation on the test set), "
+        "or 'eval_full' for evaluation on the full dataset specified by the 'get_eval_data_module' method of the "
+        "container.",
     )
