@@ -276,9 +276,9 @@ in the AzureMl run `MyContainer_XXXX_yyyy` at the best validation loss epoch `/o
 himl-runner --model=Mycontainer --src_checkpoint=MyContainer_XXXX_yyyy:best_val_loss.ckpt --mode=eval_full --azure_datasets=my_new_dataset
 ```
 
-The example code snippet here shows how to add a method that reads the inference dataset. We assume that the
-`MyDataModule` class has an argument `splits` that specifies the fraction of data to go into the training, validation,
-and test data loaders.
+The example code snippet here shows how to add a method that reads the inference dataset. In this example, we assume
+that the `MyDataModule` class has an argument `splits` that specifies the fraction of data to go into the training,
+validation, and test data loaders.
 
 ```python
 class MyContainer(LightningContainer):
