@@ -7,6 +7,7 @@ use of these features:
 - Working with different models in the same codebase, and selecting one by name
 - Distributed training in AzureML
 - Logging via AzureML's native capabilities
+- Evaluation of the trained model on new datasets
 
 This can be used by invoking the hi-ml runner and providing the name of the container class, like this:
 `himl-runner --model=MyContainer`.
@@ -215,7 +216,13 @@ and returns a tuple containing the Optimizer and LRScheduler objects
 ## Run inference with a pretrained model
 
 You can use the hi-ml-runner in inference mode only by switching the `--run_inference_only` flag on and specifying
-the model weights by setting `--src_checkpoint` argument that supports three types of checkpoints:
+the model weights by setting `--src_checkpoint` argument. With this flag, the model will be evaluated on the test set
+only. There is also an option for evaluating the model an a full dataset, described further below.
+
+### Specifying the checkpoint to use
+
+When running inference on a trained model, you need to provide a model checkpoint that should be used. This is done via
+the `--src_checkpoint` argument. This supports three types of checkpoints:
 
 - A local path where the checkpoint is stored `--src_checkpoint=local/path/to/my_checkpoint/model.ckpt`
 - A remote URL from where to download the weights `--src_checkpoint=https://my_checkpoint_url.com/model.ckpt`
@@ -228,11 +235,67 @@ the model weights by setting `--src_checkpoint` argument that supports three typ
 
 Refer to [Checkpoints Utils](checkpoints.md) for more details on how checkpoints are parsed.
 
-Running the following command line will run inference using `MyContainer` model with weights from the checkpoint saved
+### Running inference on the test set
+
+When supplying the flag `--run_inference_only` on the commandline, no model training will be run, and only inference on the
+test set will be done:
+
+- The model weights will be loaded from the location specified by `--src_checkpoint`
+- A PyTorch Lightining `Trainer` object will be instantiated.
+- The test set will be read out from the data module specified by the `get_data_module` method of the
+  `LightningContainer` object.
+- The model will be evaluated on the test set, by running `trainer.test`. Any special logic to use during the test step
+  will need to be added to the model's `test_step` method.
+
+Running the following command line will run inference using the `MyContainer` model with weights from the checkpoint saved
 in the AzureMl run `MyContainer_XXXX_yyyy` at the best validation loss epoch `/outputs/checkpoints/best_val_loss.ckpt`.
 
 ```bash
 himl-runner --model=Mycontainer --run_inference_only --src_checkpoint=MyContainer_XXXX_yyyy:best_val_loss.ckpt
+```
+
+### Running inference on a full dataset
+
+When supplying the flag `--mode=eval_full` on the commandline, no model training will be run, and the model will be
+evaluated on a dataset different from the training/validation/test dataset. This dataset is loaded via the
+`get_eval_data_module` method of the container.
+
+- The model weights will be loaded from the location specified by `--src_checkpoint`
+- A PyTorch Lightining `Trainer` object will be instantiated.
+- The test set will be read out from the data module specified by the `get_eval_data_module` method of the
+  `LightningContainer` object. The data module itself can read data from a mounted Azure dataset, which will be made
+  availabe for the container at the path `self.local_datasets`. In a typical use-case, all the data in that dataset will be
+  put into the `test_dataloader` field of the data module.
+- The model will be evaluated on the test set, by running `trainer.test`. Any special logic to use during the test step
+  will need to added to the model's `test_step` method.
+
+Running the following command line will run inference using the `MyContainer` model with weights from the checkpoint saved
+in the AzureMl run `MyContainer_XXXX_yyyy` at the best validation loss epoch `/outputs/checkpoints/best_val_loss.ckpt`.
+
+```bash
+himl-runner --model=Mycontainer --src_checkpoint=MyContainer_XXXX_yyyy:best_val_loss.ckpt --mode=eval_full --azure_datasets=my_new_dataset
+```
+
+The example code snippet here shows how to add a method that reads the inference dataset. We assume that the
+`MyDataModule` class has an argument `splits` that specifies the fraction of data to go into the training, validation,
+and test data loaders.
+
+```python
+class MyContainer(LightningContainer):
+    def __init__(self):
+        super().__init__()
+        self.azure_datasets = ["folder_name_in_azure_blob_storage"]
+        self.local_datasets = [Path("/some/local/path")]
+        self.max_epochs = 42
+
+    def create_model(self) -> LightningModule:
+        return MyLightningModel()
+
+    def get_data_module(self) -> LightningDataModule:
+        return MyDataModule(root_path=self.local_dataset, splits=(0.7, 0.2, 0.1))
+
+    def get_eval_data_module(self) -> LightningDataModule:
+        return MyDataModule(root_path=self.local_dataset, splits=(0.0, 0.0, 1.0))
 ```
 
 ## Resume training from a given checkpoint
@@ -298,5 +361,6 @@ seeds on a local machine, other than by manually starting runs with `--random_se
    the limit that AML sets for snapshots. Solution: check for cache files, log files or other files that are not
    necessary for running your experiment and add them to a `.amlignore` file in the root directory. Alternatively, you
    can see Azure ML documentation for instructions on increasing this limit, although it will make your jobs slower.
-2. `"FileNotFoundError"`. Possible cause: Symlinked files. Azure ML SDK v2 will resolve the symlink and attempt to upload
-the resolved file. Solution: Remove symlinks from any files that should be uploaded to Azure ML.
+
+1. `"FileNotFoundError"`. Possible cause: Symlinked files. Azure ML SDK v2 will resolve the symlink and attempt to upload
+    the resolved file. Solution: Remove symlinks from any files that should be uploaded to Azure ML.
