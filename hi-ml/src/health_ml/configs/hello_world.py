@@ -16,6 +16,9 @@ from torch.utils.data import DataLoader, Dataset
 
 from health_ml.lightning_container import LightningContainer
 
+TEST_MSE_FILE = "test_mse.txt"
+TEST_MAE_FILE = "test_mae.txt"
+
 
 def _create_1d_regression_dataset(n: int = 100, seed: int = 0) -> torch.Tensor:
     """Creates a simple 1-D dataset of a noisy linear function.
@@ -79,10 +82,10 @@ class HelloWorldDataModule(LightningDataModule):
     A data module that gives the training, validation and test data for a simple 1-dim regression task.
     """
 
-    def __init__(self, crossval_count: int, crossval_index: Optional[int]) -> None:
+    def __init__(self, crossval_count: int, crossval_index: Optional[int] = None, seed: int = 0) -> None:
         super().__init__()
         n_total = 200
-        xy = _create_1d_regression_dataset(n=n_total)
+        xy = _create_1d_regression_dataset(n=n_total, seed=seed)
         n_test = 40
         n_val = 50
         self.test = HelloWorldDataset(xy=xy[:n_test])
@@ -229,8 +232,8 @@ class HelloRegression(LightningModule):
         for example writing aggregate metrics to disk.
         """
         average_mse = torch.mean(torch.stack(self.test_mse))
-        Path("test_mse.txt").write_text(str(average_mse.item()))
-        Path("test_mae.txt").write_text(str(self.test_mae.compute().item()))
+        Path(TEST_MSE_FILE).write_text(str(average_mse.item()))
+        Path(TEST_MAE_FILE).write_text(str(self.test_mae.compute().item()))
         self.log("test_mse", average_mse, on_epoch=True, on_step=False)
 
     def on_run_extra_validation_epoch(self) -> None:
@@ -265,6 +268,11 @@ class HelloWorld(LightningContainer):
         # you need to provide the crossvalidation parameters in the LightningContainer to the datamodule. The
         # datamodule must carry out appropriate splitting of the data.
         return HelloWorldDataModule(crossval_count=self.crossval_count, crossval_index=self.crossval_index)
+
+    # This method is optional. Override it to supply a data module to use for evaluating the model on a new dataset.
+    # Only the test data loader from the data module will be used.
+    def get_eval_data_module(self) -> LightningDataModule:
+        return HelloWorldDataModule(crossval_count=1, seed=1)
 
     def get_callbacks(self) -> List[Callback]:
         if self.save_checkpoint:
