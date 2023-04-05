@@ -99,3 +99,26 @@ def get_imagenet_init_encoder() -> ImageModel:
     )
     image_model.encoder.encoder.load_state_dict(state_dict)
     return image_model
+
+
+def get_image_encoder(weights: str) -> ImageModel:
+    """Instantiate image model with random or pre-trained weights.
+    :param weights: Select one of `random`, `imagenet`, `biovil`, `biovil_t`
+    """
+
+    if weights == Weights.RANDOM:
+        image_model = ImageModel(
+            img_encoder_type=ImageEncoderType.RESNET50,
+            joint_feature_size=JOINT_FEATURE_SIZE,
+            pretrained_model_path=None,
+    )
+    elif weights == Weights.IMAGENET:
+        image_model = get_imagenet_init_encoder()
+    elif weights == Weights.BIOVIL:
+        image_model = get_biovil_image_encoder()
+    elif weights == Weights.BIOVIL_T:
+        image_model = get_biovil_t_image_encoder()
+    else:
+        raise ValueError(f"Weights option not found: {weights}")
+
+    return image_model
