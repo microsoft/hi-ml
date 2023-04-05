@@ -35,3 +35,11 @@ class ImageEncoderType(str, Enum):
             return [cls.RESNET18_MULTI_IMAGE, cls.RESNET50_MULTI_IMAGE]
         else:
             return [member for member in cls]
+
+
+@unique
+class Weights(str, Enum):
+    RANDOM = "random"
+    IMAGENET = "imagenet"
+    BIOVIL = "biovil"
+    BIOVIL_T = "biovil_t"
