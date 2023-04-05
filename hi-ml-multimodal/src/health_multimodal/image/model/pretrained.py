@@ -111,7 +111,7 @@ def get_image_encoder(weights: str) -> ImageModel:
             img_encoder_type=ImageEncoderType.RESNET50,
             joint_feature_size=JOINT_FEATURE_SIZE,
             pretrained_model_path=None,
-    )
+        )
     elif weights == Weights.IMAGENET:
         image_model = get_imagenet_init_encoder()
     elif weights == Weights.BIOVIL:
