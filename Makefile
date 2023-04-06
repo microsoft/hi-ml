@@ -106,7 +106,7 @@ call_pytest_and_coverage:
 pytest_and_coverage: pip_test call_pytest_and_coverage
 
 # install test requirements and run all tests
-test_all: pip_test call_flake8 call_mypy call_pytest_and_coverage
+test_all: pip_test flake8 mypy call_pytest_and_coverage
 
 # build the github format_coverage action
 action:
