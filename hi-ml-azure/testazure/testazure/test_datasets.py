@@ -316,7 +316,8 @@ def test_get_or_create_v1_dataset_empty_datastore_name() -> None:
     dataset_name = "foo"
     with pytest.raises(ValueError) as ex:
         _get_or_create_v1_dataset(datastore, dataset_name, workspace)
-        assert "When creating a new dataset, a datastore name must be provided." in str(ex)
+
+    assert "When creating a new dataset, a datastore name must be provided." in str(ex)
 
 
 def test_get_or_create_v2_data_asset() -> None:
