@@ -37,6 +37,7 @@ from azureml.dataprep.fuse.daemon import MountContext
 from azureml.train.hyperdrive import HyperDriveConfig
 
 import health_azure.himl as himl
+from health_azure.argparsing import EXPERIMENT_RUN_SEPARATOR
 from health_azure.datasets import (
     DatasetConfig,
     _input_dataset_key,
@@ -49,7 +50,6 @@ from health_azure.utils import (
     ENV_EXPERIMENT_NAME,
     ENV_WORKSPACE_NAME,
     ENVIRONMENT_VERSION,
-    EXPERIMENT_RUN_SEPARATOR,
     WORKSPACE_CONFIG_JSON,
     VALID_LOG_FILE_PATHS,
     JobStatus,

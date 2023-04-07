@@ -531,7 +531,7 @@ def create_dataset_configs(
         count = num_azure
     elif num_azure == 0 and num_mount == 0:
         # No datasets in Azure at all: This is possible for runs that for example download their own data from the web.
-        # There can be any number of local datasets, but we are not checking that. In MLRunner.setup, there is a check
+        # There can be any number of local datasets, but we are not checking that. In TrainingRunner.setup, there is a check
         # that leaves local datasets intact if there are no Azure datasets.
         return []
     else:

@@ -50,7 +50,7 @@ repos:
     args: [--config, hi-ml-multimodal/.flake8]
 
 - repo: https://github.com/psf/black
-  rev: 23.1.0
+  rev: 23.3.0
   hooks:
   - id: black
     extend-exclude: ^docs/source/amulet/amulet_script.py

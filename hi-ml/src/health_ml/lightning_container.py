@@ -65,6 +65,17 @@ class LightningContainer(WorkflowParams, DatasetParams, OutputParams, TrainerPar
         """
         return None  # type: ignore
 
+    def get_eval_data_module(self) -> LightningDataModule:
+        """
+        Gets the data that is used when evaluating the model on a new dataset.
+        This data module should read datasets from the self.local_datasets folder or download from a web location.
+        Only the test dataloader is used, hence the method needs to put all data into the test dataloader, rather
+        than splitting into train/val/test.
+
+        :return: A LightningDataModule
+        """
+        return None  # type: ignore
+
     def get_trainer_arguments(self) -> Dict[str, Any]:
         """
         Gets additional parameters that will be passed on to the PyTorch Lightning trainer.

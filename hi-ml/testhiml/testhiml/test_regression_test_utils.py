@@ -13,7 +13,7 @@ import pytest
 
 from health_azure.utils import create_aml_run_object
 from health_ml.experiment_config import ExperimentConfig
-from health_ml.run_ml import MLRunner
+from health_ml.training_runner import TrainingRunner
 from health_ml.configs.hello_world import HelloWorld
 from health_ml.utils.regression_test_utils import (
     CONTENTS_MISMATCH,
@@ -54,7 +54,7 @@ def test_regression_test() -> None:
     """
     container = HelloWorld()
     container.regression_test_folder = Path(str(uuid.uuid4().hex))
-    runner = MLRunner(container=container, experiment_config=ExperimentConfig())
+    runner = TrainingRunner(container=container, experiment_config=ExperimentConfig())
     runner.setup()
     with pytest.raises(ValueError) as ex:
         runner.run()

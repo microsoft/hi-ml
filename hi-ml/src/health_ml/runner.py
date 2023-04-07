@@ -25,30 +25,29 @@ for folder in folders_to_add:
         sys.path.insert(0, str(folder))
 
 from health_azure import AzureRunInfo, submit_to_azure_if_needed  # noqa: E402
+from health_azure.argparsing import create_argparser, parse_arguments, ParserResult, apply_overrides  # noqa: E402
 from health_azure.amulet import prepare_amulet_job, is_amulet_job  # noqa: E402
 from health_azure.datasets import create_dataset_configs  # noqa: E402
 from health_azure.himl import DEFAULT_DOCKER_BASE_IMAGE, OUTPUT_FOLDER  # noqa: E402
 from health_azure.logging import logging_to_stdout  # noqa: E402
 from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
-from health_azure.utils import (
+from health_azure.utils import (  # noqa: E402
     ENV_LOCAL_RANK,
-    ENV_NODE_RANK,  # noqa: E402
+    ENV_NODE_RANK,
     get_workspace,
     get_ml_client,
     is_local_rank_zero,
     is_running_in_azure_ml,
     set_environment_variables_for_multi_node,
-    create_argparser,
-    parse_arguments,
-    ParserResult,
-    apply_overrides,
     filter_v2_input_output_args,
     is_global_rank_zero,
 )
 
-from health_ml.experiment_config import DEBUG_DDP_ENV_VAR, ExperimentConfig  # noqa: E402
+from health_ml.eval_runner import EvalRunner  # noqa: E402
+from health_ml.experiment_config import DEBUG_DDP_ENV_VAR, ExperimentConfig, RunnerMode  # noqa: E402
 from health_ml.lightning_container import LightningContainer  # noqa: E402
-from health_ml.run_ml import MLRunner  # noqa: E402
+from health_ml.runner_base import RunnerBase  # noqa: E402
+from health_ml.training_runner import TrainingRunner  # noqa: E402
 from health_ml.utils import fixed_paths  # noqa: E402
 from health_ml.utils.logging import ConsoleAndFileOutput  # noqa: E402
 from health_ml.utils.common_utils import check_conda_environment, choose_conda_env_file, is_linux  # noqa: E402
@@ -104,8 +103,8 @@ class Runner:
         self.project_root = project_root
         self.experiment_config: ExperimentConfig = ExperimentConfig()
         self.lightning_container: LightningContainer = None  # type: ignore
-        # This field stores the MLRunner object that has been created in the most recent call to the run() method.
-        self.ml_runner: Optional[MLRunner] = None
+        # This field stores the TrainingRunner object that has been created in the most recent call to the run() method.
+        self.ml_runner: Optional[RunnerBase] = None
 
     def parse_and_load_model(self) -> ParserResult:
         """
@@ -325,15 +324,26 @@ class Runner:
             assert azure_run_info.run is not None
             azure_run_info.run.set_tags(self.additional_run_tags(sys.argv[1:]))
 
-        # Set environment variables for multi-node training if needed. This function will terminate early
-        # if it detects that it is not in a multi-node environment.
-        if self.experiment_config.num_nodes > 1:
-            set_environment_variables_for_multi_node()
-        self.ml_runner = MLRunner(
-            experiment_config=self.experiment_config, container=self.lightning_container, project_root=self.project_root
-        )
-        self.ml_runner.setup(azure_run_info)
-        self.ml_runner.run()
+        if self.experiment_config.mode == RunnerMode.TRAIN:
+            # Set environment variables for multi-node training if needed. This function will terminate early
+            # if it detects that it is not in a multi-node environment.
+            if self.experiment_config.num_nodes > 1:
+                set_environment_variables_for_multi_node()
+            self.ml_runner = TrainingRunner(
+                experiment_config=self.experiment_config,
+                container=self.lightning_container,
+                project_root=self.project_root,
+            )
+        elif self.experiment_config.mode == RunnerMode.EVAL_FULL:
+            self.ml_runner = EvalRunner(
+                experiment_config=self.experiment_config,
+                container=self.lightning_container,
+                project_root=self.project_root,
+            )
+        else:
+            raise ValueError(f"Unknown mode {self.experiment_config.mode}")
+        self.ml_runner.validate()
+        self.ml_runner.run_and_cleanup(azure_run_info)
 
 
 def run(project_root: Path) -> Tuple[LightningContainer, AzureRunInfo]:

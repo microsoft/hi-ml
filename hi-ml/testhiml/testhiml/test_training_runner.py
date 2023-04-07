@@ -18,34 +18,38 @@ from pytorch_lightning import LightningModule
 import mlflow
 from pytorch_lightning import Trainer
 
-from health_ml.configs.hello_world import HelloWorld  # type: ignore
+from health_ml.configs.hello_world import TEST_MAE_FILE, TEST_MSE_FILE, HelloWorld  # type: ignore
 from health_ml.experiment_config import ExperimentConfig
 from health_ml.lightning_container import LightningContainer
-from health_ml.run_ml import MLRunner
+from health_ml.runner_base import RunnerBase
+from health_ml.training_runner import TrainingRunner
 from health_ml.utils.checkpoint_handler import CheckpointHandler
 from health_ml.utils.checkpoint_utils import CheckpointParser
-from health_ml.utils.common_utils import is_gpu_available
+from health_ml.utils.common_utils import EFFECTIVE_RANDOM_SEED_KEY_NAME, is_gpu_available
 from health_ml.utils.lightning_loggers import HimlMLFlowLogger, StoringLogger, get_mlflow_run_id_from_trainer
 from health_azure.utils import ENV_EXPERIMENT_NAME, is_global_rank_zero
 from testazure.utils_testazure import DEFAULT_WORKSPACE, experiment_for_unittests
-from testhiml.utils.fixed_paths_for_tests import mock_run_id
+from testhiml.utils.fixed_paths_for_tests import full_test_data_path
 
 no_gpu = not is_gpu_available()
+hello_world_checkpoint = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
 
 
-@pytest.fixture(scope="module")
-def ml_runner_no_setup() -> MLRunner:
+@pytest.fixture()
+def training_runner_no_setup(tmp_path: Path) -> TrainingRunner:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = LightningContainer(num_epochs=1)
-    runner = MLRunner(experiment_config=experiment_config, container=container)
+    container.set_output_to(tmp_path)
+    runner = TrainingRunner(experiment_config=experiment_config, container=container)
     return runner
 
 
-@pytest.fixture(scope="module")
-def ml_runner() -> Generator:
+@pytest.fixture()
+def training_runner(tmp_path: Path) -> Generator:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = LightningContainer(num_epochs=1)
-    runner = MLRunner(experiment_config=experiment_config, container=container)
+    container.set_output_to(tmp_path)
+    runner = TrainingRunner(experiment_config=experiment_config, container=container)
     runner.setup()
     yield runner
     output_dir = runner.container.file_system_config.outputs_folder
@@ -54,10 +58,11 @@ def ml_runner() -> Generator:
 
 
 @pytest.fixture()
-def ml_runner_with_container() -> Generator:
+def training_runner_hello_world(tmp_path: Path) -> Generator:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
-    runner = MLRunner(experiment_config=experiment_config, container=container)
+    container.set_output_to(tmp_path)
+    runner = TrainingRunner(experiment_config=experiment_config, container=container)
     runner.setup()
     yield runner
     output_dir = runner.container.file_system_config.outputs_folder
@@ -66,12 +71,15 @@ def ml_runner_with_container() -> Generator:
 
 
 @pytest.fixture()
-def ml_runner_with_run_id() -> Generator:
+def training_runner_hello_world_with_checkpoint() -> Generator:
+    """
+    A fixture with a training runner for the HelloWorld model that has a src_checkpoint set.
+    """
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     container.save_checkpoint = True
-    container.src_checkpoint = CheckpointParser(mock_run_id(id=0))
-    runner = MLRunner(experiment_config=experiment_config, container=container)
+    container.src_checkpoint = CheckpointParser(str(hello_world_checkpoint))
+    runner = TrainingRunner(experiment_config=experiment_config, container=container)
     runner.setup()
     yield runner
     output_dir = runner.container.file_system_config.outputs_folder
@@ -92,14 +100,27 @@ def regression_datadir(tmp_path: Path) -> Generator:
     shutil.rmtree(tmp_path)
 
 
-def test_ml_runner_setup(ml_runner_no_setup: MLRunner) -> None:
+def create_mlflow_trash_folder(runner: RunnerBase) -> None:
+    """Create a trash folder where MLFlow expects its deleted runs.
+    This is a workaround for sporadic test failures: When reading out the run_id, MLFlow checks its own
+    deleted runs folder, but that (or one of its parents) does not exist
+    """
+    trash_folder = runner.container.outputs_folder / "mlruns" / ".trash"
+    trash_folder.mkdir(exist_ok=True, parents=True)
+
+
+def test_ml_runner_setup(training_runner_no_setup: TrainingRunner) -> None:
     """Check that all the necessary methods get called during setup"""
-    assert not ml_runner_no_setup._has_setup_run
-    with patch.object(ml_runner_no_setup, "container", spec=LightningContainer) as mock_container:
-        with patch.object(ml_runner_no_setup, "checkpoint_handler", spec=CheckpointHandler) as mock_checkpoint_handler:
-            with patch("health_ml.run_ml.seed_everything") as mock_seed:
-                with patch("health_ml.run_ml.seed_monai_if_available") as mock_seed_monai:
-                    ml_runner_no_setup.setup()
+    assert not training_runner_no_setup._has_setup_run
+    with patch.object(training_runner_no_setup, "container", spec=LightningContainer) as mock_container:
+        # Without that, it would try to create a local run object for logging and fail there.
+        mock_container.log_from_vm = False
+        with patch.object(
+            training_runner_no_setup, "checkpoint_handler", spec=CheckpointHandler
+        ) as mock_checkpoint_handler:
+            with patch("health_ml.runner_base.seed_everything") as mock_seed:
+                with patch("health_ml.runner_base.seed_monai_if_available") as mock_seed_monai:
+                    training_runner_no_setup.setup()
                     mock_container.get_effective_random_seed.assert_called()
                     mock_seed.assert_called_once()
                     mock_seed_monai.assert_called_once()
@@ -107,47 +128,58 @@ def test_ml_runner_setup(ml_runner_no_setup: MLRunner) -> None:
                     mock_checkpoint_handler.download_recovery_checkpoints_or_weights.assert_called_once()
                     mock_container.setup.assert_called_once()
                     mock_container.create_lightning_module_and_store.assert_called_once()
-                    assert ml_runner_no_setup._has_setup_run
+                    assert training_runner_no_setup._has_setup_run
 
 
-def test_set_run_tags_from_parent(ml_runner: MLRunner) -> None:
-    """Test that set_run_tags_from_parents causes set_tags to get called"""
-    with pytest.raises(AssertionError) as ae:
-        ml_runner.set_run_tags_from_parent()
-        assert "should only be called in a Hyperdrive run" in str(ae)
+def test_setup_azureml(training_runner: TrainingRunner) -> None:
+    """Test that setup_azureml causes set_tags to get called when running in Hyperdrive"""
+    with patch("health_ml.runner_base.RUN_CONTEXT") as mock_run_context:
+        training_runner.setup_azureml()
+        # Tests always run outside of a Hyperdrive run. In those cases, no tags should be set on
+        # the current run.
+        mock_run_context.set_tags.assert_not_called()
 
-    with patch("health_ml.run_ml.PARENT_RUN_CONTEXT") as mock_parent_run_context:
-        with patch("health_ml.run_ml.RUN_CONTEXT") as mock_run_context:
-            mock_parent_run_context.get_tags.return_value = {"tag": "dummy_tag"}
-            ml_runner.set_run_tags_from_parent()
-            mock_run_context.set_tags.assert_called()
+        with patch("health_ml.runner_base.PARENT_RUN_CONTEXT") as mock_parent_run_context:
+            # Mock the presence of a parent run, and tags that are present there
+            tag_name = "tag"
+            tag_value = "dummy_tag"
+            mock_parent_run_context.get_tags.return_value = {tag_name: tag_value}
+            training_runner.setup_azureml()
+            # The function should read out tags from the parent run, and set them on the current run
+            mock_parent_run_context.get_tags.assert_called_once_with()
+            mock_run_context.set_tags.assert_called_once()
+            call_args = mock_run_context.set_tags.call_args[0][0]
+            assert tag_name in call_args
+            assert call_args[tag_name] == tag_value
+            assert EFFECTIVE_RANDOM_SEED_KEY_NAME in call_args
 
 
-def test_get_multiple_trainloader_mode(ml_runner: MLRunner) -> None:
-    multiple_trainloader_mode = ml_runner.get_multiple_trainloader_mode()
+def test_get_multiple_trainloader_mode(training_runner: TrainingRunner) -> None:
+    training_runner.init_training()
+    multiple_trainloader_mode = training_runner.get_multiple_trainloader_mode()
     assert multiple_trainloader_mode == "max_size_cycle", "train_loader_cycle_mode is available now, "
     "`get_multiple_trainloader_mode` workaround can be safely removed."
 
 
-def _test_init_training(run_inference_only: bool, ml_runner: MLRunner, caplog: LogCaptureFixture) -> None:
+def _test_init_training(run_inference_only: bool, training_runner: TrainingRunner, caplog: LogCaptureFixture) -> None:
     """Test that training is initialized correctly"""
-    ml_runner.container.run_inference_only = run_inference_only
-    ml_runner.setup()
-    assert not ml_runner.checkpoint_handler.has_continued_training
-    assert ml_runner.trainer is None
-    assert ml_runner.storing_logger is None
+    training_runner.container.run_inference_only = run_inference_only
+    training_runner.setup()
+    assert not training_runner.checkpoint_handler.has_continued_training
+    assert training_runner.trainer is None
+    assert training_runner.storing_logger is None
 
-    with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
-        with patch.object(ml_runner.container, "get_data_module") as mock_get_data_module:
-            with patch("health_ml.run_ml.write_experiment_summary_file") as mock_write_experiment_summary_file:
+    with patch("health_ml.training_runner.create_lightning_trainer") as mock_create_trainer:
+        with patch.object(training_runner.container, "get_data_module") as mock_get_data_module:
+            with patch("health_ml.training_runner.write_experiment_summary_file") as mock_write_experiment_summary_file:
                 with patch.object(
-                    ml_runner.checkpoint_handler, "get_recovery_or_checkpoint_path_train"
+                    training_runner.checkpoint_handler, "get_recovery_or_checkpoint_path_train"
                 ) as mock_get_recovery_or_checkpoint_path_train:
-                    with patch("health_ml.run_ml.seed_everything") as mock_seed:
+                    with patch("health_ml.training_runner.seed_everything") as mock_seed:
                         mock_create_trainer.return_value = MagicMock(), MagicMock()
                         mock_get_recovery_or_checkpoint_path_train.return_value = "dummy_path"
 
-                        ml_runner.init_training()
+                        training_runner.init_training()
 
                         # Make sure write_experiment_summary_file is only called on rank 0
                         if is_global_rank_zero():
@@ -157,47 +189,51 @@ def _test_init_training(run_inference_only: bool, ml_runner: MLRunner, caplog: L
 
                         # Make sure seed is set correctly with workers=True
                         mock_seed.assert_called_once()
-                        assert mock_seed.call_args[0][0] == ml_runner.container.get_effective_random_seed()
+                        assert mock_seed.call_args[0][0] == training_runner.container.get_effective_random_seed()
                         assert mock_seed.call_args[1]["workers"]
 
                         mock_get_data_module.assert_called_once()
-                        assert ml_runner.data_module is not None
+                        assert training_runner.data_module is not None
 
                         if not run_inference_only:
                             mock_get_recovery_or_checkpoint_path_train.assert_called_once()
                             # Validate that the trainer is created correctly
                             assert mock_create_trainer.call_args[1]["resume_from_checkpoint"] == "dummy_path"
-                            assert ml_runner.storing_logger is not None
-                            assert ml_runner.trainer is not None
+                            assert training_runner.storing_logger is not None
+                            assert training_runner.trainer is not None
                             assert "Environment variables:" in caplog.messages[-1]
                         else:
-                            assert ml_runner.trainer is None
-                            assert ml_runner.storing_logger is None
+                            assert training_runner.trainer is None
+                            assert training_runner.storing_logger is None
                             mock_get_recovery_or_checkpoint_path_train.assert_not_called()
 
 
 @pytest.mark.parametrize("run_inference_only", [True, False])
-def test_init_training_cpu(run_inference_only: bool, ml_runner: MLRunner, caplog: LogCaptureFixture) -> None:
+def test_init_training_cpu(
+    run_inference_only: bool, training_runner: TrainingRunner, caplog: LogCaptureFixture
+) -> None:
     """Test that training is initialized correctly"""
-    ml_runner.container.max_num_gpus = 0
-    _test_init_training(run_inference_only, ml_runner, caplog)
+    training_runner.container.max_num_gpus = 0
+    _test_init_training(run_inference_only, training_runner, caplog)
 
 
 @pytest.mark.skipif(no_gpu, reason="Test requires GPU")
 @pytest.mark.gpu
 @pytest.mark.parametrize("run_inference_only", [True, False])
-def test_init_training_gpu(run_inference_only: bool, ml_runner: MLRunner, caplog: LogCaptureFixture) -> None:
+def test_init_training_gpu(
+    run_inference_only: bool, training_runner: TrainingRunner, caplog: LogCaptureFixture
+) -> None:
     """Test that training is initialized correctly in DDP mode"""
-    _test_init_training(run_inference_only, ml_runner, caplog)
+    _test_init_training(run_inference_only, training_runner, caplog)
 
 
 def test_run_training() -> None:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
-    runner = MLRunner(experiment_config=experiment_config, container=container)
+    runner = TrainingRunner(experiment_config=experiment_config, container=container)
 
     with patch.object(container, "get_data_module") as mock_get_data_module:
-        with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+        with patch("health_ml.training_runner.create_lightning_trainer") as mock_create_trainer:
             runner.setup()
             mock_trainer = MagicMock()
             mock_storing_logger = MagicMock()
@@ -225,17 +261,17 @@ def test_end_training(max_num_gpus_inf: int) -> None:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     container.max_num_gpus_inference = max_num_gpus_inf
-    runner = MLRunner(experiment_config=experiment_config, container=container)
+    runner = TrainingRunner(experiment_config=experiment_config, container=container)
 
     with patch.object(container, "get_data_module"):
-        with patch("health_ml.run_ml.create_lightning_trainer", return_value=(MagicMock(), MagicMock())):
+        with patch("health_ml.training_runner.create_lightning_trainer", return_value=(MagicMock(), MagicMock())):
             runner.setup()
             runner.init_training()
             runner.run_training()
 
         with patch.object(runner.checkpoint_handler, "additional_training_done") as mock_additional_training_done:
             with patch.object(runner, "after_ddp_cleanup") as mock_after_ddp_cleanup:
-                with patch("health_ml.run_ml.cleanup_checkpoints") as mock_cleanup_ckpt:
+                with patch("health_ml.training_runner.cleanup_checkpoints") as mock_cleanup_ckpt:
                     environ_before_training = {"old": "environ"}
                     runner.end_training(environ_before_training=environ_before_training)
                     mock_additional_training_done.assert_called_once()
@@ -251,71 +287,98 @@ def test_end_training(max_num_gpus_inf: int) -> None:
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
 @pytest.mark.parametrize("run_inference_only", [True, False])
 def test_init_inference(
-    run_inference_only: bool, run_extra_val_epoch: bool, max_num_gpus_inf: int, ml_runner_with_run_id: MLRunner
+    run_inference_only: bool,
+    run_extra_val_epoch: bool,
+    max_num_gpus_inf: int,
+    training_runner_hello_world_with_checkpoint: TrainingRunner,
 ) -> None:
-    ml_runner_with_run_id.container.run_inference_only = run_inference_only
-    ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
-    ml_runner_with_run_id.container.max_num_gpus_inference = max_num_gpus_inf
-    assert ml_runner_with_run_id.container.max_num_gpus == -1  # This is the default value of max_num_gpus
-    ml_runner_with_run_id.init_training()
+    training_runner_hello_world_with_checkpoint.container.run_inference_only = run_inference_only
+    training_runner_hello_world_with_checkpoint.container.run_extra_val_epoch = run_extra_val_epoch
+    training_runner_hello_world_with_checkpoint.container.max_num_gpus_inference = max_num_gpus_inf
+    assert (
+        training_runner_hello_world_with_checkpoint.container.max_num_gpus == -1
+    )  # This is the default value of max_num_gpus
+    training_runner_hello_world_with_checkpoint.init_training()
     if run_inference_only:
         expected_mlflow_run_id = None
     else:
-        assert ml_runner_with_run_id.trainer is not None
-        expected_mlflow_run_id = ml_runner_with_run_id.trainer.loggers[1].run_id  # type: ignore
+        assert training_runner_hello_world_with_checkpoint.trainer is not None
+        create_mlflow_trash_folder(training_runner_hello_world_with_checkpoint)
+        expected_mlflow_run_id = training_runner_hello_world_with_checkpoint.trainer.loggers[1].run_id  # type: ignore
     if not run_inference_only:
-        ml_runner_with_run_id.checkpoint_handler.additional_training_done()
-    with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
-        with patch.object(ml_runner_with_run_id.container, "get_checkpoint_to_test") as mock_get_checkpoint_to_test:
-            with patch.object(ml_runner_with_run_id.container, "get_data_module") as mock_get_data_module:
+        training_runner_hello_world_with_checkpoint.checkpoint_handler.additional_training_done()
+    with patch("health_ml.runner_base.create_lightning_trainer") as mock_create_trainer:
+        with patch.object(
+            training_runner_hello_world_with_checkpoint.container, "get_checkpoint_to_test"
+        ) as mock_get_checkpoint_to_test:
+            with patch.object(
+                training_runner_hello_world_with_checkpoint.container, "get_data_module"
+            ) as mock_get_data_module:
                 mock_checkpoint = MagicMock(is_file=MagicMock(return_value=True))
                 mock_get_checkpoint_to_test.return_value = mock_checkpoint
                 mock_trainer = MagicMock()
                 mock_create_trainer.return_value = mock_trainer, MagicMock()
                 mock_get_data_module.return_value = "dummy_data_module"
 
-                assert ml_runner_with_run_id.inference_checkpoint is None
-                assert not ml_runner_with_run_id.container.model._on_extra_val_epoch
+                assert training_runner_hello_world_with_checkpoint.inference_checkpoint is None
+                assert not training_runner_hello_world_with_checkpoint.container.model._on_extra_val_epoch
 
-                ml_runner_with_run_id.init_inference()
+                training_runner_hello_world_with_checkpoint.init_inference()
 
-                expected_ckpt = str(ml_runner_with_run_id.checkpoint_handler.trained_weights_path)
+                expected_ckpt = str(training_runner_hello_world_with_checkpoint.checkpoint_handler.trained_weights_path)
                 expected_ckpt = expected_ckpt if run_inference_only else str(mock_checkpoint)
-                assert ml_runner_with_run_id.inference_checkpoint == expected_ckpt
+                assert training_runner_hello_world_with_checkpoint.inference_checkpoint == expected_ckpt
 
-                assert hasattr(ml_runner_with_run_id.container.model, "on_run_extra_validation_epoch")
-                assert ml_runner_with_run_id.container.model._on_extra_val_epoch == run_extra_val_epoch
+                assert hasattr(
+                    training_runner_hello_world_with_checkpoint.container.model, "on_run_extra_validation_epoch"
+                )
+                assert (
+                    training_runner_hello_world_with_checkpoint.container.model._on_extra_val_epoch
+                    == run_extra_val_epoch
+                )
 
                 mock_create_trainer.assert_called_once()
-                assert ml_runner_with_run_id.trainer == mock_trainer
-                assert ml_runner_with_run_id.container.max_num_gpus == max_num_gpus_inf
-                assert mock_create_trainer.call_args[1]["container"] == ml_runner_with_run_id.container
+                assert training_runner_hello_world_with_checkpoint.trainer == mock_trainer
+                assert training_runner_hello_world_with_checkpoint.container.max_num_gpus == max_num_gpus_inf
+                assert (
+                    mock_create_trainer.call_args[1]["container"]
+                    == training_runner_hello_world_with_checkpoint.container
+                )
                 assert mock_create_trainer.call_args[1]["num_nodes"] == 1
                 assert mock_create_trainer.call_args[1]["mlflow_run_for_logging"] == expected_mlflow_run_id
                 mock_get_data_module.assert_called_once()
-                assert ml_runner_with_run_id.data_module == "dummy_data_module"
+                assert training_runner_hello_world_with_checkpoint.data_module == "dummy_data_module"
 
 
 @pytest.mark.parametrize("run_inference_only", [True, False])
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
 def test_run_validation(
-    run_extra_val_epoch: bool, run_inference_only: bool, ml_runner_with_run_id: MLRunner, caplog: LogCaptureFixture
+    run_extra_val_epoch: bool,
+    run_inference_only: bool,
+    training_runner_hello_world_with_checkpoint: TrainingRunner,
+    caplog: LogCaptureFixture,
 ) -> None:
-    ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
-    ml_runner_with_run_id.container.run_inference_only = run_inference_only
-    ml_runner_with_run_id.init_training()
+    training_runner_hello_world_with_checkpoint.container.run_extra_val_epoch = run_extra_val_epoch
+    training_runner_hello_world_with_checkpoint.container.run_inference_only = run_inference_only
+    training_runner_hello_world_with_checkpoint.init_training()
     mock_datamodule = MagicMock()
-    with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
-        with patch.object(ml_runner_with_run_id.container, "get_data_module", return_value=mock_datamodule):
+    create_mlflow_trash_folder(training_runner_hello_world_with_checkpoint)
+    with patch("health_ml.runner_base.create_lightning_trainer") as mock_create_trainer:
+        with patch.object(
+            training_runner_hello_world_with_checkpoint.container, "get_data_module", return_value=mock_datamodule
+        ):
             mock_trainer = MagicMock()
             mock_create_trainer.return_value = mock_trainer, MagicMock()
-            ml_runner_with_run_id.init_inference()
-            assert ml_runner_with_run_id.trainer == mock_trainer
+            training_runner_hello_world_with_checkpoint.init_inference()
+            assert training_runner_hello_world_with_checkpoint.trainer == mock_trainer
             mock_trainer.validate = Mock()
-            ml_runner_with_run_id.run_validation()
+            training_runner_hello_world_with_checkpoint.run_validation()
             if run_extra_val_epoch or run_inference_only:
                 mock_trainer.validate.assert_called_once()
-                assert mock_trainer.validate.call_args[1]["ckpt_path"] == ml_runner_with_run_id.inference_checkpoint
+                assert (
+                    mock_trainer.validate.call_args[1]["ckpt_path"]
+                    == training_runner_hello_world_with_checkpoint.inference_checkpoint
+                )
                 assert mock_trainer.validate.call_args[1]["datamodule"] == mock_datamodule
             else:
                 assert "Skipping extra validation" in caplog.messages[-1]
@@ -332,12 +395,12 @@ def test_model_extra_val_epoch_missing_hook(caplog: LogCaptureFixture) -> None:
         container = HelloWorld()
         container.create_lightning_module_and_store()
         container.run_extra_val_epoch = True
-        runner = MLRunner(experiment_config=experiment_config, container=container)
+        runner = TrainingRunner(experiment_config=experiment_config, container=container)
         runner.setup()
         runner.checkpoint_handler.additional_training_done()
         runner.container.outputs_folder.mkdir(parents=True, exist_ok=True)
         with patch.object(container, "get_data_module"):
-            with patch("health_ml.run_ml.create_lightning_trainer", return_value=(MagicMock(), MagicMock())):
+            with patch("health_ml.runner_base.create_lightning_trainer", return_value=(MagicMock(), MagicMock())):
                 with patch.object(runner.container, "get_checkpoint_to_test") as mock_get_checkpoint_to_test:
                     mock_get_checkpoint_to_test.return_value = MagicMock(is_file=MagicMock(return_value=True))
                     runner.init_inference()
@@ -346,34 +409,34 @@ def test_model_extra_val_epoch_missing_hook(caplog: LogCaptureFixture) -> None:
                     assert "Hook `on_run_extra_validation_epoch` is not implemented" in latest_message
 
 
-def test_run_inference(ml_runner_with_container: MLRunner, regression_datadir: Path) -> None:
+def test_run_inference(training_runner_hello_world: TrainingRunner, regression_datadir: Path) -> None:
     """
     Test that run_inference gets called as expected.
     """
-    ml_runner_with_container.container.max_num_gpus = 0
+    training_runner_hello_world.container.max_num_gpus = 0
 
     def _expected_files_exist() -> bool:
-        output_dir = ml_runner_with_container.container.outputs_folder
+        output_dir = training_runner_hello_world.container.outputs_folder
         if not output_dir.is_dir():
             return False
-        expected_files = ["test_mse.txt", "test_mae.txt"]
+        expected_files = [TEST_MSE_FILE, TEST_MAE_FILE]
         return all([(output_dir / p).exists() for p in expected_files])
 
-    expected_ckpt_path = ml_runner_with_container.container.outputs_folder / "checkpoints" / "last.ckpt"
+    expected_ckpt_path = training_runner_hello_world.container.outputs_folder / "checkpoints" / "last.ckpt"
     assert not expected_ckpt_path.exists()
     # update the container to look for test data at this location
-    ml_runner_with_container.container.local_dataset_dir = regression_datadir
+    training_runner_hello_world.container.local_dataset_dir = regression_datadir
     assert not _expected_files_exist()
 
-    actual_train_ckpt_path = ml_runner_with_container.checkpoint_handler.get_recovery_or_checkpoint_path_train()
+    actual_train_ckpt_path = training_runner_hello_world.checkpoint_handler.get_recovery_or_checkpoint_path_train()
     assert actual_train_ckpt_path is None
 
-    ml_runner_with_container.run()
+    training_runner_hello_world.run()
 
-    actual_train_ckpt_path = ml_runner_with_container.checkpoint_handler.get_recovery_or_checkpoint_path_train()
+    actual_train_ckpt_path = training_runner_hello_world.checkpoint_handler.get_recovery_or_checkpoint_path_train()
     assert actual_train_ckpt_path == expected_ckpt_path
 
-    actual_test_ckpt_path = ml_runner_with_container.checkpoint_handler.get_checkpoint_to_test()
+    actual_test_ckpt_path = training_runner_hello_world.checkpoint_handler.get_checkpoint_to_test()
     assert actual_test_ckpt_path == expected_ckpt_path
     assert actual_test_ckpt_path.is_file()
     # After training, the outputs directory should now exist and contain the 2 error files
@@ -382,25 +445,25 @@ def test_run_inference(ml_runner_with_container: MLRunner, regression_datadir: P
 
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
 @pytest.mark.parametrize("run_inference_only", [True, False])
-def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with_container: MLRunner) -> None:
+def test_run(run_inference_only: bool, run_extra_val_epoch: bool, training_runner_hello_world: TrainingRunner) -> None:
     """Test that model runner gets called"""
-    ml_runner_with_container.container.run_inference_only = run_inference_only
-    ml_runner_with_container.container.run_extra_val_epoch = run_extra_val_epoch
-    ml_runner_with_container.setup()
-    assert not ml_runner_with_container.checkpoint_handler.has_continued_training
+    training_runner_hello_world.container.run_inference_only = run_inference_only
+    training_runner_hello_world.container.run_extra_val_epoch = run_extra_val_epoch
+    training_runner_hello_world.setup()
+    assert not training_runner_hello_world.checkpoint_handler.has_continued_training
 
-    with patch("health_ml.run_ml.create_lightning_trainer", return_value=(MagicMock(), MagicMock())):
+    with patch("health_ml.runner_base.create_lightning_trainer", return_value=(MagicMock(), MagicMock())):
         with patch.multiple(
-            ml_runner_with_container,
+            training_runner_hello_world,
             checkpoint_handler=mock.DEFAULT,
             run_training=mock.DEFAULT,
             run_validation=mock.DEFAULT,
             run_inference=mock.DEFAULT,
             end_training=mock.DEFAULT,
         ) as mocks:
-            ml_runner_with_container.run()
-            assert ml_runner_with_container.container.has_custom_test_step()
-            assert ml_runner_with_container._has_setup_run
+            training_runner_hello_world.run()
+            assert training_runner_hello_world.container.has_custom_test_step()
+            assert training_runner_hello_world._has_setup_run
             assert mocks["end_training"] != run_inference_only
             assert mocks["run_training"].called != run_inference_only
             mocks["run_validation"].assert_called_once()
@@ -408,45 +471,59 @@ def test_run(run_inference_only: bool, run_extra_val_epoch: bool, ml_runner_with
 
 
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
-def test_run_inference_only(run_extra_val_epoch: bool, ml_runner_with_run_id: MLRunner) -> None:
+def test_run_inference_only(
+    run_extra_val_epoch: bool, training_runner_hello_world_with_checkpoint: TrainingRunner
+) -> None:
     """Test inference only mode. Validation should be run regardless of run_extra_val_epoch status."""
-    ml_runner_with_run_id.container.run_inference_only = True
-    ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
-    assert ml_runner_with_run_id.checkpoint_handler.trained_weights_path
+    training_runner_hello_world_with_checkpoint.container.run_inference_only = True
+    training_runner_hello_world_with_checkpoint.container.run_extra_val_epoch = run_extra_val_epoch
+    assert training_runner_hello_world_with_checkpoint.checkpoint_handler.trained_weights_path
     mock_datamodule = MagicMock()
-    with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
-        with patch.object(ml_runner_with_run_id.container, "get_data_module", return_value=mock_datamodule):
+    with patch("health_ml.runner_base.create_lightning_trainer") as mock_create_trainer:
+        with patch.object(
+            training_runner_hello_world_with_checkpoint.container, "get_data_module", return_value=mock_datamodule
+        ):
             with patch.multiple(
-                ml_runner_with_run_id,
+                training_runner_hello_world_with_checkpoint,
                 run_training=mock.DEFAULT,
             ) as mocks:
                 mock_trainer = MagicMock()
                 mock_create_trainer.return_value = mock_trainer, MagicMock()
-                ml_runner_with_run_id.run()
+                training_runner_hello_world_with_checkpoint.run()
                 mock_create_trainer.assert_called_once()
                 mocks["run_training"].assert_not_called()
 
                 mock_trainer.validate.assert_called_once()
-                assert mock_trainer.validate.call_args[1]["ckpt_path"] == ml_runner_with_run_id.inference_checkpoint
+                assert (
+                    mock_trainer.validate.call_args[1]["ckpt_path"]
+                    == training_runner_hello_world_with_checkpoint.inference_checkpoint
+                )
                 assert mock_trainer.validate.call_args[1]["datamodule"] == mock_datamodule
                 mock_trainer.test.assert_called_once()
-                assert mock_trainer.test.call_args[1]["ckpt_path"] == ml_runner_with_run_id.inference_checkpoint
+                assert (
+                    mock_trainer.test.call_args[1]["ckpt_path"]
+                    == training_runner_hello_world_with_checkpoint.inference_checkpoint
+                )
                 assert mock_trainer.test.call_args[1]["datamodule"] == mock_datamodule
 
 
 @pytest.mark.parametrize("run_extra_val_epoch", [True, False])
-def test_resume_training_from_run_id(run_extra_val_epoch: bool, ml_runner_with_run_id: MLRunner) -> None:
-    ml_runner_with_run_id.container.run_extra_val_epoch = run_extra_val_epoch
-    ml_runner_with_run_id.container.max_num_gpus = 0
-    ml_runner_with_run_id.container.max_epochs += 10
-    assert ml_runner_with_run_id.checkpoint_handler.trained_weights_path
+def test_resume_training_from_run_id(
+    run_extra_val_epoch: bool, training_runner_hello_world_with_checkpoint: TrainingRunner
+) -> None:
+    training_runner_hello_world_with_checkpoint.container.run_extra_val_epoch = run_extra_val_epoch
+    training_runner_hello_world_with_checkpoint.container.max_num_gpus = 0
+    training_runner_hello_world_with_checkpoint.container.max_epochs += 10
+    assert training_runner_hello_world_with_checkpoint.checkpoint_handler.trained_weights_path
     mock_trainer = MagicMock()
-    with patch("health_ml.run_ml.create_lightning_trainer", return_value=(mock_trainer, MagicMock())):
-        with patch.object(ml_runner_with_run_id.container, "get_checkpoint_to_test") as mock_get_checkpoint_to_test:
-            with patch.object(ml_runner_with_run_id, "run_inference") as mock_run_inference:
-                with patch("health_ml.run_ml.cleanup_checkpoints") as mock_cleanup_ckpt:
+    with patch("health_ml.runner_base.create_lightning_trainer", return_value=(mock_trainer, MagicMock())):
+        with patch.object(
+            training_runner_hello_world_with_checkpoint.container, "get_checkpoint_to_test"
+        ) as mock_get_checkpoint_to_test:
+            with patch.object(training_runner_hello_world_with_checkpoint, "run_inference") as mock_run_inference:
+                with patch("health_ml.training_runner.cleanup_checkpoints") as mock_cleanup_ckpt:
                     mock_get_checkpoint_to_test.return_value = MagicMock(is_file=MagicMock(return_value=True))
-                    ml_runner_with_run_id.run()
+                    training_runner_hello_world_with_checkpoint.run()
                     mock_get_checkpoint_to_test.assert_called_once()
                     mock_cleanup_ckpt.assert_called_once()
                     assert mock_trainer.validate.called == run_extra_val_epoch
@@ -457,12 +534,12 @@ def test_model_weights_when_resume_training() -> None:
     experiment_config = ExperimentConfig(model="HelloWorld")
     container = HelloWorld()
     container.max_num_gpus = 0
-    container.src_checkpoint = CheckpointParser(mock_run_id(id=0))
+    container.src_checkpoint = CheckpointParser(str(hello_world_checkpoint))
     container.resume_training = True
-    runner = MLRunner(experiment_config=experiment_config, container=container)
+    runner = TrainingRunner(experiment_config=experiment_config, container=container)
     runner.setup()
     assert runner.checkpoint_handler.trained_weights_path.is_file()  # type: ignore
-    with patch("health_ml.run_ml.create_lightning_trainer") as mock_create_trainer:
+    with patch("health_ml.training_runner.create_lightning_trainer") as mock_create_trainer:
         mock_create_trainer.return_value = MagicMock(), MagicMock()
         runner.init_training()
         mock_create_trainer.assert_called_once()
@@ -482,14 +559,14 @@ def test_log_on_vm(log_from_vm: bool) -> None:
     tag = f"test_log_on_vm [{log_from_vm}]"
     container.tag = tag
     container.log_from_vm = log_from_vm
-    runner = MLRunner(experiment_config=experiment_config, container=container)
+    runner = TrainingRunner(experiment_config=experiment_config, container=container)
     # When logging to AzureML, need to provide the unit test AML workspace.
     # When not logging to AzureML, no workspace (and no authentication) should be needed.
     if log_from_vm:
         with patch("health_azure.utils.get_workspace", return_value=DEFAULT_WORKSPACE.workspace):
-            runner.run()
+            runner.run_and_cleanup()
     else:
-        runner.run()
+        runner.run_and_cleanup()
     # The PL trainer object is created in the init_training method.
     # Check that the AzureML logger is set up correctly.
     assert runner.trainer is not None
@@ -536,13 +613,15 @@ def test_get_mlflow_run_id_from_trainer() -> None:
         assert run_id == mock_run_id
 
 
-def test_inference_only_metrics_correctness(ml_runner_with_run_id: MLRunner, regression_datadir: Path) -> None:
-    ml_runner_with_run_id.container.run_inference_only = True
-    ml_runner_with_run_id.container.local_dataset_dir = regression_datadir
-    ml_runner_with_run_id.run()
-    with open(ml_runner_with_run_id.container.outputs_folder / "test_mse.txt") as f:
+def test_inference_only_metrics_correctness(
+    training_runner_hello_world_with_checkpoint: TrainingRunner, regression_datadir: Path
+) -> None:
+    training_runner_hello_world_with_checkpoint.container.run_inference_only = True
+    training_runner_hello_world_with_checkpoint.container.local_dataset_dir = regression_datadir
+    training_runner_hello_world_with_checkpoint.run()
+    with open(training_runner_hello_world_with_checkpoint.container.outputs_folder / TEST_MSE_FILE) as f:
         mse = float(f.readlines()[0])
     assert isclose(mse, 0.010806690901517868, abs_tol=1e-3)
-    with open(ml_runner_with_run_id.container.outputs_folder / "test_mae.txt") as f:
+    with open(training_runner_hello_world_with_checkpoint.container.outputs_folder / TEST_MAE_FILE) as f:
         mae = float(f.readlines()[0])
     assert isclose(mae, 0.08260975033044815, abs_tol=1e-3)

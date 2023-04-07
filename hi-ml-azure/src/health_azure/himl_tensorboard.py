@@ -17,8 +17,9 @@ from typing import Any, Optional
 from azureml._run_impl.run_watcher import RunWatcher
 from azureml.tensorboard import Tensorboard
 
-from health_azure import utils as azure_util
+from health_azure.argparsing import parse_args_and_update_config
 from health_azure.himl import get_workspace
+from health_azure.utils import AmlRunScriptConfig, _get_runs_from_script_config
 
 
 ROOT_DIR = Path.cwd()
@@ -26,7 +27,7 @@ OUTPUT_DIR = ROOT_DIR / "outputs"
 TENSORBOARD_DIR = ROOT_DIR / "tensorboard_logs"
 
 
-class HimlTensorboardConfig(azure_util.AmlRunScriptConfig):
+class HimlTensorboardConfig(AmlRunScriptConfig):
     log_dir: Path = param.ClassSelector(
         class_=Path,
         default=Path("outputs"),
@@ -109,7 +110,7 @@ class WrappedTensorboard(Tensorboard):
 
 def main() -> None:  # pragma: no cover
     tb_config = HimlTensorboardConfig()
-    tb_config = azure_util.parse_args_and_update_config(tb_config, sys.argv[1:])
+    tb_config = parse_args_and_update_config(tb_config, sys.argv[1:])
 
     config_path = tb_config.config_file
 
@@ -121,7 +122,7 @@ def main() -> None:  # pragma: no cover
 
     workspace = get_workspace(aml_workspace=None, workspace_config_path=config_path)
 
-    runs = azure_util._get_runs_from_script_config(tb_config, workspace)
+    runs = _get_runs_from_script_config(tb_config, workspace)
 
     print(f"Runs:\n{runs}")
     if len(runs) == 0:
