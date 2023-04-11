@@ -128,6 +128,11 @@ def _get_or_create_v1_dataset(datastore_name: str, dataset_name: str, workspace:
     try:
         azureml_dataset = _retrieve_v1_dataset(dataset_name, workspace)
     except UserErrorException:
+        if datastore_name == "":
+            raise ValueError(
+                "When creating a new dataset, a datastore name must be provided. Please specify a datastore name using "
+                "the --datastore flag"
+            )
         azureml_dataset = _create_v1_dataset(datastore_name, dataset_name, workspace)
     return azureml_dataset
 
@@ -193,15 +198,17 @@ def _create_v2_data_asset(
     :param datastore_name: The name of the datastore in which to create or update the Data asset.
     :param data_asset_name: The name of the data asset to be created.
     :param version: The version of the data asset to be created.
+    :raises ValueError: If no data asset name is provided to define the new asset.
     :raises ValueError: If no datastore name is provided to define where to create the data.
     :return: The created or updated Data asset.
     """
-    if not data_asset_name:
+    if data_asset_name == "":
         raise ValueError("Cannot create data asset with empty name.")
 
-    if not datastore_name:
-        default_datastore = ml_client.datastores.get_default()
-        datastore_name = default_datastore.name
+    if datastore_name == "":
+        raise ValueError(
+            "Cannot create data asset with empty datastore name. Please specify a datastore name using the --datastore flag."
+        )
 
     logging.info(
         f"Creating a new Data asset from data in folder '{data_asset_name}' in the datastore '{datastore_name}'"
