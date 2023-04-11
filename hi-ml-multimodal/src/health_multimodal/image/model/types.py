@@ -38,7 +38,7 @@ class ImageEncoderType(str, Enum):
 
 
 @unique
-class Weights(str, Enum):
+class ImageEncoderWeightTypes(str, Enum):
     RANDOM = "random"
     IMAGENET = "imagenet"
     BIOVIL = "biovil"

@@ -13,7 +13,7 @@ from torchvision.datasets.utils import download_url
 from torchvision.models.resnet import model_urls
 
 from .model import ImageModel
-from .types import ImageEncoderType, Weights
+from .types import ImageEncoderType, ImageEncoderWeightTypes
 
 
 JOINT_FEATURE_SIZE = 128
@@ -106,17 +106,17 @@ def get_image_encoder(weights: str) -> ImageModel:
     :param weights: Select one of `random`, `imagenet`, `biovil`, `biovil_t`
     """
 
-    if weights == Weights.RANDOM:
+    if weights == ImageEncoderWeightTypes.RANDOM:
         image_model = ImageModel(
             img_encoder_type=ImageEncoderType.RESNET50,
             joint_feature_size=JOINT_FEATURE_SIZE,
             pretrained_model_path=None,
         )
-    elif weights == Weights.IMAGENET:
+    elif weights == ImageEncoderWeightTypes.IMAGENET:
         image_model = get_imagenet_init_encoder()
-    elif weights == Weights.BIOVIL:
+    elif weights == ImageEncoderWeightTypes.BIOVIL:
         image_model = get_biovil_image_encoder()
-    elif weights == Weights.BIOVIL_T:
+    elif weights == ImageEncoderWeightTypes.BIOVIL_T:
         image_model = get_biovil_t_image_encoder()
     else:
         raise ValueError(f"Weights option not found: {weights}")
