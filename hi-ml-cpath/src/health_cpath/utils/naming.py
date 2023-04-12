@@ -68,6 +68,7 @@ class MetricsKey(str, Enum):
     ACC_MACRO = 'macro_accuracy'
     ACC_WEIGHTED = 'weighted_accuracy'
     CONF_MATRIX = 'confusion_matrix'
+    CONF_MATRIX_N = 'confusion_matrix_normalized'
     AUROC = 'auroc'
     PRECISION = 'precision'
     RECALL = 'recall'
