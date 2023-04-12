@@ -83,4 +83,39 @@ def get_biovil_t_image_encoder() -> ImageModel:
         joint_feature_size=JOINT_FEATURE_SIZE,
         pretrained_model_path=biovilt_checkpoint_path,
     )
+
+
+def get_biovil_t_linear_image_classifier(biovilt_checkpoint_path: str) -> ImageModel:
+    """
+    Download weights from Hugging Face and instantiate the image model.
+
+    The model is initialized with a linear classifier on top of the
+    BiomedVLP-BioViL-T image encoder.
+
+    Binary classification tasks in order:
+    ['Enlarged Cardiomediastinum', 'Cardiomegaly', 'Edema', 'Consolidation',
+     'Pneumonia',  'Pneumothorax', 'Pleural Effusion', 'No Finding']
+
+    :param biovilt_checkpoint_path: Path to the checkpoint file.
+
+    Example:
+    >>> checkpoint_path = "..."
+    >>> image_model = get_biovil_t_linear_image_classifier(checkpoint_path)
+    >>> image_model(torch.Tensor(batch_size, 3, 448, 448)).class_logits.shape
+    torch.Size([batch_size, num_classes, num_tasks])
+    """
+
+    num_classes = 2
+    num_tasks = 8
+
+    model_type = ImageEncoderType.RESNET50_MULTI_IMAGE
+    image_model = ImageModel(
+        img_encoder_type=model_type,
+        joint_feature_size=JOINT_FEATURE_SIZE,
+        pretrained_model_path=biovilt_checkpoint_path,
+        num_classes=num_classes,
+        num_tasks=num_tasks,
+        classifier_hidden_dim=None,
+    )
+
     return image_model
