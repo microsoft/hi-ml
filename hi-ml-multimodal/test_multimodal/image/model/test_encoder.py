@@ -13,6 +13,7 @@ from health_multimodal.image.model.encoder import (
     MultiImageEncoder,
     restore_training_mode,
 )
+from health_multimodal.image.model.pretrained import get_imagenet_init_encoder
 from health_multimodal.image.model.resnet import resnet50
 from health_multimodal.image.model.types import ImageEncoderType
 
@@ -29,8 +30,8 @@ def test_reload_resnet_with_dilation(replace_stride_with_dilation: Sequence[bool
         model_with_dilation.reload_encoder_with_dilation(replace_stride_with_dilation)
 
     # resnet50
-    original_model = ImageEncoder(img_encoder_type=ImageEncoderType.RESNET50).eval()
-    model_with_dilation = ImageEncoder(img_encoder_type=ImageEncoderType.RESNET50).eval()
+    original_model = get_imagenet_init_encoder().encoder.eval()
+    model_with_dilation = get_imagenet_init_encoder().encoder.eval()
     model_with_dilation.reload_encoder_with_dilation(replace_stride_with_dilation)
     assert not model_with_dilation.training
 

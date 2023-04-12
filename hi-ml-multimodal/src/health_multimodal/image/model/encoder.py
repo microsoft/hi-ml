@@ -42,7 +42,7 @@ class ImageEncoder(nn.Module):
             supported = ImageEncoderType.get_members(multi_image_encoders_only=False)
             raise NotImplementedError(f"Image encoder type \"{self.img_encoder_type}\" must be in {supported}")
 
-        encoder = encoder_class(pretrained=True, **kwargs)
+        encoder = encoder_class(pretrained=False, **kwargs)
 
         return encoder
 
