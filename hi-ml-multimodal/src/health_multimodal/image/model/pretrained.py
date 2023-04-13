@@ -75,7 +75,7 @@ def get_biovil_image_encoder(pretrained: bool = True) -> ImageModel:
     return image_model
 
 
-def get_biovil_t_image_encoder() -> ImageModel:
+def get_biovil_t_image_encoder(**kwargs) -> ImageModel:
     """Download weights from Hugging Face and instantiate the image model."""
 
     biovilt_checkpoint_path = _download_biovil_t_image_model_weights()
@@ -84,6 +84,7 @@ def get_biovil_t_image_encoder() -> ImageModel:
         img_encoder_type=model_type,
         joint_feature_size=JOINT_FEATURE_SIZE,
         pretrained_model_path=biovilt_checkpoint_path,
+        **kwargs,
     )
     return image_model
 
