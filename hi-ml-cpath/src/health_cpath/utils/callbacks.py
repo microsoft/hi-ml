@@ -15,7 +15,7 @@ import matplotlib.cm as cm
 
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
-from pytorch_lightning import Trainer
+from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import Callback
 from health_cpath.models.deepmil import DeepMILModule
 from health_cpath.utils.naming import ModelKey, ResultsKey
@@ -562,6 +562,8 @@ class LossAnalysisCallback(Callback):
 
 class DeepMILMAWeightUpdate(ByolMovingAverageWeightUpdate):
     """Callback to apply Moving Average Weights Update for DeepMIL encoders"""
+
     @staticmethod
-    def get_online_network(pl_module: DeepMILModule) -> torch.nn.Module:
+    def get_online_network(pl_module: LightningModule) -> torch.nn.Module:
+        assert isinstance(pl_module, DeepMILModule)
         return pl_module.encoder
