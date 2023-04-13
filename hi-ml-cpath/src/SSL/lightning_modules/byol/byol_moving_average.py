@@ -33,12 +33,32 @@ class ByolMovingAverageWeightUpdate(Callback):
         self.initial_tau = initial_tau
         self.current_tau = initial_tau
 
+    @staticmethod
+    def get_online_network(pl_module: pl.LightningModule) -> torch.nn.Module:
+        """Return online network from pl_module.
+
+        :param pl_module: LightningModule containing online_network
+        :return: A torch.nn.Module representing the online network
+        """
+        online_net = pl_module.online_network
+        assert isinstance(online_net, torch.nn.Module), "pl_module.online_network is not a torch.nn.Module"
+        return online_net
+
+    @staticmethod
+    def get_target_network(pl_module: pl.LightningModule) -> torch.nn.Module:
+        """Return target network from pl_module.
+
+        :param pl_module: net containing target_network
+        :return: A torch.nn.Module representing the target network
+        """
+        target_net = pl_module.target_network
+        assert isinstance(target_net, torch.nn.Module), "pl_module.target_network is not a torch.nn.Module"
+        return target_net
+
     def on_before_zero_grad(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:  # type: ignore
         # get networks
-        online_net = pl_module.online_network
-        target_net = pl_module.target_network
-        assert isinstance(online_net, torch.nn.Module)
-        assert isinstance(target_net, torch.nn.Module)
+        online_net = self.get_online_network(pl_module)
+        target_net = self.get_target_network(pl_module)
 
         # update weights
         self.update_weights(online_net, target_net)
