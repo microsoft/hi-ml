@@ -2,10 +2,11 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from copy import deepcopy
 import torch
-from typing import Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 from pathlib import Path
-from pytorch_lightning import LightningModule
+from pytorch_lightning import LightningModule, Trainer
 from torch import Tensor, argmax, mode, nn, optim, round
 from pytorch_lightning.utilities.rank_zero import rank_zero_warn
 from torchmetrics.classification import (
@@ -477,3 +478,54 @@ class DeepMILModule(LightningModule):
         self._on_extra_val_epoch = True
         if self.outputs_handler:
             self.outputs_handler.val_plots_handler.plot_options = self.outputs_handler.test_plots_handler.plot_options
+
+
+try:
+    from SSL.lightning_modules.byol.byol_moving_average import ByolMovingAverageWeightUpdate
+except (ImportError, ModuleNotFoundError):
+    raise ValueError("SSL not found. This class can only be used by using hi-ml from the GitHub source")
+
+
+class DeepMILMAWeightUpdate(ByolMovingAverageWeightUpdate):
+    """Callback to apply Moving Average Weights Update for DeepMIL encoders"""
+
+    @staticmethod
+    def get_online_network(pl_module: LightningModule) -> torch.nn.Module:
+        assert isinstance(pl_module, MADeepMILModule)
+        return pl_module.encoder
+
+    @staticmethod
+    def get_target_network(pl_module: LightningModule) -> torch.nn.Module:
+        assert isinstance(pl_module, MADeepMILModule)
+        return pl_module.target_encoder
+
+
+class MADeepMILModule(DeepMILModule):
+    def __init__(self, ma_max_bag_size: int, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.target_encoder = deepcopy(self.encoder)
+        self.ma_max_bag_size = ma_max_bag_size
+        self.weight_callback = DeepMILMAWeightUpdate()
+        self.on_moving_average = False
+
+    def on_train_batch_end(self, *args: Any, **kwargs: Any) -> None:
+        # Add callback for user automatically since it's key to BYOL weight update
+        assert isinstance(self.trainer, Trainer)
+        self.weight_callback.on_before_zero_grad(self.trainer, self)
+
+    def get_instance_features(self, instances: Tensor) -> Tensor:
+        if instances.shape[0] > self.ma_max_bag_size and self.on_moving_average:
+            online_instance_features = self.encoder(instances[: self.ma_max_bag_size])
+            with torch.no_grad():
+                target_instance_features = self.target_encoder(instances[self.ma_max_bag_size :])
+                # Should I shuffle before splitting the encoding?
+                # What about inference?
+                # we might need to train longer
+            return torch.cat([online_instance_features, target_instance_features.detach()])
+        return super().get_instance_features(instances)
+
+    def training_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
+        self.on_moving_average = True
+        step_results = super().training_step(batch, batch_idx)
+        self.on_moving_average = False
+        return step_results

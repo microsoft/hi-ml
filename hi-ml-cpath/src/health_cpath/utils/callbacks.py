@@ -15,16 +15,12 @@ import matplotlib.cm as cm
 
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
-from pytorch_lightning import LightningModule, Trainer
+from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import Callback
 from health_cpath.models.deepmil import DeepMILModule
 from health_cpath.utils.naming import ModelKey, ResultsKey
 from health_cpath.utils.output_utils import BatchResultsType
 
-try:
-    from SSL.lightning_modules.byol.byol_moving_average import ByolMovingAverageWeightUpdate
-except (ImportError, ModuleNotFoundError):
-    raise ValueError("SSL not found. This class can only be used by using hi-ml from the GitHub source")
 
 LossCacheDictType = Dict[Union[ResultsKey, str], List]
 LossDictType = Dict[str, List]
@@ -558,12 +554,3 @@ class LossAnalysisCallback(Callback):
                 self.save_loss_outliers_analaysis_results(stage=ModelKey.VAL)
             except Exception as e:
                 self.handle_loss_exceptions(stage=ModelKey.VAL, exception=e)
-
-
-class DeepMILMAWeightUpdate(ByolMovingAverageWeightUpdate):
-    """Callback to apply Moving Average Weights Update for DeepMIL encoders"""
-
-    @staticmethod
-    def get_online_network(pl_module: LightningModule) -> torch.nn.Module:
-        assert isinstance(pl_module, DeepMILModule)
-        return pl_module.encoder
