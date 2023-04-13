@@ -12,6 +12,7 @@ from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.strategies import DDPStrategy
+from pytorch_lightning.strategies.deepspeed import DeepSpeedStrategy
 from pytorch_lightning.profiler import BaseProfiler, SimpleProfiler, AdvancedProfiler, PyTorchProfiler
 
 from health_azure.utils import RUN_CONTEXT, is_running_in_azure_ml
@@ -23,7 +24,7 @@ from health_ml.utils.diagnostics import TrainingDiagnoticsCallback
 from health_ml.utils.lightning_loggers import StoringLogger, HimlMLFlowLogger
 
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 def write_experiment_summary_file(config: Any, outputs_folder: Path) -> None:
@@ -93,11 +94,12 @@ def create_lightning_trainer(
             # GPU memory).
             # Initialize the DDP plugin. The default for pl_find_unused_parameters is False. If True, the plugin
             # prints out lengthy warnings about the performance impact of find_unused_parameters.
-            strategy = DDPStrategy(
-                find_unused_parameters=container.pl_find_unused_parameters,
-                static_graph=container.pl_static_graph,
-            )
-            message += "s per node with DDP"
+            # strategy = DDPStrategy(
+            #     find_unused_parameters=container.pl_find_unused_parameters,
+            #     static_graph=container.pl_static_graph,
+            # )
+            # message += "s per node with DDP"
+            strategy = DeepSpeedStrategy()
     logging.info(f"Using {message}")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
     loggers: List[Any] = [tensorboard_logger]
