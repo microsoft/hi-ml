@@ -197,6 +197,11 @@ class DeepMILModule(LightningModule):
                 self.copy_weights(self.classifier_fn, pretrained_model.classifier_fn, DeepMILSubmodules.CLASSIFIER)
 
     def get_loss(self, reduction: str = "mean") -> Callable:
+        """Create loss function.
+
+        :param reduction: Reduction method for the loss function. Defaults to "mean".
+        :return: A callable loss function
+        """
         if self.n_classes > 1:
             if self.class_weights is None:
                 return nn.CrossEntropyLoss(reduction=reduction)
@@ -210,6 +215,7 @@ class DeepMILModule(LightningModule):
             return nn.BCEWithLogitsLoss(pos_weight=pos_weight, reduction=reduction)
 
     def get_activation(self) -> Callable:
+        """Returns the activation function suitable for the number of classes."""
         if self.n_classes > 1:
             return nn.Softmax(dim=-1)
         else:
@@ -226,6 +232,7 @@ class DeepMILModule(LightningModule):
         return bag_label.view(1)
 
     def get_metrics(self) -> nn.ModuleDict:
+        """Return metrics objects for training, validation and testing depending on the number of classes."""
         if self.n_classes > 1:
             return nn.ModuleDict(
                 {
@@ -264,9 +271,15 @@ class DeepMILModule(LightningModule):
         return EXTRA_PREFIX if self._on_extra_val_epoch else ""
 
     def log_metrics(self, stage: str, prefix: str = '') -> None:
+        """Log metrics to the logger.
+
+        :param stage: The stage to log metrics for, one of 'train', 'val', 'test'
+        :param prefix: An optional prefix for the stage, defaults to ''
+        :raises ValueError: If stage is not one of 'train', 'val', 'test'
+        """
         valid_stages = set([stage for stage in ModelKey])
         if stage not in valid_stages:
-            raise Exception(f"Invalid stage. Chose one of {valid_stages}")
+            raise ValueError(f"Invalid stage. Chose one of {valid_stages}")
         for metric_name, metric_object in self.get_metrics_dict(stage).items():
             if metric_name == MetricsKey.CONF_MATRIX:
                 metric_value = metric_object.compute()
@@ -276,19 +289,28 @@ class DeepMILModule(LightningModule):
             else:
                 log_on_epoch(self, f'{prefix}{stage}/{metric_name}', metric_object)
 
-    def get_instance_features(self, instances: Tensor) -> Tensor:
-        if not self.encoder_params.tune_encoder:
-            self.encoder.eval()
+    def embed_instances_in_chunks(self, encoder: nn.Module, instances: Tensor) -> Tensor:
+        """Embed instances in chunks to avoid OOM errors.
+
+        :param instances: Tensor of shape N x C x H x W where N is the bag size
+        :param encoder: The encoder module
+        :return: The features of shape N x L where L is the embedding size
+        """
         if self.encoder_params.encoding_chunk_size > 0:
             embeddings = []
             chunks = torch.split(instances, self.encoder_params.encoding_chunk_size)
             for chunk in chunks:
-                chunk_embeddings = self.encoder(chunk)
+                chunk_embeddings = encoder(chunk)
                 embeddings.append(chunk_embeddings)
             instance_features = torch.cat(embeddings)
         else:
-            instance_features = self.encoder(instances)  # N X L x 1 x 1
+            instance_features = encoder(instances)  # N X L x 1 x 1
         return instance_features
+
+    def get_instance_features(self, instances: Tensor) -> Tensor:
+        if not self.encoder_params.tune_encoder:
+            self.encoder.eval()
+        return self.embed_instances_in_chunks(self.encoder, instances)
 
     def get_attentions_and_bag_features(self, instance_features: Tensor) -> Tuple[Tensor, Tensor]:
         if not self.pooling_params.tune_pooling:
@@ -497,35 +519,43 @@ class DeepMILMAWeightUpdate(ByolMovingAverageWeightUpdate):
     @staticmethod
     def get_target_network(pl_module: LightningModule) -> torch.nn.Module:
         assert isinstance(pl_module, MADeepMILModule)
-        return pl_module.target_encoder
+        return pl_module.ma_encoder
 
 
 class MADeepMILModule(DeepMILModule):
-    def __init__(self, ma_max_bag_size: int, **kwargs: Any) -> None:
+    def __init__(self, ma_max_bag_size: int, apply_ma_inference: bool, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.target_encoder = deepcopy(self.encoder)
         self.ma_max_bag_size = ma_max_bag_size
-        self.weight_callback = DeepMILMAWeightUpdate()
+        self.apply_ma_inference = apply_ma_inference
+        self.ma_encoder = deepcopy(self.encoder)
+        self.ma_weight_callback = DeepMILMAWeightUpdate()
         self.on_moving_average = False
 
     def on_train_batch_end(self, *args: Any, **kwargs: Any) -> None:
-        # Add callback for user automatically since it's key to BYOL weight update
         assert isinstance(self.trainer, Trainer)
-        self.weight_callback.on_before_zero_grad(self.trainer, self)
+        self.ma_weight_callback.on_before_zero_grad(self.trainer, self)
 
     def get_instance_features(self, instances: Tensor) -> Tensor:
+
         if instances.shape[0] > self.ma_max_bag_size and self.on_moving_average:
-            online_instance_features = self.encoder(instances[: self.ma_max_bag_size])
+            instance_features = self.encoder(instances[: self.ma_max_bag_size])
             with torch.no_grad():
-                target_instance_features = self.target_encoder(instances[self.ma_max_bag_size :])
-                # Should I shuffle before splitting the encoding?
-                # What about inference?
-                # we might need to train longer
-            return torch.cat([online_instance_features, target_instance_features.detach()])
+                ma_features = self.embed_instances_in_chunks(self.ma_encoder, instances[self.ma_max_bag_size :])
+            return torch.cat([instance_features, ma_features.detach()])
+
+        if self.apply_ma_inference:
+            self.embed_instances_in_chunks(self.ma_encoder, instances)
+
         return super().get_instance_features(instances)
 
     def training_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
         self.on_moving_average = True
         step_results = super().training_step(batch, batch_idx)
+        self.on_moving_average = False
+        return step_results
+
+    def validation_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
+        self.on_moving_average = True
+        step_results = super().validation_step(batch, batch_idx)
         self.on_moving_average = False
         return step_results
