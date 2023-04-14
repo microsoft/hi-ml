@@ -66,7 +66,14 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
         None,
         bounds=(0, None),
         allow_None=True,
-        doc="Upper bound on number of tiles to encode using online encoder. If not None, this flag enables moving average weight update. Online encoder will be used to encode the first ma_max_bag_size tiles. Target encoder is used for the remaining tiles ma_max_bag_size:max_bag_size.",
+        doc="Upper bound on number of tiles to encode using online encoder. If not None, this flag enables moving "
+        "average weight update. Online encoder will be used to encode the first ma_max_bag_size tiles. Target encoder "
+        "is used for the remaining tiles ma_max_bag_size:max_bag_size.",
+    )
+    apply_ma_inference: bool = param.Boolean(
+        False,
+        doc="Whether to apply moving average encoder during inference. If True, the encoder will be loaded with the "
+        "moving average weights. If False (default), the online encoder is used.",
     )
     # Outputs Handler parameters:
     num_top_slides: int = param.Integer(
@@ -255,6 +262,7 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
     def create_model(self) -> DeepMILModule:
         self.data_module = self.get_data_module()
         outputs_handler = self.get_outputs_handler()
+        deepmil_module: DeepMILModule
         deepmil_module_params = dict(
             label_column=self.get_label_column(),
             n_classes=self.data_module.train_dataset.n_classes,
@@ -269,7 +277,11 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
             analyse_loss=self.analyse_loss,
         )
         if self.ma_max_bag_size is not None:
-            deepmil_module = MADeepMILModule(ma_max_bag_size=self.ma_max_bag_size, **deepmil_module_params)
+            deepmil_module = MADeepMILModule(
+                ma_max_bag_size=self.ma_max_bag_size,
+                apply_ma_inference=self.apply_ma_inference,
+                **deepmil_module_params,
+            )
         else:
             deepmil_module = DeepMILModule(**deepmil_module_params)
         deepmil_module.transfer_weights(self.trained_weights_path)
