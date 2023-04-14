@@ -528,6 +528,7 @@ class MADeepMILModule(DeepMILModule):
         self.ma_max_bag_size = ma_max_bag_size
         self.apply_ma_inference = apply_ma_inference
         self.ma_encoder = deepcopy(self.encoder)
+        self.ma_encoder.use_activation_checkpointing = False
         self.ma_weight_callback = DeepMILMAWeightUpdate()
         self.on_moving_average = False
 
@@ -551,11 +552,5 @@ class MADeepMILModule(DeepMILModule):
     def training_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
         self.on_moving_average = True
         step_results = super().training_step(batch, batch_idx)
-        self.on_moving_average = False
-        return step_results
-
-    def validation_step(self, batch: Dict, batch_idx: int) -> BatchResultsType:  # type: ignore
-        self.on_moving_average = True
-        step_results = super().validation_step(batch, batch_idx)
         self.on_moving_average = False
         return step_results
