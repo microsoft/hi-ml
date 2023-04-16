@@ -190,4 +190,4 @@ def test_histo_module_class_weights(mock_panda_slides_root_dir: Path) -> None:
     assert datamodule.class_weights.shape != (0,)
     new_class_weights = torch.tensor([])
     datamodule = PandaSlidesDataModule(root_path=mock_panda_slides_root_dir, class_weights=new_class_weights)
-    assert datamodule.class_weights.shape == (0,)
+    assert datamodule.class_weights.shape == new_class_weights.shape
