@@ -182,3 +182,12 @@ def test_assertion_error_missing_seed(mock_panda_slides_root_dir: Path) -> None:
                     loading_params=get_loading_params(),
                 )
                 slides_datamodule._get_ddp_sampler(MagicMock(), ModelKey.TRAIN)
+
+
+def test_histo_module_class_weights(mock_panda_slides_root_dir: Path) -> None:
+    """Test if the class weights argument of the HistoDataModule is correctly set."""
+    datamodule = PandaSlidesDataModule(root_path=mock_panda_slides_root_dir)
+    assert datamodule.class_weights.shape != (0,)
+    new_class_weights = torch.tensor([])
+    datamodule = PandaSlidesDataModule(root_path=mock_panda_slides_root_dir, class_weights=new_class_weights)
+    assert datamodule.class_weights.shape == (0,)
