@@ -291,6 +291,7 @@ def test_init_inference(
     run_extra_val_epoch: bool,
     max_num_gpus_inf: int,
     training_runner_hello_world_with_checkpoint: TrainingRunner,
+    caplog: LogCaptureFixture,
 ) -> None:
     training_runner_hello_world_with_checkpoint.container.run_inference_only = run_inference_only
     training_runner_hello_world_with_checkpoint.container.run_extra_val_epoch = run_extra_val_epoch
@@ -324,6 +325,12 @@ def test_init_inference(
                 assert not training_runner_hello_world_with_checkpoint.container.model._on_extra_val_epoch
 
                 training_runner_hello_world_with_checkpoint.init_inference()
+                if run_extra_val_epoch:
+                    assert (
+                        caplog.messages[-3]
+                        == "Preparing to run an extra validation epoch to evaluate the model on the validation set."
+                    )
+                assert caplog.messages[-2] == "Preparing runner for inference."
 
                 expected_ckpt = str(training_runner_hello_world_with_checkpoint.checkpoint_handler.trained_weights_path)
                 expected_ckpt = expected_ckpt if run_inference_only else str(mock_checkpoint)
@@ -347,6 +354,7 @@ def test_init_inference(
                 assert mock_create_trainer.call_args[1]["num_nodes"] == 1
                 assert mock_create_trainer.call_args[1]["mlflow_run_for_logging"] == expected_mlflow_run_id
                 mock_get_data_module.assert_called_once()
+                mock_get_data_module.asse
                 assert training_runner_hello_world_with_checkpoint.data_module == "dummy_data_module"
 
 
