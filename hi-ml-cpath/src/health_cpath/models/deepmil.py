@@ -28,7 +28,12 @@ from torchmetrics.classification import (
 from health_ml.utils import log_on_epoch
 from health_ml.deep_learning_config import OptimizerParams
 from health_cpath.models.encoders import IdentityEncoder
-from health_cpath.utils.deepmil_utils import ClassifierParams, EncoderParams, PoolingParams
+from health_cpath.utils.deepmil_utils import (
+    ClassifierParams,
+    EncoderParams,
+    PoolingParams,
+    set_module_gradients_enabled,
+)
 from health_cpath.datasets.base_dataset import TilesDataset
 from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey, SlideKey, ModelKey, TileKey
 from health_cpath.utils.output_utils import (
@@ -523,13 +528,14 @@ class DeepMILMAWeightUpdate(ByolMovingAverageWeightUpdate):
 
 
 class MADeepMILModule(DeepMILModule):
-    def __init__(self, ma_max_bag_size: int, apply_ma_inference: bool, **kwargs: Any) -> None:
+    def __init__(self, ma_max_bag_size: int, apply_ma_inference: bool, ma_tau: float = 0.99, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.ma_max_bag_size = ma_max_bag_size
         self.apply_ma_inference = apply_ma_inference
         self.ma_encoder = deepcopy(self.encoder)
+        set_module_gradients_enabled(self.ma_encoder, False)
         self.ma_encoder.use_activation_checkpointing = False
-        self.ma_weight_callback = DeepMILMAWeightUpdate()
+        self.ma_weight_callback = DeepMILMAWeightUpdate(initial_tau=ma_tau)
         self.on_moving_average = False
 
     def on_train_batch_end(self, *args: Any, **kwargs: Any) -> None:
@@ -537,12 +543,14 @@ class MADeepMILModule(DeepMILModule):
         self.ma_weight_callback.on_before_zero_grad(self.trainer, self)
 
     def get_instance_features(self, instances: Tensor) -> Tensor:
-
-        if instances.shape[0] > self.ma_max_bag_size and self.on_moving_average:
+        bag_size = instances.shape[0]
+        if bag_size > self.ma_max_bag_size and self.on_moving_average:
             instance_features = self.encoder(instances[: self.ma_max_bag_size])
-            with torch.no_grad():
-                ma_features = self.embed_instances_in_chunks(self.ma_encoder, instances[self.ma_max_bag_size :])
-            return torch.cat([instance_features, ma_features.detach()])
+            if bag_size - instances[: self.ma_max_bag_size].shape[0] > 0:
+                with torch.no_grad():
+                    ma_features = self.embed_instances_in_chunks(self.ma_encoder, instances[self.ma_max_bag_size :])
+                return torch.cat([instance_features, ma_features.detach()])
+            return instance_features
 
         if self.apply_ma_inference:
             self.embed_instances_in_chunks(self.ma_encoder, instances)

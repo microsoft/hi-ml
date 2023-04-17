@@ -75,6 +75,10 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
         doc="Whether to apply moving average encoder during inference. If True, the encoder will be loaded with the "
         "moving average weights. If False (default), the online encoder is used.",
     )
+    ma_tau: float = param.Number(
+        default=0.99,
+        doc="Tau parameter for moving average encoder. Default is 0.99.",
+    )
     # Outputs Handler parameters:
     num_top_slides: int = param.Integer(
         10,
@@ -280,6 +284,7 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
             deepmil_module = MADeepMILModule(
                 ma_max_bag_size=self.ma_max_bag_size,
                 apply_ma_inference=self.apply_ma_inference,
+                ma_tau=self.ma_tau,
                 **deepmil_module_params,
             )
         else:
