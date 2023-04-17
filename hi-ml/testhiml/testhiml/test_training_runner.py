@@ -412,8 +412,7 @@ def test_model_extra_val_epoch_missing_hook(caplog: LogCaptureFixture) -> None:
                     mock_get_checkpoint_to_test.return_value = MagicMock(is_file=MagicMock(return_value=True))
                     runner.init_inference()
                     runner.run_validation()
-                    latest_message = caplog.records[-1].getMessage()
-                    assert "Hook `on_run_extra_validation_epoch` is not implemented" in latest_message
+                    assert "Hook `on_run_extra_validation_epoch` is not implemented" in caplog.messages[-3]
 
 
 def test_run_inference(training_runner_hello_world: TrainingRunner, regression_datadir: Path) -> None:
