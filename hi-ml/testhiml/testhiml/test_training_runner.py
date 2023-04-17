@@ -354,7 +354,6 @@ def test_init_inference(
                 assert mock_create_trainer.call_args[1]["num_nodes"] == 1
                 assert mock_create_trainer.call_args[1]["mlflow_run_for_logging"] == expected_mlflow_run_id
                 mock_get_data_module.assert_called_once()
-                mock_get_data_module.asse
                 assert training_runner_hello_world_with_checkpoint.data_module == "dummy_data_module"
 
 
