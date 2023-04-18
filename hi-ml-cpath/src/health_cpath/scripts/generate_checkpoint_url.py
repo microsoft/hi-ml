@@ -66,9 +66,8 @@ if __name__ == '__main__':
         help='The number of hours for which the SAS token is valid. Default: 30 for 1 month',
     )
     parser.add_argument(
-        '--acount_key', default='', type=str, help='The Azure Storage account key to use for the SAS token.'
+        '--account_key', default='', type=str, help='The Azure Storage account key to use for the SAS token.'
     )
-
     args = parser.parse_args()
     workspace_config_path = Path(args.workspace_config) if args.workspace_config else None
     url = get_checkpoint_url_from_aml_run(
@@ -76,5 +75,6 @@ if __name__ == '__main__':
         checkpoint_filename=args.checkpoint_filename,
         expiry_days=args.expiry_days,
         workspace_config_path=workspace_config_path,
+        account_key=args.account_key,
     )
     print(f'Checkpoint URL: {url}')
