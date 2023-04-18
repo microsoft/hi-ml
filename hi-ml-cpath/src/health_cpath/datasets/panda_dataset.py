@@ -44,6 +44,7 @@ class PandaDataset(SlidesDataset):
             image_column=PANDA_IMAGE_COLUMN,
             mask_column=PANDA_MASK_COLUMN,
             metadata_columns=PANDA_METADATA_COLUMNS,
+            default_csv_filename=PANDA_CSV_FILENAME,
         )
         # PANDA CSV does not come with paths for image and mask files
         slide_ids = self.dataset_df.index

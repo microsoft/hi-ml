@@ -24,7 +24,7 @@ from health_azure.argparsing import apply_overrides, parse_arguments
 from health_cpath.preprocessing.loading import WSIBackend
 from health_cpath.utils.montage_config import MontageConfig, create_montage_argparser
 from health_cpath.utils.naming import SlideKey
-from health_cpath.datasets.base_dataset import SlidesDataset
+from health_cpath.datasets.base_dataset import SLIDES_DEFAULT_DATASET_CSV, SlidesDataset
 from health_ml.utils.type_annotations import TupleInt3
 
 
@@ -425,13 +425,13 @@ class MontageCreation(MontageConfig):
                 dataset = SlidesDataset(root=input_folder)
             except Exception as ex:
                 logging.error("Unable to load dataset.")
-                file = input_folder / SlidesDataset.DEFAULT_CSV_FILENAME
+                file = input_folder / SLIDES_DEFAULT_DATASET_CSV
                 # Print the whole directory tree to check where the problem is.
                 while str(file) != str(file.root):
                     logging.debug(f"File: {file}, exists: {file.exists()}")
                     file = file.parent
                 raise ValueError(
-                    f"Unable to load dataset. Check if the file {SlidesDataset.DEFAULT_CSV_FILENAME} "
+                    f"Unable to load dataset. Check if the file {SLIDES_DEFAULT_DATASET_CSV} "
                     f"exists, or provide a file name pattern via --image_glob_pattern. Error: {ex}"
                 )
             return dataset

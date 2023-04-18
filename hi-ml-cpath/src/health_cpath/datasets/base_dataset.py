@@ -150,6 +150,9 @@ class TilesDataset(Dataset):
             self.dataset_df = self.dataset_df.assign(**{TilesDataset.TILE_Y_COLUMN: self.dataset_df[TileKey.TILE_TOP]})
 
 
+SLIDES_DEFAULT_DATASET_CSV = "dataset.csv"
+
+
 class SlidesDataset(Dataset):
     """Base class for datasets of WSIs, iterating dictionaries of image paths and metadata.
 
@@ -161,8 +164,6 @@ class SlidesDataset(Dataset):
     :param DEFAULT_CSV_FILENAME: Default name of the dataset CSV at the dataset rood directory.
     """
 
-    DEFAULT_CSV_FILENAME: str = "dataset.csv"
-
     def __init__(
         self,
         root: Union[str, Path],
@@ -173,6 +174,7 @@ class SlidesDataset(Dataset):
         label_column: str = DEFAULT_LABEL_COLUMN,
         n_classes: int = 1,
         dataframe_kwargs: Dict[str, Any] = {},
+        default_csv_filename: str = SLIDES_DEFAULT_DATASET_CSV,
         slide_id_column: str = "slide_id",
         image_column: str = "image",
         mask_column: Optional[str] = None,
@@ -198,6 +200,7 @@ class SlidesDataset(Dataset):
         :param image_column: CSV column name for relative path to image file. Default is `image`.
         :param mask_column: CSV column name for relative path to mask file. Default is `None`.
         :param split_column: CSV column name for train/test split. Default is `None`.
+        :param default_csv_filename: Default name of the dataset CSV at the dataset root directory.
         """
         self.root_dir = Path(root)
         self.label_column = label_column
@@ -208,13 +211,14 @@ class SlidesDataset(Dataset):
         self.mask_column = mask_column
         self.split_column = split_column
         self.metadata_columns = metadata_columns
+        self.default_csv_filename = default_csv_filename
         if self.split_column is None and train is not None:
             raise ValueError("Train/test split was specified but dataset has no split column")
 
         if dataset_df is not None:
             self.dataset_csv = None
         else:
-            self.dataset_csv = dataset_csv or self.root_dir / self.DEFAULT_CSV_FILENAME
+            self.dataset_csv = dataset_csv or self.root_dir / self.default_csv_filename
             dataset_df = pd.read_csv(self.dataset_csv, **self.dataframe_kwargs)
 
         if dataset_df.index.name != self.slide_id_column:
