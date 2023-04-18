@@ -203,6 +203,7 @@ class RunnerBase:
         3. Create a new data module instance for inference to account for any requested changes in the dataloading
         parameters (e.g. batch_size, max_num_workers, etc) as part of on_run_extra_validation_epoch.
         """
+        logging.info("Preparing runner for inference.")
         self.inference_checkpoint = str(self.checkpoint_handler.get_checkpoint_to_test())
         self.set_trainer_for_inference()
         self.data_module = self.get_data_module()
