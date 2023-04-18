@@ -29,6 +29,7 @@ def get_checkpoint_url_from_aml_run(
     """
     workspace = get_workspace(aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
     account_name = workspace.get_details()['storageAccount'].split('/')[-1]
+    print(f"Workspace {workspace.name} stores its run results in storage account {account_name}.")
     container_name = 'azureml'
     blob_name = f'ExperimentRun/dcid.{run_id}/{DEFAULT_AML_CHECKPOINT_DIR}/{checkpoint_filename}'
     if not sas_token:
