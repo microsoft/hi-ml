@@ -11,6 +11,9 @@ import pandas as pd
 from health_cpath.datasets.base_dataset import DEFAULT_LABEL_COLUMN, SlidesDataset
 
 
+TCGA_PRAD_DATASET_FILE = "dataset.csv"
+
+
 class TcgaPradDataset(SlidesDataset):
     """Dataset class for loading TCGA-PRAD slides.
 
@@ -41,6 +44,7 @@ class TcgaPradDataset(SlidesDataset):
             dataset_df,
             validate_columns=False,
             label_column=label_column,
+            default_csv_filename=TCGA_PRAD_DATASET_FILE,
             image_column="image_path",
         )
         # Example of how to define a custom label column from existing columns:

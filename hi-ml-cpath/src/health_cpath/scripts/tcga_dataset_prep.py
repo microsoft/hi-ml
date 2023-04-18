@@ -8,7 +8,7 @@ import pandas as pd
 from health_cpath.datasets.default_paths import TCGA_CRCK_DATASET_ID
 
 from health_cpath.utils.tcga_utils import extract_fields
-from health_cpath.datasets.tcga_prad_dataset import TCGA_PRAD_DATASET_FILE, TcgaPradDataset
+from health_cpath.datasets.tcga_prad_dataset import TCGA_PRAD_DATASET_FILE
 
 
 def check_dataset_csv_paths(dataset_dir: Path) -> None:
