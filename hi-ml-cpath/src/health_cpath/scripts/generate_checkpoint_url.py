@@ -13,6 +13,7 @@ def get_checkpoint_url_from_aml_run(
     expiry_days: int = 1,
     workspace_config_path: Optional[Path] = None,
     aml_workspace: Optional[Workspace] = None,
+    account_key: Optional[str] = None,
     sas_token: Optional[str] = None,
 ) -> str:
     """Generate a SAS URL for the checkpoint file in the given run.
@@ -22,6 +23,7 @@ def get_checkpoint_url_from_aml_run(
     :param expiry_days: The number of days the SAS URL is valid for, defaults to 30.
     :param workspace_config_path: The path to the workspace config file, defaults to None.
     :param aml_workspace: The Azure ML workspace to use, defaults to the default workspace.
+    :param account_key: The Azure Storage account key to use for the SAS token, defaults to None.
     :param sas_token: The SAS token to use, defaults to None.
     :return: The SAS URL for the checkpoint.
     """
@@ -30,13 +32,14 @@ def get_checkpoint_url_from_aml_run(
     account_name = datastore.account_name
     container_name = 'azureml'
     blob_name = f'ExperimentRun/dcid.{run_id}/{DEFAULT_AML_CHECKPOINT_DIR}/{checkpoint_filename}'
-
+    account_key = datastore.account_key or account_key
+    assert account_key, 'No account key provided.'
     if not sas_token:
         sas_token = generate_blob_sas(
             account_name=datastore.account_name,
             container_name=container_name,
             blob_name=blob_name,
-            account_key=datastore.account_key,
+            account_key=account_key,
             permission=BlobSasPermissions(read=True),
             expiry=datetime.utcnow() + timedelta(days=expiry_days),
         )
@@ -62,6 +65,10 @@ if __name__ == '__main__':
         default=30,
         help='The number of hours for which the SAS token is valid. Default: 30 for 1 month',
     )
+    parser.add_argument(
+        '--acount_key', default='', type=str, help='The Azure Storage account key to use for the SAS token.'
+    )
+
     args = parser.parse_args()
     workspace_config_path = Path(args.workspace_config) if args.workspace_config else None
     url = get_checkpoint_url_from_aml_run(
