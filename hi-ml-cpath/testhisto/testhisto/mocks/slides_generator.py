@@ -11,7 +11,12 @@ import pandas as pd
 import torch
 from tifffile.tifffile import TiffWriter, PHOTOMETRIC, COMPRESSION
 from torch import Tensor
-from health_cpath.datasets.panda_dataset import PandaDataset
+from health_cpath.datasets.panda_dataset import (
+    PANDA_CSV_FILENAME,
+    PANDA_MASK_COLUMN,
+    PANDA_METADATA_COLUMNS,
+    PANDA_SLIDE_ID_COLUMN,
+)
 from health_cpath.preprocessing.tiff_conversion import ResolutionUnit
 from testhisto.mocks.base_data_generator import MockHistoDataGenerator, MockHistoDataType, PANDA_N_CLASSES
 
@@ -87,17 +92,15 @@ class MockPandaSlidesGenerator(MockHistoDataGenerator):
             list(self.ISUP_GRADE_MAPPING.keys()),
             self.n_slides // PANDA_N_CLASSES + 1,
         )
-        mock_metadata: dict = {
-            col: [] for col in [PandaDataset.SLIDE_ID_COLUMN, PandaDataset.MASK_COLUMN, *PandaDataset.METADATA_COLUMNS]
-        }
+        mock_metadata: dict = {col: [] for col in [PANDA_SLIDE_ID_COLUMN, PANDA_MASK_COLUMN, *PANDA_METADATA_COLUMNS]}
         for slide_id in range(self.n_slides):
-            mock_metadata[PandaDataset.SLIDE_ID_COLUMN].append(f"_{slide_id}")
-            mock_metadata[PandaDataset.MASK_COLUMN].append(f"_{slide_id}_mask")
+            mock_metadata[PANDA_SLIDE_ID_COLUMN].append(f"_{slide_id}")
+            mock_metadata[PANDA_MASK_COLUMN].append(f"_{slide_id}_mask")
             mock_metadata[self.DATA_PROVIDER].append(np.random.choice(self.DATA_PROVIDERS_VALUES))
             mock_metadata[self.ISUP_GRADE].append(isup_grades[slide_id])
             mock_metadata[self.GLEASON_SCORE].append(np.random.choice(self.ISUP_GRADE_MAPPING[isup_grades[slide_id]]))
         df = pd.DataFrame(data=mock_metadata)
-        csv_filename = self.dest_data_path / PandaDataset.DEFAULT_CSV_FILENAME
+        csv_filename = self.dest_data_path / PANDA_CSV_FILENAME
         df.to_csv(csv_filename, index=False)
 
     def create_mock_wsi(self, tiles: Tensor) -> Tuple[np.ndarray, Optional[np.ndarray]]:

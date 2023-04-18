@@ -161,13 +161,6 @@ class SlidesDataset(Dataset):
     :param DEFAULT_CSV_FILENAME: Default name of the dataset CSV at the dataset rood directory.
     """
 
-    SLIDE_ID_COLUMN: str = 'slide_id'
-    IMAGE_COLUMN: str = 'image'
-    MASK_COLUMN: Optional[str] = None
-    SPLIT_COLUMN: Optional[str] = None
-
-    METADATA_COLUMNS: Tuple[str, ...] = ()
-
     DEFAULT_CSV_FILENAME: str = "dataset.csv"
 
     def __init__(
@@ -180,30 +173,43 @@ class SlidesDataset(Dataset):
         label_column: str = DEFAULT_LABEL_COLUMN,
         n_classes: int = 1,
         dataframe_kwargs: Dict[str, Any] = {},
+        slide_id_column: str = "slide_id",
+        image_column: str = "image",
+        mask_column: Optional[str] = None,
+        split_column: Optional[str] = None,
+        metadata_columns: Tuple[str, ...] = (),
     ) -> None:
         """
         :param root: Root directory of the dataset.
         :param dataset_csv: Full path to a dataset CSV file, containing at least
-        `TILE_ID_COLUMN`, `SLIDE_ID_COLUMN`, and `IMAGE_COLUMN`. If omitted, the CSV will be read
-        from `"{root}/{DEFAULT_CSV_FILENAME}"`.
+            `slide_id_column` and `image_column`. If omitted, the CSV will be read
+            from `"{root}/{DEFAULT_CSV_FILENAME}"`.
         :param dataset_df: A potentially pre-processed dataframe in the same format as would be read
-        from the dataset CSV file, e.g. after some filtering. If given, overrides `dataset_csv`.
+            from the dataset CSV file, e.g. after some filtering. If given, overrides `dataset_csv`.
         :param train: If `True`, loads only the training split (resp. `False` for test split). By
-        default (`None`), loads the entire dataset as-is.
+            default (`None`), loads the entire dataset as-is.
         :param validate_columns: Whether to call `validate_columns()` at the end of `__init__()`.
-        `validate_columns()` checks that the loaded data frame for the dataset contains the expected column names
-        for this class
+            `validate_columns()` checks that the loaded data frame for the dataset contains the expected column names
+            for this class
         :param label_column: CSV column name for tile label. Default is `DEFAULT_LABEL_COLUMN="label"`.
         :param n_classes: Number of classes indexed in `label_column`. Default is 1 for binary classification.
         :param dataframe_kwargs: Keyword arguments to pass to `pd.read_csv()` when loading the dataset CSV.
+        :param slide_id_column: CSV column name for slide ID. Default is `slide_id`.
+        :param image_column: CSV column name for relative path to image file. Default is `image`.
+        :param mask_column: CSV column name for relative path to mask file. Default is `None`.
+        :param split_column: CSV column name for train/test split. Default is `None`.
         """
-        if self.SPLIT_COLUMN is None and train is not None:
-            raise ValueError("Train/test split was specified but dataset has no split column")
-
         self.root_dir = Path(root)
         self.label_column = label_column
         self.n_classes = n_classes
         self.dataframe_kwargs = dataframe_kwargs
+        self.slide_id_column = slide_id_column
+        self.image_column = image_column
+        self.mask_column = mask_column
+        self.split_column = split_column
+        self.metadata_columns = metadata_columns
+        if self.split_column is None and train is not None:
+            raise ValueError("Train/test split was specified but dataset has no split column")
 
         if dataset_df is not None:
             self.dataset_csv = None
@@ -211,13 +217,13 @@ class SlidesDataset(Dataset):
             self.dataset_csv = dataset_csv or self.root_dir / self.DEFAULT_CSV_FILENAME
             dataset_df = pd.read_csv(self.dataset_csv, **self.dataframe_kwargs)
 
-        if dataset_df.index.name != self.SLIDE_ID_COLUMN:
-            dataset_df = dataset_df.set_index(self.SLIDE_ID_COLUMN)
+        if dataset_df.index.name != self.slide_id_column:
+            dataset_df = dataset_df.set_index(self.slide_id_column)
         if train is None:
             self.dataset_df = dataset_df
         else:
             split = DEFAULT_TRAIN_SPLIT_LABEL if train else DEFAULT_TEST_SPLIT_LABEL
-            self.dataset_df = dataset_df[dataset_df[self.SPLIT_COLUMN] == split]
+            self.dataset_df = dataset_df[dataset_df[self.split_column] == split]
 
         if validate_columns:
             self.validate_columns()
@@ -228,14 +234,14 @@ class SlidesDataset(Dataset):
         If the constructor is overloaded in a subclass, you can pass `validate_columns=False` and
         call `validate_columns()` after creating derived columns, for example.
         """
-        mandatory_columns = {self.IMAGE_COLUMN, self.label_column, self.MASK_COLUMN, self.SPLIT_COLUMN}
+        mandatory_columns = {self.image_column, self.label_column, self.mask_column, self.split_column}
         optional_columns = (
-            set(self.dataframe_kwargs["usecols"]) if "usecols" in self.dataframe_kwargs else set(self.METADATA_COLUMNS)
+            set(self.dataframe_kwargs["usecols"]) if "usecols" in self.dataframe_kwargs else set(self.metadata_columns)
         )
         columns = mandatory_columns.union(optional_columns)
-        # SLIDE_ID_COLUMN is used for indexing and is not in df.columns anymore
-        # None might be in columns if SPLITS_COLUMN is None
-        columns_not_found = columns - set(self.dataset_df.columns) - {None, self.SLIDE_ID_COLUMN}
+        # slide_id_column is used for indexing and is not in df.columns anymore
+        # None might be in columns if split_column is None
+        columns_not_found = columns - set(self.dataset_df.columns) - {None, self.slide_id_column}
         if len(columns_not_found) > 0:
             raise ValueError(f"Expected columns '{columns_not_found}' not found in the dataframe")
 
@@ -247,18 +253,18 @@ class SlidesDataset(Dataset):
         slide_row = self.dataset_df.loc[slide_id]
         sample = {SlideKey.SLIDE_ID: slide_id}
 
-        rel_image_path = slide_row[self.IMAGE_COLUMN]
+        rel_image_path = slide_row[self.image_column]
         sample[SlideKey.IMAGE] = str(self.root_dir / rel_image_path)
         # we're replicating this column because we want to propagate the path to the batch
         sample[SlideKey.IMAGE_PATH] = sample[SlideKey.IMAGE]
 
-        if self.MASK_COLUMN:
-            rel_mask_path = slide_row[self.MASK_COLUMN]
+        if self.mask_column:
+            rel_mask_path = slide_row[self.mask_column]
             sample[SlideKey.MASK] = str(self.root_dir / rel_mask_path)
             sample[SlideKey.MASK_PATH] = sample[SlideKey.MASK]
 
         sample[SlideKey.LABEL] = slide_row[self.label_column]
-        sample[SlideKey.METADATA] = {col: slide_row[col] for col in self.METADATA_COLUMNS}
+        sample[SlideKey.METADATA] = {col: slide_row[col] for col in self.metadata_columns}
         return sample
 
     @classmethod

@@ -7,6 +7,12 @@ from pathlib import Path
 from typing import Any, Dict, Union, Optional
 from health_cpath.datasets.base_dataset import SlidesDataset
 
+PANDA_SLIDE_ID_COLUMN = 'image_id'
+PANDA_IMAGE_COLUMN = 'image'
+PANDA_MASK_COLUMN = 'mask'
+PANDA_METADATA_COLUMNS = ('data_provider', 'isup_grade', 'gleason_score')
+PANDA_CSV_FILENAME = "train.csv"
+
 
 class PandaDataset(SlidesDataset):
     """Dataset class for loading files from the PANDA challenge dataset.
@@ -16,14 +22,6 @@ class PandaDataset(SlidesDataset):
 
     Ref.: https://www.kaggle.com/c/prostate-cancer-grade-assessment/overview
     """
-
-    SLIDE_ID_COLUMN = 'image_id'
-    IMAGE_COLUMN = 'image'
-    MASK_COLUMN = 'mask'
-
-    METADATA_COLUMNS = ('data_provider', 'isup_grade', 'gleason_score')
-
-    DEFAULT_CSV_FILENAME = "train.csv"
 
     def __init__(
         self,
@@ -42,9 +40,13 @@ class PandaDataset(SlidesDataset):
             label_column=label_column,
             n_classes=n_classes,
             dataframe_kwargs=dataframe_kwargs,
+            slide_id_column=PANDA_SLIDE_ID_COLUMN,
+            image_column=PANDA_IMAGE_COLUMN,
+            mask_column=PANDA_MASK_COLUMN,
+            metadata_columns=PANDA_METADATA_COLUMNS,
         )
         # PANDA CSV does not come with paths for image and mask files
         slide_ids = self.dataset_df.index
-        self.dataset_df[self.IMAGE_COLUMN] = "train_images/" + slide_ids + ".tiff"
-        self.dataset_df[self.MASK_COLUMN] = "train_label_masks/" + slide_ids + "_mask.tiff"
+        self.dataset_df[self.image_column] = "train_images/" + slide_ids + ".tiff"
+        self.dataset_df[self.mask_column] = "train_label_masks/" + slide_ids + "_mask.tiff"
         self.validate_columns()

@@ -8,7 +8,7 @@ from health_cpath.configs.classification.BaseMIL import BaseMIL, BaseMILSlides, 
 from health_cpath.configs.run_ids import innereye_ssl_checkpoint_binary
 from health_cpath.datamodules.panda_module import PandaSlidesDataModule, PandaTilesDataModule
 from health_cpath.datasets.default_paths import PANDA_5X_TILES_DATASET_ID, PANDA_DATASET_ID
-from health_cpath.datasets.panda_dataset import PandaDataset
+from health_cpath.datasets.panda_dataset import PANDA_IMAGE_COLUMN, PandaDataset
 from health_cpath.datasets.panda_tiles_dataset import PandaTilesDataset
 from health_cpath.models.encoders import HistoSSLEncoder, ImageNetSimCLREncoder, Resnet18, SSLEncoder
 from health_cpath.preprocessing.loading import LoadingParams, ROIType, WSIBackend
@@ -153,7 +153,7 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             tiling_params=create_from_matching_params(self, TilingParams),
             loading_params=create_from_matching_params(self, LoadingParams),
             seed=self.get_effective_random_seed(),
-            transforms_dict=self.get_transforms_dict(PandaDataset.IMAGE_COLUMN),
+            transforms_dict=self.get_transforms_dict(PANDA_IMAGE_COLUMN),
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
             dataloader_kwargs=self.get_dataloader_kwargs(),
