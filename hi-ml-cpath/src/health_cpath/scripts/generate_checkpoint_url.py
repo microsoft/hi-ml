@@ -33,7 +33,7 @@ def get_checkpoint_url_from_aml_run(
     container_name = 'azureml'
     blob_name = f'ExperimentRun/dcid.{run_id}/{DEFAULT_AML_CHECKPOINT_DIR}/{checkpoint_filename}'
     account_key = datastore.account_key or account_key
-    assert account_key, 'No account key provided.'
+    assert account_key, 'No account key provided. Please provide an account key or SAS token.'
     if not sas_token:
         sas_token = generate_blob_sas(
             account_name=datastore.account_name,
