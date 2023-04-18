@@ -150,7 +150,7 @@ class TilesDataset(Dataset):
             self.dataset_df = self.dataset_df.assign(**{TilesDataset.TILE_Y_COLUMN: self.dataset_df[TileKey.TILE_TOP]})
 
 
-SLIDES_DEFAULT_DATASET_CSV = "dataset.csv"
+DEFAULT_DATASET_CSV = "dataset.csv"
 
 
 class SlidesDataset(Dataset):
@@ -174,7 +174,7 @@ class SlidesDataset(Dataset):
         label_column: str = DEFAULT_LABEL_COLUMN,
         n_classes: int = 1,
         dataframe_kwargs: Dict[str, Any] = {},
-        default_csv_filename: str = SLIDES_DEFAULT_DATASET_CSV,
+        default_csv_filename: str = DEFAULT_DATASET_CSV,
         slide_id_column: str = "slide_id",
         image_column: str = "image",
         mask_column: Optional[str] = None,

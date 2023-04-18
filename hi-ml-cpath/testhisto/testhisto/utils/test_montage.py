@@ -17,7 +17,7 @@ from health_cpath.utils.montage import (
     make_montage_from_dir,
     restrict_dataset,
 )
-from health_cpath.datasets.base_dataset import SLIDES_DEFAULT_DATASET_CSV, SlidesDataset
+from health_cpath.datasets.base_dataset import DEFAULT_DATASET_CSV, SlidesDataset
 from health_cpath.datasets.panda_dataset import (
     PANDA_MASK_COLUMN,
     PANDA_METADATA_COLUMNS,
@@ -91,7 +91,7 @@ def temp_slides_dataset(tmp_path_factory: pytest.TempPathFactory) -> Generator:
         SlideKey.LABEL: [f"Label {i}" for i in range(NUM_SLIDES)],
     }
     df = pd.DataFrame(data=metadata)
-    csv_filename = tmp_path / SLIDES_DEFAULT_DATASET_CSV
+    csv_filename = tmp_path / DEFAULT_DATASET_CSV
     df.to_csv(csv_filename, index=False)
     # Tests fail non-deterministically, saying that the dataset file does not exist (yet). Hence, wait.
     wait_until_file_exists(csv_filename)
