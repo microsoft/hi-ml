@@ -100,7 +100,7 @@ class TiffConversionConfig(param.Parameterized):
             .str.replace(AMPERSAND, self.replace_ampersand_by)
             .map(lambda x: str(Path(x).with_suffix(TIFF_EXTENSION)))
         )
-        new_dataset_path = output_folder / (self.converted_dataset_csv or self.slides_dataset.default_csv_filename)
+        new_dataset_path = output_folder / (self.converted_dataset_csv or self.slides_dataset.dataset_csv.name)
         new_dataset_df.to_csv(new_dataset_path, sep="\t" if new_dataset_path.suffix == ".tsv" else ",")
         logging.info(f"Saved new dataset tsv file to {new_dataset_path}")
 
