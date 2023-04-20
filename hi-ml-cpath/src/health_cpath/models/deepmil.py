@@ -554,7 +554,6 @@ class MADeepMILModule(DeepMILModule):
         self.ma_weight_callback.on_before_zero_grad(self.trainer, self)
 
     def get_instance_features(self, instances: Tensor) -> Tensor:
-
         bag_size = instances.shape[0]
         if bag_size > self.ma_max_bag_size and self.on_moving_average:
             instance_features = self.encoder(instances[: self.ma_max_bag_size])
