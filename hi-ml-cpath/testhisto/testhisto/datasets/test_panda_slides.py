@@ -14,12 +14,7 @@ import torch
 from pytorch_lightning import seed_everything
 
 from health_cpath.configs.classification.DeepSMILESlidesPandaBenchmark import DeepSMILESlidesPandaBenchmark
-from health_cpath.datasets.panda_dataset import (
-    PANDA_MASK_COLUMN,
-    PANDA_METADATA_COLUMNS,
-    PANDA_SLIDE_ID_COLUMN,
-    PandaDataset,
-)
+from health_cpath.datasets.panda_dataset import PandaColumns, PandaDataset
 from health_cpath.preprocessing.loading import ROIType, WSIBackend
 from health_cpath.utils.naming import SlideKey
 from testhisto.mocks.base_data_generator import MockHistoDataType
@@ -117,7 +112,7 @@ def test_validate_columns(tmp_path: Path) -> None:
         background_val=255,
         tiles_pos_type=TilesPositioningType.RANDOM,
     )
-    usecols = [PANDA_SLIDE_ID_COLUMN, PANDA_MASK_COLUMN]
+    usecols = [PandaColumns.SLIDE_ID, PandaColumns.MASK]
     with pytest.raises(ValueError, match=r"Expected columns"):
         _ = PandaDataset(root=tmp_path, dataframe_kwargs={"usecols": usecols})
-    _ = PandaDataset(root=tmp_path, dataframe_kwargs={"usecols": usecols + [PANDA_METADATA_COLUMNS[1]]})
+    _ = PandaDataset(root=tmp_path, dataframe_kwargs={"usecols": usecols + [PandaColumns.METADATA[1]]})

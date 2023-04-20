@@ -157,11 +157,6 @@ class SlidesDataset(Dataset):
     """Base class for datasets of WSIs, iterating dictionaries of image paths and metadata.
 
     The output dictionaries are indexed by `..utils.naming.SlideKey`.
-
-    :param SLIDE_ID_COLUMN: CSV column name for slide ID.
-    :param IMAGE_COLUMN: CSV column name for relative path to image file.
-    :param SPLIT_COLUMN: CSV column name for train/test split (optional).
-    :param DEFAULT_CSV_FILENAME: Default name of the dataset CSV at the dataset rood directory.
     """
 
     def __init__(

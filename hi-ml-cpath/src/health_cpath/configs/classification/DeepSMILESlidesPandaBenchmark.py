@@ -15,7 +15,6 @@ from health_cpath.utils.wsi_utils import TilingParams
 from health_ml.networks.layers.attention_layers import TransformerPooling, TransformerPoolingBenchmark
 from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_ml.deep_learning_config import OptimizerParams
-from health_cpath.datasets.panda_dataset import PANDA_IMAGE_COLUMN
 from health_cpath.datamodules.panda_module_benchmark import PandaSlidesDataModuleBenchmark
 from health_cpath.models.encoders import (
     HistoSSLEncoder,
@@ -116,7 +115,7 @@ class DeepSMILESlidesPandaBenchmark(DeepSMILESlidesPanda):
             tiling_params=create_from_matching_params(self, TilingParams),
             loading_params=create_from_matching_params(self, LoadingParams),
             seed=self.get_effective_random_seed(),
-            transforms_dict=self.get_transforms_dict(PANDA_IMAGE_COLUMN),
+            transforms_dict=self.get_transforms_dict(SlideKey.IMAGE),
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
             dataloader_kwargs=self.get_dataloader_kwargs(),

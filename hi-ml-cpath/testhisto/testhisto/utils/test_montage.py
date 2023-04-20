@@ -18,12 +18,7 @@ from health_cpath.utils.montage import (
     restrict_dataset,
 )
 from health_cpath.datasets.base_dataset import DEFAULT_DATASET_CSV, SlidesDataset
-from health_cpath.datasets.panda_dataset import (
-    PANDA_MASK_COLUMN,
-    PANDA_METADATA_COLUMNS,
-    PANDA_SLIDE_ID_COLUMN,
-    PandaDataset,
-)
+from health_cpath.datasets.panda_dataset import PandaColumns, PandaDataset
 from health_cpath.scripts.create_montage import main as script_main
 from health_cpath.utils.naming import SlideKey
 from testhisto.mocks.base_data_generator import MockHistoDataType
@@ -67,8 +62,8 @@ def temp_panda_dataset(tmp_path_factory: pytest.TempPathFactory) -> Generator:
     """A fixture that creates a PandaDataset object with randomly created slides."""
     tmp_path = tmp_path_factory.mktemp("mock_panda")
     _create_slides_images(tmp_path)
-    usecols = [PANDA_SLIDE_ID_COLUMN, PANDA_MASK_COLUMN]
-    yield PandaDataset(root=tmp_path, dataframe_kwargs={"usecols": usecols + list(PANDA_METADATA_COLUMNS)})
+    usecols = [PandaColumns.SLIDE_ID, PandaColumns.MASK]
+    yield PandaDataset(root=tmp_path, dataframe_kwargs={"usecols": usecols + list(PandaColumns.METADATA)})
 
 
 @pytest.fixture(scope="module")

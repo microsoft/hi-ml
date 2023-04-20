@@ -7,10 +7,14 @@ from pathlib import Path
 from typing import Any, Dict, Union, Optional
 from health_cpath.datasets.base_dataset import SlidesDataset
 
-PANDA_SLIDE_ID_COLUMN = 'image_id'
-PANDA_IMAGE_COLUMN = 'image'
-PANDA_MASK_COLUMN = 'mask'
-PANDA_METADATA_COLUMNS = ('data_provider', 'isup_grade', 'gleason_score')
+
+class PandaColumns:
+    SLIDE_ID = 'image_id'
+    IMAGE = 'image'
+    MASK = 'mask'
+    METADATA = ('data_provider', 'isup_grade', 'gleason_score')
+
+
 PANDA_CSV_FILENAME = "train.csv"
 
 
@@ -40,10 +44,10 @@ class PandaDataset(SlidesDataset):
             label_column=label_column,
             n_classes=n_classes,
             dataframe_kwargs=dataframe_kwargs,
-            slide_id_column=PANDA_SLIDE_ID_COLUMN,
-            image_column=PANDA_IMAGE_COLUMN,
-            mask_column=PANDA_MASK_COLUMN,
-            metadata_columns=PANDA_METADATA_COLUMNS,
+            slide_id_column=PandaColumns.SLIDE_ID,
+            image_column=PandaColumns.IMAGE,
+            mask_column=PandaColumns.MASK,
+            metadata_columns=PandaColumns.METADATA,
             default_csv_filename=PANDA_CSV_FILENAME,
         )
         # PANDA CSV does not come with paths for image and mask files
