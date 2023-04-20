@@ -8,11 +8,11 @@ import pandas as pd
 from health_cpath.datasets.default_paths import TCGA_CRCK_DATASET_ID
 
 from health_cpath.utils.tcga_utils import extract_fields
-from health_cpath.datasets.tcga_prad_dataset import TcgaPradDataset
+from health_cpath.datasets.tcga_prad_dataset import TCGA_PRAD_DATASET_FILE
 
 
 def check_dataset_csv_paths(dataset_dir: Path) -> None:
-    df = pd.read_csv(dataset_dir / TcgaPradDataset.DEFAULT_CSV_FILENAME)
+    df = pd.read_csv(dataset_dir / TCGA_PRAD_DATASET_FILE)
     for img_path in df.image:
         assert (dataset_dir / img_path).is_file()
 
@@ -38,6 +38,6 @@ if __name__ == '__main__':
 
     # takes up to ~20 seconds
     df = df.apply(extract_fields, axis='columns', result_type='expand')
-    df.to_csv(dataset_dir / TcgaPradDataset.DEFAULT_CSV_FILENAME, index=False)
+    df.to_csv(dataset_dir / TCGA_PRAD_DATASET_FILE, index=False)
 
     check_dataset_csv_paths(dataset_dir)
