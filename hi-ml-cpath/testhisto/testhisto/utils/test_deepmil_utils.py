@@ -42,11 +42,13 @@ def test_load_ssl_checkpoint_from_local_file(tmp_path: Path) -> None:
 
 
 def test_load_ssl_checkpoint_from_url(tmp_path: Path) -> None:
+    aml_workspace = DEFAULT_WORKSPACE.workspace
     blob_url = get_checkpoint_url_from_aml_run(
         run_id=TEST_SSL_RUN_ID,
         checkpoint_filename=LAST_CHECKPOINT_FILE_NAME,
         expiry_days=1,
-        aml_workspace=DEFAULT_WORKSPACE.workspace,
+        aml_workspace=aml_workspace,
+        account_key=aml_workspace.get_default_datastore().account_key,
     )
     encoder_params = EncoderParams(encoder_type=SSLEncoder.__name__, ssl_checkpoint=CheckpointParser(blob_url))
     assert encoder_params.ssl_checkpoint.is_url
