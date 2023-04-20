@@ -528,21 +528,33 @@ class DeepMILMAWeightUpdate(ByolMovingAverageWeightUpdate):
 
 
 class MADeepMILModule(DeepMILModule):
-    def __init__(self, ma_max_bag_size: int, apply_ma_inference: bool, ma_tau: float = 0.99, **kwargs: Any) -> None:
+    """DeepMILModule with a moving average encoder to use larger bag sizes without increasing memory usage."""
+
+    def __init__(self, ma_max_bag_size: int, ma_tau: float = 0.99, **kwargs: Any) -> None:
+        """
+        :param ma_max_bag_size: The maximum bag size to use for the online encoder.
+        :pram ma_tau: The moving average weight update momentum.
+        """
         super().__init__(**kwargs)
+        self.save_hyperparameters(ignore=('ma_max_bag_size', 'ma_tau'))
         self.ma_max_bag_size = ma_max_bag_size
-        self.apply_ma_inference = apply_ma_inference
         self.ma_encoder = deepcopy(self.encoder)
         set_module_gradients_enabled(self.ma_encoder, False)
         self.ma_encoder.use_activation_checkpointing = False
         self.ma_weight_callback = DeepMILMAWeightUpdate(initial_tau=ma_tau)
         self.on_moving_average = False
 
+    def transfer_weights(self, pretrained_checkpoint_path: Optional[Path]) -> None:
+        super().transfer_weights(pretrained_checkpoint_path)
+        if self.encoder_params.pretrained_encoder:
+            self.ma_encoder.load_state_dict(self.encoder.state_dict())
+
     def on_train_batch_end(self, *args: Any, **kwargs: Any) -> None:
         assert isinstance(self.trainer, Trainer)
         self.ma_weight_callback.on_before_zero_grad(self.trainer, self)
 
     def get_instance_features(self, instances: Tensor) -> Tensor:
+
         bag_size = instances.shape[0]
         if bag_size > self.ma_max_bag_size and self.on_moving_average:
             instance_features = self.encoder(instances[: self.ma_max_bag_size])
@@ -551,9 +563,6 @@ class MADeepMILModule(DeepMILModule):
                     ma_features = self.embed_instances_in_chunks(self.ma_encoder, instances[self.ma_max_bag_size :])
                 return torch.cat([instance_features, ma_features.detach()])
             return instance_features
-
-        if self.apply_ma_inference:
-            self.embed_instances_in_chunks(self.ma_encoder, instances)
 
         return super().get_instance_features(instances)
 

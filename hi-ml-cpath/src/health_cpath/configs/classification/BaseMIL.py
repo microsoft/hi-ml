@@ -77,7 +77,7 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
     )
     ma_tau: float = param.Number(
         default=0.99,
-        doc="Tau parameter for moving average encoder. Default is 0.99.",
+        doc="Momentum for moving average encoder update. Default is 0.99.",
     )
     # Outputs Handler parameters:
     num_top_slides: int = param.Integer(
