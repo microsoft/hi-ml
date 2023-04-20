@@ -291,6 +291,7 @@ def test_init_inference(
     run_extra_val_epoch: bool,
     max_num_gpus_inf: int,
     training_runner_hello_world_with_checkpoint: TrainingRunner,
+    caplog: LogCaptureFixture,
 ) -> None:
     training_runner_hello_world_with_checkpoint.container.run_inference_only = run_inference_only
     training_runner_hello_world_with_checkpoint.container.run_extra_val_epoch = run_extra_val_epoch
@@ -324,6 +325,12 @@ def test_init_inference(
                 assert not training_runner_hello_world_with_checkpoint.container.model._on_extra_val_epoch
 
                 training_runner_hello_world_with_checkpoint.init_inference()
+                if run_extra_val_epoch:
+                    assert (
+                        caplog.messages[-3]
+                        == "Preparing to run an extra validation epoch to evaluate the model on the validation set."
+                    )
+                assert caplog.messages[-2] == "Preparing runner for inference."
 
                 expected_ckpt = str(training_runner_hello_world_with_checkpoint.checkpoint_handler.trained_weights_path)
                 expected_ckpt = expected_ckpt if run_inference_only else str(mock_checkpoint)
@@ -405,8 +412,7 @@ def test_model_extra_val_epoch_missing_hook(caplog: LogCaptureFixture) -> None:
                     mock_get_checkpoint_to_test.return_value = MagicMock(is_file=MagicMock(return_value=True))
                     runner.init_inference()
                     runner.run_validation()
-                    latest_message = caplog.records[-1].getMessage()
-                    assert "Hook `on_run_extra_validation_epoch` is not implemented" in latest_message
+                    assert "Hook `on_run_extra_validation_epoch` is not implemented" in caplog.messages[-3]
 
 
 def test_run_inference(training_runner_hello_world: TrainingRunner, regression_datadir: Path) -> None:

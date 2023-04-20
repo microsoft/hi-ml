@@ -164,12 +164,14 @@ class TrainingRunner(RunnerBase):
     def init_inference(self) -> None:
         """
         Prepare the trainer for running inference on the validation and test set. This chooses a checkpoint,
-        initializes the PL Trainer object, and chooses the right data module. Afterwards, the hook for running
-        inference on the validation set is run (`LightningContainer.on_run_extra_validation_epoch`)
+        initializes the PL Trainer object, and chooses the right data module. The hook for running
+        inference on the validation set is run (`LightningContainer.on_run_extra_validation_epoch`) is first called to
+        reflect any changes to the model or datamodule states before running inference.
         """
-        super().init_inference()
         if self.container.run_extra_val_epoch:
+            logging.info("Preparing to run an extra validation epoch to evaluate the model on the validation set.")
             self.container.on_run_extra_validation_epoch()
+        super().init_inference()
 
     def run_validation(self) -> None:
         """Run validation on the validation set for all models to save time/memory consuming outputs. This is done in
