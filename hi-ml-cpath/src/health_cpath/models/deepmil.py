@@ -530,18 +530,17 @@ class DeepMILMAWeightUpdate(ByolMovingAverageWeightUpdate):
 class MADeepMILModule(DeepMILModule):
     """DeepMILModule with a moving average encoder to use larger bag sizes without increasing memory usage."""
 
-    def __init__(self, ma_max_bag_size: int, ma_tau: float = 0.99, **kwargs: Any) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         """
         :param ma_max_bag_size: The maximum bag size to use for the online encoder.
         :pram ma_tau: The moving average weight update momentum.
         """
         super().__init__(**kwargs)
-        self.save_hyperparameters(ignore=('ma_max_bag_size', 'ma_tau'))
-        self.ma_max_bag_size = ma_max_bag_size
+        self.ma_max_bag_size = 900
         self.ma_encoder = deepcopy(self.encoder)
         set_module_gradients_enabled(self.ma_encoder, False)
         self.ma_encoder.use_activation_checkpointing = False
-        self.ma_weight_callback = DeepMILMAWeightUpdate(initial_tau=ma_tau)
+        self.ma_weight_callback = DeepMILMAWeightUpdate(initial_tau=0.99)
         self.on_moving_average = False
 
     def transfer_weights(self, pretrained_checkpoint_path: Optional[Path]) -> None:

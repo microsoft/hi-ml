@@ -70,11 +70,6 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
         "average weight update. Online encoder will be used to encode the first ma_max_bag_size tiles. Target encoder "
         "is used for the remaining tiles ma_max_bag_size:max_bag_size.",
     )
-    apply_ma_inference: bool = param.Boolean(
-        False,
-        doc="Whether to apply moving average encoder during inference. If True, the encoder will be loaded with the "
-        "moving average weights. If False (default), the online encoder is used.",
-    )
     ma_tau: float = param.Number(
         default=0.99,
         doc="Momentum for moving average encoder update. Default is 0.99.",
@@ -283,7 +278,6 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
         if self.ma_max_bag_size is not None:
             deepmil_module = MADeepMILModule(
                 ma_max_bag_size=self.ma_max_bag_size,
-                apply_ma_inference=self.apply_ma_inference,
                 ma_tau=self.ma_tau,
                 **deepmil_module_params,
             )
