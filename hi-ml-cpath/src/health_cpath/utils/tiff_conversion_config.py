@@ -100,12 +100,9 @@ class TiffConversionConfig(param.Parameterized):
             .str.replace(AMPERSAND, self.replace_ampersand_by)
             .map(lambda x: str(Path(x).with_suffix(TIFF_EXTENSION)))
         )
-        if self.converted_dataset_csv:
-            new_dataset_file = self.converted_dataset_csv
-        elif self.slides_dataset.dataset_csv is not None:
-            new_dataset_file = Path(self.slides_dataset.dataset_csv).name
-        else:
-            raise ValueError("Unable to determine the output filename. Please provide in 'converted_dataset_csv'")
+        new_dataset_file = (
+            self.converted_dataset_csv if self.converted_dataset_csv else self.slides_dataset.default_csv_filename
+        )
         new_dataset_path = output_folder / new_dataset_file
         new_dataset_df.to_csv(new_dataset_path, sep="\t" if new_dataset_path.suffix == ".tsv" else ",")
         logging.info(f"Saved new dataset tsv file to {new_dataset_path}")
