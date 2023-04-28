@@ -288,6 +288,30 @@ def find_file_in_parent_to_pythonpath(file_name: str) -> Optional[Path]:
     return find_file_in_parent_folders(file_name=file_name, stop_at_path=pythonpaths)
 
 
+def resolve_workspace_config_path(workspace_config_path: Optional[Path] = None) -> Optional[Path]:
+    """Retrieve the path to the workspace config file, either from the argument, or from the current working directory.
+
+    :param workspace_config_path: A path to a workspace config file that was provided on the commandline, defaults to
+        None
+    :return: The path to the workspace config file, or None if it cannot be found.
+    :raises FileNotFoundError: If the workspace config file that was provided as an argument does not exist.
+    """
+    if workspace_config_path is None:
+        logger.info(
+            f"Trying to locate the workspace config file '{WORKSPACE_CONFIG_JSON}' in the current folder "
+            "and its parent folders"
+        )
+        result = find_file_in_parent_to_pythonpath(WORKSPACE_CONFIG_JSON)
+        if result:
+            logger.info(f"Using the workspace config file {str(result.absolute())}")
+        else:
+            logger.debug("No workspace config file found")
+        return result
+    if not workspace_config_path.is_file():
+        raise FileNotFoundError(f"Workspace config file does not exist: {workspace_config_path}")
+    return workspace_config_path
+
+
 def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_path: Optional[Path] = None) -> Workspace:
     """
     Retrieve an Azure ML Workspace by going through the following steps:
@@ -320,26 +344,16 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
     if aml_workspace:
         return aml_workspace
 
-    if workspace_config_path is None:
-        logging.info(
-            f"Trying to locate the workspace config file '{WORKSPACE_CONFIG_JSON}' in the current folder "
-            "and its parent folders"
-        )
-        workspace_config_path = find_file_in_parent_to_pythonpath(WORKSPACE_CONFIG_JSON)
-        if workspace_config_path:
-            logging.info(f"Using the workspace config file {str(workspace_config_path.absolute())}")
-
+    workspace_config_path = resolve_workspace_config_path(workspace_config_path)
     auth = get_authentication()
     if workspace_config_path is not None:
-        if not workspace_config_path.is_file():
-            raise FileNotFoundError(f"Workspace config file does not exist: {workspace_config_path}")
         workspace = Workspace.from_config(path=str(workspace_config_path), auth=auth)
-        logging.info(
+        logger.info(
             f"Logged into AzureML workspace {workspace.name} as specified in config file " f"{workspace_config_path}"
         )
         return workspace
 
-    logging.info("Trying to load the environment variables that define the workspace.")
+    logger.info("Trying to load the environment variables that define the workspace.")
     workspace_name = get_secret_from_environment(ENV_WORKSPACE_NAME, allow_missing=True)
     subscription_id = get_secret_from_environment(ENV_SUBSCRIPTION_ID, allow_missing=True)
     resource_group = get_secret_from_environment(ENV_RESOURCE_GROUP, allow_missing=True)
@@ -347,7 +361,7 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
         workspace = Workspace.get(
             name=workspace_name, auth=auth, subscription_id=subscription_id, resource_group=resource_group
         )
-        logging.info(f"Logged into AzureML workspace {workspace.name} as specified by environment variables")
+        logger.info(f"Logged into AzureML workspace {workspace.name} as specified by environment variables")
         return workspace
 
     raise ValueError(
@@ -1895,7 +1909,7 @@ def _get_legitimate_interactive_browser_credential() -> Optional[TokenCredential
 
 def get_credential() -> Optional[TokenCredential]:
     """
-    Get a credential for authenticating with Azure.There are multiple ways to retrieve a credential.
+    Get a credential for authenticating with Azure. There are multiple ways to retrieve a credential.
     If environment variables pertaining to details of a Service Principal are available, those will be used
     to authenticate. If no environment variables exist, and the script is not currently
     running inside of Azure ML or another Azure agent, will attempt to retrieve a credential via a
@@ -1910,6 +1924,7 @@ def get_credential() -> Optional[TokenCredential]:
     tenant_id = get_secret_from_environment(ENV_TENANT_ID, allow_missing=True)
     service_principal_password = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
     if service_principal_id and tenant_id and service_principal_password:
+        logger.debug("Found environment variables for Service Principal authentication")
         return _get_legitimate_service_principal_credential(tenant_id, service_principal_id, service_principal_password)
 
     try:
@@ -1927,7 +1942,7 @@ def get_credential() -> Optional[TokenCredential]:
 
     raise ValueError(
         "Unable to generate and validate a credential. Please see Azure ML documentation"
-        "for instructions on diffrent options to get a credential"
+        "for instructions on different options to get a credential"
     )
 
 
@@ -1954,11 +1969,12 @@ def get_ml_client(
     """
     if ml_client:
         return ml_client
-
+    logger.debug("Getting credentials")
     credential = get_credential()
     if credential is None:
         raise ValueError("Can't connect to MLClient without a valid credential")
     if aml_workspace is not None:
+        logger.debug("Retrieving MLClient via existing workspace")
         ml_client = MLClient(
             subscription_id=aml_workspace.subscription_id,
             resource_group_name=aml_workspace.resource_group,
@@ -1966,8 +1982,10 @@ def get_ml_client(
             credential=credential,
         )  # type: ignore
     elif workspace_config_path:
+        logger.debug("Retrieving MLClient from workspace config")
         ml_client = MLClient.from_config(credential=credential, path=str(workspace_config_path))  # type: ignore
     elif subscription_id and resource_group and workspace_name:
+        logger.debug("Retrieving MLClient via subscription ID, resource group and workspace name")
         ml_client = MLClient(
             subscription_id=subscription_id,
             resource_group_name=resource_group,
@@ -1975,6 +1993,7 @@ def get_ml_client(
             credential=credential,
         )  # type: ignore
     else:
+        logger.debug("Retrieving MLClient via default workspace function")
         try:
             workspace = get_workspace()
             ml_client = MLClient(
@@ -1985,7 +2004,7 @@ def get_ml_client(
             )  # type: ignore
         except ValueError as e:
             raise ValueError(f"Couldn't connect to MLClient: {e}")
-    logging.info(f"Logged into AzureML workspace {ml_client.workspace_name}")
+    logging.info(f"Retrieved MLClient for AzureML workspace {ml_client.workspace_name}")
     return ml_client
 
 
