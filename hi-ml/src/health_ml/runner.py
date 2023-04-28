@@ -283,7 +283,6 @@ class Runner:
                 submit_to_azureml=False,
                 environment_variables=environment_variables,
                 strictly_aml_v1=self.experiment_config.strictly_aml_v1,
-                default_datastore=datastore,
             )
         if azure_run_info.run:
             # This code is only reached inside Azure. Set display name again - this will now affect

@@ -207,7 +207,6 @@ def test_submit_to_azureml_if_needed(
         submit_to_azureml: bool,
         strictly_aml_v1: bool,  # type: ignore
         environment_variables: Dict[str, Any],  # type: ignore
-        default_datastore: Optional[str],  # type: ignore
     ) -> AzureRunInfo:
         datasets_input = [d.target_folder for d in input_datasets] if input_datasets else []
         return AzureRunInfo(

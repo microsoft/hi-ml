@@ -144,10 +144,9 @@ def test_get_workspace_with_given_workspace() -> None:
 def test_get_workspace_searches_for_file() -> None:
     """get_workspace should try to load a config.json file if not provided with one"""
     found_file = Path("does_not_exist")
-    with patch("health_azure.utils.find_file_in_parent_to_pythonpath", return_value=found_file) as mock_find:
-        with pytest.raises(FileNotFoundError, match="Workspace config file does not exist"):
-            get_workspace(None, None)
-        mock_find.assert_called_once_with(WORKSPACE_CONFIG_JSON)
+    with patch("health_azure.utils.resolve_workspace_config_path", return_value=found_file) as mock_find:
+        get_workspace(None, None)
+        mock_find.assert_called_once_with(None)
 
 
 @pytest.mark.fast

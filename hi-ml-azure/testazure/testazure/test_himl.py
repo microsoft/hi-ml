@@ -773,7 +773,7 @@ def test_submit_run_v2(tmp_path: Path) -> None:
     with patch("azure.ai.ml.MLClient") as mock_ml_client:
         with patch("health_azure.himl.command") as mock_command:
             himl.submit_run_v2(
-                workspace=None,
+                ml_client=mock_ml_client,
                 experiment_name=dummy_experiment_name,
                 environment=dummy_environment,
                 input_datasets_v2=dummy_inputs,
@@ -784,8 +784,6 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 compute_target=dummy_compute_target,
                 tags=dummy_tags,
                 docker_shm_size=dummy_docker_shm_size,
-                workspace_config_path=None,
-                ml_client=mock_ml_client,
                 hyperparam_args=None,
                 display_name=dummy_display_name,
             )
@@ -834,7 +832,6 @@ def test_submit_run_v2(tmp_path: Path) -> None:
             expected_command += " --learning_rate=${{inputs.learning_rate}}"
 
             himl.submit_run_v2(
-                workspace=None,
                 experiment_name=dummy_experiment_name,
                 environment=dummy_environment,
                 input_datasets_v2=dummy_inputs,
@@ -845,7 +842,6 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 compute_target=dummy_compute_target,
                 tags=dummy_tags,
                 docker_shm_size=dummy_docker_shm_size,
-                workspace_config_path=None,
                 ml_client=mock_ml_client,
                 hyperparam_args=dummy_hyperparam_args,
                 display_name=dummy_display_name,
@@ -880,7 +876,7 @@ def test_submit_run_v2(tmp_path: Path) -> None:
             expected_command = f"python {dummy_entry_script_for_module} {expected_arg_str}"
 
             himl.submit_run_v2(
-                workspace=None,
+                ml_client=mock_ml_client,
                 experiment_name=dummy_experiment_name,
                 environment=dummy_environment,
                 input_datasets_v2=dummy_inputs,
@@ -891,8 +887,6 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 compute_target=dummy_compute_target,
                 tags=dummy_tags,
                 docker_shm_size=dummy_docker_shm_size,
-                workspace_config_path=None,
-                ml_client=mock_ml_client,
                 hyperparam_args=None,
                 display_name=dummy_display_name,
             )

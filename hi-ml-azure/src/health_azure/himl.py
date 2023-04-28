@@ -442,8 +442,8 @@ def effective_experiment_name(experiment_name: Optional[str], entry_script: Opti
 
 
 def submit_run_v2(
-    environment: EnvironmentV2,
     ml_client: MLClient,
+    environment: EnvironmentV2,
     experiment_name: Optional[str] = None,
     input_datasets_v2: Optional[Dict[str, Input]] = None,
     output_datasets_v2: Optional[Dict[str, Output]] = None,
@@ -573,7 +573,7 @@ def submit_run_v2(
     returned_job = ml_client.jobs.create_or_update(job_to_submit)
     print("\n==============================================================================")
     # The ID field looks like /subscriptions/<sub>/resourceGroups/<rg?/providers/Microsoft.MachineLearningServices/..
-    print(f"Successfully queued run {returned_job.id.split('/')[-1]}")
+    print(f"Successfully queued run {(returned_job.id or '').split('/')[-1]}")
     print(f"Run URL: {returned_job.services['Studio'].endpoint}")  # type: ignore
     print("==============================================================================\n")
     if wait_for_completion:
