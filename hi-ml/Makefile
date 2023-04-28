@@ -88,9 +88,10 @@ define SHARED_ARGS
 --conda_env ../hi-ml-cpath/environment.yml --cluster=pr-gpu --max_run_duration=15m --wait_for_completion
 endef
 
-# HelloWorld model training on a single node, submitted using the v1 SDK
+# HelloWorld model training on a single node, submitted using the v1 SDK.
+# Submit via the runner at repo root to test if path resolution works.
 smoke_helloworld_v1:
-	python src/health_ml/runner.py --model=health_ml.HelloWorld --strictly_aml_v1=True --tag smoke_helloworld_v1 ${SHARED_ARGS}
+	python ../runner.py --model=health_ml.HelloWorld --strictly_aml_v1=True --tag smoke_helloworld_v1 ${SHARED_ARGS}
 
 # HelloWorld model training on a single node, submitted using the v2 SDK
 smoke_helloworld_v2:
