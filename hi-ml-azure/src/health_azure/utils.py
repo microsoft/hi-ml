@@ -1949,7 +1949,7 @@ def get_credential() -> Optional[TokenCredential]:
 def get_ml_client(
     ml_client: Optional[MLClient] = None,
     aml_workspace: Optional[Workspace] = None,
-    workspace_config_path: Optional[PathOrString] = None,
+    workspace_config_path: Optional[Path] = None,
 ) -> MLClient:
     """
     Instantiate an MLClient for interacting with Azure resources via v2 of the Azure ML SDK. The following ways of
