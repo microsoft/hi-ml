@@ -27,7 +27,6 @@ from testazure.utils_testazure import (
     TEST_DATA_ASSET_NAME,
     TEST_INVALID_DATA_ASSET_NAME,
     TEST_DATASTORE_NAME,
-    get_test_ml_client,
 )
 
 from health_azure.datasets import (
@@ -49,7 +48,7 @@ from health_azure.datasets import (
 from health_azure.utils import PathOrString, get_ml_client
 
 
-TEST_ML_CLIENT = get_test_ml_client()
+TEST_ML_CLIENT = get_ml_client(aml_workspace=DEFAULT_WORKSPACE.workspace)
 
 
 def test_datasetconfig_init() -> None:
@@ -239,7 +238,7 @@ def test_get_or_create_dataset() -> None:
     with pytest.raises(ValueError) as ex:
         get_or_create_dataset(
             workspace=workspace,
-            ml_client=ml_client,
+            ml_client=TEST_ML_CLIENT,
             datastore_name="himldatasetsv2",
             dataset_name="",
             strictly_aml_v1=True,

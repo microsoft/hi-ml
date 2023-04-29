@@ -39,12 +39,7 @@ def main() -> None:  # pragma: no cover
 
     files_to_download = download_config.files_to_download
 
-    workspace = get_workspace()
-    ml_client = get_ml_client(
-        subscription_id=workspace.subscription_id,
-        resource_group=workspace.resource_group,
-        workspace_name=workspace.name,
-    )
+    ml_client = get_ml_client()
     for run_id in download_config.run:
         download_job_outputs_logs(ml_client, run_id, file_to_download_path=files_to_download, download_dir=output_dir)
         print("Successfully downloaded output and log files")

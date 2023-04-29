@@ -111,16 +111,6 @@ def create_unittest_run_object(snapshot_directory: Optional[Path] = None) -> Run
     )
 
 
-def get_test_ml_client() -> MLClient:
-    """Generates an MLClient object for use in tests.
-
-    :return: MLClient object
-    """
-
-    workspace = get_workspace()
-    return get_ml_client(aml_workspace=workspace)
-
-
 def current_test_name() -> str:
     """Get the name of the currently executed test. This is read off an environment variable. If that
     is not found, the function returns an empty string."""

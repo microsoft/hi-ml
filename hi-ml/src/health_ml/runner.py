@@ -240,13 +240,6 @@ class Runner:
             else:
                 hyperparam_args = self.lightning_container.get_hyperparam_args()
                 hyperdrive_config = None
-            workspace_config_path = resolve_workspace_config_path(self.experiment_config.workspace_config_path)
-            if self.experiment_config.strictly_aml_v1:
-                workspace = get_workspace(workspace_config_path=workspace_config_path)
-                ml_client = None
-            else:
-                ml_client = get_ml_client(workspace_config_path=workspace_config_path)
-                workspace = None
 
             env_file = choose_conda_env_file(env_file=self.experiment_config.conda_env)
             logging.info(f"Using this Conda environment definition: {env_file}")
@@ -257,8 +250,6 @@ class Runner:
                 snapshot_root_directory=root_folder,
                 script_params=script_params,
                 conda_environment_file=env_file,
-                aml_workspace=workspace,
-                ml_client=ml_client,
                 compute_cluster_name=self.experiment_config.cluster,
                 environment_variables=environment_variables,
                 experiment_name=self.lightning_container.effective_experiment_name,
