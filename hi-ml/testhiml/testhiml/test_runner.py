@@ -197,11 +197,8 @@ def test_run(mock_runner: Runner) -> None:
 
 
 @patch("health_ml.runner.choose_conda_env_file")
-@patch("health_ml.runner.get_workspace")
 @pytest.mark.fast
-def test_submit_to_azureml_if_needed(
-    mock_get_workspace: MagicMock, mock_get_env_files: MagicMock, mock_runner: Runner
-) -> None:
+def test_submit_to_azureml_if_needed(mock_get_env_files: MagicMock, mock_runner: Runner) -> None:
     def _mock_dont_submit_to_aml(
         input_datasets: List[DatasetConfig],
         submit_to_azureml: bool,
@@ -220,10 +217,6 @@ def test_submit_to_azureml_if_needed(
         )
 
     mock_get_env_files.return_value = Path("some_file.txt")
-
-    mock_default_datastore = MagicMock()
-    mock_default_datastore.name.return_value = "dummy_datastore"
-    mock_get_workspace.get_default_datastore.return_value = mock_default_datastore
 
     with patch("health_ml.runner.create_dataset_configs") as mock_create_datasets:
         mock_create_datasets.return_value = []
