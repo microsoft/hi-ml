@@ -15,8 +15,6 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from azureml.core import Workspace
-
 # Add hi-ml packages to sys.path so that AML can find them if we are using the runner directly from the git repo
 himl_root = Path(__file__).resolve().parent.parent.parent.parent
 folders_to_add = [himl_root / "hi-ml" / "src", himl_root / "hi-ml-azure" / "src", himl_root / "hi-ml-cpath" / "src"]
@@ -34,14 +32,11 @@ from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
 from health_azure.utils import (  # noqa: E402
     ENV_LOCAL_RANK,
     ENV_NODE_RANK,
-    get_workspace,
-    get_ml_client,
     is_local_rank_zero,
     is_running_in_azure_ml,
     set_environment_variables_for_multi_node,
     filter_v2_input_output_args,
     is_global_rank_zero,
-    resolve_workspace_config_path,
 )
 
 from health_ml.eval_runner import EvalRunner  # noqa: E402
