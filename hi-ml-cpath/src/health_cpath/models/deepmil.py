@@ -216,7 +216,7 @@ class DeepMILModule(LightningModule):
         else:
             pos_weight = None
             if self.class_weights is not None:
-                pos_weight = Tensor([656 / 73])
+                pos_weight = Tensor([self.class_weights[1] / (self.class_weights[0] + 1e-5)])
             return nn.BCEWithLogitsLoss(pos_weight=pos_weight, reduction=reduction)
 
     def get_activation(self) -> Callable:
