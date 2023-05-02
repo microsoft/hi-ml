@@ -2115,7 +2115,7 @@ def test_download_files_by_suffix(tmp_path: Path, files: List[str], expected_dow
             assert downloaded_filenames == expected_downloaded
 
 
-def test_resolve_workspace_config_path_no_argument(tmp_path) -> None:
+def test_resolve_workspace_config_path_no_argument(tmp_path: Path) -> None:
     """Test for resolve_workspace_config_path without argument: It should try to find a config file in the folders.
     If the file exists, it should return the path"""
     mocked_file = tmp_path / "foo.json"
@@ -2124,7 +2124,7 @@ def test_resolve_workspace_config_path_no_argument(tmp_path) -> None:
         assert result == mocked_file
 
 
-def test_resolve_workspace_config_path_no_argument_no_file(tmp_path) -> None:
+def test_resolve_workspace_config_path_no_argument_no_file() -> None:
     """Test for resolve_workspace_config_path without argument: It should try to find a config file in the folders.
     If the file does not exist, return None"""
     with patch("health_azure.utils.find_file_in_parent_to_pythonpath", return_value=None):
@@ -2132,14 +2132,14 @@ def test_resolve_workspace_config_path_no_argument_no_file(tmp_path) -> None:
         assert result is None
 
 
-def test_resolve_workspace_config_path_file_exists(tmp_path) -> None:
+def test_resolve_workspace_config_path_file_exists(tmp_path: Path) -> None:
     mocked_file = tmp_path / "foo.json"
     mocked_file.touch()
     result = resolve_workspace_config_path(mocked_file)
     assert result == mocked_file
 
 
-def test_resolve_workspace_config_path_missing(tmp_path) -> None:
+def test_resolve_workspace_config_path_missing(tmp_path: Path) -> None:
     mocked_file = tmp_path / "foo.json"
     with pytest.raises(FileNotFoundError, match="Workspace config file does not exist"):
         resolve_workspace_config_path(mocked_file)

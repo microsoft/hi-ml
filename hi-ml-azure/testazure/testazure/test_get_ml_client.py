@@ -166,7 +166,7 @@ def test_get_legitimate_default_credential() -> None:
 
 
 @pytest.mark.fast
-def test_get_ml_client_with_existing_client():
+def test_get_ml_client_with_existing_client() -> None:
     """When passing an existing ml_client, it should be returned"""
     ml_client = "mock_ml_client"
     result = get_ml_client(ml_client=ml_client)  # type: ignore
@@ -174,7 +174,7 @@ def test_get_ml_client_with_existing_client():
 
 
 @pytest.mark.fast
-def test_get_ml_client_without_credentials():
+def test_get_ml_client_without_credentials() -> None:
     """When no credentials are available, an exception should be raised"""
     with patch("health_azure.utils.get_credential", return_value=None):
         with pytest.raises(ValueError, match="Can't connect to MLClient without a valid credential"):
@@ -182,7 +182,7 @@ def test_get_ml_client_without_credentials():
 
 
 @pytest.mark.fast
-def test_get_ml_client_from_config_file():
+def test_get_ml_client_from_config_file() -> None:
     """If a workspace config file is found, it should be used to create the MLClient"""
     mock_credentials = "mock_credentials"
     mock_config_path = Path("foo")
@@ -206,7 +206,7 @@ def test_get_ml_client_from_config_file():
 
 
 @pytest.mark.fast
-def test_get_ml_client_from_environment_variables():
+def test_get_ml_client_from_environment_variables() -> None:
     """When no workspace config file is found, the MLClient should be created from environment variables"""
     mock_credentials = "mock_credentials"
     the_client = "the_client"
@@ -235,7 +235,7 @@ def test_get_ml_client_from_environment_variables():
 
 
 @pytest.mark.fast
-def test_get_ml_client_fails():
+def test_get_ml_client_fails() -> None:
     """If neither a workspace config file nor environment variables are found, an exception should be raised"""
     mock_credentials = "mock_credentials"
     the_client = "the_client"
