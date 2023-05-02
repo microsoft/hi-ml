@@ -1948,7 +1948,6 @@ def get_credential() -> Optional[TokenCredential]:
 
 def get_ml_client(
     ml_client: Optional[MLClient] = None,
-    aml_workspace: Optional[Workspace] = None,
     workspace_config_path: Optional[Path] = None,
 ) -> MLClient:
     """
@@ -1957,20 +1956,17 @@ def get_ml_client(
 
       1. If an MLClient object has been provided in the `ml_client` argument, return that.
 
-      2. If a Workspace object has been provided in the `aml_workspace` argument, create an MLClient for that workspace.
+      2. If a path to a workspace config file has been provided, load the MLClient according to that config file.
 
-      3. If a path to a workspace config file has been provided, load the MLClient according to that config file.
-
-      4. If a workspace config file is present in the current working directory or one of its parents, load the
+      3. If a workspace config file is present in the current working directory or one of its parents, load the
         MLClient according to that config file.
 
-      5. If 3 environment variables are found, use them to identify the workspace (`HIML_RESOURCE_GROUP`,
+      4. If 3 environment variables are found, use them to identify the workspace (`HIML_RESOURCE_GROUP`,
         `HIML_SUBSCRIPTION_ID`, `HIML_WORKSPACE_NAME`)
 
     If none of the above succeeds, an exception is raised.
 
     :param ml_client: An optional existing MLClient object to be returned.
-    :param aml_workspace: An optional Workspace object to take connection details from.
     :param workspace_config_path: An optional path toa  config.json file containing details of the Workspace.
     :param subscription_id: An optional subscription ID.
     :param resource_group: An optional resource group name.
@@ -1983,15 +1979,6 @@ def get_ml_client(
     credential = get_credential()
     if credential is None:
         raise ValueError("Can't connect to MLClient without a valid credential")
-    if aml_workspace is not None:
-        logger.debug(f"Retrieving MLClient for workspace {aml_workspace.name}")
-        ml_client = MLClient(
-            subscription_id=aml_workspace.subscription_id,
-            resource_group_name=aml_workspace.resource_group,
-            workspace_name=aml_workspace.name,
-            credential=credential,
-        )
-        logger.info(f"Using MLClient from AzureML workspace {aml_workspace.name}")
     workspace_config_path = resolve_workspace_config_path(workspace_config_path)
     if workspace_config_path is not None:
         logger.debug(f"Retrieving MLClient from workspace config {workspace_config_path}")
