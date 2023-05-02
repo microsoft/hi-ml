@@ -48,7 +48,7 @@ from health_azure.datasets import (
 from health_azure.utils import PathOrString, get_ml_client
 
 
-TEST_ML_CLIENT = get_ml_client(aml_workspace=DEFAULT_WORKSPACE.workspace)
+TEST_ML_CLIENT = get_ml_client()
 
 
 def test_datasetconfig_init() -> None:
@@ -233,7 +233,6 @@ def test_get_or_create_dataset() -> None:
 
     data_asset_name = "himl_tiny_data_asset"
     workspace = DEFAULT_WORKSPACE.workspace
-    ml_client = get_ml_client(aml_workspace=workspace)
     # When creating a dataset, we need a non-empty name
     with pytest.raises(ValueError) as ex:
         get_or_create_dataset(
@@ -253,7 +252,7 @@ def test_get_or_create_dataset() -> None:
         mocks["_get_or_create_v1_dataset"].return_value = mock_v1_dataset
         dataset = get_or_create_dataset(
             workspace=workspace,
-            ml_client=ml_client,
+            ml_client=TEST_ML_CLIENT,
             datastore_name="himldatasetsv2",
             dataset_name=data_asset_name,
             strictly_aml_v1=True,
@@ -267,7 +266,7 @@ def test_get_or_create_dataset() -> None:
         mocks["_get_or_create_v2_data_asset"].return_value = mock_v2_dataset
         dataset = get_or_create_dataset(
             workspace=workspace,
-            ml_client=ml_client,
+            ml_client=TEST_ML_CLIENT,
             datastore_name="himldatasetsv2",
             dataset_name=data_asset_name,
             strictly_aml_v1=False,
@@ -280,7 +279,7 @@ def test_get_or_create_dataset() -> None:
         mocks["_get_or_create_v2_data_asset"].side_effect = _mock_retrieve_or_create_v2_dataset_fails
         dataset = get_or_create_dataset(
             workspace=workspace,
-            ml_client=ml_client,
+            ml_client=TEST_ML_CLIENT,
             datastore_name="himldatasetsv2",
             dataset_name=data_asset_name,
             strictly_aml_v1=False,
