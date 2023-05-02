@@ -23,7 +23,6 @@ from health_azure.utils import (
     get_workspace,
 )
 from health_azure.utils import (
-    WORKSPACE_CONFIG_JSON,
     ENV_SERVICE_PRINCIPAL_ID,
     ENV_SERVICE_PRINCIPAL_PASSWORD,
     ENV_TENANT_ID,
