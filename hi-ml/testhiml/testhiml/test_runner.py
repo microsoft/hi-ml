@@ -504,3 +504,56 @@ def test_run_without_logging(tmp_path: Path) -> None:
                 run_with_logging(tmp_path)
                 mock_create_filename.assert_not_called()
                 mock_run.assert_called_once()
+
+
+@pytest.mark.fast
+def test_runner_does_not_use_get_workspace() -> None:
+    """Test that the runner does not itself import get_workspace or get_ml_client"""
+    with pytest.raises(ImportError):
+        from health_ml.runner import get_workspace  # type: ignore
+    with pytest.raises(ImportError):
+        from health_ml.runner import get_ml_client  # type: ignore
+
+
+def test_runner_authenticates_once_v1() -> None:
+    """Test that the runner requires authentication only once when doing a job submission with the V1 SDK"""
+    runner = Runner(project_root=repository_root_directory())
+    mock_get_workspace = MagicMock()
+    mock_get_ml_client = MagicMock()
+    with patch.multiple(
+        "health_azure.himl",
+        get_workspace=mock_get_workspace,
+        get_ml_client=mock_get_ml_client,
+        Experiment=MagicMock(),
+        register_environment=MagicMock(return_value="env"),
+        validate_compute_cluster=MagicMock(),
+    ):
+        with patch.object(
+            sys,
+            "argv",
+            ["src/health_ml/runner.py", "--model=HelloWorld", "--cluster=pr-gpu", "--strictly_aml_v1"],
+        ):
+            # Job submission should trigger a system exit
+            with pytest.raises(SystemExit):
+                runner.run()
+            mock_get_workspace.assert_called_once()
+            mock_get_ml_client.assert_not_called()
+
+
+def test_runner_authenticates_once_v2() -> None:
+    """Test that the runner requires authentication only once when doing a job submission with the V2 SDK"""
+    runner = Runner(project_root=repository_root_directory())
+    mock_get_workspace = MagicMock()
+    mock_get_ml_client = MagicMock()
+    with patch.multiple(
+        "health_azure.himl",
+        get_workspace=mock_get_workspace,
+        get_ml_client=mock_get_ml_client,
+        command=MagicMock(),
+    ):
+        with patch.object(sys, "argv", ["", "--model=HelloWorld", "--cluster=pr-gpu"]):
+            # Job submission should trigger a system exit
+            with pytest.raises(SystemExit):
+                runner.run()
+            mock_get_workspace.assert_not_called()
+            mock_get_ml_client.assert_called_once()
