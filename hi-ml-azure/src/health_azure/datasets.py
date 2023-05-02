@@ -353,7 +353,7 @@ class DatasetConfig:
     def to_input_dataset_local(
         self,
         strictly_aml_v1: bool,
-        workspace: Workspace = None,
+        workspace: Optional[Workspace] = None,
         ml_client: Optional[MLClient] = None,
     ) -> Tuple[Optional[Path], Optional[MountContext]]:
         """
@@ -364,7 +364,7 @@ class DatasetConfig:
         therefore a tuple of Nones will be returned.
 
         :param workspace: The AzureML workspace to read from.
-        :param strictly_aml_v1: If True, use Azure ML SDK v1 to attempt to find or create and reigster the dataset.
+        :param strictly_aml_v1: If True, use Azure ML SDK v1 to attempt to find or create and register the dataset.
             Otherwise, attempt to use Azure ML SDK v2.
         :param ml_client: An Azure MLClient object for interacting with Azure resources.
         :return: Tuple of (path to dataset, optional mountcontext)
@@ -378,7 +378,7 @@ class DatasetConfig:
 
         if workspace is None:
             raise ValueError(
-                f"Unable to make dataset '{self.name} available for a local run because no AzureML "
+                f"Unable to make dataset '{self.name}' available for a local run because no AzureML "
                 "workspace has been provided. Provide a workspace, or set a folder for local execution."
             )
         azureml_dataset = get_or_create_dataset(
@@ -404,6 +404,7 @@ class DatasetConfig:
             print(status)
             return result
         else:
+            print(f"Unable to mount or download dataset '{self.name} because it is not an AML SDK v1 FileDataset.")
             return None, None
 
     def to_input_dataset(
