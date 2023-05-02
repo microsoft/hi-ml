@@ -1761,8 +1761,8 @@ class UnitTestWorkspaceWrapper:
         """
         Init.
         """
-        self._workspace: Workspace = None
-        self._ml_client: MLClient = None
+        self._workspace: Optional[Workspace] = None
+        self._ml_client: Optional[MLClient] = None
 
     @property
     def workspace(self) -> Workspace:
