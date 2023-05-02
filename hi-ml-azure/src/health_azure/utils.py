@@ -1762,6 +1762,7 @@ class UnitTestWorkspaceWrapper:
         Init.
         """
         self._workspace: Workspace = None
+        self._ml_client: MLClient = None
 
     @property
     def workspace(self) -> Workspace:
@@ -1771,6 +1772,15 @@ class UnitTestWorkspaceWrapper:
         if self._workspace is None:
             self._workspace = get_workspace()
         return self._workspace
+
+    @property
+    def ml_client(self) -> MLClient:
+        """
+        Lazily load the ML Client.
+        """
+        if self._ml_client is None:
+            self._ml_client = get_ml_client()
+        return self._ml_client
 
 
 @contextmanager

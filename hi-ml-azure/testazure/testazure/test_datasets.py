@@ -45,10 +45,7 @@ from health_azure.datasets import (
     get_or_create_dataset,
     _get_latest_v2_asset_version,
 )
-from health_azure.utils import PathOrString, get_ml_client
-
-
-TEST_ML_CLIENT = get_ml_client()
+from health_azure.utils import PathOrString
 
 
 def test_datasetconfig_init() -> None:
@@ -237,7 +234,7 @@ def test_get_or_create_dataset() -> None:
     with pytest.raises(ValueError) as ex:
         get_or_create_dataset(
             workspace=workspace,
-            ml_client=TEST_ML_CLIENT,
+            ml_client=DEFAULT_WORKSPACE.ml_client,
             datastore_name="himldatasetsv2",
             dataset_name="",
             strictly_aml_v1=True,
@@ -252,7 +249,7 @@ def test_get_or_create_dataset() -> None:
         mocks["_get_or_create_v1_dataset"].return_value = mock_v1_dataset
         dataset = get_or_create_dataset(
             workspace=workspace,
-            ml_client=TEST_ML_CLIENT,
+            ml_client=DEFAULT_WORKSPACE.ml_client,
             datastore_name="himldatasetsv2",
             dataset_name=data_asset_name,
             strictly_aml_v1=True,
@@ -266,7 +263,7 @@ def test_get_or_create_dataset() -> None:
         mocks["_get_or_create_v2_data_asset"].return_value = mock_v2_dataset
         dataset = get_or_create_dataset(
             workspace=workspace,
-            ml_client=TEST_ML_CLIENT,
+            ml_client=DEFAULT_WORKSPACE.ml_client,
             datastore_name="himldatasetsv2",
             dataset_name=data_asset_name,
             strictly_aml_v1=False,
@@ -279,7 +276,7 @@ def test_get_or_create_dataset() -> None:
         mocks["_get_or_create_v2_data_asset"].side_effect = _mock_retrieve_or_create_v2_dataset_fails
         dataset = get_or_create_dataset(
             workspace=workspace,
-            ml_client=TEST_ML_CLIENT,
+            ml_client=DEFAULT_WORKSPACE.ml_client,
             datastore_name="himldatasetsv2",
             dataset_name=data_asset_name,
             strictly_aml_v1=False,
@@ -415,7 +412,7 @@ def test_retrieve_v2_data_asset(asset_name: str, asset_version: Optional[str]) -
         mock_get_v2_asset_version.side_effect = _get_latest_v2_asset_version
         try:
             data_asset = _retrieve_v2_data_asset(
-                ml_client=TEST_ML_CLIENT,
+                ml_client=DEFAULT_WORKSPACE.ml_client,
                 data_asset_name=asset_name,
                 version=asset_version,
             )
@@ -443,10 +440,12 @@ def test_retrieve_v2_data_asset(asset_name: str, asset_version: Optional[str]) -
 
 
 def test_retrieve_v2_data_asset_invalid_version() -> None:
-    invalid_asset_version = str(int(_get_latest_v2_asset_version(TEST_ML_CLIENT, TEST_DATA_ASSET_NAME)) + 1)
+    invalid_asset_version = str(
+        int(_get_latest_v2_asset_version(DEFAULT_WORKSPACE.ml_client, TEST_DATA_ASSET_NAME)) + 1
+    )
     with pytest.raises(ResourceNotFoundError) as ex:
         _retrieve_v2_data_asset(
-            ml_client=TEST_ML_CLIENT,
+            ml_client=DEFAULT_WORKSPACE.ml_client,
             data_asset_name=TEST_DATA_ASSET_NAME,
             version=invalid_asset_version,
         )
@@ -457,15 +456,19 @@ def test_retrieving_v2_data_asset_does_not_increment() -> None:
     """Test if calling the get_or_create_data_asset on an existing asset does not increment the version number."""
 
     with patch("health_azure.datasets._create_v2_data_asset") as mock_create_v2_data_asset:
-        asset_version_before_get_or_create = _get_latest_v2_asset_version(TEST_ML_CLIENT, TEST_DATA_ASSET_NAME)
+        asset_version_before_get_or_create = _get_latest_v2_asset_version(
+            DEFAULT_WORKSPACE.ml_client, TEST_DATA_ASSET_NAME
+        )
         get_or_create_dataset(
             TEST_DATASTORE_NAME,
             TEST_DATA_ASSET_NAME,
             DEFAULT_WORKSPACE,
             strictly_aml_v1=False,
-            ml_client=TEST_ML_CLIENT,
+            ml_client=DEFAULT_WORKSPACE.ml_client,
         )
-        asset_version_after_get_or_create = _get_latest_v2_asset_version(TEST_ML_CLIENT, TEST_DATA_ASSET_NAME)
+        asset_version_after_get_or_create = _get_latest_v2_asset_version(
+            DEFAULT_WORKSPACE.ml_client, TEST_DATA_ASSET_NAME
+        )
 
         mock_create_v2_data_asset.assert_not_called()
         assert asset_version_before_get_or_create == asset_version_after_get_or_create
@@ -483,7 +486,7 @@ def test_retrieving_v2_data_asset_does_not_increment() -> None:
 def test_create_v2_data_asset(asset_name: str, datastore_name: str, version: Optional[str]) -> None:
     try:
         data_asset = _create_v2_data_asset(
-            ml_client=TEST_ML_CLIENT,
+            ml_client=DEFAULT_WORKSPACE.ml_client,
             datastore_name=TEST_DATASTORE_NAME,
             data_asset_name=asset_name,
             version=version,
