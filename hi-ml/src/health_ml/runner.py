@@ -151,7 +151,7 @@ class Runner:
         """
         Runs sanity checks on the whole experiment.
         """
-        if not self.experiment_config.cluster:
+        if not self.experiment_config.submit_to_azure_ml:
             if self.lightning_container.hyperdrive:
                 raise ValueError(
                     "HyperDrive for hyperparameters tuning is only supported when submitting the job to "
@@ -219,7 +219,7 @@ class Runner:
         all_local_datasets = [Path(p) for p in local_datasets] if len(local_datasets) > 0 else []
         # When running in AzureML, respect the commandline flag for mounting. Outside of AML, we always mount
         # datasets to be quicker.
-        use_mounting = self.experiment_config.mount_in_azureml if self.experiment_config.cluster else True
+        use_mounting = self.experiment_config.mount_in_azureml if self.experiment_config.submit_to_azure_ml else True
         input_datasets = create_dataset_configs(
             all_azure_dataset_ids=self.lightning_container.azure_datasets,
             all_dataset_mountpoints=self.lightning_container.dataset_mountpoints,
@@ -228,7 +228,7 @@ class Runner:
             use_mounting=use_mounting,
         )
 
-        if self.experiment_config.cluster and not is_running_in_azure_ml():
+        if self.experiment_config.submit_to_azure_ml and not is_running_in_azure_ml():
             if self.experiment_config.strictly_aml_v1:
                 hyperdrive_config = self.lightning_container.get_hyperdrive_config()
                 hyperparam_args = None
@@ -253,7 +253,7 @@ class Runner:
                 wait_for_completion=self.experiment_config.wait_for_completion,
                 max_run_duration=self.experiment_config.max_run_duration,
                 ignored_folders=[],
-                submit_to_azureml=bool(self.experiment_config.cluster),
+                submit_to_azureml=self.experiment_config.submit_to_azureml,
                 docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
                 docker_shm_size=self.experiment_config.docker_shm_size,
                 hyperdrive_config=hyperdrive_config,

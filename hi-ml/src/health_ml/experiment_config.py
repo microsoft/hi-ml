@@ -108,3 +108,10 @@ class ExperimentConfig(param.Parameterized):
         doc=f"The log level to use. Can be one of '{LogLevel.ERROR}', '{LogLevel.WARNING}', '{LogLevel.INFO}', "
         f"'{LogLevel.DEBUG}'",
     )
+
+    @property
+    def submit_to_azure_ml(self) -> bool:
+        """Returns True if the experiment should be submitted to AzureML, False if it should be run locally.
+
+        :return: True if the experiment should be submitted to AzureML, False if it should be run locally."""
+        return self.cluster != ""
