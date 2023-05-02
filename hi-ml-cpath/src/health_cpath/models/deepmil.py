@@ -216,7 +216,7 @@ class DeepMILModule(LightningModule):
         else:
             pos_weight = None
             if self.class_weights is not None:
-                pos_weight = Tensor([self.class_weights[1] / (self.class_weights[0] + 1e-5)])
+                pos_weight = Tensor([656 / 73])
             return nn.BCEWithLogitsLoss(pos_weight=pos_weight, reduction=reduction)
 
     def get_activation(self) -> Callable:
@@ -530,23 +530,38 @@ class DeepMILMAWeightUpdate(ByolMovingAverageWeightUpdate):
 class MADeepMILModule(DeepMILModule):
     """DeepMILModule with a moving average encoder to use larger bag sizes without increasing memory usage."""
 
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(self, ma_max_bag_size: int, ma_tau: float, **kwargs: Any) -> None:
         """
         :param ma_max_bag_size: The maximum bag size to use for the online encoder.
         :pram ma_tau: The moving average weight update momentum.
         """
         super().__init__(**kwargs)
-        self.ma_max_bag_size = 900
+        self.ma_max_bag_size = ma_max_bag_size
         self.ma_encoder = deepcopy(self.encoder)
         set_module_gradients_enabled(self.ma_encoder, False)
         self.ma_encoder.use_activation_checkpointing = False
-        self.ma_weight_callback = DeepMILMAWeightUpdate(initial_tau=0.99)
+        self.ma_weight_callback = DeepMILMAWeightUpdate(initial_tau=ma_tau)
         self.on_moving_average = False
 
     def transfer_weights(self, pretrained_checkpoint_path: Optional[Path]) -> None:
-        super().transfer_weights(pretrained_checkpoint_path)
-        if self.encoder_params.pretrained_encoder:
-            self.ma_encoder.load_state_dict(self.encoder.state_dict())
+        if pretrained_checkpoint_path:
+            pretrained_model = DeepMILModule.load_from_checkpoint(checkpoint_path=str(pretrained_checkpoint_path))
+
+            if self.encoder_params.pretrained_encoder:
+                self.copy_weights(self.encoder, pretrained_model.encoder, DeepMILSubmodules.ENCODER)
+
+            if self.pooling_params.pretrained_pooling:
+                self.copy_weights(self.aggregation_fn, pretrained_model.aggregation_fn, DeepMILSubmodules.POOLING)
+
+            if self.classifier_params.pretrained_classifier:
+                if pretrained_model.n_classes != self.n_classes:
+                    raise ValueError(
+                        f"Number of classes in pretrained model {pretrained_model.n_classes} "
+                        f"does not match number of classes in current model {self.n_classes}."
+                    )
+                self.copy_weights(self.classifier_fn, pretrained_model.classifier_fn, DeepMILSubmodules.CLASSIFIER)
+            if self.encoder_params.pretrained_encoder:
+                self.ma_encoder.load_state_dict(self.encoder.state_dict())
 
     def on_train_batch_end(self, *args: Any, **kwargs: Any) -> None:
         assert isinstance(self.trainer, Trainer)
