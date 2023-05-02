@@ -253,7 +253,7 @@ class Runner:
                 wait_for_completion=self.experiment_config.wait_for_completion,
                 max_run_duration=self.experiment_config.max_run_duration,
                 ignored_folders=[],
-                submit_to_azureml=self.experiment_config.submit_to_azureml,
+                submit_to_azureml=self.experiment_config.submit_to_azure_ml,
                 docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
                 docker_shm_size=self.experiment_config.docker_shm_size,
                 hyperdrive_config=hyperdrive_config,
