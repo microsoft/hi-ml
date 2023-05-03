@@ -133,10 +133,9 @@ def test_ddp_debug_flag(debug_ddp: DebugDDPOptions, mock_runner: Runner) -> None
     model_name = "HelloWorld"
     arguments = ["", f"--debug_ddp={debug_ddp}", f"--model={model_name}"]
     with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_azure_if_needed:
-        with patch("health_ml.runner.get_workspace"):
-            with patch("health_ml.runner.Runner.run_in_situ"):
-                with patch.object(sys, "argv", arguments):
-                    mock_runner.run()
+        with patch("health_ml.runner.Runner.run_in_situ"):
+            with patch.object(sys, "argv", arguments):
+                mock_runner.run()
         mock_submit_to_azure_if_needed.assert_called_once()
         assert mock_submit_to_azure_if_needed.call_args[1]["environment_variables"][DEBUG_DDP_ENV_VAR] == debug_ddp
 
@@ -145,12 +144,9 @@ def test_additional_aml_run_tags(mock_runner: Runner) -> None:
     model_name = "HelloWorld"
     arguments = ["", f"--model={model_name}", "--cluster=foo"]
     with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_azure_if_needed:
-        with patch("health_ml.runner.check_conda_environment"):
-            with patch("health_ml.runner.get_workspace"):
-                with patch("health_ml.runner.get_ml_client"):
-                    with patch("health_ml.runner.Runner.run_in_situ"):
-                        with patch.object(sys, "argv", arguments):
-                            mock_runner.run()
+        with patch("health_ml.runner.Runner.run_in_situ"):
+            with patch.object(sys, "argv", arguments):
+                mock_runner.run()
         mock_submit_to_azure_if_needed.assert_called_once()
         assert "commandline_args" in mock_submit_to_azure_if_needed.call_args[1]["tags"]
         assert "tag" in mock_submit_to_azure_if_needed.call_args[1]["tags"]
@@ -186,9 +182,8 @@ def test_run(mock_runner: Runner) -> None:
     model_name = "HelloWorld"
     arguments = ["", f"--model={model_name}"]
     with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
-        with patch("health_ml.runner.get_workspace"):
-            with patch.object(sys, "argv", arguments):
-                model_config, azure_run_info = mock_runner.run()
+        with patch.object(sys, "argv", arguments):
+            model_config, azure_run_info = mock_runner.run()
         mock_run_in_situ.assert_called_once()
 
     assert model_config is not None  # for pyright
@@ -327,11 +322,9 @@ def _test_hyperdrive_submission(
     # start in that temp folder.
     with change_working_folder_and_add_environment(mock_runner.project_root):
         with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
-            with patch("health_ml.runner.get_workspace"):
-                with patch("health_ml.runner.get_ml_client"):
-                    with patch.object(sys, "argv", arguments):
-                        with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
-                            mock_runner.run()
+            with patch.object(sys, "argv", arguments):
+                with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
+                    mock_runner.run()
             mock_run_in_situ.assert_called_once()
             mock_submit_to_aml.assert_called_once()
             # call_args is a tuple of (args, kwargs)
@@ -357,11 +350,9 @@ def test_submit_to_azure_docker(mock_runner: Runner) -> None:
     # start in that temp folder.
     with change_working_folder_and_add_environment(mock_runner.project_root):
         with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
-            with patch("health_ml.runner.get_ml_client"):
-                with patch("health_ml.runner.get_workspace"):
-                    with patch.object(sys, "argv", arguments):
-                        with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
-                            mock_runner.run()
+            with patch.object(sys, "argv", arguments):
+                with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
+                    mock_runner.run()
             mock_run_in_situ.assert_called_once()
             mock_submit_to_aml.assert_called_once()
             # call_args is a tuple of (args, kwargs)
@@ -423,10 +414,9 @@ def test_custom_datastore_outside_aml(mock_runner: Runner) -> None:
     datastore = "foo"
     arguments = ["", f"--datastore={datastore}", f"--model={model_name}"]
     with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_azure_if_needed:
-        with patch("health_ml.runner.get_workspace"):
-            with patch("health_ml.runner.Runner.run_in_situ"):
-                with patch.object(sys, "argv", arguments):
-                    mock_runner.run()
+        with patch("health_ml.runner.Runner.run_in_situ"):
+            with patch.object(sys, "argv", arguments):
+                mock_runner.run()
         mock_submit_to_azure_if_needed.assert_called_once()
         assert mock_submit_to_azure_if_needed.call_args[1]["default_datastore"] == datastore
 
