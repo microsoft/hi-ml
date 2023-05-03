@@ -1299,9 +1299,7 @@ def test_mounting_and_downloading_dataset(tmp_path: Path) -> None:
             target_path = tmp_path / action
             dataset_config = DatasetConfig(name="hello_world", use_mounting=use_mounting, target_folder=target_path)
             logging.info(f"ready to {action}")
-            paths, mount_contexts = setup_local_datasets(
-                dataset_configs=[dataset_config], strictly_aml_v1=True, aml_workspace=workspace
-            )
+            paths, mount_contexts = setup_local_datasets(dataset_configs=[dataset_config], workspace=workspace)
             logging.info(f"{action} done")
             path = paths[0]
             assert path is not None

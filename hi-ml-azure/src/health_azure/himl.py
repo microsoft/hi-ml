@@ -874,9 +874,11 @@ def submit_to_azure_if_needed(  # type: ignore
     if submit_to_azureml or has_input_datasets:
         if strictly_aml_v1:
             aml_workspace = get_workspace(aml_workspace, workspace_config_path)
+            assert aml_workspace is not None
             print(f"Loaded AzureML workspace {aml_workspace.name}")
         else:
             ml_client = get_ml_client(ml_client=ml_client, workspace_config_path=workspace_config_path)
+            assert ml_client is not None
             print(f"Created MLClient for AzureML workspace {ml_client.workspace_name}")
 
     if not submit_to_azureml:
