@@ -868,6 +868,20 @@ def submit_to_azure_if_needed(  # type: ignore
     # is necessary. If not, return to the caller for local execution.
     if submit_to_azureml is None:
         submit_to_azureml = AZUREML_FLAG in sys.argv[1:]
+
+    workspace: Optional[Workspace] = None
+    ml_client: Optional[MLClient] = None
+
+    has_input_datasets = len(cleaned_input_datasets) > 0
+
+    if submit_to_azureml or has_input_datasets:
+        if strictly_aml_v1:
+            workspace = get_workspace(aml_workspace, workspace_config_path)
+            print(f"Loaded AzureML workspace {workspace.name}")
+        else:
+            ml_client = get_ml_client(ml_client=ml_client, workspace_config_path=workspace_config_path)
+            print(f"Created MLClient for AzureML workspace {ml_client.workspace_name}")
+
     if not submit_to_azureml:
         # Set the environment variables for local execution.
         environment_variables = {**DEFAULT_ENVIRONMENT_VARIABLES, **(environment_variables or {})}
@@ -881,12 +895,19 @@ def submit_to_azure_if_needed(  # type: ignore
         logs_folder = Path.cwd() / LOGS_FOLDER
         logs_folder.mkdir(exist_ok=True)
 
+        any_local_folders_missing = any(dataset.local_folder is None for dataset in cleaned_input_datasets)
+
+        if has_input_datasets and any_local_folders_missing and not strictly_aml_v1:
+            raise ValueError(
+                "AzureML SDK v2 does not support downloading datasets from AzureML for local execution. "
+                "Please switch to AzureML SDK v1 by removing the strictly_aml_v1==False flag, or use "
+                "--strictly_aml_v1 on the commandline, or provide a local folder for each input dataset. "
+                "Note that you will not be able to download datasets that were created via SDK v2."
+            )
+
         mounted_input_datasets, mount_contexts = setup_local_datasets(
             cleaned_input_datasets,
-            strictly_aml_v1,
-            aml_workspace=aml_workspace,
-            ml_client=ml_client,
-            workspace_config_path=workspace_config_path,
+            workspace=workspace,
         )
 
         return AzureRunInfo(
@@ -918,8 +939,7 @@ def submit_to_azure_if_needed(  # type: ignore
 
     with append_to_amlignore(amlignore=amlignore_path, lines_to_append=lines_to_append):
         if strictly_aml_v1:
-            workspace = get_workspace(aml_workspace, workspace_config_path)
-            print(f"Loaded AzureML workspace {workspace.name}")
+            assert workspace is not None
             run_config = create_run_configuration(
                 workspace=workspace,
                 compute_cluster_name=compute_cluster_name,
@@ -969,7 +989,7 @@ def submit_to_azure_if_needed(  # type: ignore
             if entry_script is None:
                 entry_script = Path(sys.argv[0])
 
-            ml_client = get_ml_client(ml_client=ml_client, workspace_config_path=workspace_config_path)
+            assert ml_client is not None
             registered_env = register_environment_v2(environment, ml_client)
             input_datasets_v2 = create_v2_inputs(ml_client, cleaned_input_datasets)
             output_datasets_v2 = create_v2_outputs(ml_client, cleaned_output_datasets)

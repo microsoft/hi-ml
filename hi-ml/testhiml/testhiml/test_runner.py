@@ -26,6 +26,7 @@ from health_ml.lightning_container import LightningContainer
 from health_ml.runner import Runner, create_logging_filename, run_with_logging
 from health_ml.utils.common_utils import change_working_directory
 from health_ml.utils.fixed_paths import repository_root_directory
+from testhiml.utils_testhiml import DEFAULT_WORKSPACE
 
 
 @contextmanager
@@ -557,3 +558,59 @@ def test_runner_authenticates_once_v2() -> None:
                 runner.run()
             mock_get_workspace.assert_not_called()
             mock_get_ml_client.assert_called_once()
+
+
+def test_runner_with_local_dataset_v1() -> None:
+    """Test that the runner requires authentication only once when doing a local run and a dataset has to be mounted"""
+    runner = Runner(project_root=repository_root_directory())
+    mock_get_workspace = MagicMock(return_value=DEFAULT_WORKSPACE.workspace)
+    mock_get_ml_client = MagicMock()
+    with patch.multiple(
+        "health_azure.himl",
+        get_workspace=mock_get_workspace,
+        get_ml_client=mock_get_ml_client,
+    ):
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "src/health_ml/runner.py",
+                "--model=HelloWorld",
+                "--strictly_aml_v1",
+                "--azure_datasets=hello_world",
+            ],
+        ):
+            runner.run()
+            mock_get_workspace.assert_called_once()
+            mock_get_ml_client.assert_not_called()
+
+
+@pytest.mark.parametrize("use_local_dataset", [True, False])
+def test_runner_with_local_dataset_v2(use_local_dataset: bool, tmp_path: Path) -> None:
+    """Test that the runner requires authentication only once when doing a local run with SDK v2"""
+    runner = Runner(project_root=repository_root_directory())
+    mock_get_workspace = MagicMock()
+    mock_get_ml_client = MagicMock(return_value=DEFAULT_WORKSPACE.ml_client)
+    with patch.multiple(
+        "health_azure.himl",
+        get_workspace=mock_get_workspace,
+        get_ml_client=mock_get_ml_client,
+    ):
+        args = [
+            "src/health_ml/runner.py",
+            "--model=HelloWorld",
+            f"--strictly_aml_v1=False",
+            "--azure_datasets=hello_world",
+        ]
+        if use_local_dataset:
+            args.append(f"--local_datasets={tmp_path}")
+        with patch.object(sys, "argv", args):
+            if use_local_dataset:
+                runner.run()
+                mock_get_workspace.assert_not_called()
+                mock_get_ml_client.assert_called_once()
+            else:
+                with pytest.raises(ValueError, match="AzureML SDK v2 does not support downloading datasets from"):
+                    runner.run()
+                mock_get_workspace.assert_not_called()
+                mock_get_ml_client.assert_called_once()
