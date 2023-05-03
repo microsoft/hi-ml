@@ -240,13 +240,13 @@ def test_get_ml_client_fails() -> None:
     mock_credentials = "mock_credentials"
     the_client = "the_client"
     mock_ml_client = MagicMock(return_value=the_client)
-    workspace = "workspace"
     with patch.multiple(
         "health_azure.utils",
         get_credential=MagicMock(return_value=mock_credentials),
         resolve_workspace_config_path=MagicMock(return_value=None),
         MLClient=mock_ml_client,
     ):
-        with patch.dict(os.environ, {ENV_WORKSPACE_NAME: workspace}):
+        # In the GitHub runner, the environment variables are set. We need to unset them to test the exception
+        with patch.dict(os.environ, {ENV_WORKSPACE_NAME: ""}):
             with pytest.raises(ValueError, match="Tried all ways of identifying the MLClient, but failed"):
                 get_ml_client()
