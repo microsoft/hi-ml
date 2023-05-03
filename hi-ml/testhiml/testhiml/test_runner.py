@@ -159,9 +159,6 @@ def test_additional_environment_variables(mock_runner: Runner) -> None:
     with patch.multiple(
         "health_ml.runner",
         submit_to_azure_if_needed=DEFAULT,
-        check_conda_environment=DEFAULT,
-        get_workspace=DEFAULT,
-        get_ml_client=DEFAULT,
     ) as mocks:
         with patch("health_ml.runner.Runner.run_in_situ"):
             with patch("health_ml.runner.Runner.parse_and_load_model"):
@@ -377,16 +374,12 @@ def test_run_hello_world(mock_runner: Runner) -> None:
     """Test running a model end-to-end via the commandline runner"""
     model_name = "HelloWorld"
     arguments = ["", f"--model={model_name}"]
-    with patch("health_ml.runner.get_workspace") as mock_get_workspace:
-        with patch.object(sys, "argv", arguments):
-            mock_runner.run()
-        # get_workspace should not be called when using the runner outside AzureML, to not go through the
-        # time-consuming auth
-        mock_get_workspace.assert_not_called()
-        # Summary.txt is written at start, the other files during inference
-        expected_files = ["experiment_summary.txt", TEST_MSE_FILE, TEST_MAE_FILE]
-        for file in expected_files:
-            assert (mock_runner.lightning_container.outputs_folder / file).is_file(), f"Missing file: {file}"
+    with patch.object(sys, "argv", arguments):
+        mock_runner.run()
+    # Summary.txt is written at start, the other files during inference
+    expected_files = ["experiment_summary.txt", TEST_MSE_FILE, TEST_MAE_FILE]
+    for file in expected_files:
+        assert (mock_runner.lightning_container.outputs_folder / file).is_file(), f"Missing file: {file}"
 
 
 def test_invalid_args(mock_runner: Runner) -> None:
@@ -409,16 +402,37 @@ def test_invalid_profiler(mock_runner: Runner) -> None:
             mock_runner.run()
 
 
-def test_custom_datastore_outside_aml(mock_runner: Runner) -> None:
+def test_datastore_argument(mock_runner: Runner) -> None:
+    """The datastore argument should be respected"""
     model_name = "HelloWorld"
     datastore = "foo"
-    arguments = ["", f"--datastore={datastore}", f"--model={model_name}"]
+    dataset = "bar"
+    arguments = ["", f"--datastore={datastore}", f"--model={model_name}", f"--azure_datasets={dataset}"]
     with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_azure_if_needed:
         with patch("health_ml.runner.Runner.run_in_situ"):
             with patch.object(sys, "argv", arguments):
                 mock_runner.run()
         mock_submit_to_azure_if_needed.assert_called_once()
-        assert mock_submit_to_azure_if_needed.call_args[1]["default_datastore"] == datastore
+        input_datasets = mock_submit_to_azure_if_needed.call_args[1]["input_datasets"]
+        assert len(input_datasets) == 1
+        input_datasets[0].datastore == datastore
+        input_datasets[0].name == dataset
+
+
+def test_no_authentication_outside_azureml(mock_runner: Runner) -> None:
+    """No authentication should happen for a model that runs locally and needs no datasets."""
+    model_name = "HelloWorld"
+    arguments = ["", f"--datastore=datastore", f"--model={model_name}"]
+    with patch("health_ml.runner.Runner.run_in_situ"):
+        with patch.object(sys, "argv", arguments):
+            mock_get_workspace = MagicMock()
+            mock_get_ml_client = MagicMock()
+            with patch.multiple(
+                "health_azure.himl", get_workspace=mock_get_workspace, get_ml_client=mock_get_ml_client
+            ):
+                mock_runner.run()
+            mock_get_workspace.assert_not_called()
+            mock_get_ml_client.assert_not_called()
 
 
 @pytest.mark.fast
@@ -499,7 +513,8 @@ def test_run_without_logging(tmp_path: Path) -> None:
 
 @pytest.mark.fast
 def test_runner_does_not_use_get_workspace() -> None:
-    """Test that the runner does not itself import get_workspace or get_ml_client"""
+    """Test that the runner does not itself import get_workspace or get_ml_client (otherwise we would need to check
+    them in the tests below that count calls to those methods)"""
     with pytest.raises(ImportError):
         from health_ml.runner import get_workspace  # type: ignore
     with pytest.raises(ImportError):
