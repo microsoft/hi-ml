@@ -63,5 +63,10 @@
     "${workspaceFolder}/../hi-ml-azure/testazure",
     "${workspaceFolder}/src",
     "${workspaceFolder}/testhiml"
-  ]
+  ],
+  "workbench.colorCustomizations": {
+    "activityBar.background": "#94036b",
+    "titleBar.activeBackground": "#38194a",
+    "titleBar.activeForeground": "#F6FBFA"
+  }
 }
