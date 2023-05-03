@@ -607,10 +607,8 @@ def test_runner_with_local_dataset_v2(use_local_dataset: bool, tmp_path: Path) -
         with patch.object(sys, "argv", args):
             if use_local_dataset:
                 runner.run()
-                mock_get_workspace.assert_not_called()
-                mock_get_ml_client.assert_called_once()
             else:
                 with pytest.raises(ValueError, match="AzureML SDK v2 does not support downloading datasets from"):
                     runner.run()
-                mock_get_workspace.assert_not_called()
-                mock_get_ml_client.assert_called_once()
+            mock_get_workspace.assert_not_called()
+            mock_get_ml_client.assert_called_once()
