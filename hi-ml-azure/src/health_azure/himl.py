@@ -869,15 +869,12 @@ def submit_to_azure_if_needed(  # type: ignore
     if submit_to_azureml is None:
         submit_to_azureml = AZUREML_FLAG in sys.argv[1:]
 
-    workspace: Optional[Workspace] = None
-    ml_client: Optional[MLClient] = None
-
     has_input_datasets = len(cleaned_input_datasets) > 0
 
     if submit_to_azureml or has_input_datasets:
         if strictly_aml_v1:
-            workspace = get_workspace(aml_workspace, workspace_config_path)
-            print(f"Loaded AzureML workspace {workspace.name}")
+            aml_workspace = get_workspace(aml_workspace, workspace_config_path)
+            print(f"Loaded AzureML workspace {aml_workspace.name}")
         else:
             ml_client = get_ml_client(ml_client=ml_client, workspace_config_path=workspace_config_path)
             print(f"Created MLClient for AzureML workspace {ml_client.workspace_name}")
@@ -907,11 +904,11 @@ def submit_to_azure_if_needed(  # type: ignore
 
         mounted_input_datasets, mount_contexts = setup_local_datasets(
             cleaned_input_datasets,
-            workspace=workspace,
+            workspace=aml_workspace,
         )
 
         return AzureRunInfo(
-            input_datasets=mounted_input_datasets,
+            input_datasets=mounted_input_datasets,  # type: ignore
             output_datasets=[d.local_folder for d in cleaned_output_datasets],
             mount_contexts=mount_contexts,
             run=None,
@@ -939,9 +936,9 @@ def submit_to_azure_if_needed(  # type: ignore
 
     with append_to_amlignore(amlignore=amlignore_path, lines_to_append=lines_to_append):
         if strictly_aml_v1:
-            assert workspace is not None
+            assert aml_workspace is not None
             run_config = create_run_configuration(
-                workspace=workspace,
+                workspace=aml_workspace,
                 compute_cluster_name=compute_cluster_name,
                 aml_environment_name=aml_environment_name,
                 conda_environment_file=conda_environment_file,
@@ -970,7 +967,7 @@ def submit_to_azure_if_needed(  # type: ignore
                 config_to_submit = script_run_config
 
             run = submit_run(
-                workspace=workspace,
+                workspace=aml_workspace,
                 experiment_name=effective_experiment_name(experiment_name, script_run_config.script),
                 script_run_config=config_to_submit,
                 tags=tags,
