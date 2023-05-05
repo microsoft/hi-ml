@@ -254,7 +254,7 @@ def _is_running_in_docker() -> bool:
     return Path("/.dockerenv").exists()
 
 
-def get_docker_memory_gb(verbose: bool = True) -> Optional[float]:
+def get_docker_memory_gb(verbose: bool = False) -> Optional[float]:
     """Get the total amount of memory when running in a Docker container. If the process does not
     appear to run in a Docker container, return None.
 
@@ -293,7 +293,7 @@ def get_memory_gb(verbose: bool = False) -> Optional[Tuple[float, float, float, 
         logger.warning(f"Unable to run '{free_commandline}'")
         return None
     if verbose:
-        print(f"Checking available memory. Result of running '{free_commandline}':")
+        print(f"Checking available memory. Result of running '{free_commandline}' (available memory in MB):")
         for line in free_output:
             # Lines still contain a newline at the end, so no need to add that
             print(line, end="")

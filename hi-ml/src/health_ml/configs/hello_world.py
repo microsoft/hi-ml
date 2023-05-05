@@ -16,7 +16,7 @@ from torch.optim.lr_scheduler import StepLR, _LRScheduler
 from torch.utils.data import DataLoader, Dataset
 
 from health_ml.lightning_container import LightningContainer
-from health_ml.utils.common_utils import get_memory_gb
+from health_ml.utils.common_utils import get_docker_memory_gb
 
 TEST_MSE_FILE = "test_mse.txt"
 TEST_MAE_FILE = "test_mae.txt"
@@ -306,10 +306,9 @@ class HelloWorldWithMemoryCheck(HelloWorld):
         self.docker_shm_size = f"{self.docker_shm_size_gb}g"
 
     def before_training_on_global_rank_zero(self) -> None:
-        memory = get_memory_gb(verbose=True)
-        assert memory is not None
-        cpu_memory, _, _, _ = memory
-        if cpu_memory < self.docker_shm_size_gb:
+        docker_memory = get_docker_memory_gb(verbose=True)
+        assert docker_memory is not None
+        if docker_memory < self.docker_shm_size_gb:
             raise ValueError(
-                f"Not enough memory available. Requested {self.docker_shm_size_gb} GB, but only got {cpu_memory} GB"
+                f"Not enough memory available. Requested {self.docker_shm_size_gb} GB, but only got {docker_memory} GB"
             )
