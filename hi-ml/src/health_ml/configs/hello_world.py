@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -15,6 +16,7 @@ from torch.optim.lr_scheduler import StepLR, _LRScheduler
 from torch.utils.data import DataLoader, Dataset
 
 from health_ml.lightning_container import LightningContainer
+from health_ml.utils.common_utils import get_memory_gb
 
 TEST_MSE_FILE = "test_mse.txt"
 TEST_MAE_FILE = "test_mae.txt"
@@ -291,3 +293,21 @@ class HelloWorld(LightningContainer):
 
     def get_additional_aml_run_tags(self) -> Dict[str, str]:
         return {"max_epochs": str(self.max_epochs)}
+
+
+class HelloWorldWithMemoryCheck(HelloWorld):
+    """
+    A variant of the HelloWorld container that checks that there is enough memory available to run the model.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.docker_shm_size_gb = 20
+        self.docker_shm_size = f"{self.docker_shm_size_gb}g"
+
+    def before_training_on_global_rank_zero(self) -> None:
+        cpu_memory, _, _, _ = get_memory_gb(print_stats=True)
+        if cpu_memory < self.docker_shm_size_gb:
+            raise ValueError(
+                f"Not enough memory available. Requested {self.docker_shm_size_gb} GB, but only got {cpu_memory} GB"
+            )

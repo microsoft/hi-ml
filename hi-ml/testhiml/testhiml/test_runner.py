@@ -374,7 +374,7 @@ def test_submit_to_azure_docker(mock_runner: Runner) -> None:
             # call_args is a tuple of (args, kwargs)
             call_kwargs = mock_submit_to_aml.call_args[1]
             # Submission to AzureML should have been turned on because a cluster name was supplied
-            assert mock_runner.experiment_config.docker_shm_size == docker_shm_size
+            assert mock_runner.lightning_container.docker_shm_size == docker_shm_size
             assert call_kwargs["docker_shm_size"] == docker_shm_size
 
 

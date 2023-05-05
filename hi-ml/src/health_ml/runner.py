@@ -264,7 +264,7 @@ class Runner:
                 ignored_folders=[],
                 submit_to_azureml=bool(self.experiment_config.cluster),
                 docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
-                docker_shm_size=self.experiment_config.docker_shm_size,
+                docker_shm_size=self.lightning_container.docker_shm_size,
                 hyperdrive_config=hyperdrive_config,
                 hyperparam_args=hyperparam_args,
                 display_name=self.lightning_container.tag,

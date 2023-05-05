@@ -168,6 +168,9 @@ class WorkflowParams(param.Parameterized):
     This class contains all parameters that affect how the whole training and testing workflow is executed.
     """
 
+    docker_shm_size: str = param.String(
+        "400g", doc="The Docker shared memory size that is required to run this model in AzureML."
+    )
     random_seed: int = param.Integer(42, doc="The seed to use for all random number generators.")
     src_checkpoint: CheckpointParser = param.ClassSelector(
         class_=CheckpointParser, default=None, instantiate=False, doc=CheckpointParser.DOC
