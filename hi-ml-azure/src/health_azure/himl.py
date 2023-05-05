@@ -821,8 +821,8 @@ def submit_to_azure_if_needed(  # type: ignore
     :param snapshot_root_directory: The directory that contains all code that should be packaged and sent to AzureML.
         All Python code that the script uses must be copied over.
     :param ignored_folders: A list of folders to exclude from the snapshot when copying it to AzureML.
-    :param script_params: A list of parameter to pass on to the script as it runs in AzureML. If empty (or None, the
-        default) these will be copied over from sys.argv, omitting the --azureml flag.
+    :param script_params: A list of parameters to pass on to the script as it runs in AzureML. If `None` (the
+        default), these will be copied over from `sys.argv` (excluding the `--azureml` flag, if found).
     :param environment_variables: The environment variables that should be set when running in AzureML.
     :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
         The list of available images can be found here: https://github.com/Azure/AzureML-Containers
@@ -1072,9 +1072,10 @@ def _get_script_params(script_params: Optional[List[str]] = None) -> List[str]:
     :param script_params: The optional script parameters
     :return: The given script parameters or ones derived from sys.argv
     """
-    if script_params:
+    if script_params is None:
+        return [p for p in sys.argv[1:] if p != AZUREML_FLAG]
+    else:
         return script_params
-    return [p for p in sys.argv[1:] if p != AZUREML_FLAG]
 
 
 def _generate_azure_datasets(
