@@ -3,12 +3,13 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
+import logging
 import os
 from contextlib import contextmanager
 from datetime import datetime
 from enum import Enum, unique
 from pathlib import Path
-from typing import Any, Generator, List, Optional
+from typing import Any, Generator, List, Optional, Tuple
 
 import torch
 from torch.nn import Module
@@ -19,10 +20,12 @@ from health_azure.utils import PathOrString, is_conda_file_with_pip_include, fin
 
 MAX_PATH_LENGTH = 260
 
-# convert string to None if an empty string or whitespace is provided
+
+logger = logging.getLogger(__name__)
 
 
 def empty_string_to_none(x: Optional[str]) -> Optional[str]:
+    """convert string to None if an empty string or whitespace is provided"""
     return None if (x is None or len(x.strip()) == 0) else x
 
 
@@ -226,3 +229,46 @@ def seed_monai_if_available(seed: int) -> None:
         set_determinism(seed=seed)
     except ImportError:
         pass
+
+
+def initialize_rpdb() -> None:
+    """
+    On Linux only, import and initialize rpdb, to enable remote debugging if necessary.
+    """
+    # rpdb signal trapping does not work on Windows, as there is no SIGTRAP:
+    if not is_linux():
+        return
+    import rpdb
+
+    rpdb_port = 4444
+    rpdb.handle_trap(port=rpdb_port)
+    # For some reason, os.getpid() does not return the ID of what appears to be the currently running process.
+    logger.info(
+        "rpdb is handling traps. To debug: identify the main runner.py process, then as root: "
+        f"kill -TRAP <process_id>; nc 127.0.0.1 {rpdb_port}"
+    )
+
+
+def get_memory_gb(print_stats: bool = False) -> Optional[Tuple[float, float, float, float]]:
+    """Get the CPU memory, available CPU memory, total memory (CPU plus swap) and available memory in GB.
+    This relies on the Linux 'free' command being available. The function returns None if the command is not available.
+
+    :param print_stats: If True, print the output of the 'free' command to stdout.
+    :return: Tuple of (CPU memory, CPU memory available, total memory, total memory available), all in GB.
+    """
+    free_commandline = "free -t -m"
+    try:
+        free_output = os.popen(free_commandline).readlines()
+    except:
+        return None
+    if print_stats:
+        print(f"Checking available memory. Result of running '{free_commandline}':")
+        for line in free_output:
+            # Lines still contain a newline at the end, so no need to add that
+            print(line, end="")
+    if len(free_output) < 4:
+        return None
+    cpu_mem, _, cpu_mem_available = map(float, free_output[1].split()[1:4])
+    total_mem, _, total_mem_available = map(float, free_output[3].split()[1:4])
+    MB_per_GB = 1024.0
+    return tuple(map(lambda x: round(x / MB_per_GB, 3), (cpu_mem, cpu_mem_available, total_mem, total_mem_available)))
