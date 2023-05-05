@@ -45,7 +45,7 @@ def test_available_memory(capsys: pytest.CaptureFixture) -> None:
     """
     # All tests run on Linux, so the result should be available
 
-    result = get_memory_gb(print_stats=False)
+    result = get_memory_gb(verbose=False)
     assert result is not None
     assert len(result) == 4
     for val in result:
@@ -62,7 +62,7 @@ def test_available_memory_prints(capsys: pytest.CaptureFixture) -> None:
     """
     # All tests run on Linux, so the result should be available
 
-    get_memory_gb(print_stats=True)
+    get_memory_gb(verbose=True)
     stdout: str = capsys.readouterr().out
     assert len(stdout.splitlines()) == 5
 
@@ -77,7 +77,7 @@ Swap:          3072          15        3056
 Total:        13022        3331        8190
 """
     with patch("os.popen", return_value=StringIO(free_output)):
-        result = get_memory_gb(print_stats=True)
+        result = get_memory_gb(verbose=True)
         assert result is not None
         assert len(result) == 4
         assert result == (9.717, 5.013, 12.717, 7.998)

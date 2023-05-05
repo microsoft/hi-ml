@@ -306,7 +306,7 @@ class HelloWorldWithMemoryCheck(HelloWorld):
         self.docker_shm_size = f"{self.docker_shm_size_gb}g"
 
     def before_training_on_global_rank_zero(self) -> None:
-        memory = get_memory_gb(print_stats=True)
+        memory = get_memory_gb(verbose=True)
         assert memory is not None
         cpu_memory, _, _, _ = memory
         if cpu_memory < self.docker_shm_size_gb:

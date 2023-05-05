@@ -53,6 +53,7 @@ from health_ml.utils.logging import ConsoleAndFileOutput  # noqa: E402
 from health_ml.utils.common_utils import (
     check_conda_environment,
     choose_conda_env_file,
+    get_docker_memory_gb,
     get_memory_gb,
     initialize_rpdb,
 )  # noqa: E402
@@ -179,7 +180,8 @@ class Runner:
         log_level = logging.INFO if is_local_rank_zero() else logging.ERROR
         logging_to_stdout(log_level)
         initialize_rpdb()
-        get_memory_gb(print_stats=True)
+        get_memory_gb(verbose=True)
+        get_docker_memory_gb(verbose=True)
         self.parse_and_load_model()
         self.validate()
         azure_run_info = self.submit_to_azureml_if_needed()
