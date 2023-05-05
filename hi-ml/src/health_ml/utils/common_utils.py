@@ -271,4 +271,5 @@ def get_memory_gb(print_stats: bool = False) -> Optional[Tuple[float, float, flo
     cpu_mem, _, cpu_mem_available = map(float, free_output[1].split()[1:4])
     total_mem, _, total_mem_available = map(float, free_output[3].split()[1:4])
     MB_per_GB = 1024.0
-    return tuple(map(lambda x: round(x / MB_per_GB, 3), (cpu_mem, cpu_mem_available, total_mem, total_mem_available)))
+    values = (cpu_mem, cpu_mem_available, total_mem, total_mem_available)
+    return tuple(map(lambda x: round(x / MB_per_GB, 3), values))  # type: ignore
