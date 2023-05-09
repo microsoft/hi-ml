@@ -1276,6 +1276,28 @@ import sys""",
     assert expected_output in output
 
 
+def test_invoking_hello_world_env_var_v2(tmp_path: Path) -> None:
+    """
+    Test that invoking rendered 'simple' / 'hello_world_template.txt' elevates itself to AzureML with config.json,
+    and that environment variables are passed through, when using AML v2.
+    :param tmp_path: PyTest test fixture for temporary path.
+    """
+    message_guid = uuid4().hex
+    extra_options: Dict[str, str] = {
+        "imports": """
+import os
+import sys""",
+        'environment_variables': f"{{'message_guid': '{message_guid}'}}",
+        'body': 'print(f"The message_guid env var was: {os.getenv(\'message_guid\')}")',
+        'strictly_aml_v1': str(False),
+    }
+
+    extra_args: List[str] = []
+    output = render_and_run_test_script(tmp_path, RunTarget.AZUREML, extra_options, extra_args, True)
+    expected_output = f"The message_guid env var was: {message_guid}"
+    assert expected_output in output
+
+
 def _assert_hello_world_files_exist(folder: Path) -> None:
     """Check if the .csv files in the hello_world dataset exist in the given folder."""
     files = []
