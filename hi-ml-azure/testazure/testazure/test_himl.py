@@ -800,6 +800,7 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 inputs=dummy_inputs,
                 outputs=dummy_outputs,
                 environment=dummy_environment_name + "@latest",
+                environment_variables=None,
                 compute=dummy_compute_target,
                 experiment_name=dummy_experiment_name,
                 tags=dummy_tags,
