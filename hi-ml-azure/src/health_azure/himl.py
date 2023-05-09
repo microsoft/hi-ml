@@ -995,6 +995,7 @@ def submit_to_azure_if_needed(  # type: ignore
                 output_datasets_v2=output_datasets_v2,
                 experiment_name=experiment_name,
                 environment=registered_env,
+                environment_variables=environment_variables,
                 snapshot_root_directory=snapshot_root_directory,
                 entry_script=entry_script,
                 script_params=script_params,
