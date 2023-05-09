@@ -444,6 +444,7 @@ def effective_experiment_name(experiment_name: Optional[str], entry_script: Opti
 def submit_run_v2(
     workspace: Optional[Workspace],
     environment: EnvironmentV2,
+    environment_variables: Optional[Dict[str, str]] = None,
     experiment_name: Optional[str] = None,
     input_datasets_v2: Optional[Dict[str, Input]] = None,
     output_datasets_v2: Optional[Dict[str, Output]] = None,
@@ -467,6 +468,7 @@ def submit_run_v2(
 
     :param workspace: The AzureML workspace to use.
     :param environment: An AML v2 Environment object.
+    :param environment_variables: The environment variables that should be set when running in AzureML.
     :param experiment_name: The name of the experiment that will be used or created. If the experiment name contains
         characters that are not valid in Azure, those will be removed.
     :param input_datasets_v2: An optional dictionary of Inputs to pass in to the command.
@@ -547,6 +549,7 @@ def submit_run_v2(
             inputs=input_datasets_v2,
             outputs=output_datasets_v2,
             environment=environment.name + "@latest",
+            environment_variables=environment_variables,
             compute=compute_target,
             experiment_name=experiment_name,
             tags=tags or {},
