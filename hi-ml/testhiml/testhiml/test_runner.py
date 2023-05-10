@@ -415,8 +415,8 @@ def test_datastore_argument(mock_runner: Runner) -> None:
         mock_submit_to_azure_if_needed.assert_called_once()
         input_datasets = mock_submit_to_azure_if_needed.call_args[1]["input_datasets"]
         assert len(input_datasets) == 1
-        input_datasets[0].datastore == datastore
-        input_datasets[0].name == dataset
+        assert input_datasets[0].datastore == datastore
+        assert input_datasets[0].name == dataset
 
 
 def test_no_authentication_outside_azureml(mock_runner: Runner) -> None:
