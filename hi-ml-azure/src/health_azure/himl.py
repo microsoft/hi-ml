@@ -899,7 +899,7 @@ def submit_to_azure_if_needed(  # type: ignore
         if has_input_datasets and any_local_folders_missing and not strictly_aml_v1:
             raise ValueError(
                 "AzureML SDK v2 does not support downloading datasets from AzureML for local execution. "
-                "Please switch to AzureML SDK v1 by removing the strictly_aml_v1==False flag, or use "
+                "Please switch to AzureML SDK v1 by removing the strictly_aml_v1=False flag, or use "
                 "--strictly_aml_v1 on the commandline, or provide a local folder for each input dataset. "
                 "Note that you will not be able to download datasets that were created via SDK v2."
             )

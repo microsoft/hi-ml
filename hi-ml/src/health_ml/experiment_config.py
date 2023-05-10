@@ -105,7 +105,7 @@ class ExperimentConfig(param.Parameterized):
     log_level: Optional[RunnerMode] = param.ClassSelector(
         class_=LogLevel,
         default=None,
-        doc=f"The log level to use. Can be one of '{LogLevel.ERROR}', '{LogLevel.WARNING}', '{LogLevel.INFO}', "
+        doc=f"The log level to use. Can be one of {list(map(str, LogLevel))} "
         f"'{LogLevel.DEBUG}'",
     )
 

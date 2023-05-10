@@ -131,13 +131,13 @@ def _get_or_create_v1_dataset(datastore_name: str, dataset_name: str, workspace:
         azureml_dataset = _retrieve_v1_dataset(dataset_name, workspace)
     except UserErrorException:
         logger.warning(f"Dataset '{dataset_name}' was not found, or is not an AzureML SDK v1 dataset.")
-        logger.info(f"Trying to creating a new dataset '{dataset_name}' from files in folder '{dataset_name}'")
+        logger.info(f"Trying to create a new dataset '{dataset_name}' from files in folder '{dataset_name}'")
         if datastore_name == "":
             raise ValueError(
                 "When creating a new dataset, a datastore name must be provided. Please specify a datastore name using "
                 "the --datastore flag"
             )
-        logger.info(f"Trying to creating a new dataset '{dataset_name}' in datastore '{datastore_name}'")
+        logger.info(f"Trying to create a new dataset '{dataset_name}' in datastore '{datastore_name}'")
         azureml_dataset = _create_v1_dataset(datastore_name, dataset_name, workspace)
     return azureml_dataset
 
@@ -367,9 +367,6 @@ class DatasetConfig:
         therefore a tuple of Nones will be returned.
 
         :param workspace: The AzureML workspace to read from.
-        :param strictly_aml_v1: If True, use Azure ML SDK v1 to attempt to find or create and register the dataset.
-            Otherwise, attempt to use Azure ML SDK v2.
-        :param ml_client: An Azure MLClient object for interacting with Azure resources.
         :return: Tuple of (path to dataset, optional mountcontext)
         """
         status = f"Dataset '{self.name}' will be "
