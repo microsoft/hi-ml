@@ -2004,7 +2004,10 @@ def get_ml_client(
     subscription_id = get_secret_from_environment(ENV_SUBSCRIPTION_ID, allow_missing=True)
     resource_group = get_secret_from_environment(ENV_RESOURCE_GROUP, allow_missing=True)
     if bool(workspace_name) and bool(subscription_id) and bool(resource_group):
-        logger.debug("Retrieving MLClient via subscription ID, resource group and workspace name")
+        logger.debug(
+            "Retrieving MLClient via subscription ID, resource group and workspace name retrieved from "
+            "environment variables."
+        )
         ml_client = MLClient(
             subscription_id=subscription_id,
             resource_group_name=resource_group,
