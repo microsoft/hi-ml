@@ -556,7 +556,7 @@ def create_dataset_configs(
 
 def setup_local_datasets(
     dataset_configs: List[DatasetConfig],
-    workspace: Workspace,
+    workspace: Optional[Workspace],
 ) -> Tuple[List[Path], List[MountContext]]:
     """
     When running outside of AzureML, setup datasets to be used locally.
@@ -569,7 +569,8 @@ def setup_local_datasets(
     in a folder of the same name (for example, if a dataset is given as "mydataset", then it is created from the files
     in folder "mydataset" in the datastore).
 
-    :param workspace: The AzureML workspace to work with.
+    :param workspace: The AzureML workspace to work with. Can be None if the list of datasets is empty, or if
+        the datasets are available local.
     :param dataset_configs: List of DatasetConfig describing the input data assets.
     :return: Pair of: list of paths to the input datasets, list of mountcontexts, one for each mounted dataset.
     """

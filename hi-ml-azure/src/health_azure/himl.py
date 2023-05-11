@@ -868,7 +868,8 @@ def submit_to_azure_if_needed(  # type: ignore
         submit_to_azureml = AZUREML_FLAG in sys.argv[1:]
 
     has_input_datasets = len(cleaned_input_datasets) > 0
-
+    actual_aml_workspace: Optional[Workspace] = None
+    actual_ml_client: Optional[Workspace] = None
     if submit_to_azureml or has_input_datasets:
         if strictly_aml_v1:
             actual_aml_workspace = get_workspace(aml_workspace, workspace_config_path)
@@ -901,7 +902,6 @@ def submit_to_azure_if_needed(  # type: ignore
                 "created via SDK v2."
             )
 
-        assert actual_aml_workspace, "An AzureML workspace should have been created already."
         mounted_input_datasets, mount_contexts = setup_local_datasets(
             cleaned_input_datasets,
             workspace=actual_aml_workspace,
@@ -936,7 +936,7 @@ def submit_to_azure_if_needed(  # type: ignore
 
     with append_to_amlignore(amlignore=amlignore_path, lines_to_append=lines_to_append):
         if strictly_aml_v1:
-            assert actual_aml_workspace, "An AzureML workspace should have been created already."
+            assert actual_aml_workspace is not None, "An AzureML workspace should have been created already."
             run_config = create_run_configuration(
                 workspace=actual_aml_workspace,
                 compute_cluster_name=compute_cluster_name,
@@ -978,7 +978,7 @@ def submit_to_azure_if_needed(  # type: ignore
             if after_submission is not None:
                 after_submission(run)  # type: ignore
         else:
-            assert actual_ml_client, "An AzureML MLClient should have been created already."
+            assert actual_ml_client is not None, "An AzureML MLClient should have been created already."
             if conda_environment_file is None:
                 raise ValueError("Argument 'conda_environment_file' must be specified when using AzureML v2")
             environment = create_python_environment_v2(
