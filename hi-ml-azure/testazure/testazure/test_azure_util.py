@@ -130,10 +130,10 @@ def test_to_azure_friendly_string() -> None:
     Tests the to_azure_friendly_string function which should replace everything apart from a-zA-Z0-9_ with _, and
     replace multiple _ with a single _
     """
-    bad_string = "full__0f_r*bb%sh"
+    bad_string = "full__0f-r*bb%sh"
     good_version = util.to_azure_friendly_string(bad_string)
-    assert good_version == "full_0f_r_bb_sh"
-    good_string = "Not_Full_0f_Rubbish"
+    assert good_version == "full_0f-r_bb_sh"
+    good_string = "Not_Full_0f-Rubbish"
     good_version = util.to_azure_friendly_string(good_string)
     assert good_version == good_string
     optional_string = None

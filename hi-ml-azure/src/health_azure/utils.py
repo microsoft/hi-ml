@@ -486,7 +486,7 @@ def get_secret_from_environment(name: str, allow_missing: bool = False) -> Optio
 
 def to_azure_friendly_string(x: Optional[str]) -> Optional[str]:
     """
-    Given a string, ensure it can be used in Azure by replacing everything apart from a-z, A-Z, 0-9, or _ with _,
+    Given a string, ensure it can be used in Azure by replacing everything apart from a-z, A-Z, 0-9, - or _ with _,
     and replace multiple _ with a single _.
 
     :param x: Optional string to be converted.
@@ -495,7 +495,7 @@ def to_azure_friendly_string(x: Optional[str]) -> Optional[str]:
     if x is None:
         return x
     else:
-        return re.sub("_+", "_", re.sub(r"\W+", "_", x))
+        return re.sub("_+", "_", re.sub(r"[^\w-]+", "_", x))
 
 
 def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str) -> None:
