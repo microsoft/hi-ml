@@ -20,6 +20,7 @@ from azureml.data import FileDataset, OutputFileDatasetConfig
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.exceptions._azureml_exception import UserErrorException
+from health_azure.himl import submit_to_azure_if_needed
 from testazure.utils_testazure import (
     DEFAULT_DATASTORE,
     DEFAULT_WORKSPACE,
@@ -559,3 +560,36 @@ def test_create_dataset_configs() -> None:
     with pytest.raises(Exception) as e:
         create_dataset_configs(azure_datasets, dataset_mountpoints, local_datasets, datastore, use_mounting)
         assert "Invalid dataset setup" in str(e)
+
+
+def test_local_datasets() -> None:
+    """Test if Azure datasets can be mounted for local runs"""
+    # Dataset hello_world must exist in the test AzureML workspace
+    dataset = DatasetConfig(name="hello_world")
+    run_info = submit_to_azure_if_needed(
+        input_datasets=[dataset],
+        strictly_aml_v1=True,
+    )
+    assert len(run_info.input_datasets) == 1
+    assert isinstance(run_info.input_datasets[0], Path)
+    assert run_info.input_datasets[0].is_dir()
+    assert len(list(run_info.input_datasets[0].glob("*"))) > 0
+
+
+def test_local_datasets_fails_with_v2() -> None:
+    """Azure datasets can't be used when using SDK v2"""
+    dataset = DatasetConfig(name="himl-tiny_dataset")
+    with pytest.raises(ValueError, match="AzureML SDK v2 does not support downloading datasets from AzureML"):
+        submit_to_azure_if_needed(
+            input_datasets=[dataset],
+            strictly_aml_v1=False,
+        )
+
+
+def test_local_datasets_fail_with_v2() -> None:
+    """If no datasets are specified, we can still run with SDK v2"""
+    run_info = submit_to_azure_if_needed(
+        input_datasets=[],
+        strictly_aml_v1=False,
+    )
+    assert len(run_info.input_datasets) == 0

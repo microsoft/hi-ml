@@ -2143,8 +2143,3 @@ def test_resolve_workspace_config_path_missing(tmp_path: Path) -> None:
     mocked_file = tmp_path / "foo.json"
     with pytest.raises(FileNotFoundError, match="Workspace config file does not exist"):
         resolve_workspace_config_path(mocked_file)
-
-
-def test_local_datasets() -> None:
-    """Test if models can be run with local dataset mounting"""
-    raise NotImplementedError()
