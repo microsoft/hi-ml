@@ -15,8 +15,6 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from azureml.core import Workspace
-
 # Add hi-ml packages to sys.path so that AML can find them if we are using the runner directly from the git repo
 himl_root = Path(__file__).resolve().parent.parent.parent.parent
 folders_to_add = [himl_root / "hi-ml" / "src", himl_root / "hi-ml-azure" / "src", himl_root / "hi-ml-cpath" / "src"]
@@ -34,8 +32,6 @@ from health_azure.paths import is_himl_used_from_git_repo  # noqa: E402
 from health_azure.utils import (  # noqa: E402
     ENV_LOCAL_RANK,
     ENV_NODE_RANK,
-    get_workspace,
-    get_ml_client,
     is_local_rank_zero,
     is_running_in_azure_ml,
     set_environment_variables_for_multi_node,
@@ -122,6 +118,11 @@ class Runner:
         parser1_result = parse_arguments(parser1, args=filtered_args)
         experiment_config = ExperimentConfig(**parser1_result.args)
 
+        from health_azure.logging import logging_stdout_handler  # noqa: E402
+
+        if logging_stdout_handler is not None and experiment_config.log_level is not None:
+            print(f"Setting custom logging level to {experiment_config.log_level}")
+            logging_stdout_handler.setLevel(experiment_config.log_level.value)
         self.experiment_config = experiment_config
         if not experiment_config.model:
             raise ValueError("Parameter 'model' needs to be set to specify which model to run.")
@@ -150,7 +151,7 @@ class Runner:
         """
         Runs sanity checks on the whole experiment.
         """
-        if not self.experiment_config.cluster:
+        if not self.experiment_config.submit_to_azure_ml:
             if self.lightning_container.hyperdrive:
                 raise ValueError(
                     "HyperDrive for hyperparameters tuning is only supported when submitting the job to "
@@ -214,47 +215,26 @@ class Runner:
         script_params = sys.argv[1:]
 
         environment_variables = self.additional_environment_variables()
-
-        # Get default datastore from the provided workspace. Authentication can take a few seconds, hence only do
-        # that if we are really submitting to AzureML.
-        workspace: Optional[Workspace] = None
-        if self.experiment_config.cluster:
-            try:
-                workspace = get_workspace(workspace_config_path=self.experiment_config.workspace_config_path)
-            except ValueError:
-                raise ValueError(
-                    "Unable to submit the script to AzureML because no workspace configuration file "
-                    "(config.json) was found."
-                )
-
-        if self.lightning_container.datastore:
-            datastore = self.lightning_container.datastore
-        elif workspace:
-            datastore = workspace.get_default_datastore().name
-        else:
-            datastore = ""
-
         local_datasets = self.lightning_container.local_datasets
         all_local_datasets = [Path(p) for p in local_datasets] if len(local_datasets) > 0 else []
         # When running in AzureML, respect the commandline flag for mounting. Outside of AML, we always mount
         # datasets to be quicker.
-        use_mounting = self.experiment_config.mount_in_azureml if self.experiment_config.cluster else True
+        use_mounting = self.experiment_config.mount_in_azureml if self.experiment_config.submit_to_azure_ml else True
         input_datasets = create_dataset_configs(
             all_azure_dataset_ids=self.lightning_container.azure_datasets,
             all_dataset_mountpoints=self.lightning_container.dataset_mountpoints,
             all_local_datasets=all_local_datasets,  # type: ignore
-            datastore=datastore,
+            datastore=self.lightning_container.datastore,
             use_mounting=use_mounting,
         )
 
-        if self.experiment_config.cluster and not is_running_in_azure_ml():
+        if self.experiment_config.submit_to_azure_ml and not is_running_in_azure_ml():
             if self.experiment_config.strictly_aml_v1:
                 hyperdrive_config = self.lightning_container.get_hyperdrive_config()
                 hyperparam_args = None
             else:
                 hyperparam_args = self.lightning_container.get_hyperparam_args()
                 hyperdrive_config = None
-            ml_client = get_ml_client(aml_workspace=workspace) if not self.experiment_config.strictly_aml_v1 else None
 
             env_file = choose_conda_env_file(env_file=self.experiment_config.conda_env)
             logging.info(f"Using this Conda environment definition: {env_file}")
@@ -265,18 +245,15 @@ class Runner:
                 snapshot_root_directory=root_folder,
                 script_params=script_params,
                 conda_environment_file=env_file,
-                aml_workspace=workspace,
-                ml_client=ml_client,
                 compute_cluster_name=self.experiment_config.cluster,
                 environment_variables=environment_variables,
-                default_datastore=datastore,
                 experiment_name=self.lightning_container.effective_experiment_name,
                 input_datasets=input_datasets,  # type: ignore
                 num_nodes=self.experiment_config.num_nodes,
                 wait_for_completion=self.experiment_config.wait_for_completion,
                 max_run_duration=self.experiment_config.max_run_duration,
                 ignored_folders=[],
-                submit_to_azureml=bool(self.experiment_config.cluster),
+                submit_to_azureml=self.experiment_config.submit_to_azure_ml,
                 docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
                 docker_shm_size=self.experiment_config.docker_shm_size,
                 hyperdrive_config=hyperdrive_config,
@@ -292,7 +269,6 @@ class Runner:
                 submit_to_azureml=False,
                 environment_variables=environment_variables,
                 strictly_aml_v1=self.experiment_config.strictly_aml_v1,
-                default_datastore=datastore,
             )
         if azure_run_info.run:
             # This code is only reached inside Azure. Set display name again - this will now affect
