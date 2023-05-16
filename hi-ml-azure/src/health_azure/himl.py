@@ -871,17 +871,15 @@ def submit_to_azure_if_needed(  # type: ignore
         submit_to_azureml = AZUREML_FLAG in sys.argv[1:]
 
     has_input_datasets = len(cleaned_input_datasets) > 0
-    actual_aml_workspace: Optional[Workspace] = None
-    actual_ml_client: Optional[Workspace] = None
     if submit_to_azureml or has_input_datasets:
         if strictly_aml_v1:
-            actual_aml_workspace = get_workspace(aml_workspace, workspace_config_path)
-            assert actual_aml_workspace is not None
-            print(f"Loaded AzureML workspace {actual_aml_workspace.name}")
+            aml_workspace = get_workspace(aml_workspace, workspace_config_path)
+            assert aml_workspace is not None
+            print(f"Loaded AzureML workspace {aml_workspace.name}")
         else:
-            actual_ml_client = get_ml_client(ml_client=ml_client, workspace_config_path=workspace_config_path)
-            assert actual_ml_client is not None
-            print(f"Created MLClient for AzureML workspace {actual_ml_client.workspace_name}")
+            ml_client = get_ml_client(ml_client=ml_client, workspace_config_path=workspace_config_path)
+            assert ml_client is not None
+            print(f"Created MLClient for AzureML workspace {ml_client.workspace_name}")
 
     if not submit_to_azureml:
         # Set the environment variables for local execution.
@@ -909,7 +907,7 @@ def submit_to_azure_if_needed(  # type: ignore
 
         mounted_input_datasets, mount_contexts = setup_local_datasets(
             cleaned_input_datasets,
-            workspace=actual_aml_workspace,
+            workspace=aml_workspace,
         )
 
         return AzureRunInfo(
@@ -941,9 +939,9 @@ def submit_to_azure_if_needed(  # type: ignore
 
     with append_to_amlignore(amlignore=amlignore_path, lines_to_append=lines_to_append):
         if strictly_aml_v1:
-            assert actual_aml_workspace is not None, "An AzureML workspace should have been created already."
+            assert aml_workspace is not None, "An AzureML workspace should have been created already."
             run_config = create_run_configuration(
-                workspace=actual_aml_workspace,
+                workspace=aml_workspace,
                 compute_cluster_name=compute_cluster_name,
                 aml_environment_name=aml_environment_name,
                 conda_environment_file=conda_environment_file,
@@ -972,7 +970,7 @@ def submit_to_azure_if_needed(  # type: ignore
                 config_to_submit = script_run_config
 
             run = submit_run(
-                workspace=actual_aml_workspace,
+                workspace=aml_workspace,
                 experiment_name=effective_experiment_name(experiment_name, script_run_config.script),
                 script_run_config=config_to_submit,
                 tags=tags,
@@ -983,7 +981,7 @@ def submit_to_azure_if_needed(  # type: ignore
             if after_submission is not None:
                 after_submission(run)  # type: ignore
         else:
-            assert actual_ml_client is not None, "An AzureML MLClient should have been created already."
+            assert ml_client is not None, "An AzureML MLClient should have been created already."
             if conda_environment_file is None:
                 raise ValueError("Argument 'conda_environment_file' must be specified when using AzureML v2")
             environment = create_python_environment_v2(
@@ -992,12 +990,12 @@ def submit_to_azure_if_needed(  # type: ignore
             if entry_script is None:
                 entry_script = Path(sys.argv[0])
 
-            registered_env = register_environment_v2(environment, actual_ml_client)
-            input_datasets_v2 = create_v2_inputs(actual_ml_client, cleaned_input_datasets)
-            output_datasets_v2 = create_v2_outputs(actual_ml_client, cleaned_output_datasets)
+            registered_env = register_environment_v2(environment, ml_client)
+            input_datasets_v2 = create_v2_inputs(ml_client, cleaned_input_datasets)
+            output_datasets_v2 = create_v2_outputs(ml_client, cleaned_output_datasets)
 
             job = submit_run_v2(
-                ml_client=actual_ml_client,
+                ml_client=ml_client,
                 input_datasets_v2=input_datasets_v2,
                 output_datasets_v2=output_datasets_v2,
                 experiment_name=experiment_name,
@@ -1018,7 +1016,7 @@ def submit_to_azure_if_needed(  # type: ignore
             )
 
             if after_submission is not None:
-                after_submission(job, actual_ml_client)  # type: ignore
+                after_submission(job, ml_client)  # type: ignore
 
     exit(0)
 
