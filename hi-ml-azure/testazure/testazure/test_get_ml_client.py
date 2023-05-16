@@ -12,8 +12,6 @@ from unittest.mock import DEFAULT, MagicMock, patch
 import pytest
 from azure.core.exceptions import ClientAuthenticationError
 from azure.identity import ClientSecretCredential, DefaultAzureCredential, DeviceCodeCredential
-from azureml.exceptions._azureml_exception import UserErrorException
-from testazure.utils_testazure import change_working_directory
 
 from health_azure.utils import (
     ENV_RESOURCE_GROUP,
@@ -27,7 +25,6 @@ from health_azure.utils import (
     _get_legitimate_service_principal_credential,
     get_credential,
     get_ml_client,
-    get_workspace,
 )
 
 

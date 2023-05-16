@@ -876,9 +876,11 @@ def submit_to_azure_if_needed(  # type: ignore
     if submit_to_azureml or has_input_datasets:
         if strictly_aml_v1:
             actual_aml_workspace = get_workspace(aml_workspace, workspace_config_path)
+            assert actual_aml_workspace is not None
             print(f"Loaded AzureML workspace {actual_aml_workspace.name}")
         else:
             actual_ml_client = get_ml_client(ml_client=ml_client, workspace_config_path=workspace_config_path)
+            assert actual_ml_client is not None
             print(f"Created MLClient for AzureML workspace {actual_ml_client.workspace_name}")
 
     if not submit_to_azureml:
@@ -899,7 +901,7 @@ def submit_to_azure_if_needed(  # type: ignore
         if has_input_datasets and any_local_folders_missing and not strictly_aml_v1:
             raise ValueError(
                 "AzureML SDK v2 does not support downloading datasets from AzureML for local execution. "
-                "Please switch to AzureML SDK v1 by removing the strictly_aml_v1=False flag, or use "
+                "Please switch to AzureML SDK v1 by setting strictly_aml_v1=True, or use "
                 "--strictly_aml_v1 on the commandline, or provide a local folder for each input dataset. "
                 "Note that you will not be able use AzureML datasets for runs outside AzureML if the datasets were "
                 "created via SDK v2."
