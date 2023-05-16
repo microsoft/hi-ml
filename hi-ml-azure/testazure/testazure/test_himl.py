@@ -1364,7 +1364,7 @@ class TestOutputDataset:
 @pytest.mark.parametrize(
     ["run_target", "local_folder", "strictly_aml_v1"],
     [
-        (RunTarget.LOCAL, True, False),
+        (RunTarget.LOCAL, True, True),
         (RunTarget.AZUREML, False, True),
     ],
 )
