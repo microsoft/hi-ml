@@ -194,7 +194,7 @@ class ConvertWSIToTiffd(MapTransform):
         resolution_unit = wsi_obj.properties[self.RESOLUTION_UNIT_KEY]
 
         if resolution_unit != self.RESOLUTION_UNIT:
-            raise ValueError(f"Resolution unit is not in {self.RESOLUTION_UNIT}: {resolution_unit}")
+            logging.warning(f"Resolution unit is not in {self.RESOLUTION_UNIT}: {resolution_unit}")
 
         options = dict(
             software=self.SOFTWARE,
