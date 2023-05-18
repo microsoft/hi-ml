@@ -103,14 +103,14 @@ def test_get_taget_levels(wsi_samples: WSISamplesType) -> None:
     assert target_levels[0] == 1
 
 
-def test_get_options(wsi_samples: WSISamplesType) -> None:
+def test_get_options(wsi_samples: WSISamplesType, caplog: pytest.LogCaptureFixture) -> None:
     transform = ConvertWSIToTiffd(output_folder=Path("foo"), tile_size=16)
     assert transform.RESOLUTION_UNIT == ResolutionUnit.CENTIMETER
 
-    # wrong resolution unit
+    # wrong resolution unit should log a warning, but not fail
     mock_wsi_obj = MagicMock(properties={transform.RESOLUTION_UNIT_KEY: "micrometer"})
-    with pytest.raises(ValueError, match=r"Resolution unit is not in centimeter"):
-        _ = transform.get_tiffwriter_options(mock_wsi_obj)
+    transform.get_tiffwriter_options(mock_wsi_obj)
+    assert "Resolution unit is not in centimeter" in caplog.text
     # correct resolution unit in centimeter
     wsi_obj = transform.wsi_reader.read(wsi_samples[0][SlideKey.IMAGE])
     options = transform.get_tiffwriter_options(wsi_obj)
