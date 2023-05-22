@@ -2,23 +2,20 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from copy import deepcopy
 import os
-from pytorch_lightning import Trainer
-import torch
-import pytest
+from copy import deepcopy
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 from typing import Any, Callable, Dict, Iterable, List, Optional, Type
+from unittest.mock import MagicMock, patch, DEFAULT
 
-from torch import Tensor, argmax, nn, rand, randint, randn, round, stack, allclose
+import pytest
+import torch
+from pytorch_lightning import Trainer
+from torch import Tensor, allclose, argmax, nn, rand, randint, randn, round, stack
+from torch.utils.data import DataLoader
 from torch.utils.data._utils.collate import default_collate
-from health_cpath.configs.classification.DeepSMILESlidesPandaBenchmark import SlidesPandaSSLMILBenchmark
-from health_cpath.datamodules.panda_module import PandaTilesDataModule
 
-from health_ml.networks.layers.attention_layers import AttentionLayer, TransformerPoolingBenchmark
 from health_cpath.configs.classification.BaseMIL import BaseMIL, BaseMILTiles
-
 from health_cpath.configs.classification.DeepSMILECrck import DeepSMILECrck, TcgaCrckSSLMIL
 from health_cpath.configs.classification.DeepSMILEPanda import (
     BaseDeepSMILEPanda,
@@ -26,7 +23,10 @@ from health_cpath.configs.classification.DeepSMILEPanda import (
     SlidesPandaSSLMIL,
     TilesPandaSSLMIL,
 )
+from health_cpath.configs.classification.DeepSMILESlidesPandaBenchmark import SlidesPandaSSLMILBenchmark
+from health_cpath.configs.run_ids import innereye_ssl_checkpoint_binary, innereye_ssl_checkpoint_crck_4ws
 from health_cpath.datamodules.base_module import HistoDataModule, TilesDataModule
+from health_cpath.datamodules.panda_module import PandaTilesDataModule
 from health_cpath.datasets.base_dataset import DEFAULT_LABEL_COLUMN, TilesDataset
 from health_cpath.datasets.default_paths import PANDA_5X_TILES_DATASET_ID, TCGA_CRCK_DATASET_DIR
 from health_cpath.models.deepmil import DeepMILModule
@@ -40,15 +40,16 @@ from health_cpath.models.encoders import (
 )
 from health_cpath.utils.deepmil_utils import ClassifierParams, EncoderParams, PoolingParams
 from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey, SlideKey
-from testhisto.mocks.base_data_generator import MockHistoDataType
-from testhisto.mocks.tiles_generator import MockPandaTilesGenerator
-from testhisto.mocks.container import MockDeepSMILETilesPanda, MockDeepSMILESlidesPanda
-from health_ml.utils.common_utils import is_gpu_available
+from health_ml.eval_runner import EvalRunner
+from health_ml.experiment_config import ExperimentConfig, RunnerMode
+from health_ml.networks.layers.attention_layers import AttentionLayer, TransformerPoolingBenchmark
 from health_ml.utils.checkpoint_utils import CheckpointParser
-from health_cpath.configs.run_ids import innereye_ssl_checkpoint_crck_4ws, innereye_ssl_checkpoint_binary
-from testhisto.models.test_encoders import TEST_SSL_RUN_ID
-from torch.utils.data import DataLoader
+from health_ml.utils.common_utils import is_gpu_available
 
+from testhisto.mocks.base_data_generator import MockHistoDataType
+from testhisto.mocks.container import MockDeepSMILESlidesPanda, MockDeepSMILETilesPanda
+from testhisto.mocks.tiles_generator import MockPandaTilesGenerator
+from testhisto.models.test_encoders import TEST_SSL_RUN_ID
 
 no_gpu = not is_gpu_available()
 
@@ -828,3 +829,24 @@ def test_encoder_checkpointning(
         custom_forward.return_value = torch.zeros(container.max_bag_size, feature_dim)
         _, _ = model_ckpt_enc(sample[SlideKey.IMAGE][0])
         custom_forward.assert_called_once()
+
+
+@pytest.mark.parametrize("runner_mode", [RunnerMode.TRAIN, RunnerMode.EVAL_FULL])
+def test_create_model_in_eval_mode(tmp_path: Path, runner_mode: RunnerMode) -> None:
+    """When the runner is in eval mode, the call to create_model should not instantiate the training data loader."""
+    container = BaseMIL(encoder_type="Resnet18", pool_type="MeanPoolingLayer")
+    eval_runner = EvalRunner(
+        container=container, experiment_config=ExperimentConfig(mode=runner_mode), project_root=tmp_path
+    )
+    # These mock values are only used for the normal "TRAIN" mode
+    get_data_module = MagicMock(
+        return_value=MagicMock(class_weights=torch.ones(2), train_dataset=MagicMock(n_classes=2))
+    )
+    with patch.multiple(
+        "health_cpath.configs.classification.BaseMIL.BaseMIL", get_data_module=get_data_module, get_label_column=DEFAULT
+    ):
+        eval_runner.setup()
+        if runner_mode == RunnerMode.TRAIN:
+            get_data_module.assert_called_once()
+        else:
+            get_data_module.assert_not_called()

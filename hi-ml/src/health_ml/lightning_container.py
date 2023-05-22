@@ -15,7 +15,7 @@ from torch.optim.lr_scheduler import _LRScheduler
 
 from health_azure.utils import create_from_matching_params
 from health_ml.deep_learning_config import DatasetParams, OptimizerParams, OutputParams, TrainerParams, WorkflowParams
-from health_ml.experiment_config import ExperimentConfig
+from health_ml.experiment_config import ExperimentConfig, RunnerMode
 from health_ml.utils.checkpoint_utils import get_best_checkpoint_path
 from health_ml.utils.lr_scheduler import SchedulerWithWarmUp
 from health_ml.utils.model_util import create_optimizer
@@ -32,8 +32,10 @@ class LightningContainer(WorkflowParams, DatasetParams, OutputParams, TrainerPar
         super().__init__(**kwargs)
         self._model: Optional[LightningModule] = None
         self._model_name = type(self).__name__
-        self.num_nodes = 1
         self.trained_weights_path: Optional[Path] = None
+        # Number of nodes and the runner mode are read from the ExperimentConfig, and will be copied here
+        self.num_nodes = 1
+        self.runner_mode = RunnerMode.TRAIN
 
     def validate(self) -> None:
         WorkflowParams.validate(self)
