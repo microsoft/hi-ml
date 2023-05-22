@@ -7,6 +7,7 @@ import param
 from torch import nn
 from pathlib import Path
 from typing import Optional, Tuple
+from SSL.encoders import DenseNet121Encoder
 from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_cpath.models.encoders import (
     HistoSSLEncoder,
@@ -160,6 +161,8 @@ class EncoderParams(param.Parameterized):
                 tile_size=self.tile_size,
                 n_channels=self.n_channels,
             )
+        elif self.encoder_type == DenseNet121Encoder.__name__:
+            encoder = DenseNet121Encoder()
         else:
             raise ValueError(f"Unsupported encoder type: {self.encoder_type}")
         set_module_gradients_enabled(encoder, tuning_flag=self.tune_encoder)
