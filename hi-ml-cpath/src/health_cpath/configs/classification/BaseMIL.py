@@ -45,10 +45,10 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
         None, item_type=str, doc="List of class names. If `None`, defaults to `('0', '1', ...)`."
     )
     eval_num_classes: int = param.Integer(
-        2,
+        1,
         bounds=(1, None),
         doc="Number of classes. This is only used to instantiate the classifier layer when the runner is working in "
-        "`eval_full` mode. Defaults to 2.",
+        "`eval_full` mode. Defaults to 1 (binary classification).",
     )
     # Data module parameters:
     batch_size: int = param.Integer(16, bounds=(1, None), doc="Number of slides to load per batch.")
@@ -108,7 +108,7 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
         None, doc="Name of metadata field to stratify output plots (PR curve, ROC curve)."
     )
 
-    def __init__(self, eval_num_classes: int = 2, **kwargs: Any) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         """
         :param eval_num_classes: Number of classes to use when running in eval mode. This is provided because
             the eval dataset may not contain all classes that the model was trained on. Defaults to 2."""
@@ -118,7 +118,6 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
         metric_optim = "max" if self.maximise_primary_metric else "min"
         self.best_checkpoint_filename = f"checkpoint_{metric_optim}_val_{self.primary_val_metric.value}"
         self.best_checkpoint_filename_with_suffix = self.best_checkpoint_filename + ".ckpt"
-        self.eval_num_classes = eval_num_classes
         self.validate()
         if not self.pl_replace_sampler_ddp and self.max_num_gpus > 1:
             logging.info(
@@ -283,15 +282,16 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
         else:
             return self.get_data_module_for_runner_mode().train_dataset.n_classes
 
-    def get_class_weights(self) -> Optional[torch.Tensor]:
+    def get_class_weights(self) -> torch.Tensor:
         """Gets the class weights that the model should use. In training mode, this is the class weights from the
-        training data module. In evaluation mode, this is None: Class weights are only used to create a loss function,
-        which is irrelevant in evaluation mode.
+        training data module. In evaluation mode, this is a tensor with all ones (the class weights will be loaded
+        from the checkpoint, so their value does not matter).
 
         :return: A tensor if the model is used for training, None otherwise.
         """
         if self.runner_mode == RunnerMode.EVAL_FULL:
-            return None
+            num_classes = self.get_num_classes()
+            return torch.ones(2 if num_classes == 1 else num_classes)
         else:
             return self.get_data_module_for_runner_mode().class_weights
 
