@@ -30,14 +30,14 @@ class DatasetSplits:
     def __post_init__(self) -> None:
         common_utils.check_properties_are_not_none(self)
 
-        def pairwise_intersection(*collections: Iterable[Iterable]) -> Set:
+        def pairwise_intersection(*collections: Iterable) -> Set:
             """
             Returns any element that appears in more than one collection
 
             :return: a Set of elements that appear in more than one collection
             """
             intersection = set()
-            for col1, col2 in combinations(map(set, collections), 2):
+            for col1, col2 in combinations(map(set, collections), 2):  # type: ignore
                 intersection |= col1 & col2
             return intersection
 

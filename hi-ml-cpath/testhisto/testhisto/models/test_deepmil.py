@@ -708,7 +708,10 @@ def test_checkpoint_name(
 def test_on_run_extra_val_epoch(mock_panda_tiles_root_dir: Path) -> None:
     container = MockDeepSMILETilesPanda(tmp_path=mock_panda_tiles_root_dir)
     container.setup()
-    container.data_module = MagicMock(class_weights=torch.ones(2), train_dataset=MagicMock(n_classes=1))
+    num_classes = 6
+    container.data_module = MagicMock(
+        class_weights=torch.ones(num_classes), train_dataset=MagicMock(n_classes=num_classes)
+    )
     container.create_lightning_module_and_store()
     assert not container.model._on_extra_val_epoch
     assert (
@@ -882,6 +885,8 @@ def test_setup_model_in_eval_mode(tmp_path: Path) -> None:
         # Before bug fix:
         # Error(s) in loading state_dict for DeepMILModule:
         # 	Unexpected key(s) in state_dict: "loss_fn.pos_weight", "loss_fn_no_reduction.pos_weight".
-        # 	size mismatch for classifier_fn.weight: copying a param with shape torch.Size([1, 512]) from checkpoint, the shape in current model is torch.Size([2, 512]).
-        # 	size mismatch for classifier_fn.bias: copying a param with shape torch.Size([1]) from checkpoint, the shape in current model is torch.Size([2]).
+        # 	size mismatch for classifier_fn.weight: copying a param with shape torch.Size([1, 512]) from checkpoint,
+        #       the shape in current model is torch.Size([2, 512]).
+        # 	size mismatch for classifier_fn.bias: copying a param with shape torch.Size([1]) from checkpoint,
+        #       the shape in current model is torch.Size([2]).
         eval_runner.run()

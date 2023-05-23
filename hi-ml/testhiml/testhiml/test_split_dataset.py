@@ -24,7 +24,7 @@ def test_split_by_subject_ids() -> None:
     test_df, test_ids, train_ids, val_ids = _get_test_df()
     splits = DatasetSplits.from_subject_ids(test_df, train_ids, test_ids, val_ids, subject_column=CSV_SUBJECT_HEADER)
 
-    for x, y in zip([splits.train, splits.test, splits.val], [train_ids, test_ids, val_ids]):
+    for x, y in zip([splits.train, splits.test, splits.val], [train_ids, test_ids, val_ids]):  # type: ignore
         pd.testing.assert_frame_equal(x, test_df[test_df.subject.isin(y)])
 
 
@@ -66,7 +66,7 @@ def _check_is_partition(total: pd.DataFrame, parts: Iterable[pd.DataFrame], colu
     total = set(total[column].unique())
     parts = [set(part[column].unique()) for part in parts]
     assert total == set.union(*parts)
-    for part1, part2 in combinations(parts, 2):
+    for part1, part2 in combinations(parts, 2):  # type: ignore
         assert part1.isdisjoint(part2)
 
 
