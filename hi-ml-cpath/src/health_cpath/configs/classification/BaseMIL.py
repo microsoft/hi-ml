@@ -297,7 +297,6 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
 
     def create_model(self) -> DeepMILModule:
         num_classes = self.get_num_classes()
-
         outputs_handler = self.get_outputs_handler()
         deepmil_module = DeepMILModule(
             label_column=self.get_label_column(),
