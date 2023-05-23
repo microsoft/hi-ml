@@ -290,13 +290,13 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
         :return: A tensor if the model is used for training, None otherwise.
         """
         if self.runner_mode == RunnerMode.EVAL_FULL:
-            return torch.ones(self.get_num_classes())
+            num_classes = self.get_num_classes()
+            return torch.ones(2 if num_classes == 1 else num_classes)
         else:
             return self.get_data_module_for_runner_mode().class_weights
 
     def create_model(self) -> DeepMILModule:
         num_classes = self.get_num_classes()
-
         outputs_handler = self.get_outputs_handler()
         deepmil_module = DeepMILModule(
             label_column=self.get_label_column(),
