@@ -260,7 +260,7 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
         :return: A data module.
         """
         if self.data_module is None:
-            if self.runner_mode == RunnerMode.TRAINING:
+            if self.runner_mode == RunnerMode.TRAIN:
                 self.data_module = self.get_data_module()
             elif self.runner_mode == RunnerMode.EVAL_FULL:
                 self.data_module = self.get_eval_data_module()
