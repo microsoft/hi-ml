@@ -282,15 +282,15 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
         else:
             return self.get_data_module_for_runner_mode().train_dataset.n_classes
 
-    def get_class_weights(self) -> Optional[torch.Tensor]:
+    def get_class_weights(self) -> torch.Tensor:
         """Gets the class weights that the model should use. In training mode, this is the class weights from the
-        training data module. In evaluation mode, this is None: Class weights are only used to create a loss function,
-        which is irrelevant in evaluation mode.
+        training data module. In evaluation mode, this is a tensor with all ones (the class weights will be loaded
+        from the checkpoint, so their value does not matter).
 
         :return: A tensor if the model is used for training, None otherwise.
         """
         if self.runner_mode == RunnerMode.EVAL_FULL:
-            return None
+            return torch.ones(self.get_num_classes())
         else:
             return self.get_data_module_for_runner_mode().class_weights
 
