@@ -708,7 +708,7 @@ def test_checkpoint_name(
 def test_on_run_extra_val_epoch(mock_panda_tiles_root_dir: Path) -> None:
     container = MockDeepSMILETilesPanda(tmp_path=mock_panda_tiles_root_dir)
     container.setup()
-    container.data_module = MagicMock()
+    container.data_module = MagicMock(class_weights=torch.ones(2), train_dataset=MagicMock(n_classes=1))
     container.create_lightning_module_and_store()
     assert not container.model._on_extra_val_epoch
     assert (
