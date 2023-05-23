@@ -113,6 +113,7 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
         :param eval_num_classes: Number of classes to use when running in eval mode. This is provided because
             the eval dataset may not contain all classes that the model was trained on. Defaults to 2."""
         super().__init__(**kwargs)
+        self.data_module: Optional[HistoDataModule] = None
         self.run_extra_val_epoch = True  # Enable running an additional validation step to save tiles/slides thumbnails
         metric_optim = "max" if self.maximise_primary_metric else "min"
         self.best_checkpoint_filename = f"checkpoint_{metric_optim}_val_{self.primary_val_metric.value}"
@@ -253,6 +254,21 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
     def get_encoder_params(self) -> EncoderParams:
         return create_from_matching_params(self, EncoderParams)
 
+    def get_data_module_for_runner_mode(self) -> HistoDataModule:
+        """Gets the data module that the model is using from the private data_module field. If it is not set yet, it
+        is set from either the training or the evaluation data module, depending on the runner mode.
+
+        :return: A data module.
+        """
+        if self.data_module is None:
+            if self.runner_mode == RunnerMode.TRAINING:
+                self.data_module = self.get_data_module()
+            elif self.runner_mode == RunnerMode.EVAL_FULL:
+                self.data_module = self.get_eval_data_module()
+            else:
+                raise ValueError(f"Unknown runner mode {self.runner_mode}")
+        return self.data_module
+
     def get_num_classes(self) -> int:
         """Gets the number of classes that the model handles. In training mode, this is the number of classes in the
         training dataset. In evaluation mode, this is read directly from the `eval_num_classes` attribute.
@@ -265,21 +281,29 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
             # data module may not contain all classes, so we need to hardcode those values.
             return self.eval_num_classes
         else:
-            if (not hasattr(self, "data_module")) or self.data_module is None:
-                self.data_module = self.get_data_module()
-            return self.data_module.train_dataset.n_classes
+            return self.get_data_module_for_runner_mode().train_dataset.n_classes
+
+    def get_class_weights(self) -> Optional[torch.Tensor]:
+        """Gets the class weights that the model should use. In training mode, this is the class weights from the
+        training data module. In evaluation mode, this is None: Class weights are only used to create a loss function,
+        which is irrelevant in evaluation mode.
+
+        :return: A tensor if the model is used for training, None otherwise.
+        """
+        if self.runner_mode == RunnerMode.EVAL_FULL:
+            return None
+        else:
+            return self.get_data_module_for_runner_mode().class_weights
 
     def create_model(self) -> DeepMILModule:
         num_classes = self.get_num_classes()
-        # Class weights are only used to create a loss function, which is irrelevant in evaluation mode.
-        class_weights = None if self.runner_mode == RunnerMode.EVAL_FULL else self.data_module.class_weights
 
         outputs_handler = self.get_outputs_handler()
         deepmil_module = DeepMILModule(
             label_column=self.get_label_column(),
             n_classes=num_classes,
             class_names=self.class_names,
-            class_weights=class_weights,
+            class_weights=self.get_class_weights(),
             outputs_folder=self.outputs_folder,
             encoder_params=self.get_encoder_params(),
             pooling_params=create_from_matching_params(self, PoolingParams),
@@ -294,6 +318,9 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
         return deepmil_module
 
     def get_data_module(self) -> HistoDataModule:
+        raise NotImplementedError
+
+    def get_eval_data_module(self) -> HistoDataModule:
         raise NotImplementedError
 
     def get_slides_dataset(self) -> Optional[SlidesDataset]:
@@ -336,7 +363,7 @@ class BaseMILTiles(BaseMIL):
     )
 
     def get_label_column(self) -> str:
-        return self.data_module.train_dataset.label_column
+        return self.get_data_module_for_runner_mode().train_dataset.label_column
 
     def setup(self) -> None:
         super().setup()
