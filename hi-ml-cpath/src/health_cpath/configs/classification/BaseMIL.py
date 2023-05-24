@@ -109,9 +109,6 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
     )
 
     def __init__(self, **kwargs: Any) -> None:
-        """
-        :param eval_num_classes: Number of classes to use when running in eval mode. This is provided because
-            the eval dataset may not contain all classes that the model was trained on. Defaults to 2."""
         super().__init__(**kwargs)
         self.data_module: Optional[HistoDataModule] = None
         self.run_extra_val_epoch = True  # Enable running an additional validation step to save tiles/slides thumbnails
