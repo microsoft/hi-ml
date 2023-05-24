@@ -44,12 +44,6 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
     class_names: Optional[Sequence[str]] = param.List(
         None, item_type=str, doc="List of class names. If `None`, defaults to `('0', '1', ...)`."
     )
-    eval_num_classes: int = param.Integer(
-        1,
-        bounds=(1, None),
-        doc="Number of classes. This is only used to instantiate the classifier layer when the runner is working in "
-        "`eval_full` mode. Defaults to 1 (binary classification).",
-    )
     # Data module parameters:
     batch_size: int = param.Integer(16, bounds=(1, None), doc="Number of slides to load per batch.")
     batch_size_inf: int = param.Integer(16, bounds=(1, None), doc="Number of slides per batch during inference.")
@@ -254,7 +248,7 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
         """Gets the data module that the model is using from the private data_module field. If it is not set yet, it
         is set from either the training or the evaluation data module, depending on the runner mode.
 
-        :return: A data module.
+        :return: A data module for either training or evaluation, depending on the runner mode.
         """
         if self.data_module is None:
             if self.runner_mode == RunnerMode.TRAIN:
@@ -267,15 +261,12 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
 
     def get_num_classes(self) -> int:
         """Gets the number of classes that the model handles. In training mode, this is the number of classes in the
-        training dataset. In evaluation mode, this is read directly from the `eval_num_classes` attribute.
+        training dataset. In evaluation mode, this is the number of classes in the test dataset.
 
-        This method has a side effect in training mode: It creates the data module if it is not yet set in the
-        `data_module` attribute.
+        This method has a side effect: It creates the data module if it is not yet set in the `data_module` attribute.
         """
         if self.runner_mode == RunnerMode.EVAL_FULL:
-            # We are in evaluation mode, so we don't necessarilty have access to the training data module. The eval
-            # data module may not contain all classes, so we need to hardcode those values.
-            return self.eval_num_classes
+            return self.get_data_module_for_runner_mode().test_dataset.n_classes
         else:
             return self.get_data_module_for_runner_mode().train_dataset.n_classes
 

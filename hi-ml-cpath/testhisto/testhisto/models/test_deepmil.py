@@ -841,52 +841,67 @@ def test_create_model_in_eval_mode(tmp_path: Path, runner_mode: RunnerMode) -> N
     eval_runner = EvalRunner(
         container=container, experiment_config=ExperimentConfig(mode=runner_mode), project_root=tmp_path
     )
-    # These mock values are only used for the normal "TRAIN" mode
-    get_data_module = MagicMock(
-        return_value=MagicMock(class_weights=torch.ones(2), train_dataset=MagicMock(n_classes=2))
-    )
-    with patch.multiple(
-        "health_cpath.configs.classification.BaseMIL.BaseMIL", get_data_module=get_data_module, get_label_column=DEFAULT
-    ):
-        eval_runner.setup()
-        if runner_mode == RunnerMode.TRAIN:
-            get_data_module.assert_called_once()
-        else:
-            get_data_module.assert_not_called()
-
-
-def test_setup_model_in_eval_mode(tmp_path: Path) -> None:
-    """When the runner is in eval mode, ensure a checkpoint can be loaded correctly."""
-    # Mock a training dataset with two classes, but this is represented as n_classes=1 in the run we are trying
-    # to repro here
     get_data_module = MagicMock(
         return_value=MagicMock(class_weights=torch.ones(2), train_dataset=MagicMock(n_classes=1))
+    )
+    get_eval_data_module = MagicMock(
+        return_value=MagicMock(class_weights=torch.ones(2), test_dataset=MagicMock(n_classes=1))
     )
     with patch.multiple(
         "health_cpath.configs.classification.BaseMIL.BaseMIL",
         get_data_module=get_data_module,
-        get_label_column=MagicMock(return_value="label"),
-        get_eval_data_module=MagicMock(return_value=LightningDataModule.from_datasets([], [], [])),
+        get_eval_data_module=get_eval_data_module,
+        get_label_column=DEFAULT,
     ):
-        container_orig = BaseMIL(encoder_type="Resnet18", pool_type="MeanPoolingLayer")
-        model = container_orig.create_model()
-        # Create a trainer to save a checkpoint only
-        trainer = Trainer()
-        trainer.strategy.model = model
-        checkpoint = tmp_path / "model.ckpt"
-        trainer.save_checkpoint(checkpoint)
-        # Now create the model again and run it in eval mode, loading the checkpoint
-        container = BaseMIL(encoder_type="Resnet18", pool_type="MeanPoolingLayer")
-        container.src_checkpoint = CheckpointParser(str(checkpoint))
-        eval_runner = EvalRunner(
-            container=container, experiment_config=ExperimentConfig(mode=RunnerMode.EVAL_FULL), project_root=tmp_path
-        )
         eval_runner.setup()
-        # Before bug fix:
-        # Error(s) in loading state_dict for DeepMILModule:
-        # 	Unexpected key(s) in state_dict: "loss_fn.pos_weight", "loss_fn_no_reduction.pos_weight".
-        # 	size mismatch for classifier_fn.weight: copying a param with shape torch.Size([1, 512]) from checkpoint,
-        #       the shape in current model is torch.Size([2, 512]).
-        # 	size mismatch for classifier_fn.bias: copying a param with shape torch.Size([1]) from checkpoint,
-        #       the shape in current model is torch.Size([2]).
-        eval_runner.run()
+        if runner_mode == RunnerMode.TRAIN:
+            get_data_module.assert_called_once()
+            get_eval_data_module.assert_not_called()
+        else:
+            get_data_module.assert_not_called()
+            get_eval_data_module.assert_called_once()
+
+
+def test_run_model_in_eval_mode(tmp_path: Path) -> None:
+    """When the runner is in eval mode, ensure a checkpoint can be loaded correctly."""
+    # Mock a training dataset with two classes, but this is represented as n_classes=1 in the run we are trying
+    # to repro here
+    one_class_dataset = MagicMock(n_classes=1)
+    class_weights = torch.ones(2)
+    get_data_module = MagicMock(return_value=MagicMock(class_weights=class_weights, train_dataset=one_class_dataset))
+    with patch.multiple(
+        "health_cpath.datamodules.base_module.HistoDataModule",
+        get_splits=MagicMock(return_value=(MagicMock(), MagicMock(), one_class_dataset)),
+        _get_dataloader=MagicMock(return_value=DataLoader(one_class_dataset)),
+    ):
+        eval_data_module = HistoDataModule(tmp_path)
+        with patch.multiple(
+            "health_cpath.configs.classification.BaseMIL.BaseMIL",
+            get_data_module=get_data_module,
+            get_label_column=MagicMock(return_value="label"),
+            get_eval_data_module=MagicMock(return_value=eval_data_module),
+        ):
+            container_orig = BaseMIL(encoder_type="Resnet18", pool_type="MeanPoolingLayer")
+            model = container_orig.create_model()
+            # Create a trainer to save a checkpoint only
+            trainer = Trainer()
+            trainer.strategy.model = model
+            checkpoint = tmp_path / "model.ckpt"
+            trainer.save_checkpoint(checkpoint)
+            # Now create the model again and run it in eval mode, loading the checkpoint
+            container = BaseMIL(encoder_type="Resnet18", pool_type="MeanPoolingLayer")
+            container.src_checkpoint = CheckpointParser(str(checkpoint))
+            eval_runner = EvalRunner(
+                container=container,
+                experiment_config=ExperimentConfig(mode=RunnerMode.EVAL_FULL),
+                project_root=tmp_path,
+            )
+            eval_runner.setup()
+            # Before bug fix:
+            # Error(s) in loading state_dict for DeepMILModule:
+            # 	Unexpected key(s) in state_dict: "loss_fn.pos_weight", "loss_fn_no_reduction.pos_weight".
+            # 	size mismatch for classifier_fn.weight: copying a param with shape torch.Size([1, 512]) from checkpoint,
+            #       the shape in current model is torch.Size([2, 512]).
+            # 	size mismatch for classifier_fn.bias: copying a param with shape torch.Size([1]) from checkpoint,
+            #       the shape in current model is torch.Size([2]).
+            eval_runner.run()
