@@ -2,23 +2,20 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from copy import deepcopy
 import os
-from pytorch_lightning import Trainer
-import torch
-import pytest
+from copy import deepcopy
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 from typing import Any, Callable, Dict, Iterable, List, Optional, Type
+from unittest.mock import MagicMock, patch, DEFAULT
 
-from torch import Tensor, argmax, nn, rand, randint, randn, round, stack, allclose
+import pytest
+import torch
+from pytorch_lightning import LightningDataModule, Trainer
+from torch import Tensor, allclose, argmax, nn, rand, randint, randn, round, stack
+from torch.utils.data import DataLoader
 from torch.utils.data._utils.collate import default_collate
-from health_cpath.configs.classification.DeepSMILESlidesPandaBenchmark import SlidesPandaSSLMILBenchmark
-from health_cpath.datamodules.panda_module import PandaTilesDataModule
 
-from health_ml.networks.layers.attention_layers import AttentionLayer, TransformerPoolingBenchmark
 from health_cpath.configs.classification.BaseMIL import BaseMIL, BaseMILTiles
-
 from health_cpath.configs.classification.DeepSMILECrck import DeepSMILECrck, TcgaCrckSSLMIL
 from health_cpath.configs.classification.DeepSMILEPanda import (
     BaseDeepSMILEPanda,
@@ -26,7 +23,10 @@ from health_cpath.configs.classification.DeepSMILEPanda import (
     SlidesPandaSSLMIL,
     TilesPandaSSLMIL,
 )
+from health_cpath.configs.classification.DeepSMILESlidesPandaBenchmark import SlidesPandaSSLMILBenchmark
+from health_cpath.configs.run_ids import innereye_ssl_checkpoint_binary, innereye_ssl_checkpoint_crck_4ws
 from health_cpath.datamodules.base_module import HistoDataModule, TilesDataModule
+from health_cpath.datamodules.panda_module import PandaTilesDataModule
 from health_cpath.datasets.base_dataset import DEFAULT_LABEL_COLUMN, TilesDataset
 from health_cpath.datasets.default_paths import PANDA_5X_TILES_DATASET_ID, TCGA_CRCK_DATASET_DIR
 from health_cpath.models.deepmil import DeepMILModule
@@ -40,15 +40,16 @@ from health_cpath.models.encoders import (
 )
 from health_cpath.utils.deepmil_utils import ClassifierParams, EncoderParams, PoolingParams
 from health_cpath.utils.naming import DeepMILSubmodules, MetricsKey, ResultsKey, SlideKey
-from testhisto.mocks.base_data_generator import MockHistoDataType
-from testhisto.mocks.tiles_generator import MockPandaTilesGenerator
-from testhisto.mocks.container import MockDeepSMILETilesPanda, MockDeepSMILESlidesPanda
-from health_ml.utils.common_utils import is_gpu_available
+from health_ml.eval_runner import EvalRunner
+from health_ml.experiment_config import ExperimentConfig, RunnerMode
+from health_ml.networks.layers.attention_layers import AttentionLayer, TransformerPoolingBenchmark
 from health_ml.utils.checkpoint_utils import CheckpointParser
-from health_cpath.configs.run_ids import innereye_ssl_checkpoint_crck_4ws, innereye_ssl_checkpoint_binary
-from testhisto.models.test_encoders import TEST_SSL_RUN_ID
-from torch.utils.data import DataLoader
+from health_ml.utils.common_utils import is_gpu_available
 
+from testhisto.mocks.base_data_generator import MockHistoDataType
+from testhisto.mocks.container import MockDeepSMILESlidesPanda, MockDeepSMILETilesPanda
+from testhisto.mocks.tiles_generator import MockPandaTilesGenerator
+from testhisto.models.test_encoders import TEST_SSL_RUN_ID
 
 no_gpu = not is_gpu_available()
 
@@ -707,7 +708,10 @@ def test_checkpoint_name(
 def test_on_run_extra_val_epoch(mock_panda_tiles_root_dir: Path) -> None:
     container = MockDeepSMILETilesPanda(tmp_path=mock_panda_tiles_root_dir)
     container.setup()
-    container.data_module = MagicMock()
+    num_classes = 6
+    container.data_module = MagicMock(
+        class_weights=torch.ones(num_classes), train_dataset=MagicMock(n_classes=num_classes)
+    )
     container.create_lightning_module_and_store()
     assert not container.model._on_extra_val_epoch
     assert (
@@ -828,3 +832,76 @@ def test_encoder_checkpointning(
         custom_forward.return_value = torch.zeros(container.max_bag_size, feature_dim)
         _, _ = model_ckpt_enc(sample[SlideKey.IMAGE][0])
         custom_forward.assert_called_once()
+
+
+@pytest.mark.parametrize("runner_mode", [RunnerMode.TRAIN, RunnerMode.EVAL_FULL])
+def test_create_model_in_eval_mode(tmp_path: Path, runner_mode: RunnerMode) -> None:
+    """When the runner is in eval mode, the call to create_model should not instantiate the training data loader."""
+    container = BaseMIL(encoder_type="Resnet18", pool_type="MeanPoolingLayer")
+    eval_runner = EvalRunner(
+        container=container, experiment_config=ExperimentConfig(mode=runner_mode), project_root=tmp_path
+    )
+    get_data_module = MagicMock(
+        return_value=MagicMock(class_weights=torch.ones(2), train_dataset=MagicMock(n_classes=1))
+    )
+    get_eval_data_module = MagicMock(
+        return_value=MagicMock(class_weights=torch.ones(2), test_dataset=MagicMock(n_classes=1))
+    )
+    with patch.multiple(
+        "health_cpath.configs.classification.BaseMIL.BaseMIL",
+        get_data_module=get_data_module,
+        get_eval_data_module=get_eval_data_module,
+        get_label_column=DEFAULT,
+    ):
+        eval_runner.setup()
+        if runner_mode == RunnerMode.TRAIN:
+            get_data_module.assert_called_once()
+            get_eval_data_module.assert_not_called()
+        else:
+            get_data_module.assert_not_called()
+            get_eval_data_module.assert_called_once()
+
+
+def test_run_model_in_eval_mode(tmp_path: Path) -> None:
+    """When the runner is in eval mode, ensure a checkpoint can be loaded correctly."""
+    # Mock a training dataset with two classes, but this is represented as n_classes=1 in the run we are trying
+    # to repro here
+    one_class_dataset = MagicMock(n_classes=1)
+    class_weights = torch.ones(2)
+    get_data_module = MagicMock(return_value=MagicMock(class_weights=class_weights, train_dataset=one_class_dataset))
+    with patch.multiple(
+        "health_cpath.datamodules.base_module.HistoDataModule",
+        get_splits=MagicMock(return_value=(MagicMock(), MagicMock(), one_class_dataset)),
+        _get_dataloader=MagicMock(return_value=DataLoader(one_class_dataset)),
+    ):
+        eval_data_module = HistoDataModule(tmp_path)
+        with patch.multiple(
+            "health_cpath.configs.classification.BaseMIL.BaseMIL",
+            get_data_module=get_data_module,
+            get_label_column=MagicMock(return_value="label"),
+            get_eval_data_module=MagicMock(return_value=eval_data_module),
+        ):
+            container_orig = BaseMIL(encoder_type="Resnet18", pool_type="MeanPoolingLayer")
+            model = container_orig.create_model()
+            # Create a trainer to save a checkpoint only
+            trainer = Trainer()
+            trainer.strategy.model = model
+            checkpoint = tmp_path / "model.ckpt"
+            trainer.save_checkpoint(checkpoint)
+            # Now create the model again and run it in eval mode, loading the checkpoint
+            container = BaseMIL(encoder_type="Resnet18", pool_type="MeanPoolingLayer")
+            container.src_checkpoint = CheckpointParser(str(checkpoint))
+            eval_runner = EvalRunner(
+                container=container,
+                experiment_config=ExperimentConfig(mode=RunnerMode.EVAL_FULL),
+                project_root=tmp_path,
+            )
+            eval_runner.setup()
+            # Before bug fix:
+            # Error(s) in loading state_dict for DeepMILModule:
+            # 	Unexpected key(s) in state_dict: "loss_fn.pos_weight", "loss_fn_no_reduction.pos_weight".
+            # 	size mismatch for classifier_fn.weight: copying a param with shape torch.Size([1, 512]) from checkpoint,
+            #       the shape in current model is torch.Size([2, 512]).
+            # 	size mismatch for classifier_fn.bias: copying a param with shape torch.Size([1]) from checkpoint,
+            #       the shape in current model is torch.Size([2]).
+            eval_runner.run()
