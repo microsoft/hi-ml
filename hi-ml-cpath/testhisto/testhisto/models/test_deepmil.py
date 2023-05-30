@@ -811,7 +811,7 @@ def test_encoder_checkpointning(
     # 1. Compare the loss and gradients of the encoder with and without checkpointing
     validate_loss_with_activations_checkpointing(train_dataloader, model_ckpt_enc, model_no_ckpt_enc, encoder_type)
 
-    if "Resnet" in encoder_type:  # SwinT and DenseNet requires images of 224 input size, mock tiles are 28
+    if "Resnet" in encoder_type:  # SwinT and DenseNet require images of 224 input size, mock tiles are 28
         # 2. Train the model with and without checkpointing and compare the encoder parameters
         trainer_no_ckpt = Trainer(max_epochs=1, limit_train_batches=2, limit_val_batches=2, limit_test_batches=2)
         trainer_no_ckpt.fit(model_no_ckpt_enc, train_dataloader, val_dataloader)

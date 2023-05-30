@@ -16,7 +16,7 @@ from torch.utils.checkpoint import checkpoint, checkpoint_sequential
 from torchvision.models import resnet18, resnet50, densenet121
 from torchvision.models.resnet import ResNet
 from torchvision.models.densenet import DenseNet
-from typing import Callable, Optional, Sequence, Tuple
+from typing import Any, Callable, Optional, Sequence, Tuple
 
 from health_cpath.utils.layer_utils import get_imagenet_preprocessing, load_weights_to_model, setup_feature_extractor
 
@@ -116,18 +116,18 @@ class ImageNetEncoder(TileEncoder):
         return setup_feature_extractor(pretrained_model, self.input_dim)
 
 
-class ResNetCheckpointingMixin:
-    """Mixin class for checkpointing activations in ResNet-based encoders."""
+class BaseCheckpointingMixin:
+    """Mixin class for checkpointing activations."""
 
     def __init__(
         self,
-        feature_extractor_fn: ResNet,
+        feature_extractor_fn: Any,
         batchnorm_momentum: Optional[float] = None,
         checkpoint_segments_size: int = 2,
         use_activation_checkpointing: bool = False,
     ) -> None:
         """
-        :param feature_extractor_fn: A ResNet model.
+        :param feature_extractor_fn: A feature extractor model.
         :param batchnorm_momentum: An optional momentum value to use for batch norm layers statistics updates when
             `use_activation_checkpointing` is True. If None (default), sqrt of the default momentum retrieved from the
             model is used to avoid running statistics from going out of sync due to activations checkpointing.
@@ -144,8 +144,8 @@ class ResNetCheckpointingMixin:
         self.validate()
 
     def validate(self) -> None:
-        """Validate that the feature extractor is a ResNet model."""
-        assert isinstance(self.feature_extractor_fn, ResNet), "Expected ResNet model for feature_extractor_fn argument."
+        """Validation checks for the feature extractor model."""
+        pass
 
     def _set_all_batch_norm_momentum_in_block(self, layer_block: nn.Sequential) -> None:
         """Set the momentum of batch norm layers in the given block to the value of `self.batchnorm_momentum`.
@@ -157,6 +157,22 @@ class ResNetCheckpointingMixin:
                 if isinstance(layer, nn.BatchNorm2d):
                     assert self.batchnorm_momentum is not None, "batchnorm_momentum must be set"
                     layer.momentum = self.batchnorm_momentum
+
+    def _set_batch_norm_momentum(self) -> None:
+        """Set the momentum of batch norm layers in the feature extractor model"""
+        raise NotImplementedError
+
+    def custom_forward(self, images: torch.Tensor) -> torch.Tensor:
+        """Custom forward pass that uses activation checkpointing to save memory."""
+        raise NotImplementedError
+
+
+class ResNetCheckpointingMixin(BaseCheckpointingMixin):
+    """Mixin class for checkpointing activations in ResNet-based encoders."""
+
+    def validate(self) -> None:
+        """Validate that the feature extractor is a ResNet model."""
+        assert isinstance(self.feature_extractor_fn, ResNet), "Expected ResNet model for feature_extractor_fn argument."
 
     def _set_batch_norm_momentum(self) -> None:
         """Set the momentum of batch norm layers in the ResNet model to avoid running statistics from going out of
@@ -404,7 +420,7 @@ class SwinTransformer_NoPreproc(SwinTransformerCheckpointingMixin, ImageNetEncod
         return pretrained_model, pretrained_model.num_features  # type: ignore
 
 
-class DenseNetCheckpointingMixin(ResNetCheckpointingMixin):
+class DenseNetCheckpointingMixin(BaseCheckpointingMixin):
     """Mixin class for checkpointing activations in DenseNet-based encoders."""
 
     def validate(self) -> None:
@@ -412,7 +428,7 @@ class DenseNetCheckpointingMixin(ResNetCheckpointingMixin):
         assert isinstance(self.feature_extractor_fn, DenseNet), "Expected DenseNet for feature_extractor_fn argument."
 
     def _set_batch_norm_momentum(self) -> None:
-        """Set the momentum of batch norm layers in the ResNet model to avoid running statistics from going out of
+        """Set the momentum of batch norm layers in the DenseNet model to avoid running statistics from going out of
         sync due to activations checkpointing. The forward pass is applied twice which results in double updates of
         these statistics. We can workaround that by using sqrt of default momentum retrieved from the
         feature_extractor_fn.
