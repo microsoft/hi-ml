@@ -15,6 +15,7 @@ from torchvision.models import resnet18
 from health_ml.utils.common_utils import DEFAULT_AML_CHECKPOINT_DIR
 from health_ml.utils.checkpoint_utils import LAST_CHECKPOINT_FILE_NAME, CheckpointDownloader
 from health_cpath.models.encoders import (
+    DenseNet121_NoPreproc,
     ImageNetEncoder,
     Resnet18,
     Resnet18_NoPreproc,
@@ -122,7 +123,9 @@ def test_resnet_checkpointing_bn_momentum(encoder_class: ImageNetEncoder, bn_mom
 
 
 @pytest.mark.parametrize(
-    "encoder_class", [Resnet18, Resnet18_NoPreproc, Resnet50, Resnet50_NoPreproc, SwinTransformer_NoPreproc]
+    "encoder_class", [
+        Resnet18, Resnet18_NoPreproc, Resnet50, Resnet50_NoPreproc, SwinTransformer_NoPreproc, DenseNet121_NoPreproc
+    ]
 )
 def test_custom_forward(encoder_class: ImageNetEncoder) -> None:
     encoder = encoder_class(tile_size=TILE_SIZE, use_activation_checkpointing=True)

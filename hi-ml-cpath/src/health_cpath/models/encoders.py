@@ -427,7 +427,7 @@ class DenseNetCheckpointingMixin(ResNetCheckpointingMixin):
         """Custom forward pass that uses activation checkpointing to save memory."""
         segments = self.checkpoint_segments_size
         features = checkpoint_sequential(self.feature_extractor_fn.features, segments, images)
-        out = nn.functional.relu(features, inplace=True)
+        out = nn.functional.relu(features)
         out = nn.functional.adaptive_avg_pool2d(out, (1, 1))
         out = torch.flatten(out, 1)
         out = self.feature_extractor_fn.classifier(out)
