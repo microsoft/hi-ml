@@ -147,16 +147,26 @@ class BaseCheckpointingMixin:
         """Validation checks for the feature extractor model."""
         pass
 
+    def _set_batch_norm_momentum_in_layer(self, layer: nn.Module) -> None:
+        """Set the momentum of batch norm layers in the given layer to the value of `self.batchnorm_momentum`.
+
+        :param layer: The layer to set the batch norm momentum for.
+        """
+        if isinstance(layer, nn.BatchNorm2d):
+            assert self.batchnorm_momentum is not None, "batchnorm_momentum must be set"
+            layer.momentum = self.batchnorm_momentum
+
     def _set_all_batch_norm_momentum_in_block(self, layer_block: nn.Sequential) -> None:
         """Set the momentum of batch norm layers in the given block to the value of `self.batchnorm_momentum`.
 
         :param layer_block: A block of layers to set the batch norm momentum for.
         """
         for sub_layer in layer_block:
-            for _, layer in sub_layer._modules.items():
-                if isinstance(layer, nn.BatchNorm2d):
-                    assert self.batchnorm_momentum is not None, "batchnorm_momentum must be set"
-                    layer.momentum = self.batchnorm_momentum
+            if len(sub_layer._modules) > 0:
+                for _, layer in sub_layer._modules.items():
+                    self._set_batch_norm_momentum_in_layer(layer)
+            else:
+                self._set_batch_norm_momentum_in_layer(sub_layer)
 
     def _set_batch_norm_momentum(self) -> None:
         """Set the momentum of batch norm layers in the feature extractor model"""
