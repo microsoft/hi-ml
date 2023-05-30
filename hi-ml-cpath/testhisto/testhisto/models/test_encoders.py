@@ -123,9 +123,8 @@ def test_resnet_checkpointing_bn_momentum(encoder_class: ImageNetEncoder, bn_mom
 
 
 @pytest.mark.parametrize(
-    "encoder_class", [
-        Resnet18, Resnet18_NoPreproc, Resnet50, Resnet50_NoPreproc, SwinTransformer_NoPreproc, DenseNet121_NoPreproc
-    ]
+    "encoder_class",
+    [Resnet18, Resnet18_NoPreproc, Resnet50, Resnet50_NoPreproc, SwinTransformer_NoPreproc, DenseNet121_NoPreproc],
 )
 def test_custom_forward(encoder_class: ImageNetEncoder) -> None:
     encoder = encoder_class(tile_size=TILE_SIZE, use_activation_checkpointing=True)
