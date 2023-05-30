@@ -469,8 +469,9 @@ class DenseNet121_NoPreproc(DenseNetCheckpointingMixin, ImageNetEncoder):
 
     def _get_encoder(self) -> Tuple[torch.nn.Module, int]:
         pretrained_model = self.create_feature_extractor_fn(pretrained=True)
+        num_features = pretrained_model.classifier.in_features
         pretrained_model.classifier = nn.Identity()
-        return pretrained_model, 1024
+        return pretrained_model, num_features
 
 
 class ImageNetSimCLREncoder(TileEncoder):
