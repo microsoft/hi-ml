@@ -421,8 +421,6 @@ class DenseNetCheckpointingMixin(ResNetCheckpointingMixin):
 
         self._set_all_batch_norm_momentum_in_block(self.feature_extractor_fn.features)
 
-
-
     def custom_forward(self, images: torch.Tensor) -> torch.Tensor:
         """Custom forward pass that uses activation checkpointing to save memory."""
         segments = self.checkpoint_segments_size
