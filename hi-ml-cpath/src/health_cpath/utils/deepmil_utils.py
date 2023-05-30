@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Optional, Tuple
 from health_ml.utils.checkpoint_utils import CheckpointParser
 from health_cpath.models.encoders import (
+    DenseNet121_NoPreproc,
     HistoSSLEncoder,
     ImageNetSimCLREncoder,
     SSLEncoder,
@@ -145,6 +146,15 @@ class EncoderParams(param.Parameterized):
                 n_channels=self.n_channels,
                 use_activation_checkpointing=self.use_encoder_checkpointing,
                 checkpoint_segments_size=self.checkpoint_segments_size,
+            )
+
+        elif self.encoder_type == DenseNet121_NoPreproc.__name__:
+            encoder = DenseNet121_NoPreproc(
+                tile_size=self.tile_size,
+                n_channels=self.n_channels,
+                use_activation_checkpointing=self.use_encoder_checkpointing,
+                checkpoint_segments_size=self.checkpoint_segments_size,
+                batchnorm_momentum=self.batchnorm_momentum,
             )
 
         elif self.encoder_type == ImageNetSimCLREncoder.__name__:

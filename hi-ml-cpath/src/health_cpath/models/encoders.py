@@ -13,8 +13,9 @@ from timm.models import swin_tiny_patch4_window7_224
 from timm.models.swin_transformer import SwinTransformer
 from torch import Tensor as T, nn
 from torch.utils.checkpoint import checkpoint, checkpoint_sequential
-from torchvision.models import resnet18, resnet50
+from torchvision.models import resnet18, resnet50, densenet121
 from torchvision.models.resnet import ResNet
+from torchvision.models.densenet import DenseNet
 from typing import Callable, Optional, Sequence, Tuple
 
 from health_cpath.utils.layer_utils import get_imagenet_preprocessing, load_weights_to_model, setup_feature_extractor
@@ -135,12 +136,27 @@ class ResNetCheckpointingMixin:
         :param use_activation_checkpointing: Whether to checkpoint activations during forward pass. This can be used
             to reduce the memory required to store gradients by checkpointing the activations (default=False).
         """
-        assert isinstance(feature_extractor_fn, ResNet), "Expected ResNet model for feature_extractor_fn argument."
         self.feature_extractor_fn = feature_extractor_fn
         self.checkpoint_segments_size = checkpoint_segments_size
         self.batchnorm_momentum = batchnorm_momentum
         if use_activation_checkpointing:
             self._set_batch_norm_momentum()
+        self.validate()
+
+    def validate(self) -> None:
+        """Validate that the feature extractor is a ResNet model."""
+        assert isinstance(self.feature_extractor_fn, ResNet), "Expected ResNet model for feature_extractor_fn argument."
+
+    def _set_all_batch_norm_momentum_in_block(self, layer_block: nn.Sequential) -> None:
+        """Set the momentum of batch norm layers in the given block to the value of `self.batchnorm_momentum`.
+
+        :param layer_block: A block of layers to set the batch norm momentum for.
+        """
+        for sub_layer in layer_block:
+            for _, layer in sub_layer._modules.items():
+                if isinstance(layer, nn.BatchNorm2d):
+                    assert self.batchnorm_momentum is not None, "batchnorm_momentum must be set"
+                    layer.momentum = self.batchnorm_momentum
 
     def _set_batch_norm_momentum(self) -> None:
         """Set the momentum of batch norm layers in the ResNet model to avoid running statistics from going out of
@@ -148,26 +164,17 @@ class ResNetCheckpointingMixin:
         these statistics. We can workaround that by using sqrt of default momentum retrieved from the
         feature_extractor_fn.
         """
-        if self.batchnorm_momentum is not None:
-            _momentum = self.batchnorm_momentum
-        else:
-            _momentum = math.sqrt(self.feature_extractor_fn.bn1.momentum)
-            self.batchnorm_momentum = _momentum
+        if self.batchnorm_momentum is None:
+            self.batchnorm_momentum = math.sqrt(self.feature_extractor_fn.bn1.momentum)
 
         # Set momentum for the first batch norm layer
-        self.feature_extractor_fn.bn1.momentum = _momentum
-
-        def _set_bn_momentum(layer_block: nn.Sequential) -> None:
-            for sub_layer in layer_block:
-                for _, layer in sub_layer._modules.items():
-                    if isinstance(layer, nn.BatchNorm2d):
-                        layer.momentum = _momentum
+        self.feature_extractor_fn.bn1.momentum = self.batchnorm_momentum
 
         # Fetch all nested batch norm layers and set momentum
-        _set_bn_momentum(self.feature_extractor_fn.layer1)
-        _set_bn_momentum(self.feature_extractor_fn.layer2)
-        _set_bn_momentum(self.feature_extractor_fn.layer3)
-        _set_bn_momentum(self.feature_extractor_fn.layer4)
+        self._set_all_batch_norm_momentum_in_block(self.feature_extractor_fn.layer1)
+        self._set_all_batch_norm_momentum_in_block(self.feature_extractor_fn.layer2)
+        self._set_all_batch_norm_momentum_in_block(self.feature_extractor_fn.layer3)
+        self._set_all_batch_norm_momentum_in_block(self.feature_extractor_fn.layer4)
 
     def custom_forward(self, images: torch.Tensor) -> torch.Tensor:
         """Custom forward pass that uses activation checkpointing to save memory."""
@@ -395,6 +402,75 @@ class SwinTransformer_NoPreproc(SwinTransformerCheckpointingMixin, ImageNetEncod
     def _get_encoder(self) -> Tuple[torch.nn.Module, int]:
         pretrained_model = self.create_feature_extractor_fn(pretrained=True, num_classes=0)
         return pretrained_model, pretrained_model.num_features  # type: ignore
+
+
+class DenseNetCheckpointingMixin(ResNetCheckpointingMixin):
+    """Mixin class for checkpointing activations in DenseNet-based encoders."""
+
+    def validate(self) -> None:
+        assert isinstance(self.feature_extractor_fn, DenseNet), "Expected DenseNet for feature_extractor_fn argument."
+
+    def _set_batch_norm_momentum(self) -> None:
+        """Set the momentum of batch norm layers in the ResNet model to avoid running statistics from going out of
+        sync due to activations checkpointing. The forward pass is applied twice which results in double updates of
+        these statistics. We can workaround that by using sqrt of default momentum retrieved from the
+        feature_extractor_fn.
+        """
+        if self.batchnorm_momentum is None:
+            self.batchnorm_momentum = math.sqrt(self.feature_extractor_fn.features.norm0.momentum)
+
+        self._set_all_batch_norm_momentum_in_block(self.feature_extractor_fn.features)
+
+
+
+    def custom_forward(self, images: torch.Tensor) -> torch.Tensor:
+        """Custom forward pass that uses activation checkpointing to save memory."""
+        segments = self.checkpoint_segments_size
+        features = checkpoint_sequential(self.feature_extractor_fn.features, segments, images)
+        out = nn.functional.relu(images, inplace=True)
+        out = nn.functional.adaptive_avg_pool2d(out, (1, 1))
+        out = torch.flatten(out, 1)
+        out = self.feature_extractor_fn.classifier(out)
+        return out
+
+
+class DenseNet121_NoPreproc(DenseNetCheckpointingMixin, ImageNetEncoder):
+    """DenseNet121 encoder without imagenet preprocessing."""
+
+    def __init__(
+        self,
+        tile_size: int = 224,
+        n_channels: int = 3,
+        use_activation_checkpointing: bool = False,
+        checkpoint_segments_size: int = 2,
+        batchnorm_momentum: Optional[float] = None,
+    ) -> None:
+        """
+        :param tile_size: The size of the input tiles (default=224).
+        :param n_channels: The number of channels in the input tiles (default=3).
+        :param use_activation_checkpointing: Whether to checkpoint activations during forward pass. This can be used
+            to reduce the memory required to store gradients by checkpointing the activations (default=False).
+        :param checkpoint_segments_size: The size of checkpointed segments in sequential layers (default=2).
+        :param batchnorm_momentum: An optional momentum value to use for batch norm layers statistics updates when
+            `use_activation_checkpointing` is True. If None (default), sqrt of the default momentum retrieved from the
+            model is used to avoid running statistics from going out of sync due to activations checkpointing.
+        """
+        ImageNetEncoder.__init__(
+            self,
+            feature_extraction_model=densenet121,
+            tile_size=tile_size,
+            n_channels=n_channels,
+            apply_imagenet_preprocessing=False,
+            use_activation_checkpointing=use_activation_checkpointing,
+        )
+        DenseNetCheckpointingMixin.__init__(
+            self, self.feature_extractor_fn, batchnorm_momentum, checkpoint_segments_size, use_activation_checkpointing
+        )
+
+    def _get_encoder(self) -> Tuple[torch.nn.Module, int]:
+        pretrained_model = self.create_feature_extractor_fn(pretrained=True)
+        pretrained_model.classifier = nn.Identity()
+        return pretrained_model, 1024
 
 
 class ImageNetSimCLREncoder(TileEncoder):
