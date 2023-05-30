@@ -408,6 +408,7 @@ class DenseNetCheckpointingMixin(ResNetCheckpointingMixin):
     """Mixin class for checkpointing activations in DenseNet-based encoders."""
 
     def validate(self) -> None:
+        """Validate that the feature extractor is a DenseNet model."""
         assert isinstance(self.feature_extractor_fn, DenseNet), "Expected DenseNet for feature_extractor_fn argument."
 
     def _set_batch_norm_momentum(self) -> None:
@@ -467,7 +468,7 @@ class DenseNet121_NoPreproc(DenseNetCheckpointingMixin, ImageNetEncoder):
 
     def _get_encoder(self) -> Tuple[torch.nn.Module, int]:
         pretrained_model = self.create_feature_extractor_fn(pretrained=True)
-        num_features = pretrained_model.classifier.in_features
+        num_features: int = pretrained_model.classifier.in_features  # type: ignore
         pretrained_model.classifier = nn.Identity()
         return pretrained_model, num_features
 
