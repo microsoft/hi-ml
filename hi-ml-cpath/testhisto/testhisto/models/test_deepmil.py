@@ -31,6 +31,7 @@ from health_cpath.datasets.base_dataset import DEFAULT_LABEL_COLUMN, TilesDatase
 from health_cpath.datasets.default_paths import PANDA_5X_TILES_DATASET_ID, TCGA_CRCK_DATASET_DIR
 from health_cpath.models.deepmil import DeepMILModule
 from health_cpath.models.encoders import (
+    DenseNet121_NoPreproc,
     IdentityEncoder,
     ImageNetEncoder,
     Resnet18,
@@ -764,7 +765,7 @@ def validate_loss_with_activations_checkpointing(
     limit = 2
 
     for batch_idx, batch in enumerate(dataloader):
-        if encoder_type == SwinTransformer_NoPreproc.__name__:
+        if "Resnet" not in encoder_type:
             batch[SlideKey.IMAGE] = [torch.randint(0, 255, (4, 3, 224, 224), dtype=torch.uint8) / 255.0] * 2
         loss_ckpt_enc = _get_loss(model_ckpt_enc, batch, batch_idx)
         loss_no_ckpt_enc = _get_loss(model_no_ckpt_enc, batch, batch_idx)
@@ -781,6 +782,7 @@ def validate_loss_with_activations_checkpointing(
         (Resnet18.__name__, 512, None),
         (Resnet50.__name__, 2048, 0.1),
         (SwinTransformer_NoPreproc.__name__, 768, 0.1),
+        (DenseNet121_NoPreproc.__name__, 1024, 0.1),
     ],
 )
 def test_encoder_checkpointning(
@@ -809,7 +811,7 @@ def test_encoder_checkpointning(
     # 1. Compare the loss and gradients of the encoder with and without checkpointing
     validate_loss_with_activations_checkpointing(train_dataloader, model_ckpt_enc, model_no_ckpt_enc, encoder_type)
 
-    if encoder_type != SwinTransformer_NoPreproc.__name__:  # SwinT requires images of 224 input size, mock tiles are 28
+    if "Resnet" in encoder_type:  # SwinT and DenseNet require images of 224 input size, mock tiles are 28
         # 2. Train the model with and without checkpointing and compare the encoder parameters
         trainer_no_ckpt = Trainer(max_epochs=1, limit_train_batches=2, limit_val_batches=2, limit_test_batches=2)
         trainer_no_ckpt.fit(model_no_ckpt_enc, train_dataloader, val_dataloader)
@@ -822,7 +824,7 @@ def test_encoder_checkpointning(
 
     # 3. Check that the custom forward is called only when checkpointing is enabled
     sample = next(iter(train_dataloader))
-    if encoder_type == SwinTransformer_NoPreproc.__name__:
+    if "Resnet" not in encoder_type:
         sample[SlideKey.IMAGE][0] = torch.randint(0, 255, (4, 3, 224, 224), dtype=torch.uint8) / 255.0
     with patch.object(model_no_ckpt_enc.encoder, "custom_forward") as custom_forward:
         _, _ = model_no_ckpt_enc(sample[SlideKey.IMAGE][0])
