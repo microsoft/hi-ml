@@ -7,6 +7,7 @@ from typing import List, Mapping, Optional, Sequence, Tuple, Union, Callable, Di
 
 import torch
 import numpy as np
+import cupy as cp
 import PIL
 from PIL import PngImagePlugin
 from monai.config.type_definitions import KeysCollection
@@ -20,6 +21,9 @@ from torchvision.transforms.functional import to_tensor
 from health_cpath.models.encoders import TileEncoder
 from health_cpath.preprocessing.create_tiles_dataset import get_tile_id
 from health_cpath.utils.naming import SlideKey, TileKey
+
+from cucim.core.operations.color import stain_normalizer
+import torchstain
 
 PathOrString = Union[Path, str]
 
@@ -379,4 +383,40 @@ class NormalizeBackgroundd(MapTransform):
         # Finally, we clip the values to [0, 255] and convert back to uint8
         torch.clip(data[self.image_key], 0, 255, out=data[self.image_key])
         data[self.image_key] = data[self.image_key].to(torch.uint8)
+        return data
+
+
+class StainNormCucimd(MapTransform):
+    """
+    Stain normalization using cucim-dicom (input range 0-255).
+    """
+
+    def __init__(self, image_key: str) -> None:
+        self.image_key = image_key
+
+    def __call__(self, data: Dict) -> Dict:
+        data[self.image_key] = stain_normalizer.normalize_colors_pca(cp.asarray(data[self.image_key]))
+        data[self.image_key] = torch.from_numpy(cp.asnumpy(data[self.image_key])).type(torch.uint8)
+        return data
+
+
+class StainNormMacenkod(MapTransform):
+    """
+    Macenko stain normalization (input range 0-1).
+    """
+
+    def __init__(self, image_key: str) -> None:
+        self.image_key = image_key
+
+    def __call__(self, data: Dict) -> Dict:
+        normalizer = torchstain.normalizers.MacenkoNormalizer(backend="torch")
+        image = data[self.image_key]
+        try:
+            # following example in https://github.com/EIDOSLAB/torchstain
+            image, _, _ = normalizer.normalize(image * 255.0)
+            image = image / 255.0
+            # This transform takes input in channels-first format but returns channels-last
+            data[self.image_key] = image.permute((2, 0, 1))
+        except Exception as e:
+            print(f"Error {e} occurred in slide: {data[SlideKey.SLIDE_ID]}")
         return data
