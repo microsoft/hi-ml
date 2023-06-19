@@ -31,6 +31,7 @@ from health_cpath.models.transforms import (
     EncodeTilesBatchd,
     ExtractCoordinatesd,
     LoadTiled,
+    StainNormMacenkod,
     TimerWrapper,
     LoadTilesBatchd,
     MetaTensorToTensord,
@@ -166,7 +167,7 @@ def test_cached_loading(tmp_path: Path) -> None:
 
 
 @pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR), reason="TCGA-CRCk tiles dataset is unavailable")
-@pytest.mark.parametrize('use_gpu , chunk_size', [(False, 0), (False, 2), (True, 0), (True, 2)])
+@pytest.mark.parametrize("use_gpu , chunk_size", [(False, 0), (False, 2), (True, 0), (True, 2)])
 def test_encode_tiles(tmp_path: Path, use_gpu: bool, chunk_size: int) -> None:
     tiles_dataset = TcgaCrck_TilesDataset(TCGA_CRCK_DATASET_DIR)
     image_key = tiles_dataset.IMAGE_COLUMN
@@ -193,25 +194,25 @@ def test_encode_tiles(tmp_path: Path, use_gpu: bool, chunk_size: int) -> None:
     )
 
 
-@pytest.mark.parametrize('include_non_indexable', [True, False])
-@pytest.mark.parametrize('allow_missing_keys', [True, False])
+@pytest.mark.parametrize("include_non_indexable", [True, False])
+@pytest.mark.parametrize("allow_missing_keys", [True, False])
 def test_subsample(include_non_indexable: bool, allow_missing_keys: bool) -> None:
     batch_size = 5
     max_size = batch_size // 2
     data = {
-        'array_1d': np.random.randn(batch_size),
-        'array_2d': np.random.randn(batch_size, 4),
-        'tensor_1d': torch.randn(batch_size),
-        'tensor_2d': torch.randn(batch_size, 4),
-        'list': torch.randn(batch_size).tolist(),
-        'indices': list(range(batch_size)),
-        'non-indexable': 42,
+        "array_1d": np.random.randn(batch_size),
+        "array_2d": np.random.randn(batch_size, 4),
+        "tensor_1d": torch.randn(batch_size),
+        "tensor_2d": torch.randn(batch_size, 4),
+        "list": torch.randn(batch_size).tolist(),
+        "indices": list(range(batch_size)),
+        "non-indexable": 42,
     }
 
     keys_to_subsample = list(data.keys())
     if not include_non_indexable:
-        keys_to_subsample.remove('non-indexable')
-    keys_to_subsample.append('missing-key')
+        keys_to_subsample.remove("non-indexable")
+    keys_to_subsample.append("missing-key")
 
     subsampling = Subsampled(keys_to_subsample, max_size=max_size, allow_missing_keys=allow_missing_keys)
     subsampling.set_random_state(seed=0)
@@ -236,39 +237,39 @@ def test_subsample(include_non_indexable: bool, allow_missing_keys: bool) -> Non
         assert len(sub_data[key]) == min(max_size, batch_size)  # type: ignore
 
     # Check contents of subsampled elements
-    for key in ['tensor_1d', 'tensor_2d', 'array_1d', 'array_2d', 'list']:
-        for idx, elem in zip(sub_data['indices'], sub_data[key]):
+    for key in ["tensor_1d", "tensor_2d", "array_1d", "array_2d", "list"]:
+        for idx, elem in zip(sub_data["indices"], sub_data[key]):
             assert np.array_equal(elem, data[key][idx])  # type: ignore
 
     # Check that the subsampled elements are not repeated
-    for key in ['array_1d', 'array_2d', 'tensor_1d', 'tensor_2d']:
+    for key in ["array_1d", "array_2d", "tensor_1d", "tensor_2d"]:
         assert sub_data[key].shape == np.unique(sub_data[key], axis=0).shape
-    for key in ['list']:
+    for key in ["list"]:
         assert len(sub_data[key]) == len(set(sub_data[key]))
 
     # Check that subsampling is random, i.e. subsequent calls shouldn't give identical results
     sub_data2 = subsampling(data)
-    for key in ['tensor_1d', 'tensor_2d', 'array_1d', 'array_2d', 'list']:
+    for key in ["tensor_1d", "tensor_2d", "array_1d", "array_2d", "list"]:
         assert not np.array_equal(sub_data[key], sub_data2[key])  # type: ignore
 
 
-@pytest.mark.parametrize('max_size', [2, 5])
+@pytest.mark.parametrize("max_size", [2, 5])
 def test_shuffle(max_size: int) -> None:
     batch_size = 5
     data = {
-        'array_1d': np.random.randn(batch_size),
-        'array_2d': np.random.randn(batch_size, 4),
-        'tensor_1d': torch.randn(batch_size),
-        'tensor_2d': torch.randn(batch_size, 4),
-        'list': torch.randn(batch_size).tolist(),
-        'indices': list(range(batch_size)),
-        'non-indexable': 42,
+        "array_1d": np.random.randn(batch_size),
+        "array_2d": np.random.randn(batch_size, 4),
+        "tensor_1d": torch.randn(batch_size),
+        "tensor_2d": torch.randn(batch_size, 4),
+        "list": torch.randn(batch_size).tolist(),
+        "indices": list(range(batch_size)),
+        "non-indexable": 42,
     }
     keys_to_subsample = list(data.keys())
     shuffling = Subsampled(keys_to_subsample, max_size=max_size, allow_missing_keys=True)
     shuffling.randomize(total_size=max_size)
     indices = shuffling._indices
-    assert len(indices) <= len(data['indices'])  # type: ignore
+    assert len(indices) <= len(data["indices"])  # type: ignore
     assert len(indices) == len(set(indices))
 
 
@@ -278,7 +279,7 @@ def test_transform_dict_adaptor() -> None:
     transf2 = transform_dict_adaptor(RandomHorizontalFlip(p=1), key, key)
     transf3 = transform_dict_adaptor(HEDJitter(0), key, key)
     input_tensor = torch.arange(24).view(2, 3, 2, 2)
-    input_dict = {'dummy': [], key: input_tensor}
+    input_dict = {"dummy": [], key: input_tensor}
     output_dict1 = transf1(input_dict)
     output_dict2 = transf2(input_dict)
     output_dict3 = transf3(input_dict)
@@ -319,7 +320,7 @@ def test_extract_coordinates_from_non_metatensor() -> None:
         _ = transform(sample)
 
 
-@pytest.mark.parametrize('wsi_is_cropped', [True, False])
+@pytest.mark.parametrize("wsi_is_cropped", [True, False])
 def test_extract_scale_factor(wsi_is_cropped: bool) -> None:
     sample = _get_sample(wsi_is_cropped=wsi_is_cropped)
     transform = ExtractCoordinatesd(tile_size=16, image_key=SlideKey.IMAGE)
@@ -327,7 +328,7 @@ def test_extract_scale_factor(wsi_is_cropped: bool) -> None:
     assert scale == (4 if wsi_is_cropped else 1)
 
 
-@pytest.mark.parametrize('wsi_is_cropped', [True, False])
+@pytest.mark.parametrize("wsi_is_cropped", [True, False])
 def test_extract_offset(wsi_is_cropped: bool) -> None:
     sample = _get_sample(wsi_is_cropped=wsi_is_cropped)
     transform = ExtractCoordinatesd(tile_size=16, image_key=SlideKey.IMAGE)
@@ -335,7 +336,7 @@ def test_extract_offset(wsi_is_cropped: bool) -> None:
     assert offset == ((2, 3) if wsi_is_cropped else (0, 0))
 
 
-@pytest.mark.parametrize('roi_type', [r for r in ROIType])
+@pytest.mark.parametrize("roi_type", [r for r in ROIType])
 def test_extract_coordinates_d_transform(roi_type: ROIType) -> None:
     tile_size = 16
     bag_size = 2
@@ -452,3 +453,16 @@ def test_normalize_background_d_transform_with_fixed_background_keys() -> None:
     assert torch.allclose(new_sample[SlideKey.IMAGE][0, 0], torch.tensor([182, 72, 159, 146], dtype=torch.uint8))
     assert torch.allclose(new_sample[SlideKey.IMAGE][1, 0], torch.tensor([37, 212, 255, 160], dtype=torch.uint8))
     assert torch.allclose(new_sample[SlideKey.IMAGE][2, 0], torch.tensor([135, 28, 170, 149], dtype=torch.uint8))
+
+
+def test_stain_norm_macenko_d_transform() -> None:
+    sample = _get_sample()
+    transform = StainNormMacenkod(image_key=SlideKey.IMAGE)
+    new_sample = transform(sample)
+    # check if the result is a tensor
+    assert isinstance(new_sample[SlideKey.IMAGE], torch.Tensor)
+    # check the range of the result
+    assert new_sample[SlideKey.IMAGE].min() >= 0
+    assert new_sample[SlideKey.IMAGE].max() <= 1
+    # check the shape of the result is same as input shape
+    assert new_sample[SlideKey.IMAGE].shape == sample[SlideKey.IMAGE].shape

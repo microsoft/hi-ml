@@ -392,6 +392,9 @@ class StainNormCucimd(MapTransform):
     """
 
     def __init__(self, image_key: str) -> None:
+        """
+        :param image_key: The key of the image to normalize.
+        """
         self.image_key = image_key
 
     def __call__(self, data: Dict) -> Dict:
@@ -402,7 +405,11 @@ class StainNormCucimd(MapTransform):
 
 class StainNormMacenkod(MapTransform):
     """
-    Macenko stain normalization (input range 0-1).
+    Macenko stain normalization based on Macenko, Marc et al.
+    "A method for normalizing histology slides for quantitative analysis."
+    2009 IEEE International Symposium on Biomedical Imaging: From Nano to Macro. IEEE, 2009.
+    Uses implementation from the torchstain library (https://github.com/EIDOSLAB/torchstain).
+    It requires an image tensor in channels-first format with values in the range [0, 1] as input.
     """
 
     def __init__(self, image_key: str) -> None:
@@ -415,7 +422,7 @@ class StainNormMacenkod(MapTransform):
             # following example in https://github.com/EIDOSLAB/torchstain
             image, _, _ = normalizer.normalize(image * 255.0)
             image = image / 255.0
-            # This transform takes input in channels-first format but returns channels-last
+            # This transform takes input in channels-first format but returns channels-last format
             data[self.image_key] = image.permute((2, 0, 1))
         except Exception as e:
             print(f"Error {e} occurred in slide: {data[SlideKey.SLIDE_ID]}")

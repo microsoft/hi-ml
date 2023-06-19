@@ -19,11 +19,11 @@ from sklearn.metrics import auc, precision_recall_curve, roc_curve, confusion_ma
 
 from health_cpath.utils.naming import ResultsKey
 
-TRAIN_STYLE = dict(ls="-")
-VAL_STYLE = dict(ls="--")
-BEST_EPOCH_LINE_STYLE = dict(ls=":", lw=1)
-BEST_TRAIN_MARKER_STYLE = dict(marker="o", markeredgecolor="w", markersize=6)
-BEST_VAL_MARKER_STYLE = dict(marker="*", markeredgecolor="w", markersize=11)
+TRAIN_STYLE = dict(ls='-')
+VAL_STYLE = dict(ls='--')
+BEST_EPOCH_LINE_STYLE = dict(ls=':', lw=1)
+BEST_TRAIN_MARKER_STYLE = dict(marker='o', markeredgecolor='w', markersize=6)
+BEST_VAL_MARKER_STYLE = dict(marker='*', markeredgecolor='w', markersize=11)
 
 
 def get_tsne_projection(features: List[Any], n_components: int = 2, n_jobs: int = -1, **kwargs: Any) -> List[Any]:
@@ -103,7 +103,7 @@ def plot_box_whisker(data_list: List[Any], column_names: List[str], show_outlier
     means = []
     for i in range(len(data_list)):
         means.append(np.mean(data_list[i]))
-    ax.plot(positions, means, "rs")
+    ax.plot(positions, means, 'rs')
     plt.xticks(positions, column_names)
     plt.title(title)
 
@@ -117,23 +117,20 @@ def plot_histogram(data: List[Any], title: str = "") -> None:
     """
     plt.figure()
     plt.hist(data, bins=50)
-    plt.gca().set(title=title, xlabel="Values", ylabel="Frequency")
+    plt.gca().set(title=title, xlabel='Values', ylabel='Frequency')
 
 
-def plot_roc_curve(
-    labels: Sequence, scores: Sequence, legend_label_pre: str, ax: Axes, legend_label_post: Optional[str] = ""
-) -> None:
+def plot_roc_curve(labels: Sequence, scores: Sequence, legend_label: str, ax: Axes) -> None:
     """Plot ROC curve for the given labels and scores, with AUROC in the line legend.
 
     :param labels: The true binary labels.
     :param scores: Scores predicted by the model.
-    :param legend_label_pre: An line identifier to be displayed in the legend (prefix to AUROC).
-    :param legend_label_post: An line identifier to be displayed in the legend (postfix to AUROC).
+    :param legend_label: An line identifier to be displayed in the legend.
     :param ax: `Axes` object onto which to plot.
     """
     fpr, tpr, _ = roc_curve(labels, scores)
     auroc = auc(fpr, tpr)
-    legend_label = f"{legend_label_pre}AUROC: {auroc:.2f}{legend_label_post}"
+    legend_label = f"{legend_label} (AUROC: {auroc:.3f})"
     ax.plot(fpr, tpr, label=legend_label)
 
 
@@ -157,10 +154,10 @@ def format_pr_or_roc_axes(plot_type: str, ax: Axes) -> None:
     :param plot_type: Either 'pr' or 'roc'.
     :param ax: `Axes` object to format.
     """
-    if plot_type == "pr":
+    if plot_type == 'pr':
         xlabel, ylabel = "Recall", "Precision"
-    elif plot_type == "roc":
-        xlabel, ylabel = "1-Specificity", "Sensitivity"
+    elif plot_type == 'roc':
+        xlabel, ylabel = "False positive rate", "True positive rate"
     else:
         raise ValueError(f"Plot type must be either 'pr' or 'roc' (received '{plot_type}')")
     ax.set_xlabel(xlabel)
@@ -168,7 +165,7 @@ def format_pr_or_roc_axes(plot_type: str, ax: Axes) -> None:
     ax.set_aspect(1)
     ax.set_xlim(-0.05, 1.05)
     ax.set_ylim(-0.05, 1.05)
-    ax.grid(color="0.9")
+    ax.grid(color='0.9')
 
 
 def _plot_hyperdrive_roc_and_pr_curves(
@@ -204,13 +201,13 @@ def _plot_hyperdrive_roc_and_pr_curves(
         # assert len(non_unique_slides) == 0
         scores = tile_scores.first()
 
-        plot_roc_curve(labels, scores, legend_label_pre=f"Child {k}", ax=roc_ax)
+        plot_roc_curve(labels, scores, legend_label=f"Child {k}", ax=roc_ax)
         plot_pr_curve(labels, scores, legend_label=f"Child {k}", ax=pr_ax)
-    legend_kwargs = dict(edgecolor="none", fontsize="small")
+    legend_kwargs = dict(edgecolor='none', fontsize='small')
     roc_ax.legend(**legend_kwargs)
     pr_ax.legend(**legend_kwargs)
-    format_pr_or_roc_axes("roc", roc_ax)
-    format_pr_or_roc_axes("pr", pr_ax)
+    format_pr_or_roc_axes('roc', roc_ax)
+    format_pr_or_roc_axes('pr', pr_ax)
 
 
 def plot_hyperdrive_roc_and_pr_curves(
@@ -261,7 +258,7 @@ def plot_hyperdrive_training_curves(
                 ax.plot(best_epoch, train_values[best_epoch], color=color, zorder=1000, **BEST_TRAIN_MARKER_STYLE)
                 ax.plot(best_epoch, val_values[best_epoch], color=color, zorder=1000, **BEST_VAL_MARKER_STYLE)
                 ax.axvline(best_epoch, color=color, **BEST_EPOCH_LINE_STYLE)
-    ax.grid(color="0.9")
+    ax.grid(color='0.9')
     ax.set_xlabel("Epoch")
     if ylabel:
         ax.set_ylabel(ylabel)
@@ -274,7 +271,7 @@ def add_training_curves_legend(fig: Figure, include_best_epoch: bool = False) ->
     :param include_best_epoch: If `True`, adds legend items for the best epoch indicators from
         :py:func:`plot_hyperdrive_training_curves()`.
     """
-    legend_kwargs = dict(edgecolor="none", fontsize="small", borderpad=0.2)
+    legend_kwargs = dict(edgecolor='none', fontsize='small', borderpad=0.2)
 
     # Add primary legend for main lines (hyperdrive runs)
     handles, labels = plt.gca().get_legend_handles_labels()
@@ -283,27 +280,27 @@ def add_training_curves_legend(fig: Figure, include_best_epoch: bool = False) ->
         by_label.values(),
         by_label.keys(),
         **legend_kwargs,
-        loc="lower center",
+        loc='lower center',
         bbox_to_anchor=(0.5, -0.06),
         ncol=len(by_label),
     )
 
     # Add secondary legend for line styles
     legend_handles = [
-        Line2D([], [], **TRAIN_STYLE, color="k", label="Training"),
-        Line2D([], [], **VAL_STYLE, color="k", label="Validation"),
+        Line2D([], [], **TRAIN_STYLE, color='k', label="Training"),
+        Line2D([], [], **VAL_STYLE, color='k', label="Validation"),
     ]
     if include_best_epoch:
         legend_handles.append(
-            Line2D([], [], **BEST_EPOCH_LINE_STYLE, **BEST_TRAIN_MARKER_STYLE, color="k", label="Best epoch (train)"),
+            Line2D([], [], **BEST_EPOCH_LINE_STYLE, **BEST_TRAIN_MARKER_STYLE, color='k', label="Best epoch (train)"),
         )
         legend_handles.append(
-            Line2D([], [], **BEST_EPOCH_LINE_STYLE, **BEST_VAL_MARKER_STYLE, color="k", label="Best epoch (val.)"),
+            Line2D([], [], **BEST_EPOCH_LINE_STYLE, **BEST_VAL_MARKER_STYLE, color='k', label="Best epoch (val.)"),
         )
     fig.legend(
         handles=legend_handles,
         **legend_kwargs,
-        loc="lower center",
+        loc='lower center',
         bbox_to_anchor=(0.5, -0.1),
         ncol=len(legend_handles),
     )
@@ -340,18 +337,18 @@ def plot_confusion_matrices(hyperdrive_dfs: Dict[int, pd.DataFrame], class_names
             )
         labels_pred = tile_labels_pred.first()
 
-        cf_matrix_n = confusion_matrix(y_true=labels_true, y_pred=labels_pred, normalize="true")
+        cf_matrix_n = confusion_matrix(y_true=labels_true, y_pred=labels_pred, normalize='true')
         sns.heatmap(
             cf_matrix_n,
             annot=True,
-            cmap="Blues",
+            cmap='Blues',
             fmt=".2%",
             ax=axs[ax_index],
             xticklabels=class_names,
             yticklabels=class_names,
         )
-        axs[ax_index].set_xlabel("Predicted")
-        axs[ax_index].set_ylabel("True")
-        axs[ax_index].set_title(f"Child {k}")
+        axs[ax_index].set_xlabel('Predicted')
+        axs[ax_index].set_ylabel('True')
+        axs[ax_index].set_title(f'Child {k}')
         ax_index += 1
     return fig
