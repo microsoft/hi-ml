@@ -16,6 +16,7 @@ from monai.data.meta_tensor import MetaTensor
 from health_azure.logging import elapsed_timer
 from health_ml.utils.box_utils import Box
 from torchvision.transforms.functional import to_tensor
+import torchstain
 
 from health_cpath.models.encoders import TileEncoder
 from health_cpath.preprocessing.create_tiles_dataset import get_tile_id
@@ -379,4 +380,30 @@ class NormalizeBackgroundd(MapTransform):
         # Finally, we clip the values to [0, 255] and convert back to uint8
         torch.clip(data[self.image_key], 0, 255, out=data[self.image_key])
         data[self.image_key] = data[self.image_key].to(torch.uint8)
+        return data
+
+
+class StainNormMacenkod(MapTransform):
+    """
+    Macenko stain normalization based on Macenko, Marc et al.
+    "A method for normalizing histology slides for quantitative analysis."
+    2009 IEEE International Symposium on Biomedical Imaging: From Nano to Macro. IEEE, 2009.
+    Uses implementation from the torchstain library (https://github.com/EIDOSLAB/torchstain).
+    It requires an image tensor in channels-first format with values in the range [0, 1] as input.
+    """
+
+    def __init__(self, image_key: str) -> None:
+        self.image_key = image_key
+
+    def __call__(self, data: Dict) -> Dict:
+        normalizer = torchstain.normalizers.MacenkoNormalizer(backend="torch")
+        image = data[self.image_key]
+        try:
+            # following example in https://github.com/EIDOSLAB/torchstain
+            image, _, _ = normalizer.normalize(image * 255.0)
+            image = image / 255.0
+            # This transform takes input in channels-first format but returns channels-last format
+            data[self.image_key] = image.permute((2, 0, 1))
+        except Exception as e:
+            print(f"Error {e} occurred in slide: {data[SlideKey.SLIDE_ID]}")
         return data
