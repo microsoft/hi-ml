@@ -26,6 +26,7 @@ from health_ml.lightning_container import LightningContainer
 from health_ml.runner import Runner, create_logging_filename, run_with_logging
 from health_ml.utils.common_utils import change_working_directory
 from health_ml.utils.fixed_paths import repository_root_directory
+from testhiml.utils_testhiml import DEFAULT_WORKSPACE
 
 
 @contextmanager
@@ -132,10 +133,9 @@ def test_ddp_debug_flag(debug_ddp: DebugDDPOptions, mock_runner: Runner) -> None
     model_name = "HelloWorld"
     arguments = ["", f"--debug_ddp={debug_ddp}", f"--model={model_name}"]
     with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_azure_if_needed:
-        with patch("health_ml.runner.get_workspace"):
-            with patch("health_ml.runner.Runner.run_in_situ"):
-                with patch.object(sys, "argv", arguments):
-                    mock_runner.run()
+        with patch("health_ml.runner.Runner.run_in_situ"):
+            with patch.object(sys, "argv", arguments):
+                mock_runner.run()
         mock_submit_to_azure_if_needed.assert_called_once()
         assert mock_submit_to_azure_if_needed.call_args[1]["environment_variables"][DEBUG_DDP_ENV_VAR] == debug_ddp
 
@@ -144,12 +144,9 @@ def test_additional_aml_run_tags(mock_runner: Runner) -> None:
     model_name = "HelloWorld"
     arguments = ["", f"--model={model_name}", "--cluster=foo"]
     with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_azure_if_needed:
-        with patch("health_ml.runner.check_conda_environment"):
-            with patch("health_ml.runner.get_workspace"):
-                with patch("health_ml.runner.get_ml_client"):
-                    with patch("health_ml.runner.Runner.run_in_situ"):
-                        with patch.object(sys, "argv", arguments):
-                            mock_runner.run()
+        with patch("health_ml.runner.Runner.run_in_situ"):
+            with patch.object(sys, "argv", arguments):
+                mock_runner.run()
         mock_submit_to_azure_if_needed.assert_called_once()
         assert "commandline_args" in mock_submit_to_azure_if_needed.call_args[1]["tags"]
         assert "tag" in mock_submit_to_azure_if_needed.call_args[1]["tags"]
@@ -162,9 +159,6 @@ def test_additional_environment_variables(mock_runner: Runner) -> None:
     with patch.multiple(
         "health_ml.runner",
         submit_to_azure_if_needed=DEFAULT,
-        check_conda_environment=DEFAULT,
-        get_workspace=DEFAULT,
-        get_ml_client=DEFAULT,
     ) as mocks:
         with patch("health_ml.runner.Runner.run_in_situ"):
             with patch("health_ml.runner.Runner.parse_and_load_model"):
@@ -185,9 +179,8 @@ def test_run(mock_runner: Runner) -> None:
     model_name = "HelloWorld"
     arguments = ["", f"--model={model_name}"]
     with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
-        with patch("health_ml.runner.get_workspace"):
-            with patch.object(sys, "argv", arguments):
-                model_config, azure_run_info = mock_runner.run()
+        with patch.object(sys, "argv", arguments):
+            model_config, azure_run_info = mock_runner.run()
         mock_run_in_situ.assert_called_once()
 
     assert model_config is not None  # for pyright
@@ -197,17 +190,13 @@ def test_run(mock_runner: Runner) -> None:
 
 
 @patch("health_ml.runner.choose_conda_env_file")
-@patch("health_ml.runner.get_workspace")
 @pytest.mark.fast
-def test_submit_to_azureml_if_needed(
-    mock_get_workspace: MagicMock, mock_get_env_files: MagicMock, mock_runner: Runner
-) -> None:
+def test_submit_to_azureml_if_needed(mock_get_env_files: MagicMock, mock_runner: Runner) -> None:
     def _mock_dont_submit_to_aml(
         input_datasets: List[DatasetConfig],
         submit_to_azureml: bool,
         strictly_aml_v1: bool,  # type: ignore
         environment_variables: Dict[str, Any],  # type: ignore
-        default_datastore: Optional[str],  # type: ignore
     ) -> AzureRunInfo:
         datasets_input = [d.target_folder for d in input_datasets] if input_datasets else []
         return AzureRunInfo(
@@ -221,10 +210,6 @@ def test_submit_to_azureml_if_needed(
         )
 
     mock_get_env_files.return_value = Path("some_file.txt")
-
-    mock_default_datastore = MagicMock()
-    mock_default_datastore.name.return_value = "dummy_datastore"
-    mock_get_workspace.get_default_datastore.return_value = mock_default_datastore
 
     with patch("health_ml.runner.create_dataset_configs") as mock_create_datasets:
         mock_create_datasets.return_value = []
@@ -334,11 +319,9 @@ def _test_hyperdrive_submission(
     # start in that temp folder.
     with change_working_folder_and_add_environment(mock_runner.project_root):
         with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
-            with patch("health_ml.runner.get_workspace"):
-                with patch("health_ml.runner.get_ml_client"):
-                    with patch.object(sys, "argv", arguments):
-                        with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
-                            mock_runner.run()
+            with patch.object(sys, "argv", arguments):
+                with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
+                    mock_runner.run()
             mock_run_in_situ.assert_called_once()
             mock_submit_to_aml.assert_called_once()
             # call_args is a tuple of (args, kwargs)
@@ -364,11 +347,9 @@ def test_submit_to_azure_docker(mock_runner: Runner) -> None:
     # start in that temp folder.
     with change_working_folder_and_add_environment(mock_runner.project_root):
         with patch("health_ml.runner.Runner.run_in_situ") as mock_run_in_situ:
-            with patch("health_ml.runner.get_ml_client"):
-                with patch("health_ml.runner.get_workspace"):
-                    with patch.object(sys, "argv", arguments):
-                        with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
-                            mock_runner.run()
+            with patch.object(sys, "argv", arguments):
+                with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_aml:
+                    mock_runner.run()
             mock_run_in_situ.assert_called_once()
             mock_submit_to_aml.assert_called_once()
             # call_args is a tuple of (args, kwargs)
@@ -393,16 +374,12 @@ def test_run_hello_world(mock_runner: Runner) -> None:
     """Test running a model end-to-end via the commandline runner"""
     model_name = "HelloWorld"
     arguments = ["", f"--model={model_name}"]
-    with patch("health_ml.runner.get_workspace") as mock_get_workspace:
-        with patch.object(sys, "argv", arguments):
-            mock_runner.run()
-        # get_workspace should not be called when using the runner outside AzureML, to not go through the
-        # time-consuming auth
-        mock_get_workspace.assert_not_called()
-        # Summary.txt is written at start, the other files during inference
-        expected_files = ["experiment_summary.txt", TEST_MSE_FILE, TEST_MAE_FILE]
-        for file in expected_files:
-            assert (mock_runner.lightning_container.outputs_folder / file).is_file(), f"Missing file: {file}"
+    with patch.object(sys, "argv", arguments):
+        mock_runner.run()
+    # Summary.txt is written at start, the other files during inference
+    expected_files = ["experiment_summary.txt", TEST_MSE_FILE, TEST_MAE_FILE]
+    for file in expected_files:
+        assert (mock_runner.lightning_container.outputs_folder / file).is_file(), f"Missing file: {file}"
 
 
 def test_invalid_args(mock_runner: Runner) -> None:
@@ -425,17 +402,37 @@ def test_invalid_profiler(mock_runner: Runner) -> None:
             mock_runner.run()
 
 
-def test_custom_datastore_outside_aml(mock_runner: Runner) -> None:
+def test_datastore_argument(mock_runner: Runner) -> None:
+    """The datastore argument should be respected"""
     model_name = "HelloWorld"
     datastore = "foo"
-    arguments = ["", f"--datastore={datastore}", f"--model={model_name}"]
+    dataset = "bar"
+    arguments = ["", f"--datastore={datastore}", f"--model={model_name}", f"--azure_datasets={dataset}"]
     with patch("health_ml.runner.submit_to_azure_if_needed") as mock_submit_to_azure_if_needed:
-        with patch("health_ml.runner.get_workspace"):
-            with patch("health_ml.runner.Runner.run_in_situ"):
-                with patch.object(sys, "argv", arguments):
-                    mock_runner.run()
+        with patch("health_ml.runner.Runner.run_in_situ"):
+            with patch.object(sys, "argv", arguments):
+                mock_runner.run()
         mock_submit_to_azure_if_needed.assert_called_once()
-        assert mock_submit_to_azure_if_needed.call_args[1]["default_datastore"] == datastore
+        input_datasets = mock_submit_to_azure_if_needed.call_args[1]["input_datasets"]
+        assert len(input_datasets) == 1
+        assert input_datasets[0].datastore == datastore
+        assert input_datasets[0].name == dataset
+
+
+def test_no_authentication_outside_azureml(mock_runner: Runner) -> None:
+    """No authentication should happen for a model that runs locally and needs no datasets."""
+    model_name = "HelloWorld"
+    arguments = ["", f"--datastore=datastore", f"--model={model_name}"]
+    with patch("health_ml.runner.Runner.run_in_situ"):
+        with patch.object(sys, "argv", arguments):
+            mock_get_workspace = MagicMock()
+            mock_get_ml_client = MagicMock()
+            with patch.multiple(
+                "health_azure.himl", get_workspace=mock_get_workspace, get_ml_client=mock_get_ml_client
+            ):
+                mock_runner.run()
+            mock_get_workspace.assert_not_called()
+            mock_get_ml_client.assert_not_called()
 
 
 @pytest.mark.fast
@@ -512,3 +509,111 @@ def test_run_without_logging(tmp_path: Path) -> None:
                 run_with_logging(tmp_path)
                 mock_create_filename.assert_not_called()
                 mock_run.assert_called_once()
+
+
+@pytest.mark.fast
+def test_runner_does_not_use_get_workspace() -> None:
+    """Test that the runner does not itself import get_workspace or get_ml_client (otherwise we would need to check
+    them in the tests below that count calls to those methods)"""
+    with pytest.raises(ImportError):
+        from health_ml.runner import get_workspace  # type: ignore
+    with pytest.raises(ImportError):
+        from health_ml.runner import get_ml_client  # type: ignore
+
+
+def test_runner_authenticates_once_v1() -> None:
+    """Test that the runner requires authentication only once when doing a job submission with the V1 SDK"""
+    runner = Runner(project_root=repository_root_directory())
+    mock_get_workspace = MagicMock()
+    mock_get_ml_client = MagicMock()
+    with patch.multiple(
+        "health_azure.himl",
+        get_workspace=mock_get_workspace,
+        get_ml_client=mock_get_ml_client,
+        Experiment=MagicMock(),
+        register_environment=MagicMock(return_value="env"),
+        validate_compute_cluster=MagicMock(),
+    ):
+        with patch.object(
+            sys,
+            "argv",
+            ["src/health_ml/runner.py", "--model=HelloWorld", "--cluster=pr-gpu", "--strictly_aml_v1"],
+        ):
+            # Job submission should trigger a system exit
+            with pytest.raises(SystemExit):
+                runner.run()
+            mock_get_workspace.assert_called_once()
+            mock_get_ml_client.assert_not_called()
+
+
+def test_runner_authenticates_once_v2() -> None:
+    """Test that the runner requires authentication only once when doing a job submission with the V2 SDK"""
+    runner = Runner(project_root=repository_root_directory())
+    mock_get_workspace = MagicMock()
+    mock_get_ml_client = MagicMock()
+    with patch.multiple(
+        "health_azure.himl",
+        get_workspace=mock_get_workspace,
+        get_ml_client=mock_get_ml_client,
+        command=MagicMock(),
+    ):
+        with patch.object(sys, "argv", ["", "--model=HelloWorld", "--cluster=pr-gpu"]):
+            # Job submission should trigger a system exit
+            with pytest.raises(SystemExit):
+                runner.run()
+            mock_get_workspace.assert_not_called()
+            mock_get_ml_client.assert_called_once()
+
+
+def test_runner_with_local_dataset_v1() -> None:
+    """Test that the runner requires authentication only once when doing a local run and a dataset has to be mounted"""
+    runner = Runner(project_root=repository_root_directory())
+    mock_get_workspace = MagicMock(return_value=DEFAULT_WORKSPACE.workspace)
+    mock_get_ml_client = MagicMock()
+    with patch.multiple(
+        "health_azure.himl",
+        get_workspace=mock_get_workspace,
+        get_ml_client=mock_get_ml_client,
+    ):
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "src/health_ml/runner.py",
+                "--model=HelloWorld",
+                "--strictly_aml_v1",
+                "--azure_datasets=hello_world",
+            ],
+        ):
+            runner.run()
+            mock_get_workspace.assert_called_once()
+            mock_get_ml_client.assert_not_called()
+
+
+@pytest.mark.parametrize("use_local_dataset", [True, False])
+def test_runner_with_local_dataset_v2(use_local_dataset: bool, tmp_path: Path) -> None:
+    """Test that the runner requires authentication only once when doing a local run with SDK v2"""
+    runner = Runner(project_root=repository_root_directory())
+    mock_get_workspace = MagicMock()
+    mock_get_ml_client = MagicMock(return_value=DEFAULT_WORKSPACE.ml_client)
+    with patch.multiple(
+        "health_azure.himl",
+        get_workspace=mock_get_workspace,
+        get_ml_client=mock_get_ml_client,
+    ):
+        args = [
+            "src/health_ml/runner.py",
+            "--model=HelloWorld",
+            f"--strictly_aml_v1=False",
+            "--azure_datasets=hello_world",
+        ]
+        if use_local_dataset:
+            args.append(f"--local_datasets={tmp_path}")
+        with patch.object(sys, "argv", args):
+            if use_local_dataset:
+                runner.run()
+            else:
+                with pytest.raises(ValueError, match="AzureML SDK v2 does not support downloading datasets from"):
+                    runner.run()
+            mock_get_workspace.assert_not_called()
+            mock_get_ml_client.assert_called_once()

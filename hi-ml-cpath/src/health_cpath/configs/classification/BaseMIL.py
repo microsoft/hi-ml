@@ -13,6 +13,7 @@ from pathlib import Path
 from monai.transforms import Compose
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
+import torch
 
 from health_azure.utils import create_from_matching_params
 from health_cpath.preprocessing.loading import LoadingParams
@@ -20,6 +21,7 @@ from health_cpath.utils.callbacks import LossAnalysisCallback, LossCallbackParam
 from health_cpath.utils.wsi_utils import TilingParams
 
 from health_ml.deep_learning_config import OptimizerParams
+from health_ml.experiment_config import RunnerMode
 from health_ml.lightning_container import LightningContainer
 from health_ml.utils.checkpoint_utils import CheckpointParser
 
@@ -102,6 +104,7 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
+        self.data_module: Optional[HistoDataModule] = None
         self.run_extra_val_epoch = True  # Enable running an additional validation step to save tiles/slides thumbnails
         metric_optim = "max" if self.maximise_primary_metric else "min"
         self.best_checkpoint_filename = f"checkpoint_{metric_optim}_val_{self.primary_val_metric.value}"
@@ -163,7 +166,7 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
         return set()
 
     def get_outputs_handler(self) -> DeepMILOutputsHandler:
-        n_classes = self.data_module.train_dataset.n_classes
+        n_classes = self.get_num_classes()
         outputs_handler = DeepMILOutputsHandler(
             outputs_root=self.outputs_folder,
             n_classes=n_classes,
@@ -241,14 +244,53 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
     def get_encoder_params(self) -> EncoderParams:
         return create_from_matching_params(self, EncoderParams)
 
+    def get_data_module_for_runner_mode(self) -> HistoDataModule:
+        """Gets the data module that the model is using from the private data_module field. If it is not set yet, it
+        is set from either the training or the evaluation data module, depending on the runner mode.
+
+        :return: A data module for either training or evaluation, depending on the runner mode.
+        """
+        if self.data_module is None:
+            if self.runner_mode == RunnerMode.TRAIN:
+                self.data_module = self.get_data_module()
+            elif self.runner_mode == RunnerMode.EVAL_FULL:
+                self.data_module = self.get_eval_data_module()
+            else:
+                raise ValueError(f"Unknown runner mode {self.runner_mode}")
+        return self.data_module
+
+    def get_num_classes(self) -> int:
+        """Gets the number of classes that the model handles. In training mode, this is the number of classes in the
+        training dataset. In evaluation mode, this is the number of classes in the test dataset.
+
+        This method has a side effect: It creates the data module if it is not yet set in the `data_module` attribute.
+        """
+        if self.runner_mode == RunnerMode.EVAL_FULL:
+            return self.get_data_module_for_runner_mode().test_dataset.n_classes
+        else:
+            return self.get_data_module_for_runner_mode().train_dataset.n_classes
+
+    def get_class_weights(self) -> torch.Tensor:
+        """Gets the class weights that the model should use. In training mode, this is the class weights from the
+        training data module. In evaluation mode, this is a tensor with all ones (the class weights will be loaded
+        from the checkpoint, so their value does not matter).
+
+        :return: A tensor if the model is used for training, None otherwise.
+        """
+        if self.runner_mode == RunnerMode.EVAL_FULL:
+            num_classes = self.get_num_classes()
+            return torch.ones(2 if num_classes == 1 else num_classes)
+        else:
+            return self.get_data_module_for_runner_mode().class_weights
+
     def create_model(self) -> DeepMILModule:
-        self.data_module = self.get_data_module()
+        num_classes = self.get_num_classes()
         outputs_handler = self.get_outputs_handler()
         deepmil_module = DeepMILModule(
             label_column=self.get_label_column(),
-            n_classes=self.data_module.train_dataset.n_classes,
+            n_classes=num_classes,
             class_names=self.class_names,
-            class_weights=self.data_module.class_weights,
+            class_weights=self.get_class_weights(),
             outputs_folder=self.outputs_folder,
             encoder_params=self.get_encoder_params(),
             pooling_params=create_from_matching_params(self, PoolingParams),
@@ -263,6 +305,9 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
         return deepmil_module
 
     def get_data_module(self) -> HistoDataModule:
+        raise NotImplementedError
+
+    def get_eval_data_module(self) -> HistoDataModule:
         raise NotImplementedError
 
     def get_slides_dataset(self) -> Optional[SlidesDataset]:
@@ -305,7 +350,7 @@ class BaseMILTiles(BaseMIL):
     )
 
     def get_label_column(self) -> str:
-        return self.data_module.train_dataset.label_column
+        return self.get_data_module_for_runner_mode().train_dataset.label_column
 
     def setup(self) -> None:
         super().setup()

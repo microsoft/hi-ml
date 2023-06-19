@@ -194,7 +194,7 @@ class ConvertWSIToTiffd(MapTransform):
         resolution_unit = wsi_obj.properties[self.RESOLUTION_UNIT_KEY]
 
         if resolution_unit != self.RESOLUTION_UNIT:
-            raise ValueError(f"Resolution unit is not in {self.RESOLUTION_UNIT}: {resolution_unit}")
+            logging.info(f"Resolution unit is not in {self.RESOLUTION_UNIT}: {resolution_unit}")
 
         options = dict(
             software=self.SOFTWARE,
@@ -214,7 +214,10 @@ class ConvertWSIToTiffd(MapTransform):
         :return: A tuple of floats (x_resolution, y_resolution)
         """
         um_per_cm = 10000
-        um_per_px = self.wsi_reader.get_mpp(wsi_obj, level=level)
+        try:
+            um_per_px = self.wsi_reader.get_mpp(wsi_obj, level=level)
+        except KeyError:
+            um_per_px = (wsi_obj.properties["openslide.mpp-x"], wsi_obj.properties["openslide.mpp-y"])
         px_per_cm = (um_per_cm / um_per_px[0], um_per_cm / um_per_px[1])
         return px_per_cm
 

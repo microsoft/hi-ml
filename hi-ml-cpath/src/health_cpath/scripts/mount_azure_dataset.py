@@ -21,7 +21,7 @@ def mount_dataset(dataset_id: str, tmp_root: str = "/tmp/datasets", aml_workspac
     ws = get_workspace(aml_workspace)
     target_folder = "/".join([tmp_root, dataset_id])
     dataset = DatasetConfig(name=dataset_id, target_folder=target_folder, use_mounting=True)
-    _, mount_ctx = dataset.to_input_dataset_local(strictly_aml_v1=True, workspace=ws)
+    _, mount_ctx = dataset.to_input_dataset_local(workspace=ws)
     assert mount_ctx is not None  # for mypy
     mount_ctx.start()
     return mount_ctx

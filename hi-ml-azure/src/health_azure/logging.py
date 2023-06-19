@@ -13,7 +13,6 @@ from typing import Generator, Optional, Union
 from health_azure.utils import ENV_LOCAL_RANK, check_is_any_of, is_global_rank_zero
 
 logging_stdout_handler: Optional[logging.StreamHandler] = None
-logging_to_file_handler: Optional[logging.StreamHandler] = None
 
 
 def logging_to_stdout(log_level: Union[int, str] = logging.INFO) -> None:

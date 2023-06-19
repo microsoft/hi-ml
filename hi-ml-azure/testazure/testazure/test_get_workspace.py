@@ -10,6 +10,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from azureml.core.authentication import ServicePrincipalAuthentication
+from azureml.exceptions._azureml_exception import UserErrorException
 from _pytest.logging import LogCaptureFixture
 import pytest
 from unittest.mock import MagicMock, patch
@@ -22,7 +23,6 @@ from health_azure.utils import (
     get_workspace,
 )
 from health_azure.utils import (
-    WORKSPACE_CONFIG_JSON,
     ENV_SERVICE_PRINCIPAL_ID,
     ENV_SERVICE_PRINCIPAL_PASSWORD,
     ENV_TENANT_ID,
@@ -141,13 +141,16 @@ def test_get_workspace_with_given_workspace() -> None:
 
 
 @pytest.mark.fast
-def test_get_workspace_searches_for_file() -> None:
+def test_get_workspace_searches_for_file(tmp_path: Path) -> None:
     """get_workspace should try to load a config.json file if not provided with one"""
-    found_file = Path("does_not_exist")
-    with patch("health_azure.utils.find_file_in_parent_to_pythonpath", return_value=found_file) as mock_find:
-        with pytest.raises(FileNotFoundError, match="Workspace config file does not exist"):
-            get_workspace(None, None)
-        mock_find.assert_called_once_with(WORKSPACE_CONFIG_JSON)
+    with change_working_directory(tmp_path):
+        found_file = Path("does_not_exist")
+        with patch("health_azure.utils.resolve_workspace_config_path", return_value=found_file) as mock_find:
+            with pytest.raises(
+                UserErrorException, match="workspace configuration file config.json, could not be found"
+            ):
+                get_workspace(None, None)
+            mock_find.assert_called_once_with(None)
 
 
 @pytest.mark.fast

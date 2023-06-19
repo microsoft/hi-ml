@@ -37,7 +37,7 @@ class DatasetSplits:
             :return: a Set of elements that appear in more than one collection
             """
             intersection = set()
-            for col1, col2 in combinations(map(set, collections), 2):
+            for col1, col2 in combinations(map(set, collections), 2):  # type: ignore
                 intersection |= col1 & col2
             return intersection
 
