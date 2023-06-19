@@ -13,7 +13,7 @@ import pytest
 import torch
 from monai.data.meta_tensor import MetaTensor
 from monai.data.dataset import CacheDataset, Dataset, PersistentDataset
-from monai.transforms import Compose
+from monai.transforms import Compose, ScaleIntensityRanged
 from monai.utils.enums import WSIPatchKeys
 from torch.utils.data import Dataset as TorchDataset
 from torch.utils.data import Subset
@@ -457,7 +457,13 @@ def test_normalize_background_d_transform_with_fixed_background_keys() -> None:
 
 def test_stain_norm_macenko_d_transform() -> None:
     sample = _get_sample()
-    transform = StainNormMacenkod(image_key=SlideKey.IMAGE)
+    transform = Compose(
+        [
+            ScaleIntensityRanged(keys=SlideKey.IMAGE, a_min=0.0, a_max=255.0),
+            MetaTensorToTensord(keys=SlideKey.IMAGE),
+            StainNormMacenkod(image_key=SlideKey.IMAGE),
+        ]
+    )
     new_sample = transform(sample)
     # check if the result is a tensor
     assert isinstance(new_sample[SlideKey.IMAGE], torch.Tensor)
