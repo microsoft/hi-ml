@@ -386,23 +386,6 @@ class NormalizeBackgroundd(MapTransform):
         return data
 
 
-class StainNormCucimd(MapTransform):
-    """
-    Stain normalization using cucim-dicom (input range 0-255).
-    """
-
-    def __init__(self, image_key: str) -> None:
-        """
-        :param image_key: The key of the image to normalize.
-        """
-        self.image_key = image_key
-
-    def __call__(self, data: Dict) -> Dict:
-        data[self.image_key] = stain_normalizer.normalize_colors_pca(cp.asarray(data[self.image_key]))
-        data[self.image_key] = torch.from_numpy(cp.asnumpy(data[self.image_key])).type(torch.uint8)
-        return data
-
-
 class StainNormMacenkod(MapTransform):
     """
     Macenko stain normalization based on Macenko, Marc et al.

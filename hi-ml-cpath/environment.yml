@@ -143,7 +143,6 @@ dependencies:
       - coverage==7.1.0
       - cryptography==39.0.2
       - cucim==22.10.0
-      - cupy-cuda113==9.4.0
       - cycler==0.11.0
       - databricks-cli==0.17.5
       - dataclasses-json==0.5.2
