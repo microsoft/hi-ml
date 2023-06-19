@@ -7,7 +7,6 @@ from typing import List, Mapping, Optional, Sequence, Tuple, Union, Callable, Di
 
 import torch
 import numpy as np
-import cupy as cp
 import PIL
 from PIL import PngImagePlugin
 from monai.config.type_definitions import KeysCollection
@@ -17,13 +16,11 @@ from monai.data.meta_tensor import MetaTensor
 from health_azure.logging import elapsed_timer
 from health_ml.utils.box_utils import Box
 from torchvision.transforms.functional import to_tensor
+import torchstain
 
 from health_cpath.models.encoders import TileEncoder
 from health_cpath.preprocessing.create_tiles_dataset import get_tile_id
 from health_cpath.utils.naming import SlideKey, TileKey
-
-from cucim.core.operations.color import stain_normalizer
-import torchstain
 
 PathOrString = Union[Path, str]
 
