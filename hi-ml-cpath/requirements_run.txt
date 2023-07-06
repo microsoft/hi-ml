@@ -10,7 +10,7 @@ numpy==1.22.0
 pillow==9.3.0
 pydicom==2.3.0
 scikit-image==0.19.3
-scipy==1.7.3
+scipy==1.10.0
 seaborn==0.10.1
 simpleitk==2.1.1.2
 tifffile==2022.10.10
