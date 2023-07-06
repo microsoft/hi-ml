@@ -374,6 +374,7 @@ def create_script_run(
     script_params: List[str],
     snapshot_root_directory: Optional[Path] = None,
     entry_script: Optional[PathOrString] = None,
+    command: Optional[List[str]] = None,
 ) -> ScriptRunConfig:
     """
     Creates an AzureML ScriptRunConfig object, that holds the information about the snapshot, the entry script, and
@@ -392,6 +393,12 @@ def create_script_run(
         snapshot_root_directory = Path.cwd()
     else:
         print(f"All files in this folder will be copied to AzureML: {snapshot_root_directory}")
+    if command is not None:
+        print(f"This command will be run in AzureML: {' '.join(command)}")
+        return ScriptRunConfig(
+            source_directory=str(snapshot_root_directory),
+            command=command,
+            )
     if entry_script is None:
         entry_script = Path(sys.argv[0])
         print("No entry script given. The current main Python file will be executed in AzureML.")
@@ -778,6 +785,7 @@ def submit_to_azure_if_needed(  # type: ignore
     identity_based_auth: bool = False,
     pytorch_processes_per_node_v2: Optional[int] = None,
     display_name: Optional[str] = None,
+    command: Optional[List[str]] = None,
 ) -> AzureRunInfo:  # pragma: no cover
     """
     Submit a folder to Azure, if needed and run it.
@@ -960,6 +968,7 @@ def submit_to_azure_if_needed(  # type: ignore
                 script_params=script_params,
                 snapshot_root_directory=snapshot_root_directory,
                 entry_script=entry_script,
+                command=command,
             )
             script_run_config.run_config = run_config
 
