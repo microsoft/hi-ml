@@ -172,94 +172,19 @@ def mock_workspace(mock_compute_cluster: MagicMock, dummy_compute_cluster_name: 
     return MagicMock(compute_targets={dummy_compute_cluster_name: mock_compute_cluster})
 
 
-@pytest.mark.fast
-def test_validate_num_nodes(
-    dummy_max_num_nodes_available: int, mock_compute_cluster: MagicMock, dummy_compute_cluster_name: str
-) -> None:
-    # If number of requested nodes <= max available nodes, nothing should happen
-    num_nodes_requested = dummy_max_num_nodes_available // 2
-    himl.validate_num_nodes(mock_compute_cluster, num_nodes_requested)
-    num_nodes_requested = dummy_max_num_nodes_available
-    himl.validate_num_nodes(mock_compute_cluster, num_nodes_requested)
-
-    # But if number of nodes requested > max available, a ValueError should be raised
-    num_nodes_requested = randint(dummy_max_num_nodes_available + 1, 5000)
-    expected_error_msg = f"You have requested {num_nodes_requested} nodes, which is more than your compute "
-    f"cluster {dummy_compute_cluster_name}'s maximum of {dummy_max_num_nodes_available} nodes "
-    with pytest.raises(ValueError, match=expected_error_msg):
-        himl.validate_num_nodes(mock_compute_cluster, num_nodes_requested)
-
-
-@pytest.mark.fast
-def test_validate_compute_name(mock_workspace: MagicMock, dummy_compute_cluster_name: str) -> None:
-    existing_compute_clusters = mock_workspace.compute_targets
-    existent_compute_name = dummy_compute_cluster_name
-    himl.validate_compute_name(existing_compute_clusters, existent_compute_name)
-
-    nonexistent_compute_name = 'idontexist'
-    assert nonexistent_compute_name not in existing_compute_clusters
-    expected_error_msg = f"Could not find the compute target {nonexistent_compute_name} in the AzureML workspace."
-    with pytest.raises(ValueError, match=expected_error_msg):
-        himl.validate_compute_name(existing_compute_clusters, nonexistent_compute_name)
-
-
-@pytest.mark.fast
-@patch("health_azure.himl.validate_compute_name")
-@patch("health_azure.himl.validate_num_nodes")
-def test_validate_compute(
-    mock_validate_num_nodes: MagicMock,
-    mock_validate_compute_name: MagicMock,
-    mock_workspace: MagicMock,
-    dummy_compute_cluster_name: str,
-) -> None:
-    def _raise_value_error(*args: Any) -> None:
-        raise ValueError("A ValueError has been raised")
-
-    def _raise_assertion_error(*args: Any) -> None:
-        raise AssertionError("An AssertionError has been raised")
-
-    # first mock the case where validate_num_nodes and validate_compute_name both return None
-    mock_validate_compute_name.return_value = None
-    mock_validate_num_nodes.return_value = None
-    mock_num_available_nodes = 0
-    himl.validate_compute_cluster(mock_workspace, dummy_compute_cluster_name, mock_num_available_nodes)
-    assert mock_validate_num_nodes.call_count == 1
-    assert mock_validate_compute_name.call_count == 1
-
-    # now have validate_num_nodes raise an Assertionerror and check that calling validate_compute_cluster
-    # raises the error
-    mock_validate_num_nodes.side_effect = _raise_assertion_error
-    with pytest.raises(AssertionError, match="An AssertionError has been raised"):
-        himl.validate_compute_cluster(mock_workspace, dummy_compute_cluster_name, mock_num_available_nodes)
-    assert mock_validate_num_nodes.call_count == 2
-    assert mock_validate_compute_name.call_count == 2
-
-    # now have validate_compute_name raise a ValueError and check that calling validate_compute_cluster raises the error
-    mock_validate_compute_name.side_effect = _raise_value_error
-    with pytest.raises(ValueError, match="A ValueError has been raised"):
-        himl.validate_compute_cluster(mock_workspace, dummy_compute_cluster_name, mock_num_available_nodes)
-    assert mock_validate_num_nodes.call_count == 2
-    assert mock_validate_compute_name.call_count == 3
-
-
-def test_validate_compute_real(tmp_path: Path) -> None:
+def test_validate_compute(tmp_path: Path) -> None:
     """
-    Get a real Workspace object and attempt to validate a compute cluster from it, if any exist.
-    This checks that the properties/ methods in the Azure ML SDK are consistent with those used in our
-    codebase
+    Get a real Workspace object and attempt to validate a compute cluster from it.
     """
     with check_config_json(tmp_path, shared_config_json=get_shared_config_json()):
         workspace = get_workspace(aml_workspace=None, workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
     existing_compute_targets: Dict[str, ComputeTarget] = workspace.compute_targets
-    if len(existing_compute_targets) == 0:
-        return
+    assert len(existing_compute_targets) > 0, "Expecting at least one compute target for this test"
     compute_target_name: str = list(existing_compute_targets)[0]
-    compute_target: ComputeTarget = existing_compute_targets[compute_target_name]
-    max_num_nodes = compute_target.scale_settings.maximum_node_count
-    request_num_nodes = max_num_nodes - 1
-    assert isinstance(compute_target_name, str)
-    assert isinstance(compute_target, ComputeTarget)
-    himl.validate_compute_cluster(workspace, compute_target_name, request_num_nodes)
+    himl.validate_compute_cluster(workspace, compute_target_name)
+    does_not_exist = uuid4().hex
+    with pytest.raises(ValueError, match="Could not find compute target"):
+        himl.validate_compute_cluster(workspace, does_not_exist)
 
 
 @pytest.mark.fast
