@@ -614,7 +614,7 @@ def test_append_to_amlignore(tmp_path: Path) -> None:
     amlignore_path = tmp_path / Path(uuid4().hex)
     with himl.append_to_amlignore(amlignore=amlignore_path, lines_to_append=["1st line", "2nd line"]):
         amlignore_text = amlignore_path.read_text()
-    assert "1st line\n2nd line" == amlignore_text
+    assert "1st line\n2nd line\n" == amlignore_text
     assert not amlignore_path.exists()
 
     # If there is no .amlignore file before the test, and there are no lines to append, then there should be no
@@ -625,23 +625,49 @@ def test_append_to_amlignore(tmp_path: Path) -> None:
     assert not amlignore_exists_during_test
     assert not amlignore_path.exists()
 
-    # If there is an empty .amlignore file before the test, it should be there afterwards
+
+@pytest.mark.fast
+def test_append_to_amlignore_empty(tmp_path: Path) -> None:
+    """If there is an empty .amlignore file before the test, it should be there afterwards"""
     amlignore_path = tmp_path / Path(uuid4().hex)
     amlignore_path.touch()
     with himl.append_to_amlignore(amlignore=amlignore_path, lines_to_append=["1st line", "2nd line"]):
         amlignore_text = amlignore_path.read_text()
-    assert "1st line\n2nd line" == amlignore_text
+    assert "1st line\n2nd line\n" == amlignore_text
     assert amlignore_path.exists()
     assert amlignore_path.read_text() == ""
 
-    # If there is a .amlignore file before the test, it should be identical afterwards
+
+@pytest.mark.fast
+@pytest.mark.parametrize("aml_ignore_contents", ["0th line", "0th line\n"])
+def test_append_to_amlignore_exists1(tmp_path: Path, aml_ignore_contents: str) -> None:
+    """
+    If there is a .amlignore file before the test, it should be identical afterwards.
+    In particular, this should be the case even if there's a linebreak at the end or not
+    """
     amlignore_path = tmp_path / Path(uuid4().hex)
-    amlignore_path.write_text("0th line")
+    amlignore_path.write_text(aml_ignore_contents)
     with himl.append_to_amlignore(amlignore=amlignore_path, lines_to_append=["1st line", "2nd line"]):
         amlignore_text = amlignore_path.read_text()
-    assert "0th line\n1st line\n2nd line" == amlignore_text
+    assert "0th line\n1st line\n2nd line\n" == amlignore_text
     amlignore_text = amlignore_path.read_text()
-    assert "0th line" == amlignore_text
+    assert amlignore_text == aml_ignore_contents
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize("aml_ignore_contents", ["0th line", "0th line\n"])
+def test_append_to_amlignore_exists2(tmp_path: Path, aml_ignore_contents: str) -> None:
+    """
+    If there is a .amlignore file before the test, it should be identical afterwards.
+    In particular, this should be the case even if there's a linebreak at the end or not, and if nothing is added
+    to the file.
+    """
+    amlignore_path = tmp_path / Path(uuid4().hex)
+    amlignore_path.write_text(aml_ignore_contents)
+    with himl.append_to_amlignore(amlignore=amlignore_path, lines_to_append=[]):
+        amlignore_text = amlignore_path.read_text()
+    amlignore_text = amlignore_path.read_text()
+    assert amlignore_text == aml_ignore_contents
 
 
 class TestTagOption(Enum):
