@@ -73,14 +73,13 @@ from testazure.utils_testazure import (
     current_test_name,
     get_shared_config_json,
     repository_root,
+    DEFAULT_WORKSPACE,
 )
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXPECTED_QUEUED = "This command will be run in AzureML:"
 GITHUB_SHIBBOLETH = "GITHUB_RUN_ID"  # https://docs.github.com/en/actions/reference/environment-variables
 AZUREML_FLAG = himl.AZUREML_FLAG
-
-TEST_ML_CLIENT = get_ml_client()
 
 logger = logging.getLogger('test.health_azure')
 logger.setLevel(logging.DEBUG)
@@ -257,7 +256,7 @@ def test_create_run_configuration_fails(
         himl.create_run_configuration(
             conda_environment_file=Path(__file__), compute_cluster_name="b", workspace=mock_workspace
         )
-    assert "Could not find the compute target b in the AzureML workspace" in str(e.value)
+    assert "Could not find compute target 'b' in the AzureML workspace" in str(e.value)
     assert existing_compute_target in str(e.value)
 
 
@@ -1653,7 +1652,7 @@ def test_get_data_asset_from_config() -> None:
     ]
 
     test_assets = [
-        himl.get_data_asset_from_config(TEST_ML_CLIENT, test_dataset_config)
+        himl.get_data_asset_from_config(DEFAULT_WORKSPACE.ml_client, test_dataset_config)
         for test_dataset_config in test_dataset_configs
     ]
     assert len(test_assets) == n_configs
@@ -1665,7 +1664,7 @@ def test_get_data_asset_from_config() -> None:
         datastore=TEST_DATASTORE_NAME,
         version=test_version,
     )
-    test_versioned_asset = himl.get_data_asset_from_config(TEST_ML_CLIENT, test_versioned_config)
+    test_versioned_asset = himl.get_data_asset_from_config(DEFAULT_WORKSPACE.ml_client, test_versioned_config)
     assert test_versioned_asset.version == str(test_version)
 
 
@@ -1740,7 +1739,7 @@ def test_create_v2_outputs() -> None:
         name=TEST_DATA_ASSET_NAME,
         datastore=TEST_DATASTORE_NAME,
     )
-    outputs = himl.create_v2_outputs(TEST_ML_CLIENT, [test_dataset_config])
+    outputs = himl.create_v2_outputs(DEFAULT_WORKSPACE.ml_client, [test_dataset_config])
 
     output_key = "OUTPUT_0"
     assert output_key in outputs
