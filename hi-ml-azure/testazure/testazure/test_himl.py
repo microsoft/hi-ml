@@ -171,12 +171,11 @@ def mock_workspace(mock_compute_cluster: MagicMock, dummy_compute_cluster_name: 
     return MagicMock(compute_targets={dummy_compute_cluster_name: mock_compute_cluster})
 
 
-def test_validate_compute(tmp_path: Path) -> None:
+def test_validate_compute() -> None:
     """
     Get a real Workspace object and attempt to validate a compute cluster from it.
     """
-    with check_config_json(tmp_path, shared_config_json=get_shared_config_json()):
-        workspace = get_workspace(aml_workspace=None, workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
+    workspace = DEFAULT_WORKSPACE.workspace
     existing_compute_targets: Dict[str, ComputeTarget] = workspace.compute_targets
     assert len(existing_compute_targets) > 0, "Expecting at least one compute target for this test"
     compute_target_name: str = list(existing_compute_targets)[0]
