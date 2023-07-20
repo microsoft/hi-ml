@@ -64,6 +64,8 @@ from health_azure.utils import (
     run_duration_string_to_seconds,
     to_azure_friendly_string,
     wait_for_job_completion,
+    sanitize_snapshoot_directory,
+    sanitize_entry_script,
 )
 
 logger = logging.getLogger('health_azure')
@@ -355,28 +357,10 @@ def create_script_run(
         executed.
     :return:
     """
-    if snapshot_root_directory is None:
-        print("No snapshot root directory given. All files in the current working directory will be copied to AzureML.")
-        snapshot_root_directory = Path.cwd()
-    else:
-        print(f"All files in this folder will be copied to AzureML: {snapshot_root_directory}")
-    if entry_script is None:
-        entry_script = Path(sys.argv[0])
-        print("No entry script given. The current main Python file will be executed in AzureML.")
-    elif isinstance(entry_script, str):
-        entry_script = Path(entry_script)
-    if entry_script.is_absolute():
-        try:
-            # The entry script always needs to use Linux path separators, even when submitting from Windows
-            entry_script_relative = entry_script.relative_to(snapshot_root_directory).as_posix()
-        except ValueError:
-            raise ValueError(
-                "The entry script must be inside of the snapshot root directory. "
-                f"Snapshot root: {snapshot_root_directory}, entry script: {entry_script}"
-            )
-    else:
-        entry_script_relative = str(entry_script)
+    snapshot_root = sanitize_snapshoot_directory(snapshot_root_directory)
+    entry_script_relative = sanitize_entry_script(entry_script, snapshot_root)
     print(f"This command will be run in AzureML: {entry_script_relative} {' '.join(script_params)}")
+    entry
     return ScriptRunConfig(
         source_directory=str(snapshot_root_directory), script=entry_script_relative, arguments=script_params
     )

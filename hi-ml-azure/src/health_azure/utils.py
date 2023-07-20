@@ -17,6 +17,7 @@ from collections import defaultdict
 from contextlib import contextmanager
 from enum import Enum
 from itertools import islice
+from os import Pathlike
 from pathlib import Path
 from typing import (
     Any,
@@ -2066,3 +2067,37 @@ def filter_v2_input_output_args(args: List[str]) -> List[str]:
         any integer.
     """
     return [a for a in args if not re.match(V2_INPUT_DATASET_PATTERN, a) and not re.match(V2_OUTPUT_DATASET_PATTERN, a)]
+
+
+def sanitize_snapshoot_directory(snapshot_root_directory: Optional[PathOrString]) -> Path:
+    """Sets the default values for the snapshoot root directory, which is the current working directory."""
+    if snapshot_root_directory is None:
+        print("No snapshot root directory given. All files in the current working directory will be copied to AzureML.")
+        return Path.cwd()
+    else:
+        print(f"All files in this folder will be copied to AzureML: {snapshot_root_directory}")
+        return Path(snapshot_root_directory)
+
+
+def sanitize_entry_script(entry_script: Optional[PathOrString], snapshot_root: Path) -> str:
+    if entry_script is None:
+        print("No entry script given. The current main Python file will be executed in AzureML.")
+        entry_script_path = Path(sys.argv[0])
+    elif isinstance(entry_script, str):
+        entry_script_path = Path(entry_script)
+    elif isinstance(entry_script, Path):
+        entry_script_path = entry_script
+    else:
+        raise ValueError(f"entry_script must be a string or Path, but got {type(entry_script)}")
+    if entry_script_path.is_absolute():
+        try:
+            # The entry script always needs to use Linux path separators, even when submitting from Windows
+            entry_script_relative = entry_script_path.relative_to(snapshot_root).as_posix()
+        except ValueError:
+            raise ValueError(
+                "The entry script must be inside of the snapshot root directory. "
+                f"Snapshot root: {snapshot_root}, entry script: {entry_script}"
+            )
+    else:
+        entry_script_relative = str(entry_script_path)
+    return entry_script_relative
