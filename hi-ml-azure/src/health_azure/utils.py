@@ -11,13 +11,13 @@ import logging
 import os
 import re
 import shutil
+import sys
 import tempfile
 import time
 from collections import defaultdict
 from contextlib import contextmanager
 from enum import Enum
 from itertools import islice
-from os import Pathlike
 from pathlib import Path
 from typing import (
     Any,
@@ -2069,6 +2069,11 @@ def filter_v2_input_output_args(args: List[str]) -> List[str]:
     return [a for a in args if not re.match(V2_INPUT_DATASET_PATTERN, a) and not re.match(V2_OUTPUT_DATASET_PATTERN, a)]
 
 
+def _is_module_calling_syntax(entry_script: str) -> bool:
+    """Returns True if the entry script is of the format seen when calling Python like 'python -m Foo.bar'"""
+    return entry_script.startswith("-m ")
+
+
 def sanitize_snapshoot_directory(snapshot_root_directory: Optional[PathOrString]) -> Path:
     """Sets the default values for the snapshoot root directory, which is the current working directory."""
     if snapshot_root_directory is None:
@@ -2084,6 +2089,8 @@ def sanitize_entry_script(entry_script: Optional[PathOrString], snapshot_root: P
         print("No entry script given. The current main Python file will be executed in AzureML.")
         entry_script_path = Path(sys.argv[0])
     elif isinstance(entry_script, str):
+        if _is_module_calling_syntax(entry_script):
+            return entry_script
         entry_script_path = Path(entry_script)
     elif isinstance(entry_script, Path):
         entry_script_path = entry_script
@@ -2091,13 +2098,11 @@ def sanitize_entry_script(entry_script: Optional[PathOrString], snapshot_root: P
         raise ValueError(f"entry_script must be a string or Path, but got {type(entry_script)}")
     if entry_script_path.is_absolute():
         try:
-            # The entry script always needs to use Linux path separators, even when submitting from Windows
-            entry_script_relative = entry_script_path.relative_to(snapshot_root).as_posix()
+            entry_script_path = entry_script_path.relative_to(snapshot_root)
         except ValueError:
             raise ValueError(
                 "The entry script must be inside of the snapshot root directory. "
                 f"Snapshot root: {snapshot_root}, entry script: {entry_script}"
             )
-    else:
-        entry_script_relative = str(entry_script_path)
-    return entry_script_relative
+    # The entry script always needs to use Linux path separators, even when submitting from Windows
+    return str(entry_script_path.as_posix())
