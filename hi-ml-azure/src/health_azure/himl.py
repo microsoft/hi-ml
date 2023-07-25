@@ -363,7 +363,7 @@ def create_script_run(
     return ScriptRunConfig(source_directory=str(snapshot_root), script=entry_script_relative, arguments=script_params)
 
 
-def effective_experiment_name(experiment_name: Optional[str], entry_script: PathOrString) -> str:
+def effective_experiment_name(experiment_name: Optional[str], entry_script: Optional[PathOrString] = None) -> str:
     """Choose the experiment name to use for the run. If provided in the environment variable HIML_EXPERIMENT_NAME,
     then use that. Otherwise, use the argument `experiment_name`, or fall back to the default based on the
     entry point script. If script in the form "foo/bar/baz.py", then the experiment name will be "baz". If the script is
@@ -378,11 +378,13 @@ def effective_experiment_name(experiment_name: Optional[str], entry_script: Path
         raw_value = value_from_env
     elif experiment_name:
         raw_value = experiment_name
-    else:
+    elif entry_script is not None:
         if _is_module_calling_syntax(str(entry_script)):
             raw_value = str(entry_script)[3:]
         else:
             raw_value = Path(entry_script).stem
+    else:
+        raise ValueError("No experiment name provided, and no entry script provided. ")
     cleaned_value = to_azure_friendly_string(raw_value)
     assert cleaned_value is not None, "Expecting an actual string"
     return cleaned_value

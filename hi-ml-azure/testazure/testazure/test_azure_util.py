@@ -2178,7 +2178,7 @@ def test_sanitize_entry_script(tmp_path: Path) -> None:
 
     # Error case: Invalid argument
     with pytest.raises(ValueError, match="entry_script must be a string or Path"):
-        assert sanitize_entry_script([], tmp_path)
+        assert sanitize_entry_script([], tmp_path)  # type: ignore
     # Error case: Entry script is not in the snapshot
     with pytest.raises(ValueError, match="entry script must be inside of the snapshot root"):
         assert sanitize_entry_script(script_with_folder, tmp_path / "other_folder")
