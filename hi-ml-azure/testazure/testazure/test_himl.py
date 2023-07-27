@@ -1891,7 +1891,7 @@ def test_submitting_script_with_sdk_v2_accepts_relative_path(tmp_path: Path) -> 
             for index, entry_script in enumerate([script_name, test_script]):
                 with pytest.raises(NotImplementedError):
                     himl.submit_to_azure_if_needed(
-                        entry_script=entry_script,
+                        entry_script=entry_script,  # type: ignore
                         conda_environment_file=conda_env_path,
                         snapshot_root_directory=tmp_path,
                         submit_to_azureml=True,
