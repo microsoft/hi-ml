@@ -318,6 +318,7 @@ class DatasetConfig:
         use_mounting: Optional[bool] = None,
         target_folder: Optional[PathOrString] = None,
         local_folder: Optional[PathOrString] = None,
+        register_on_job_completion: bool = True,
     ):
         """
         :param name: The name of the dataset, as it was registered in the AzureML workspace. For output datasets,
@@ -338,6 +339,9 @@ class DatasetConfig:
         :param local_folder: The folder on the local machine at which the dataset is available. This
             is used only for runs outside of AzureML. If this is empty then the target_folder will be used to
             mount or download the dataset.
+        :param register_on_job_completion: Only for output datasets: If this flag is True, the dataset will be
+            registered in the AML portal after the job has completed and visible in the "Data" section.
+            If this flag is False, the dataset will be visible for the job, but not in the AML portal "Data" section.
         """
         # This class would be a good candidate for a dataclass, but having an explicit constructor makes
         # documentation tools in the editor work nicer.
@@ -354,6 +358,7 @@ class DatasetConfig:
         if str(self.target_folder) == ".":
             raise ValueError("Can't mount or download a dataset to the current working directory.")
         self.local_folder = Path(local_folder) if local_folder else None
+        self.register_on_job_completion = register_on_job_completion
 
     def to_input_dataset_local(
         self,
@@ -463,8 +468,8 @@ class DatasetConfig:
         dataset = OutputFileDatasetConfig(
             name=_output_dataset_key(index=dataset_index), destination=(datastore, self.name + "/")
         )
-        # TODO: Can we get tags into here too?
-        dataset = dataset.register_on_complete(name=self.name)
+        if self.register_on_job_completion:
+            dataset = dataset.register_on_complete(name=self.name)
         if self.target_folder:
             raise ValueError("Output datasets can't have a target_folder set.")
         use_mounting = True if self.use_mounting is None else self.use_mounting
