@@ -5,10 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
+        {
             "name": "Output datasets",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/testazure/output_datasets.py",
+            "program": "${workspaceFolder}/testazure/job_with_output_dataset.py",
             "console": "integratedTerminal",
             "justMyCode": false
         },
