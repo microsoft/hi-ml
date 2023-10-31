@@ -73,14 +73,13 @@ from testazure.utils_testazure import (
     current_test_name,
     get_shared_config_json,
     repository_root,
+    DEFAULT_WORKSPACE,
 )
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
 EXPECTED_QUEUED = "This command will be run in AzureML:"
 GITHUB_SHIBBOLETH = "GITHUB_RUN_ID"  # https://docs.github.com/en/actions/reference/environment-variables
 AZUREML_FLAG = himl.AZUREML_FLAG
-
-TEST_ML_CLIENT = get_ml_client()
 
 logger = logging.getLogger('test.health_azure')
 logger.setLevel(logging.DEBUG)
@@ -172,94 +171,18 @@ def mock_workspace(mock_compute_cluster: MagicMock, dummy_compute_cluster_name: 
     return MagicMock(compute_targets={dummy_compute_cluster_name: mock_compute_cluster})
 
 
-@pytest.mark.fast
-def test_validate_num_nodes(
-    dummy_max_num_nodes_available: int, mock_compute_cluster: MagicMock, dummy_compute_cluster_name: str
-) -> None:
-    # If number of requested nodes <= max available nodes, nothing should happen
-    num_nodes_requested = dummy_max_num_nodes_available // 2
-    himl.validate_num_nodes(mock_compute_cluster, num_nodes_requested)
-    num_nodes_requested = dummy_max_num_nodes_available
-    himl.validate_num_nodes(mock_compute_cluster, num_nodes_requested)
-
-    # But if number of nodes requested > max available, a ValueError should be raised
-    num_nodes_requested = randint(dummy_max_num_nodes_available + 1, 5000)
-    expected_error_msg = f"You have requested {num_nodes_requested} nodes, which is more than your compute "
-    f"cluster {dummy_compute_cluster_name}'s maximum of {dummy_max_num_nodes_available} nodes "
-    with pytest.raises(ValueError, match=expected_error_msg):
-        himl.validate_num_nodes(mock_compute_cluster, num_nodes_requested)
-
-
-@pytest.mark.fast
-def test_validate_compute_name(mock_workspace: MagicMock, dummy_compute_cluster_name: str) -> None:
-    existing_compute_clusters = mock_workspace.compute_targets
-    existent_compute_name = dummy_compute_cluster_name
-    himl.validate_compute_name(existing_compute_clusters, existent_compute_name)
-
-    nonexistent_compute_name = 'idontexist'
-    assert nonexistent_compute_name not in existing_compute_clusters
-    expected_error_msg = f"Could not find the compute target {nonexistent_compute_name} in the AzureML workspace."
-    with pytest.raises(ValueError, match=expected_error_msg):
-        himl.validate_compute_name(existing_compute_clusters, nonexistent_compute_name)
-
-
-@pytest.mark.fast
-@patch("health_azure.himl.validate_compute_name")
-@patch("health_azure.himl.validate_num_nodes")
-def test_validate_compute(
-    mock_validate_num_nodes: MagicMock,
-    mock_validate_compute_name: MagicMock,
-    mock_workspace: MagicMock,
-    dummy_compute_cluster_name: str,
-) -> None:
-    def _raise_value_error(*args: Any) -> None:
-        raise ValueError("A ValueError has been raised")
-
-    def _raise_assertion_error(*args: Any) -> None:
-        raise AssertionError("An AssertionError has been raised")
-
-    # first mock the case where validate_num_nodes and validate_compute_name both return None
-    mock_validate_compute_name.return_value = None
-    mock_validate_num_nodes.return_value = None
-    mock_num_available_nodes = 0
-    himl.validate_compute_cluster(mock_workspace, dummy_compute_cluster_name, mock_num_available_nodes)
-    assert mock_validate_num_nodes.call_count == 1
-    assert mock_validate_compute_name.call_count == 1
-
-    # now have validate_num_nodes raise an Assertionerror and check that calling validate_compute_cluster
-    # raises the error
-    mock_validate_num_nodes.side_effect = _raise_assertion_error
-    with pytest.raises(AssertionError, match="An AssertionError has been raised"):
-        himl.validate_compute_cluster(mock_workspace, dummy_compute_cluster_name, mock_num_available_nodes)
-    assert mock_validate_num_nodes.call_count == 2
-    assert mock_validate_compute_name.call_count == 2
-
-    # now have validate_compute_name raise a ValueError and check that calling validate_compute_cluster raises the error
-    mock_validate_compute_name.side_effect = _raise_value_error
-    with pytest.raises(ValueError, match="A ValueError has been raised"):
-        himl.validate_compute_cluster(mock_workspace, dummy_compute_cluster_name, mock_num_available_nodes)
-    assert mock_validate_num_nodes.call_count == 2
-    assert mock_validate_compute_name.call_count == 3
-
-
-def test_validate_compute_real(tmp_path: Path) -> None:
+def test_validate_compute() -> None:
     """
-    Get a real Workspace object and attempt to validate a compute cluster from it, if any exist.
-    This checks that the properties/ methods in the Azure ML SDK are consistent with those used in our
-    codebase
+    Get a real Workspace object and attempt to validate a compute cluster from it.
     """
-    with check_config_json(tmp_path, shared_config_json=get_shared_config_json()):
-        workspace = get_workspace(aml_workspace=None, workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
+    workspace = DEFAULT_WORKSPACE.workspace
     existing_compute_targets: Dict[str, ComputeTarget] = workspace.compute_targets
-    if len(existing_compute_targets) == 0:
-        return
+    assert len(existing_compute_targets) > 0, "Expecting at least one compute target for this test"
     compute_target_name: str = list(existing_compute_targets)[0]
-    compute_target: ComputeTarget = existing_compute_targets[compute_target_name]
-    max_num_nodes = compute_target.scale_settings.maximum_node_count
-    request_num_nodes = max_num_nodes - 1
-    assert isinstance(compute_target_name, str)
-    assert isinstance(compute_target, ComputeTarget)
-    himl.validate_compute_cluster(workspace, compute_target_name, request_num_nodes)
+    himl.validate_compute_cluster(workspace, compute_target_name)
+    does_not_exist = uuid4().hex
+    with pytest.raises(ValueError, match="Could not find compute target"):
+        himl.validate_compute_cluster(workspace, does_not_exist)
 
 
 @pytest.mark.fast
@@ -332,7 +255,7 @@ def test_create_run_configuration_fails(
         himl.create_run_configuration(
             conda_environment_file=Path(__file__), compute_cluster_name="b", workspace=mock_workspace
         )
-    assert "Could not find the compute target b in the AzureML workspace" in str(e.value)
+    assert "Could not find compute target 'b' in the AzureML workspace" in str(e.value)
     assert existing_compute_target in str(e.value)
 
 
@@ -614,7 +537,7 @@ def test_append_to_amlignore(tmp_path: Path) -> None:
     amlignore_path = tmp_path / Path(uuid4().hex)
     with himl.append_to_amlignore(amlignore=amlignore_path, lines_to_append=["1st line", "2nd line"]):
         amlignore_text = amlignore_path.read_text()
-    assert "1st line\n2nd line" == amlignore_text
+    assert "1st line\n2nd line\n" == amlignore_text
     assert not amlignore_path.exists()
 
     # If there is no .amlignore file before the test, and there are no lines to append, then there should be no
@@ -625,23 +548,49 @@ def test_append_to_amlignore(tmp_path: Path) -> None:
     assert not amlignore_exists_during_test
     assert not amlignore_path.exists()
 
-    # If there is an empty .amlignore file before the test, it should be there afterwards
+
+@pytest.mark.fast
+def test_append_to_amlignore_empty(tmp_path: Path) -> None:
+    """If there is an empty .amlignore file before the test, it should be there afterwards"""
     amlignore_path = tmp_path / Path(uuid4().hex)
     amlignore_path.touch()
     with himl.append_to_amlignore(amlignore=amlignore_path, lines_to_append=["1st line", "2nd line"]):
         amlignore_text = amlignore_path.read_text()
-    assert "1st line\n2nd line" == amlignore_text
+    assert "1st line\n2nd line\n" == amlignore_text
     assert amlignore_path.exists()
     assert amlignore_path.read_text() == ""
 
-    # If there is a .amlignore file before the test, it should be identical afterwards
+
+@pytest.mark.fast
+@pytest.mark.parametrize("aml_ignore_contents", ["0th line", "0th line\n"])
+def test_append_to_amlignore_exists1(tmp_path: Path, aml_ignore_contents: str) -> None:
+    """
+    If there is a .amlignore file before the test, it should be identical afterwards.
+    In particular, this should be the case even if there's a linebreak at the end or not
+    """
     amlignore_path = tmp_path / Path(uuid4().hex)
-    amlignore_path.write_text("0th line")
+    amlignore_path.write_text(aml_ignore_contents)
     with himl.append_to_amlignore(amlignore=amlignore_path, lines_to_append=["1st line", "2nd line"]):
         amlignore_text = amlignore_path.read_text()
-    assert "0th line\n1st line\n2nd line" == amlignore_text
+    assert "0th line\n1st line\n2nd line\n" == amlignore_text
     amlignore_text = amlignore_path.read_text()
-    assert "0th line" == amlignore_text
+    assert amlignore_text == aml_ignore_contents
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize("aml_ignore_contents", ["0th line", "0th line\n"])
+def test_append_to_amlignore_exists2(tmp_path: Path, aml_ignore_contents: str) -> None:
+    """
+    If there is a .amlignore file before the test, it should be identical afterwards.
+    In particular, this should be the case even if there's a linebreak at the end or not, and if nothing is added
+    to the file.
+    """
+    amlignore_path = tmp_path / Path(uuid4().hex)
+    amlignore_path.write_text(aml_ignore_contents)
+    with himl.append_to_amlignore(amlignore=amlignore_path, lines_to_append=[]):
+        amlignore_text = amlignore_path.read_text()
+    amlignore_text = amlignore_path.read_text()
+    assert amlignore_text == aml_ignore_contents
 
 
 class TestTagOption(Enum):
@@ -1728,7 +1677,7 @@ def test_get_data_asset_from_config() -> None:
     ]
 
     test_assets = [
-        himl.get_data_asset_from_config(TEST_ML_CLIENT, test_dataset_config)
+        himl.get_data_asset_from_config(DEFAULT_WORKSPACE.ml_client, test_dataset_config)
         for test_dataset_config in test_dataset_configs
     ]
     assert len(test_assets) == n_configs
@@ -1740,7 +1689,7 @@ def test_get_data_asset_from_config() -> None:
         datastore=TEST_DATASTORE_NAME,
         version=test_version,
     )
-    test_versioned_asset = himl.get_data_asset_from_config(TEST_ML_CLIENT, test_versioned_config)
+    test_versioned_asset = himl.get_data_asset_from_config(DEFAULT_WORKSPACE.ml_client, test_versioned_config)
     assert test_versioned_asset.version == str(test_version)
 
 
@@ -1815,7 +1764,7 @@ def test_create_v2_outputs() -> None:
         name=TEST_DATA_ASSET_NAME,
         datastore=TEST_DATASTORE_NAME,
     )
-    outputs = himl.create_v2_outputs(TEST_ML_CLIENT, [test_dataset_config])
+    outputs = himl.create_v2_outputs(DEFAULT_WORKSPACE.ml_client, [test_dataset_config])
 
     output_key = "OUTPUT_0"
     assert output_key in outputs
@@ -2074,7 +2023,8 @@ def test_submit_to_azure_v2_distributed() -> None:
                 assert call_kwargs.get("num_nodes") == num_nodes
                 assert call_kwargs.get("pytorch_processes_per_node") == processes_per_node
 
-            # Single node job: The "distribution" argument of "command" should be set to None
+            # Single node job: The "distribution" argument of "command" should be set to MpiRun, to ensure that it
+            # runs fine on Kubernetes compute.
             with patch("health_azure.himl.command") as mock_command:
                 _ = himl.submit_to_azure_if_needed(
                     workspace_config_file="mockconfig.json",
@@ -2087,6 +2037,21 @@ def test_submit_to_azure_v2_distributed() -> None:
                 _, call_kwargs = mock_command.call_args
                 assert call_kwargs.get("instance_count") == 1
                 assert call_kwargs.get("distribution") == MpiDistribution(process_count_per_instance=1)
+
+            # Single node job: The "distribution" argument of "command" should be set to None if we are passing a flag
+            with patch("health_azure.himl.command") as mock_command:
+                _ = himl.submit_to_azure_if_needed(
+                    workspace_config_file="mockconfig.json",
+                    entry_script=Path(__file__),
+                    snapshot_root_directory=Path.cwd(),
+                    submit_to_azureml=True,
+                    strictly_aml_v1=False,
+                    use_mpi_run_for_single_node_jobs=False,
+                )
+                mock_command.assert_called_once()
+                _, call_kwargs = mock_command.call_args
+                assert call_kwargs.get("instance_count") == 1
+                assert call_kwargs.get("distribution") == None
 
             with pytest.raises(ValueError, match="num_nodes must be >= 1"):
                 _ = himl.submit_to_azure_if_needed(

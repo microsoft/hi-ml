@@ -24,7 +24,7 @@ from azure.ai.ml.constants import InputOutputModes
 from azure.ai.ml.entities import Command, Data
 from azure.ai.ml.entities import Environment as EnvironmentV2
 from azure.ai.ml.entities import Job, Sweep, UserIdentityConfiguration
-from azure.ai.ml.entities._job.distribution import MpiDistribution, PyTorchDistribution
+from azure.ai.ml.entities._job.distribution import DistributionConfiguration, MpiDistribution, PyTorchDistribution
 from azure.ai.ml.sweep import Choice
 from azureml._base_sdk_common import user_agent
 from azureml.core import ComputeTarget, Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
@@ -128,51 +128,19 @@ class AzureRunInfo:
     folder will be uploaded to blob storage regularly during the script run."""
 
 
-def validate_num_nodes(compute_cluster: ComputeTarget, num_nodes: int) -> None:
+def validate_compute_cluster(workspace: Workspace, compute_cluster_name: str) -> None:
     """
-    Check that the user hasn't requested more nodes than the maximum number of nodes allowed by
-    their compute cluster
+    Check that the specified compute cluster exists in the given Workspace
 
-    :param compute_cluster: An AML ComputeTarget representing the cluster whose upper node limit
-        should be checked
-    :param num_nodes: The number of nodes that the user has requested
-    """
-    max_cluster_nodes: int = compute_cluster.scale_settings.maximum_node_count
-    if num_nodes > max_cluster_nodes:
-        raise ValueError(
-            f"You have requested {num_nodes} nodes, which is more than your compute cluster "
-            f"({compute_cluster.name})'s maximum of {max_cluster_nodes} nodes."
-        )
-
-
-def validate_compute_name(existing_compute_targets: Dict[str, ComputeTarget], compute_target_name: str) -> None:
-    """
-    Check that a specified compute target is one of the available existing compute targets in a Workspace
-
-    :param existing_compute_targets: A list of AML ComputeTarget objects available to a given AML Workspace
-    :param compute_cluster_name: The name of the specific compute target whose name to look up in existing
-        compute targets
-    """
-    if compute_target_name not in existing_compute_targets:
-        raise ValueError(
-            f"Could not find the compute target {compute_target_name} in the AzureML workspace. ",
-            f"Existing compute targets: {list(existing_compute_targets)}",
-        )
-
-
-def validate_compute_cluster(workspace: Workspace, compute_cluster_name: str, num_nodes: int) -> None:
-    """
-    Check that both the specified compute cluster exists in the given Workspace, and that it has enough
-    nodes to spin up the requested number of nodes
-
-    :param existing_compute_clusters: A list of AML ComputeTarget objects in a given AML Workspace
+    :param workspace: The AML Workspace to check
     :param compute_cluster_name: The name of the specific compute cluster whose properties should be checked
-    :param num_nodes: The number of nodes that the user has requested
     """
-    existing_compute_clusters: Dict[str, ComputeTarget] = workspace.compute_targets
-    validate_compute_name(existing_compute_clusters, compute_cluster_name)
-    compute_cluster = existing_compute_clusters[compute_cluster_name]
-    validate_num_nodes(compute_cluster, num_nodes)
+    existing_compute_targets: Dict[str, ComputeTarget] = workspace.compute_targets
+    if compute_cluster_name not in existing_compute_targets:
+        raise ValueError(
+            f"Could not find compute target '{compute_cluster_name}' in the AzureML workspace. ",
+            f"Existing compute targets: {list(existing_compute_targets.keys())}",
+        )
 
 
 def create_run_configuration(
@@ -247,7 +215,7 @@ def create_run_configuration(
     if docker_shm_size:
         run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
 
-    validate_compute_cluster(workspace, compute_cluster_name, num_nodes)
+    validate_compute_cluster(workspace, compute_cluster_name)
 
     run_config.target = compute_cluster_name
 
@@ -466,6 +434,7 @@ def submit_run_v2(
     hyperparam_args: Optional[Dict[str, Any]] = None,
     num_nodes: int = 1,
     pytorch_processes_per_node: Optional[int] = None,
+    use_mpi_run_for_single_node_jobs: bool = True,
     display_name: Optional[str] = None,
 ) -> Job:
     """
@@ -493,6 +462,8 @@ def submit_run_v2(
     :param pytorch_processes_per_node: For plain PyTorch multi-GPU processing: The number of processes per node.
         If supplied, it will run a command job with the "pytorch" framework (rather than "Python"), and using "nccl"
         as the communication backend.
+    :param use_mpi_run_for_single_node_jobs: If True, even single node jobs will be run as distributed MPI jobs.
+        This is required for Kubernetes compute. If False, single node jobs will not be run as distributed jobs.
     :param display_name: The name for the run that will be displayed in the AML UI. If not provided, a random
         display name will be generated by AzureML.
     :return: An AzureML Run object.
@@ -523,11 +494,13 @@ def submit_run_v2(
             raise ValueError("pytorch_processes_per_node must be >= 1")
 
     def create_command_job(cmd: str) -> Command:
+        distribution: Optional[DistributionConfiguration] = None
         if pytorch_processes_per_node is None:
             # On AML managed compute, we can set distribution to None for single node jobs.
             # However, on Kubernetes compute, single node jobs don't see any GPUs. GPUs are visible for MpiDistribution
             # jobs, so we set MpiDistribution even for single node jobs.
-            distribution: Union[MpiDistribution, PyTorchDistribution] = MpiDistribution(process_count_per_instance=1)
+            if use_mpi_run_for_single_node_jobs:
+                distribution = MpiDistribution(process_count_per_instance=1)
         else:
             distribution = PyTorchDistribution(process_count_per_instance=pytorch_processes_per_node)
         return command(
@@ -784,6 +757,7 @@ def submit_to_azure_if_needed(  # type: ignore
     strictly_aml_v1: bool = False,
     identity_based_auth: bool = False,
     pytorch_processes_per_node_v2: Optional[int] = None,
+    use_mpi_run_for_single_node_jobs: bool = True,
     display_name: Optional[str] = None,
     command: Optional[List[str]] = None,
 ) -> AzureRunInfo:  # pragma: no cover
@@ -853,6 +827,9 @@ def submit_to_azure_if_needed(  # type: ignore
     :param pytorch_processes_per_node_v2: For plain PyTorch multi-GPU processing: The number of processes per node. This
         is only supported with AML SDK v2, and ignored in v1. If supplied, the job will be submitted as using the
         "pytorch" framework (rather than "Python"), and using "nccl" as the communication backend.
+    :param use_mpi_run_for_single_node_jobs: If True, even single node jobs with SDK v2 will be run as distributed MPI
+        jobs. This is required for Kubernetes compute. If False, single node jobs will not be run as distributed jobs.
+        This setting only affects jobs submitted with SDK v2 (when `strictly_aml_v1=False`)
     :param display_name: The name for the run that will be displayed in the AML UI. If not provided, a random
         display name will be generated by AzureML.
     :return: If the script is submitted to AzureML then we terminate python as the script should be executed in AzureML,
@@ -1022,6 +999,7 @@ def submit_to_azure_if_needed(  # type: ignore
                 hyperparam_args=hyperparam_args,
                 num_nodes=num_nodes,
                 pytorch_processes_per_node=pytorch_processes_per_node_v2,
+                use_mpi_run_for_single_node_jobs=use_mpi_run_for_single_node_jobs,
             )
 
             if after_submission is not None:
@@ -1205,13 +1183,14 @@ def append_to_amlignore(lines_to_append: List[str], amlignore: Optional[Path] = 
     amlignore_exists_already = amlignore.exists()
     old_contents = amlignore.read_text() if amlignore_exists_already else ""
     new_lines = old_contents.splitlines() + lines_to_append
-    new_text = "\n".join(new_lines)
-    if new_text:
-        amlignore.write_text(new_text)
+    linefeed = "\n"
+    new_text = linefeed.join(new_lines)
+    if new_lines:
+        amlignore.write_text(new_text + linefeed)
     yield
     if amlignore_exists_already:
         amlignore.write_text(old_contents)
-    elif new_text:
+    elif new_lines:
         amlignore.unlink()
 
 
