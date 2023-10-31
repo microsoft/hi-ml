@@ -366,7 +366,7 @@ def create_script_run(
         return ScriptRunConfig(
             source_directory=str(snapshot_root_directory),
             command=command,
-            )
+        )
     if entry_script is None:
         entry_script = Path(sys.argv[0])
         print("No entry script given. The current main Python file will be executed in AzureML.")
