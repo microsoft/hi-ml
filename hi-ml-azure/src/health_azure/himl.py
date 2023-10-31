@@ -778,6 +778,8 @@ def submit_to_azure_if_needed(  # type: ignore
     :param experiment_name: The name of the AzureML experiment in which the run should be submitted. If omitted,
         this is created based on the name of the current script.
     :param entry_script: The script that should be run in AzureML
+    :param command: The command that should be run in AzureML (first list element), and all its arguments (subsequent
+        list elements). If provided, this will override the entry_script and script_params arguments.
     :param compute_cluster_name: The name of the AzureML cluster that should run the job. This can be a cluster with
         CPU or GPU machines.
     :param conda_environment_file: The conda configuration file that describes which packages are necessary for your
