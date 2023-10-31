@@ -1,6 +1,7 @@
 from datetime import datetime
 from pathlib import Path
 import sys
+import uuid
 
 
 src_root = Path(__file__).parents[1] / "src"
@@ -12,9 +13,11 @@ from health_azure import submit_to_azure_if_needed, DatasetConfig
 def main():
     # Define the output dataset
     output_dataset = DatasetConfig(
-        name='output_dataset',
+        # The dataset name will also be the name of the folder in the datastore
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        suffix = uuid.uuid4().hex[:6],
+        name=f"joboutputs-{timestamp}-{suffix}",
         datastore='workspaceblobstore',
-        # path=f"outputs_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}" # Plus a random part
     )
 
     # Submit the script to Azure if needed
