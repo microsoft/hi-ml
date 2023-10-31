@@ -86,3 +86,8 @@ test_all: pip_test call_flake8 call_mypy call_pytest_and_coverage
 example: pip_local
 	echo 'edit src/health/azure/examples/elevate_this.py to reference your compute_cluster_name'
 	cd src/health/azure/examples; python elevate_this.py --azureml --message 'running example from makefile'
+
+# Create conda environment
+env:
+	conda env remove -n himl-azure
+	conda env create -f environment.yml
