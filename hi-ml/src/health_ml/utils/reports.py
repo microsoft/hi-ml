@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, OrderedDict, Tuple
 
 import jinja2
-import ruamel.yaml
+from ruamel.yaml import YAML
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -407,7 +407,8 @@ class HTMLReport:
         # TODO: add option to overwrite report title with entry here
         assert report_config_path.suffix == ".yml", f"Expected a .yml file but found {report_config_path.suffix}"
         with open(report_config_path, "r") as f_path:
-            yaml_contents = ruamel.yaml.load(f_path)
+            yaml = YAML(typ='unsafe', pure=True)
+            yaml_contents = yaml.load(f_path)
 
         return yaml_contents
 
