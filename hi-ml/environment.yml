@@ -195,7 +195,7 @@ dependencies:
       - opencv-python-headless==4.8.1.78
       - packaging==23.0
       - pandas==2.1.2
-      - param==2.0.0
+      - param==1.13.0
       - paramiko==3.3.1
       - pathspec==0.11.2
       - pillow==10.0.1

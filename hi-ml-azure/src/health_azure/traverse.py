@@ -8,7 +8,7 @@ from io import StringIO
 from typing import Any, Dict, Iterable, Union, List, Optional
 
 import param
-from ruamel import yaml
+from ruamel.yaml import YAML
 
 
 def is_basic_type(o: Any) -> bool:
@@ -138,7 +138,8 @@ def object_to_yaml(o: Any) -> str:
     :param o: The object to inspect.
     :return: A string in YAML format.
     """
-    return yaml.safe_dump(object_to_dict(o), default_flow_style=False)  # type: ignore
+    yaml = YAML(typ='safe', pure=True)
+    return yaml.dump(object_to_dict(o), default_flow_style=False)  # type: ignore
 
 
 def yaml_to_dict(s: str) -> Dict[str, Any]:

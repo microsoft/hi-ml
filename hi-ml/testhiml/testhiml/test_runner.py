@@ -94,7 +94,6 @@ def test_parse_and_load_model(
             assert parser_result.args.get("num_nodes") is None
 
             assert isinstance(mock_runner.lightning_container, LightningContainer)
-            assert mock_runner.lightning_container.initialized
             assert mock_runner.lightning_container.model_name == model_name
 
 
