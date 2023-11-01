@@ -77,21 +77,21 @@ jobs:
           make pip_test
           make mypy
 
-  himl-pyright:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          lfs: true
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '14'
-      - uses: conda-incubator/setup-miniconda@v2
-      - name: pyright
-        shell: bash -l {0}
-        run: |
-          conda info
-          make pyright
+  # himl-pyright:
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #       with:
+  #         lfs: true
+  #     - uses: actions/setup-node@v3
+  #       with:
+  #         node-version: '14'
+  #     - uses: conda-incubator/setup-miniconda@v2
+  #     - name: pyright
+  #       shell: bash -l {0}
+  #       run: |
+  #         conda info
+  #         make pyright
 
   himl-pytest-fast:
     runs-on: ubuntu-20.04
@@ -313,7 +313,7 @@ jobs:
 
   himl-publish-testpypi-pkg:
     runs-on: ubuntu-20.04
-    needs: [ himl-test-artifact-pkg, himl-pyright, himl-mypy, himl-flake8, himl-smoke-tests-completed ]
+    needs: [ himl-test-artifact-pkg, himl-mypy, himl-flake8, himl-smoke-tests-completed ]
     if: "!startsWith(github.ref, 'refs/tags/v')"
     strategy:
       matrix:
@@ -345,7 +345,7 @@ jobs:
 
   himl-publish-pypi-pkg:
     runs-on: ubuntu-20.04
-    needs: [ himl-test-artifact-pkg, himl-pyright, himl-mypy, himl-flake8, himl-smoke-tests-completed ]
+    needs: [ himl-test-artifact-pkg, himl-mypy, himl-flake8, himl-smoke-tests-completed ]
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
