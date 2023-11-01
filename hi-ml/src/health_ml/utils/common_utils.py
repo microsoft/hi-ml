@@ -97,6 +97,8 @@ def change_working_directory(path_or_str: PathOrString) -> Generator:
         the side effect of the working directory temporarily changing
     """
     new_path = Path(path_or_str).expanduser()
+    if not new_path.is_dir():
+        raise FileNotFoundError(f"Path {new_path} is not a directory")
     old_path = Path.cwd()
     os.chdir(new_path)
     yield
