@@ -139,7 +139,7 @@ def object_to_yaml(o: Any) -> str:
     :return: A string in YAML format.
     """
     yaml = YAML(typ='safe', pure=True)
-    return yaml.dump(object_to_dict(o), default_flow_style=False)  # type: ignore
+    return yaml.dump(object_to_dict(o))
 
 
 def yaml_to_dict(s: str) -> Dict[str, Any]:
@@ -151,7 +151,8 @@ def yaml_to_dict(s: str) -> Dict[str, Any]:
     or dictionaries again.
     """
     stream = StringIO(s)
-    return yaml.safe_load(stream=stream)
+    yaml = YAML(typ='safe', pure=True)
+    return yaml.load(stream=stream)
 
 
 def _write_dict_to_object(o: Any, d: Dict[str, Any], traversed_fields: Optional[List] = None) -> List[str]:
