@@ -81,7 +81,7 @@ pip install --extra-index-url https://test.pypi.org/simple/ hi-ml==0.1.0.post165
 name: foo
 dependencies:
   - pip=20.1.1
-  - python=3.7.3
+  - python=3.9.18
   - pip:
       - --extra-index-url https://test.pypi.org/simple/
       - hi-ml==0.1.0.post165
