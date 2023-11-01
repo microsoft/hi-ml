@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
-import ruamel.yaml
+from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap as OrderedDict, CommentedSeq as OrderedList
 
 from health_ml.utils.reports import HTMLReport, IMAGE_KEY_HTML, TABLE_KEY_HTML, REPORT_CONTENTS_KEY, ReportComponentKey
@@ -240,7 +240,8 @@ def test_html_report_read_config(html_report: HTMLReport, dummy_df: pd.DataFrame
     )
     report_config_path = tmp_path / "report_config.yml"
     with open(report_config_path, "w+") as f_path:
-        ruamel.yaml.dump(report_config_contents, f_path)
+        yaml = YAML(typ='unsafe', pure=True)
+        yaml.dump(report_config_contents, f_path)
 
     report_config = html_report.read_config_yaml(report_config_path)
     assert list(report_config.keys()) == [REPORT_CONTENTS_KEY]

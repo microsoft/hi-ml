@@ -139,7 +139,11 @@ def object_to_yaml(o: Any) -> str:
     :return: A string in YAML format.
     """
     yaml = YAML(typ='safe', pure=True)
-    return yaml.dump(object_to_dict(o))
+    stream = StringIO()
+    yaml.dump(object_to_dict(o), stream)
+    result = stream.getvalue()
+    stream.close()
+    return result.strip()
 
 
 def yaml_to_dict(s: str) -> Dict[str, Any]:
