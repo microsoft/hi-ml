@@ -1903,20 +1903,6 @@ def _get_legitimate_default_credential() -> Optional[TokenCredential]:
     return cred
 
 
-def _get_legitimate_azureml_credential() -> Optional[TokenCredential]:
-    """
-    Create a AzureMLOnBehalfOfCredential for interacting with Azure resources and validates it.
-
-    :return: A valid Azure credential.
-    """
-    cred = AzureMLOnBehalfOfCredential()
-    try:
-        _validate_credential(cred)
-        return cred
-    except Exception:
-        return None
-
-
 def _get_legitimate_interactive_browser_credential() -> Optional[TokenCredential]:
     """
     Create an InteractiveBrowser credential for interacting with Azure resources. If the credential can't be
@@ -1960,10 +1946,9 @@ def get_credential() -> TokenCredential:
             return cred
     except ClientAuthenticationError:
         if is_running_in_azure_ml():
-            # In AzureML, we can try the OnBehalfOf credential
-            cred = _get_legitimate_azureml_credential()
-            if cred is not None:
-                return cred
+            # In AzureML, we can try the AzureMLOnBehalfOfCredential credential. This credential does not need
+            # to be validated (in fact, it raises errors when we try to validate it by getting a token)
+            return AzureMLOnBehalfOfCredential()
         else:
             # Outside of AzureML, try any of the interactive authentication methods
             cred = _get_legitimate_device_code_credential()

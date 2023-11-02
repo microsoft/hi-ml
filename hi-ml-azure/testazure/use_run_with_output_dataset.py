@@ -26,13 +26,14 @@ def main() -> None:
     resource_group_name = uri_segments[uri_segments.index("resourceGroups") + 1]
     workspace_name = uri_segments[uri_segments.index("workspaces") + 1]
     credential = AzureMLOnBehalfOfCredential()
-    client = MLClient(
+    ml_client = MLClient(
         credential=credential,
         subscription_id=subscription_id,
         resource_group_name=resource_group_name,
         workspace_name=workspace_name,
     )
     print("Got the client")
+
     run_id = "sincere_yacht_xjz95gwvq8"
     workspace = get_workspace()
     run = workspace.get_run(run_id)
@@ -41,7 +42,6 @@ def main() -> None:
     else:
         print("No output datasets")
 
-    ml_client = get_ml_client()
     job = ml_client.jobs.get(run_id)
     output_dataset = job.outputs["OUTPUT_0"]
 
@@ -51,7 +51,7 @@ def main() -> None:
     account_url = f"{datastore.protocol}://{datastore.account_name}.blob.{datastore.endpoint}"
     print(f"{output_dataset.path}")
 
-    blob_client = BlobServiceClient(account_url=account_url, credential=get_credential())
+    blob_client = BlobServiceClient(account_url=account_url, credential=credential)
     container_client = blob_client.get_container_client(datastore.container_name)
 
     # List all blobs (files) inside a specific folder (prefix)
@@ -63,11 +63,14 @@ def main() -> None:
     for blob_name in blob_list:
         print(blob_name)
 
+    # Get the client without further authentication.
+    ml_client2 = get_ml_client()
+
 
 if __name__ == "__main__":
     submit_to_azure_if_needed(
         snapshot_root_directory=Path(__file__).parents[2],
-        compute_cluster_name="ds2-with-id",
+        compute_cluster_name="lite-testing-ds2",
         strictly_aml_v1=True,
         submit_to_azureml=True,
     )
