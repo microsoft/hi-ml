@@ -42,12 +42,15 @@ from health_azure.utils import (
     download_files_by_suffix,
     download_file_if_necessary,
     resolve_workspace_config_path,
+    sanitize_snapshoot_directory,
+    sanitize_entry_script,
 )
 from testazure.test_himl import RunTarget, render_and_run_test_script
 from testazure.utils_testazure import (
     DEFAULT_IGNORE_FOLDERS,
     DEFAULT_WORKSPACE,
     MockRun,
+    change_working_directory,
     create_unittest_run_object,
     experiment_for_unittests,
     repository_root,
@@ -2143,3 +2146,39 @@ def test_resolve_workspace_config_path_missing(tmp_path: Path) -> None:
     mocked_file = tmp_path / "foo.json"
     with pytest.raises(FileNotFoundError, match="Workspace config file does not exist"):
         resolve_workspace_config_path(mocked_file)
+
+
+@pytest.mark.fast
+def test_sanitize_snapshot_root(tmp_path: Path) -> None:
+    """Test if the snapshot root directory will default to the current working directory if not provided.
+    Otherwise, pass through unchanged.
+    """
+    with change_working_directory(tmp_path):
+        assert sanitize_snapshoot_directory(None) == tmp_path
+    folder = tmp_path / "foo"
+    assert sanitize_snapshoot_directory(folder) == folder
+    assert sanitize_snapshoot_directory(str(folder)) == folder
+
+
+@pytest.mark.fast
+def test_sanitize_entry_script(tmp_path: Path) -> None:
+    script = "some_script"
+    # If no entry script is given, derive from sys.argv
+    with patch("sys.argv", [script]):
+        assert sanitize_entry_script(None, tmp_path) == script
+    # If an entry script is given and it is valid, pass through unchanged
+    assert sanitize_entry_script(script, tmp_path) == script
+    # If the entry script is in a subfolder, we want to get the script with folder back, as a string.
+    folder = "folder"
+    script_with_folder = tmp_path / folder / script
+    assert sanitize_entry_script(script_with_folder, tmp_path) == f"{folder}/{script}"
+    # If the entry script is of the format "-m Foo.bar", return unchanged.
+    entry_module = "-m Foo.bar"
+    assert sanitize_entry_script(entry_module, tmp_path) == entry_module
+
+    # Error case: Invalid argument
+    with pytest.raises(ValueError, match="entry_script must be a string or Path"):
+        assert sanitize_entry_script([], tmp_path)  # type: ignore
+    # Error case: Entry script is not in the snapshot
+    with pytest.raises(ValueError, match="entry script must be inside of the snapshot root"):
+        assert sanitize_entry_script(script_with_folder, tmp_path / "other_folder")
