@@ -47,6 +47,7 @@ from azure.ai.ml import MLClient
 from azure.ai.ml.entities import Job
 from azure.ai.ml.entities import Workspace as WorkspaceV2
 from azure.ai.ml.entities import Environment as EnvironmentV2
+from azure.ai.ml.identity import AzureMLOnBehalfOfCredential
 from azure.core.credentials import TokenCredential
 from azure.core.exceptions import ClientAuthenticationError, ResourceNotFoundError
 from azure.identity import (
@@ -1902,6 +1903,20 @@ def _get_legitimate_default_credential() -> Optional[TokenCredential]:
     return cred
 
 
+def _get_legitimate_azureml_credential() -> Optional[TokenCredential]:
+    """
+    Create a AzureMLOnBehalfOfCredential for interacting with Azure resources and validates it.
+
+    :return: A valid Azure credential.
+    """
+    cred = AzureMLOnBehalfOfCredential()
+    try:
+        _validate_credential(cred)
+        return cred
+    except Exception:
+        return None
+
+
 def _get_legitimate_interactive_browser_credential() -> Optional[TokenCredential]:
     """
     Create an InteractiveBrowser credential for interacting with Azure resources. If the credential can't be
@@ -1917,7 +1932,7 @@ def _get_legitimate_interactive_browser_credential() -> Optional[TokenCredential
         return None
 
 
-def get_credential() -> Optional[TokenCredential]:
+def get_credential() -> TokenCredential:
     """
     Get a credential for authenticating with Azure. There are multiple ways to retrieve a credential.
     If environment variables pertaining to details of a Service Principal are available, those will be used
@@ -1926,9 +1941,10 @@ def get_credential() -> Optional[TokenCredential]:
     device code (which requires the user to visit a link and enter a provided code). If this fails, or if running in
     Azure, DefaultAzureCredential will be used which iterates through a number of possible authentication methods
     including identifying an Azure managed identity, cached credentials from VS code, Azure CLI, Powershell etc.
-    Otherwise returns None.
+    If not of those works, a ValueError is raised.
 
     :return: Any of the aforementioned credentials if available, else None.
+    :raises ValueError: If no credential can be retrieved.
     """
     service_principal_id = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_ID, allow_missing=True)
     tenant_id = get_secret_from_environment(ENV_TENANT_ID, allow_missing=True)
@@ -1938,17 +1954,24 @@ def get_credential() -> Optional[TokenCredential]:
         return _get_legitimate_service_principal_credential(tenant_id, service_principal_id, service_principal_password)
 
     try:
+        # When running in AzureML, this will also try managed identity.
         cred = _get_legitimate_default_credential()
         if cred is not None:
             return cred
     except ClientAuthenticationError:
-        cred = _get_legitimate_device_code_credential()
-        if cred is not None:
-            return cred
-
-        cred = _get_legitimate_interactive_browser_credential()
-        if cred is not None:
-            return cred
+        if is_running_in_azure_ml():
+            # In AzureML, we can try the OnBehalfOf credential
+            cred = _get_legitimate_azureml_credential()
+            if cred is not None:
+                return cred
+        else:
+            # Outside of AzureML, try any of the interactive authentication methods
+            cred = _get_legitimate_device_code_credential()
+            if cred is not None:
+                return cred
+            cred = _get_legitimate_interactive_browser_credential()
+            if cred is not None:
+                return cred
 
     raise ValueError(
         "Unable to generate and validate a credential. Please see Azure ML documentation"
