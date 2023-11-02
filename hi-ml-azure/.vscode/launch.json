@@ -21,6 +21,14 @@
             "justMyCode": false
         },
         {
+            "name": "Use output datasets",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/testazure/use_run_with_output_dataset.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+        },
+        {
             "name": "Run example script in AzureML",
             "type": "python",
             "request": "launch",
