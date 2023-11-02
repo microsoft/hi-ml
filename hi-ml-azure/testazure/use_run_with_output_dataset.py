@@ -17,6 +17,7 @@ output_dataset = job.outputs["OUTPUT_0"]
 
 from azure.ai.ml.entities import Data
 from azure.ai.ml.constants import AssetTypes
+
 data_type = AssetTypes.URI_FILE
 
 data = Data(path=output_dataset.path)
@@ -31,6 +32,7 @@ print(f"{output_dataset.path}")
 
 from azure.storage.blob import BlobServiceClient
 from azure.identity import DefaultAzureCredential
+
 blob_client = BlobServiceClient(account_url=account_url, credential=DefaultAzureCredential())
 container_client = blob_client.get_container_client(datastore.container_name)
 
