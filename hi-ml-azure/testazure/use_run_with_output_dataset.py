@@ -17,6 +17,7 @@ output_dataset = job.outputs["OUTPUT_0"]
 
 from azure.ai.ml.entities import Data
 from azure.ai.ml.constants import AssetTypes
+
 data_type = AssetTypes.URI_FILE
 
 data = Data(path=output_dataset.path)
@@ -27,10 +28,10 @@ print(datastore.account_name)
 print(datastore.container_name)
 account_url = f"{datastore.protocol}://{datastore.account_name}.blob.{datastore.endpoint}"
 print(f"{output_dataset.path}")
-"azureml://subscriptions/a85ceddd-892e-4637-ae4b-67d15ddf5f2b/resourcegroups/health-ml/workspaces/hi-ml/datastores/workspaceblobstore/paths/output_dataset/"
 
 from azure.storage.blob import BlobServiceClient
 from azure.identity import DefaultAzureCredential
+
 blob_client = BlobServiceClient(account_url=account_url, credential=DefaultAzureCredential())
 container_client = blob_client.get_container_client(datastore.container_name)
 
