@@ -464,6 +464,15 @@ def test_invalid_entry_script(tmp_path: Path) -> None:
     assert script_run.script == "some_string"
     assert script_run.arguments == ["--foo"]
 
+    # When proving a full command, this should override whatever is given in script and params
+    command_and_params = ["cmd", "arg1"]
+    script_run = himl.create_script_run(
+        script_params=["--p"], snapshot_root_directory=None, entry_script="entry", command_and_params=command_and_params
+    )
+    assert script_run.script is None
+    assert script_run.arguments is None
+    assert script_run.command == command_and_params
+
 
 @pytest.mark.fast
 def test_get_script_params() -> None:
@@ -1902,6 +1911,19 @@ def test_submitting_script_with_sdk_v2_accepts_relative_path(tmp_path: Path) -> 
                 # The constructed command is to start python with the given entry script, given as a relative path
                 expected_command = "python " + script_name
                 assert call_kwargs.get("command").startswith(expected_command), "Incorrect script argument"
+
+            with pytest.raises(NotImplementedError):
+                himl.submit_to_azure_if_needed(
+                    command_and_params=["foo", "bar"],
+                    conda_environment_file=conda_env_path,
+                    snapshot_root_directory=tmp_path,
+                    submit_to_azureml=True,
+                    strictly_aml_v1=False,
+                )
+            assert mock_command.call_count == 3
+            _, call_kwargs = mock_command.call_args
+            # The constructed command should be constructed from the command_and_params argument
+            assert call_kwargs.get("command").startswith("foo bar"), "Incorrect script argument"
 
             # Submission should fail with an error if the entry script is not inside the snapshot root
             with pytest.raises(ValueError, match="entry script must be inside of the snapshot root"):

@@ -455,13 +455,14 @@ def submit_run_v2(
     :return: An AzureML Run object.
     """
     root_dir = sanitize_snapshoot_directory(snapshot_root_directory)
-    experiment_name = effective_experiment_name(experiment_name, entry_script_relative)
     if command_and_params is None:
         entry_script_relative = sanitize_entry_script(entry_script, root_dir)
+        experiment_name = effective_experiment_name(experiment_name, entry_script_relative)
         script_params = script_params or []
         script_param_str = create_v2_job_command_line_args_from_params(script_params)
         cmd = " ".join(["python", str(entry_script_relative), script_param_str])
     else:
+        experiment_name = effective_experiment_name(experiment_name, command_and_params[0])
         cmd = " ".join([command_and_params[0], create_v2_job_command_line_args_from_params(command_and_params[1:])])
 
     print(f"The following command will be run in AzureML: {cmd}")
