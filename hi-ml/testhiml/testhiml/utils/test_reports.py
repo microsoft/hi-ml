@@ -232,7 +232,7 @@ def test_html_report_read_config(html_report: HTMLReport, dummy_df: pd.DataFrame
                 [
                     {
                         ReportComponentKey.TYPE.value: ReportComponentKey.TABLE.value,
-                        ReportComponentKey.VALUE.value: table_path,
+                        ReportComponentKey.VALUE.value: str(table_path),
                     }
                 ]
             )
