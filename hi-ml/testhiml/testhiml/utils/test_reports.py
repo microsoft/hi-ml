@@ -240,7 +240,7 @@ def test_html_report_read_config(html_report: HTMLReport, dummy_df: pd.DataFrame
     )
     report_config_path = tmp_path / "report_config.yml"
     with open(report_config_path, "w+") as f_path:
-        yaml = YAML(typ='unsafe', pure=True)
+        yaml = YAML(typ='safe', pure=True)
         yaml.dump(report_config_contents, f_path)
 
     report_config = html_report.read_config_yaml(report_config_path)
