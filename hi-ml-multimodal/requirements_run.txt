@@ -1,5 +1,5 @@
 huggingface-hub==0.6.0
-pillow==10.0.1
+pillow==9.3.0
 pydicom==2.2.2
 scikit-image==0.18.1
 SimpleITK==2.1.1
