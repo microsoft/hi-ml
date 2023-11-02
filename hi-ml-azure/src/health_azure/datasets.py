@@ -339,8 +339,8 @@ class DatasetConfig:
         :param local_folder: The folder on the local machine at which the dataset is available. This
             is used only for runs outside of AzureML. If this is empty then the target_folder will be used to
             mount or download the dataset.
-        :param register_on_job_completion: Only for output datasets: If this flag is True, the dataset will be
-            registered in the AML portal after the job has completed and visible in the "Data" section.
+        :param register_on_job_completion: Only for output datasets when using AML SDK v1: If this flag is True, the
+            dataset will be registered in the AML portal after the job has completed and visible in the "Data" section.
             If this flag is False, the dataset will be visible for the job, but not in the AML portal "Data" section.
         """
         # This class would be a good candidate for a dataclass, but having an explicit constructor makes
