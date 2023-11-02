@@ -364,9 +364,7 @@ def create_script_run(
 
     snapshot_root = sanitize_snapshoot_directory(snapshot_root_directory)
     if command_and_params is not None:
-        return ScriptRunConfig(
-            source_directory=str(snapshot_root), script=command_and_params[0], arguments=command_and_params[1:]
-        )
+        return ScriptRunConfig(source_directory=str(snapshot_root), command=command_and_params)
     else:
         entry_script_relative = sanitize_entry_script(entry_script, snapshot_root)
         return ScriptRunConfig(
