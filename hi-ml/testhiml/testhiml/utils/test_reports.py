@@ -226,20 +226,16 @@ def test_html_report_read_config(html_report: HTMLReport, dummy_df: pd.DataFrame
 
     plt.plot(dummy_df[[dummy_df_cols[0]]], dummy_df[[dummy_df_cols[1]]])
 
-    report_config_contents = OrderedDict(
-        {
-            REPORT_CONTENTS_KEY: OrderedList(
-                [
-                    {
-                        ReportComponentKey.TYPE.value: ReportComponentKey.TABLE.value,
-                        ReportComponentKey.VALUE.value: str(table_path),
-                    }
-                ]
-            )
-        }
-    )
+    report_config_contents = {
+        REPORT_CONTENTS_KEY: [
+            {
+                ReportComponentKey.TYPE.value: ReportComponentKey.TABLE.value,
+                ReportComponentKey.VALUE.value: str(table_path),
+            }
+        ]
+    }
     report_config_path = tmp_path / "report_config.yml"
-    with open(report_config_path, "w+") as f_path:
+    with open(report_config_path, "w+", encoding="utf-8") as f_path:
         yaml = YAML(typ='safe', pure=True)
         yaml.dump(report_config_contents, f_path)
 
@@ -248,7 +244,7 @@ def test_html_report_read_config(html_report: HTMLReport, dummy_df: pd.DataFrame
     assert len(report_config[REPORT_CONTENTS_KEY]) == 1
     report_contents_first_entry = report_config[REPORT_CONTENTS_KEY][0]
     assert report_contents_first_entry[ReportComponentKey.TYPE.value] == ReportComponentKey.TABLE.value
-    assert report_contents_first_entry[ReportComponentKey.VALUE.value] == table_path
+    assert report_contents_first_entry[ReportComponentKey.VALUE.value] == str(table_path)
 
     html_report.add_yaml_contents_to_report(report_config)
     html_template_difference = html_report.template.replace(html_template_before, "")
