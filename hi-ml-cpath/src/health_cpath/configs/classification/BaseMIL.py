@@ -27,7 +27,7 @@ from health_ml.utils.checkpoint_utils import CheckpointParser
 
 from health_cpath.datamodules.base_module import CacheLocation, CacheMode, HistoDataModule
 from health_cpath.datasets.base_dataset import SlidesDataset
-from health_cpath.models.deepmil import DeepMILModule
+from health_cpath.models.deepmil import DeepMILModule, MADeepMILModule
 from health_cpath.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
 from health_cpath.utils.deepmil_utils import ClassifierParams, EncoderParams, PoolingParams
 from health_cpath.utils.output_utils import DeepMILOutputsHandler
@@ -63,6 +63,18 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
         "If 0 (default), will return all samples in each bag. "
         "If > 0 , bags larger than `max_bag_size_inf` will yield "
         "random subsets of instances.",
+    )
+    ma_max_bag_size: Optional[int] = param.Integer(
+        None,
+        bounds=(0, None),
+        allow_None=True,
+        doc="Upper bound on number of tiles to encode using online encoder. If not None, this flag enables moving "
+        "average weight update. Online encoder will be used to encode the first ma_max_bag_size tiles. Target encoder "
+        "is used for the remaining tiles ma_max_bag_size:max_bag_size.",
+    )
+    ma_tau: float = param.Number(
+        default=0.99,
+        doc="Momentum for moving average encoder update. Default is 0.99.",
     )
     # Outputs Handler parameters:
     num_top_slides: int = param.Integer(
@@ -148,6 +160,11 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
                 " `pl_sync_batchnorm=False` to simply skip Batch Norm synchronization across devices. Note that this "
                 "might come with some performance penalty."
             )
+        if self.ma_max_bag_size is not None:
+            if not self.tune_encoder:
+                raise ValueError("Moving average weight update is only supported when fine tuning the encoder.")
+            if self.max_bag_size != 0 and self.ma_max_bag_size > self.max_bag_size:
+                raise ValueError("ma_max_bag_size should be smaller than max_bag_size.")
 
     @property
     def cache_dir(self) -> Path:
@@ -286,7 +303,8 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
     def create_model(self) -> DeepMILModule:
         num_classes = self.get_num_classes()
         outputs_handler = self.get_outputs_handler()
-        deepmil_module = DeepMILModule(
+        deepmil_module: DeepMILModule
+        deepmil_module_params = dict(
             label_column=self.get_label_column(),
             n_classes=num_classes,
             class_names=self.class_names,
@@ -299,6 +317,14 @@ class BaseMIL(LightningContainer, LoadingParams, EncoderParams, PoolingParams, C
             outputs_handler=outputs_handler,
             analyse_loss=self.analyse_loss,
         )
+        if self.ma_max_bag_size is not None:
+            deepmil_module = MADeepMILModule(
+                ma_max_bag_size=self.ma_max_bag_size,
+                ma_tau=self.ma_tau,
+                **deepmil_module_params,
+            )
+        else:
+            deepmil_module = DeepMILModule(**deepmil_module_params)
         deepmil_module.transfer_weights(self.trained_weights_path)
         outputs_handler.set_slides_dataset_for_plots_handlers(self.get_slides_dataset())
         outputs_handler.set_extra_slides_dataset_for_plots_handlers(self.get_extra_slides_dataset_for_plotting())

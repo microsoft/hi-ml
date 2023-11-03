@@ -21,7 +21,8 @@ class DenseNet121Encoder(torch.nn.Module):
 
     def __init__(self) -> None:
         super().__init__()
-        self.densenet_features = densenet121().features
+        self.densenet_features = densenet121(pretrained=True).features
+        self.num_encoding = 1024
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = self.densenet_features(x)

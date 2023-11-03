@@ -17,10 +17,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import Callback
-
 from health_cpath.models.deepmil import DeepMILModule
 from health_cpath.utils.naming import ModelKey, ResultsKey
 from health_cpath.utils.output_utils import BatchResultsType
+
 
 LossCacheDictType = Dict[Union[ResultsKey, str], List]
 LossDictType = Dict[str, List]
