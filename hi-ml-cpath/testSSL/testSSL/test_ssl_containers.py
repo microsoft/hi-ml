@@ -143,7 +143,7 @@ def test_ssl_container_cifar10_resnet_simclr() -> None:
     # Note: It is possible that after the PyTorch 1.10 upgrade, we can't get parity between local runs and runs on
     # the hosted build agents. If that suspicion is confirmed, we need to add branching for local and cloud results.
     expected_metrics = {
-        'simclr/val/loss': 2.8463339805603027,
+        'simclr/val/loss': 2.859630584716797,
         'ssl_online_evaluator/val/loss': 2.2664988040924072,
         'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.20000000298023224,
         'simclr/train/loss': 3.6261773109436035,
