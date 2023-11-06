@@ -77,7 +77,7 @@ from testazure.utils_testazure import (
 )
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
-EXPECTED_QUEUED = "This command will be run in AzureML:"
+EXPECTED_QUEUED = "Successfully queued run"
 GITHUB_SHIBBOLETH = "GITHUB_RUN_ID"  # https://docs.github.com/en/actions/reference/environment-variables
 AZUREML_FLAG = himl.AZUREML_FLAG
 
