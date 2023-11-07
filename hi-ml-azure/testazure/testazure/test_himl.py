@@ -77,7 +77,7 @@ from testazure.utils_testazure import (
 )
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
-EXPECTED_QUEUED = "This command will be run in AzureML:"
+EXPECTED_QUEUED = "Successfully queued run"
 GITHUB_SHIBBOLETH = "GITHUB_RUN_ID"  # https://docs.github.com/en/actions/reference/environment-variables
 AZUREML_FLAG = himl.AZUREML_FLAG
 
@@ -448,15 +448,19 @@ def test_invalid_entry_script(tmp_path: Path) -> None:
         )
     assert "entry script must be inside of the snapshot root directory" in str(e)
 
+    # If no info is provided, the script run should copy all of the current working directory, and read the entry
+    # script from sys.argv
     with mock.patch("sys.argv", ["foo"]):
         script_params = himl._get_script_params()
-        script_run = himl.create_script_run(script_params)
+        script_run = himl.create_script_run(script_params, snapshot_root_directory=None, entry_script=None)
         assert script_run.source_directory == str(Path.cwd())
         assert script_run.script == "foo"
         assert script_run.arguments == []
 
     # Entry scripts where the path is not absolute should be left unchanged
-    script_run = himl.create_script_run(entry_script="some_string", script_params=["--foo"])
+    script_run = himl.create_script_run(
+        script_params=["--foo"], snapshot_root_directory=None, entry_script="some_string"
+    )
     assert script_run.script == "some_string"
     assert script_run.arguments == ["--foo"]
 
@@ -1863,6 +1867,52 @@ def test_submitting_script_with_sdk_v2(tmp_path: Path, wait_for_completion: bool
         )
 
     assert after_submission_called, "after_submission callback was not called"
+
+
+def test_submitting_script_with_sdk_v2_accepts_relative_path(tmp_path: Path) -> None:
+    """
+    Test that submission of a script with AML V2 works when the script path is relative to the current working folder.
+    """
+    # Create a minimal script in a temp folder. Script
+    script_name = "test_script.py"
+    test_script = tmp_path / script_name
+    test_script.write_text("print('hello world')")
+    conda_env_path = create_empty_conda_env(tmp_path)
+
+    with patch.multiple(
+        "health_azure.himl",
+        get_ml_client=DEFAULT,
+        create_python_environment_v2=DEFAULT,
+        register_environment_v2=DEFAULT,
+    ):
+        with patch("health_azure.himl.command", side_effect=NotImplementedError) as mock_command:
+            # Try calling the submission code with both relative and absolute paths. In either case, the entry script
+            # should be converted to a single string that is relative to the snapshot root directory.
+            for index, entry_script in enumerate([script_name, test_script]):
+                with pytest.raises(NotImplementedError):
+                    himl.submit_to_azure_if_needed(
+                        entry_script=entry_script,  # type: ignore
+                        conda_environment_file=conda_env_path,
+                        snapshot_root_directory=tmp_path,
+                        submit_to_azureml=True,
+                        strictly_aml_v1=False,
+                    )
+                assert mock_command.call_count == index + 1
+                _, call_kwargs = mock_command.call_args
+                # The constructed command is to start python with the given entry script, given as a relative path
+                expected_command = "python " + script_name
+                assert call_kwargs.get("command").startswith(expected_command), "Incorrect script argument"
+
+            # Submission should fail with an error if the entry script is not inside the snapshot root
+            with pytest.raises(ValueError, match="entry script must be inside of the snapshot root"):
+                with pytest.raises(NotImplementedError):
+                    himl.submit_to_azure_if_needed(
+                        entry_script=test_script,
+                        conda_environment_file=conda_env_path,
+                        snapshot_root_directory=tmp_path / "subfolder",
+                        submit_to_azureml=True,
+                        strictly_aml_v1=False,
+                    )
 
 
 def test_submitting_script_with_sdk_v2_passes_display_name(tmp_path: Path) -> None:

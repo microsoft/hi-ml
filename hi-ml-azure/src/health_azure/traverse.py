@@ -140,10 +140,11 @@ def object_to_yaml(o: Any) -> str:
     """
     yaml = YAML(typ='safe', pure=True)
     stream = StringIO()
+    yaml.default_flow_style = False
     yaml.dump(object_to_dict(o), stream)
     result = stream.getvalue()
     stream.close()
-    return result.strip()
+    return result
 
 
 def yaml_to_dict(s: str) -> Dict[str, Any]:

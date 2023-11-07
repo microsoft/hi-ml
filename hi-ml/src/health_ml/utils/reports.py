@@ -407,7 +407,7 @@ class HTMLReport:
         # TODO: add option to overwrite report title with entry here
         assert report_config_path.suffix == ".yml", f"Expected a .yml file but found {report_config_path.suffix}"
         with open(report_config_path, "r") as f_path:
-            yaml = YAML(typ='unsafe', pure=True)
+            yaml = YAML(typ='safe', pure=True)
             yaml_contents = yaml.load(f_path)
 
         return yaml_contents
