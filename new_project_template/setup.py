@@ -78,7 +78,7 @@ setup(
         'Intended Audience :: Science/Research',
         "Topic :: Scientific/Engineering :: Medical Science Apps.",
         'License :: OSI Approved :: MIT License',
-        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.8',
     ],
     keywords='HealthIntelligence',
     license='MIT License',
