@@ -463,7 +463,7 @@ def submit_run_v2(
         cmd = " ".join(["python", str(entry_script_relative), script_param_str])
     else:
         experiment_name = effective_experiment_name(experiment_name, entry_command)
-        cmd = " ".join([entry_command, script_param_str])
+        cmd = " ".join([str(entry_command), script_param_str])
 
     print(f"The following command will be run in AzureML: {cmd}")
 
