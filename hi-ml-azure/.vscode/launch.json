@@ -5,6 +5,30 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
+        {
+            "name": "Output datasets",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/testazure/job_with_output_dataset.py",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
+        {
+            "name": "Use output datasets",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/testazure/use_run_with_output_dataset.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+        },
+        {
             "name": "Run example script in AzureML",
             "type": "python",
             "request": "launch",
