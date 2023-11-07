@@ -468,10 +468,7 @@ def test_invalid_entry_script(tmp_path: Path) -> None:
     entry_command = "cmd"
     script_params = ["arg1"]
     script_run = himl.create_script_run(
-        snapshot_root_directory=None,
-        entry_script="entry",
-        entry_command="cmd",
-        script_params=script_params
+        snapshot_root_directory=None, entry_script="entry", entry_command="cmd", script_params=script_params
     )
     assert script_run.script is None
     assert script_run.arguments is None
