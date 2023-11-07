@@ -13,11 +13,11 @@ dependencies:
   - libgomp=11.2.0=h1234567_1
   - libstdcxx-ng=11.2.0=h1234567_1
   - ncurses=6.4=h6a678d5_0
-  - openssl=3.0.11=h7f8727e_2
-  - pip=23.3=py39h06a4308_0
-  - python=3.9.18
+  - openssl=3.0.12=h7f8727e_0
+  - pip=23.3=py38h06a4308_0
+  - python=3.8.18
   - readline=8.2=h5eee18b_0
-  - setuptools=68.0.0=py39h06a4308_0
+  - setuptools=68.0.0=py38h06a4308_0
   - sqlite=3.41.2=h5eee18b_0
   - tk=8.6.12=h1ccaba5_0
   - xz=5.4.2=h5eee18b_0
@@ -61,7 +61,7 @@ dependencies:
       - backports-weakref==1.0.post1
       - bcrypt==4.0.1
       - black==23.1.0
-      - blinker==1.6.3
+      - blinker==1.7.0
       - cachetools==5.3.2
       - certifi==2023.7.22
       - cffi==1.16.0
@@ -89,13 +89,13 @@ dependencies:
       - flake8==6.1.0
       - flake8-bugbear==23.3.12
       - flask==3.0.0
-      - fonttools==4.43.1
+      - fonttools==4.44.0
       - fusepy==3.0.1
       - gitdb==4.0.11
       - gitpython==3.1.40
-      - google-api-core==2.12.0
+      - google-api-core==2.13.0
       - google-auth==2.23.4
-      - google-auth-oauthlib==1.1.0
+      - google-auth-oauthlib==1.0.0
       - googleapis-common-protos==1.61.0
       - greenlet==3.0.1
       - grpcio==1.59.2
@@ -105,7 +105,7 @@ dependencies:
       - idna==3.4
       - imagesize==1.4.1
       - importlib-metadata==6.8.0
-      - importlib-resources==6.1.0
+      - importlib-resources==6.1.1
       - iniconfig==2.0.0
       - isodate==0.6.1
       - isort==5.12.0
@@ -127,13 +127,13 @@ dependencies:
       - markdown-it-py==1.1.0
       - markupsafe==2.1.3
       - marshmallow==3.20.1
-      - matplotlib==3.8.1
+      - matplotlib==3.7.3
       - mccabe==0.7.0
       - mdit-py-plugins==0.2.8
       - mlflow==2.8.0
       - mlflow-skinny==2.8.0
       - more-itertools==10.1.0
-      - msal==1.24.1
+      - msal==1.25.0
       - msal-extensions==1.0.0
       - msrest==0.7.1
       - msrestazure==0.6.4
@@ -149,12 +149,13 @@ dependencies:
       - opencensus-context==0.1.3
       - opencensus-ext-azure==1.1.11
       - packaging==23.0
-      - pandas==2.1.2
+      - pandas==2.0.3
       - param==1.13.0
       - paramiko==3.3.1
       - pathspec==0.11.2
       - pillow==10.1.0
       - pkginfo==1.9.6
+      - pkgutil-resolve-name==1.3.10
       - platformdirs==3.11.0
       - pluggy==1.3.0
       - portalocker==2.8.2
@@ -191,10 +192,10 @@ dependencies:
       - requests-toolbelt==1.0.0
       - rfc3986==2.0.0
       - rsa==4.9
-      - ruamel-yaml==0.18.3
+      - ruamel-yaml==0.18.5
       - ruamel-yaml-clib==0.2.8
       - scikit-learn==1.3.2
-      - scipy==1.11.3
+      - scipy==1.10.1
       - secretstorage==3.3.3
       - six==1.16.0
       - smmap==5.0.1
@@ -210,15 +211,15 @@ dependencies:
       - sphinxcontrib-jsmath==1.0.1
       - sphinxcontrib-qthelp==1.0.3
       - sphinxcontrib-serializinghtml==1.1.5
-      - sqlalchemy==2.0.22
+      - sqlalchemy==2.0.23
       - sqlparse==0.4.4
       - strictyaml==1.7.3
       - tabulate==0.9.0
-      - tensorboard==2.15.0
+      - tensorboard==2.14.0
       - tensorboard-data-server==0.7.2
       - threadpoolctl==3.2.0
       - tomli==2.0.1
-      - tomlkit==0.12.1
+      - tomlkit==0.12.2
       - tqdm==4.66.1
       - twine==3.3.0
       - typing-extensions==4.8.0

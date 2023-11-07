@@ -576,7 +576,7 @@ def test_create_python_environment(
     conda_str = """name: simple-env
 dependencies:
   - pip=20.1.1
-  - python=3.9.18
+  - python=3.8.18
   - pip:
     - azureml-sdk==1.23.0
     - something-else==0.1.5
@@ -626,7 +626,7 @@ def test_create_python_environment_v2(
     conda_str = """name: simple-env
 dependencies:
   - pip=20.1.1
-  - python=3.9.18
+  - python=3.8.18
   - pip:
     - azureml-sdk==1.23.0
     - something-else==0.1.5
@@ -662,7 +662,7 @@ def test_create_environment_unique_name(random_folder: Path) -> None:
     conda_str1 = """name: simple-env
 dependencies:
   - pip=20.1.1
-  - python=3.9.18
+  - python=3.8.18
 """
     conda_environment_file = random_folder / "environment.yml"
     conda_environment_file.write_text(conda_str1)
@@ -708,7 +708,7 @@ def test_create_environment_wheel_fails(random_folder: Path) -> None:
     conda_str = """name: simple-env
 dependencies:
   - pip=20.1.1
-  - python=3.9.18
+  - python=3.8.18
 """
     conda_environment_file = random_folder / "environment.yml"
     conda_environment_file.write_text(conda_str)

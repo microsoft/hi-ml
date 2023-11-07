@@ -5,7 +5,7 @@ channels:
   - defaults
 dependencies:
   - pip=23.3
-  - python=3.9.18
+  - python=3.8.18
   - pip:
       - -r run_requirements.txt
       - -r ../build_requirements.txt
