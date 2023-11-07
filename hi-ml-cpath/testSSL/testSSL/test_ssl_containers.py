@@ -143,8 +143,7 @@ def test_ssl_container_cifar10_resnet_simclr() -> None:
     # Note: It is possible that after the PyTorch 1.10 upgrade, we can't get parity between local runs and runs on
     # the hosted build agents. If that suspicion is confirmed, we need to add branching for local and cloud results.
     expected_metrics = {
-        # After package upgrades in #909, this is no longer reproducible
-        # 'simclr/val/loss': 2.8596301078796387,
+        'simclr/val/loss': 2.8596301078796387,
         'ssl_online_evaluator/val/loss': 2.2664988040924072,
         'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.20000000298023224,
         'simclr/train/loss': 3.6261773109436035,
@@ -153,7 +152,8 @@ def test_ssl_container_cifar10_resnet_simclr() -> None:
         'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0,
     }
 
-    _compare_stored_metrics(runner, expected_metrics, abs=5e-5)
+    # After package upgrades in #912, this is no longer reproducible with higher accuracy (was 5e-5)
+    _compare_stored_metrics(runner, expected_metrics, abs=1e-2)
 
     # Check that the checkpoint contains both the optimizer for the embedding and for the linear head
     checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "last.ckpt"
