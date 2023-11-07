@@ -468,7 +468,6 @@ def test_invalid_entry_script(tmp_path: Path) -> None:
     entry_command = "cmd"
     script_params = ["arg1"]
     script_run = himl.create_script_run(
-        script_params=["--p"],
         snapshot_root_directory=None,
         entry_script="entry",
         entry_command="cmd",
@@ -1883,6 +1882,7 @@ def test_submitting_script_with_sdk_v2(tmp_path: Path, wait_for_completion: bool
     assert after_submission_called, "after_submission callback was not called"
 
 
+@pytest.mark.fast
 def test_submitting_script_with_sdk_v2_accepts_relative_path(tmp_path: Path) -> None:
     """
     Test that submission of a script with AML V2 works when the script path is relative to the current working folder.
@@ -1943,6 +1943,7 @@ def test_submitting_script_with_sdk_v2_accepts_relative_path(tmp_path: Path) -> 
                     )
 
 
+@pytest.mark.fast
 def test_submitting_script_with_sdk_v2_passes_display_name(tmp_path: Path) -> None:
     """
     Test that submission of a script with SDK v2 passes the display_name parameter to the "command" function
@@ -2009,6 +2010,7 @@ def test_submitting_script_with_sdk_v2_passes_environment_variables(tmp_path: Pa
             assert call_kwargs.get("environment_variables") == environment_variables, "environment_variables not passed"
 
 
+@pytest.mark.fast
 def test_conda_env_missing(tmp_path: Path) -> None:
     """
     Test that submission fails if no Conda environment file is found.
