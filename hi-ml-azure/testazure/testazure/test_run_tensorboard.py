@@ -69,7 +69,7 @@ def test_wrapped_tensorboard_remote_logs(tmp_path: Path) -> None:
     # call the script here
     extra_options = {
         "conda_channels": ["pytorch"],
-        "conda_dependencies": ["pytorch=1.4.0"],
+        "conda_dependencies": ["pytorch=1.10.0"],
         "imports": """
 import sys
 """,
