@@ -325,7 +325,7 @@ def test_create_run_configuration(
 
 def create_empty_conda_env(tmp_path: Path) -> Path:
     """Create an empty conda environment in a given folder, and returns its path."""
-    conda_env_spec = dict(name="dummy_env", channels=["default"], dependencies=["pip=20.1.1", "python=3.9.18"])
+    conda_env_spec = dict(name="dummy_env", channels=["default"], dependencies=["pip=23.3", "python=3.9.18"])
     conda_env_path = tmp_path / "dummy_conda_env.yml"
     yaml = YAML()
     yaml.dump(conda_env_spec, conda_env_path)
@@ -385,7 +385,7 @@ def test_create_run_configuration_correct_env(
     conda_env_spec = dict(
         name="dummy_env",
         channels=["default"],
-        dependencies=["pip=20.1.1"],
+        dependencies=["pip=23.3"],
     )
 
     conda_env_path = tmp_path / "dummy_conda_env_no_python.yml"
