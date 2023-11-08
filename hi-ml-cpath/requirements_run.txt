@@ -11,7 +11,7 @@ pillow==10.0.1
 pydicom==2.3.0
 scikit-image==0.19.3
 scipy==1.10.0
-seaborn==0.10.1
+seaborn==0.13.0
 simpleitk==2.1.1.2
 tifffile==2022.10.10
 timm==0.6.12
