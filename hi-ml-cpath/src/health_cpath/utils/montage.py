@@ -127,7 +127,6 @@ def _make_thumbnail(
                 mask_pil.save(mask_path)
         image_path = images_dir / f"{slide_id}{image_suffix}"
         image_pil.save(image_path)
-        assert image_path.is_file(), f"File {image_path} has just been written but does not exist"
     except Exception as ex:
         slide_id = sample.get(SlideKey.SLIDE_ID, "(no slide ID found)")
         logging.warning(f"Unable to process slide with ID '{slide_id}': {ex}")
