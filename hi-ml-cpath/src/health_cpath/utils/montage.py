@@ -50,11 +50,11 @@ def add_text(image: Image, text: str, y: float = 0.9, color: TupleInt3 = (27, 77
     draw = ImageDraw.Draw(image)
     image_size_x, image_size_y = image.size
     font = ImageFont.truetype(str(font_path), fontsize)
-    text_size_x, text_size_y = draw.textsize(text, font=font)
+    _, _, text_size_x, text_size_y = draw.textbbox((0, 0), text, font)
     while text_size_x >= image_size_x:
         fontsize -= fontsize_step
         font = ImageFont.truetype(str(font_path), fontsize)
-        text_size_x, text_size_y = draw.textsize(text, font=font)
+        _, _, text_size_x, text_size_y = draw.textbbox((0, 0), text, font)
     start_x = image_size_x // 2 - text_size_x // 2
     start_y = image_size_y * y - text_size_y // 2
     xy = start_x, start_y
