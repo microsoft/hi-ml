@@ -15,23 +15,26 @@ dependencies:
       # Run requirements for hi-ml
       - dataclasses-json==0.5.2
       - jinja2==3.0.2
-      - matplotlib==3.4.3
-      - opencv-python-headless==4.5.1.48
-      - pandas==1.3.4
-      - protobuf==3.20.1
+      - opencv-python-headless>=4.5.1.48
       - pytorch-lightning>=1.6.0, <1.7
-      - rpdb==0.1.6
-      - setuptools==59.5.0
+      - rpdb>=0.1.6
       # Run requirements for hi-ml-azure
-      - azureml-core==1.47.0
-      - azureml-dataset-runtime[fuse]==1.47.0
-      - azureml-tensorboard==1.47.0
-      - azureml-train-core==1.47.0
-      - conda-merge==0.1.5
-      - msal-extensions==0.3.1
-      - param==1.12
-      - ruamel.yaml==0.16.12
-      - tensorboard==2.6.0
+      - azure-ai-ml>=1.1.1
+      - azureml-core>=1.42.0
+      - azureml-dataset-runtime[fuse]>=1.42.0
+      - azureml-mlflow>=1.42.0
+      - azure-storage-blob==12.10.0
+      - azureml-tensorboard>=1.42.0
+      - azureml-train-core>=1.42.0
+      - conda-merge>=0.1.5
+      - mlflow>=1.29.0
+      - pandas>=1.3.4
+      - param>=1.12,<2.0
+      - protobuf<4.0
+      - pysocks>=1.5.8
+      - ruamel.yaml>=0.16.12
+      - tensorboard>=2.6.0
+      - typing-extensions>=4.3.0
       # Histopathology requirements
       - -r requirements_run.txt
       # Test requirements
@@ -46,3 +49,5 @@ dependencies:
       - cloudpickle==1.6.0
       - importlib-metadata==4.2.0
       - markdown==2.6.8
+      # Version 4.19 fails (validate by running "from jsonschema import Draft7Validator, ValidationError")
+      - jsonschema==4.17.3
