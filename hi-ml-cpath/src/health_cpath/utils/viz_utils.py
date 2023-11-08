@@ -189,7 +189,6 @@ def plot_heatmap_overlay(
     if extra_slide_dict:
         ax2 = fig.add_subplot(gs[2, 0], sharex=ax0, sharey=ax0)
         axes.append(ax2)
-    fig.execute_constrained_layout()
     fig.suptitle(_get_histo_plot_title(case, slide_node))
 
     def _get_slide_image_from_slide_dict(slide_dict: Dict[SlideKey, Any]) -> np.ndarray:
