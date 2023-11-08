@@ -40,7 +40,7 @@ def test_get_credential() -> None:
         ENV_SERVICE_PRINCIPAL_PASSWORD: "baz",
     }
 
-    with patch.object(os.environ, "get", return_value=mock_env_vars):
+    with patch.dict(os.environ, mock_env_vars):
         with patch.multiple(
             "health_azure.utils",
             is_running_in_azure_ml=DEFAULT,
