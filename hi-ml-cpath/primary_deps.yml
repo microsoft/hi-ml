@@ -5,7 +5,7 @@ channels:
   - conda-forge
 dependencies:
   - cudatoolkit=11.3.1
-  - pip=20.1.1
+  - pip=23.3
   - python=3.9.13
   - pytorch=1.11.0
   - torchvision=0.12.0
@@ -63,11 +63,10 @@ dependencies:
       - -r requirements_build.txt
       # Pinned secondary dependencies to prevent clashes
       - attrs==21.4.0
-      - azure-mgmt-core==1.3.2
-      - azure-mgmt-keyvault==10.1.0
       - cryptography>=38.0.3
       - cloudpickle==1.6.0
       - importlib-metadata==4.2.0
       - markdown==2.6.8
       # Version 4.19 fails (validate by running "from jsonschema import Draft7Validator, ValidationError")
       - jsonschema==4.17.3
+      - packaging==21.0
