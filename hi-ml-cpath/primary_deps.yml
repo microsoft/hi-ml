@@ -35,8 +35,28 @@ dependencies:
       - ruamel.yaml>=0.16.12
       - tensorboard>=2.6.0
       - typing-extensions>=4.3.0
-      # Histopathology requirements
-      - -r requirements_run.txt
+      # Histopathology requirements. These are copied verbatim here from requirements_run.txt with
+      # the exception of hi-ml
+      - coloredlogs==15.0.1
+      - cucim==22.10.00
+      - girder-client==3.1.14
+      - ipykernel==6.21.2
+      - lightning-bolts==0.4.0
+      - monai-weekly==1.2.dev2310
+      - more-itertools==8.10.0
+      - numpy==1.22.0
+      - pillow==10.0.1
+      - pydicom==2.3.0
+      - scikit-image==0.19.3
+      - scipy==1.10.0
+      - seaborn==0.13.0
+      - simpleitk==2.1.1.2
+      - tifffile==2022.10.10
+      - timm==0.6.12
+      - torchmetrics==0.10.2
+      - torchstain==1.3.0
+      - umap-learn==0.5.2
+      - yacs==0.1.8
       # Test requirements
       - -r requirements_test.txt
       # Build requirements
