@@ -22,6 +22,9 @@ from health_cpath.models.deepmil import DeepMILModule
 from health_cpath.utils.naming import ModelKey, ResultsKey
 from health_cpath.utils.output_utils import BatchResultsType
 
+
+logger = logging.getLogger(__name__)
+
 LossCacheDictType = Dict[Union[ResultsKey, str], List]
 LossDictType = Dict[str, List]
 AnomalyDictType = Dict[ModelKey, List[str]]
@@ -349,12 +352,12 @@ class LossAnalysisCallback(Callback):
         for slide_id, loss in loss_values_copy.items():
             try:
                 if np.isnan(loss).any():
-                    logging.warning(f"NaNs found in loss values for slide {slide_id}.")
+                    logger.warning(f"NaNs found in loss values for slide {slide_id}.")
                     self.nan_slides[stage].append(slide_id)
                     loss_values.pop(slide_id)
             except Exception as e:
-                logging.warning(f"Error while checking for NaNs in loss values for slide {slide_id} with error {e}.")
-                logging.warning(f"Loss values that caused the issue: {loss}")
+                logger.warning(f"Error while checking for NaNs in loss values for slide {slide_id} with error {e}.")
+                logger.warning(f"Loss values that caused the issue: {loss}")
                 self.anomaly_slides[stage].append(slide_id)
                 loss_values.pop(slide_id)
         self.save_slide_ids(self.nan_slides[stage], self.get_nan_slides_file(stage))
@@ -498,7 +501,7 @@ class LossAnalysisCallback(Callback):
         if self.log_exceptions:
             # If something goes wrong, we don't want to crash the training. We just log the error and carry on
             # validation.
-            logging.warning(f"Error while detecting {stage} loss values outliers: {exception}")
+            logger.warning(f"Error while detecting {stage} loss values outliers: {exception}")
         else:
             # If we want to debug the error, we raise it. This will crash the training. This is useful when
             # running smoke tests.

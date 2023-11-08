@@ -17,6 +17,8 @@ from tifffile.tifffile import TiffWriter, PHOTOMETRIC, COMPRESSION
 from typing import Any, Dict, List, Optional, Tuple
 
 
+logger = logging.getLogger(__name__)
+
 AMPERSAND = "&"
 UNDERSCORE = "_"
 TIFF_EXTENSION = ".tiff"
@@ -194,7 +196,7 @@ class ConvertWSIToTiffd(MapTransform):
         resolution_unit = wsi_obj.properties[self.RESOLUTION_UNIT_KEY]
 
         if resolution_unit != self.RESOLUTION_UNIT:
-            logging.info(f"Resolution unit is not in {self.RESOLUTION_UNIT}: {resolution_unit}")
+            logger.info(f"Resolution unit is not in {self.RESOLUTION_UNIT}: {resolution_unit}")
 
         options = dict(
             software=self.SOFTWARE,
@@ -234,7 +236,7 @@ class ConvertWSIToTiffd(MapTransform):
         try:
             levels = self.get_target_levels(wsi_obj)
         except ValueError as e:
-            logging.warning(f"Skipping {src_path} because {e}")
+            logger.warning(f"Skipping {src_path} because {e}")
             return
 
         options = self.get_tiffwriter_options(wsi_obj)
@@ -255,7 +257,7 @@ class ConvertWSIToTiffd(MapTransform):
         if not tiff_path.exists() or (tiff_path.exists() and tiff_path.stat().st_size <= self.min_file_size):
             self.convert_wsi(src_path, tiff_path)
         if self.verbose:
-            logging.info(f"Converted {src_path} to {tiff_path}")
-            logging.info(f"Source file size {src_path.stat().st_size / 1e6:.2f} MB")
-            logging.info(f"Tiff file size {tiff_path.stat().st_size / 1e6:.2f} MB")
+            logger.info(f"Converted {src_path} to {tiff_path}")
+            logger.info(f"Source file size {src_path.stat().st_size / 1e6:.2f} MB")
+            logger.info(f"Tiff file size {tiff_path.stat().st_size / 1e6:.2f} MB")
         return data
