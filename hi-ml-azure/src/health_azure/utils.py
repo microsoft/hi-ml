@@ -456,7 +456,7 @@ def get_authentication() -> Union[InteractiveLoginAuthentication, ServicePrincip
     service_principal_password = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
     # Check if all 3 environment variables are set
     if service_principal_id and tenant_id and service_principal_password:
-        print(
+        logger.info(
             "Found environment variables for Service Principal authentication: First characters of App ID "
             f"are {service_principal_id[:8]}... in tenant {tenant_id[:8]}..."
         )
@@ -1938,7 +1938,7 @@ def get_credential() -> Optional[TokenCredential]:
     tenant_id = get_secret_from_environment(ENV_TENANT_ID, allow_missing=True)
     service_principal_password = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
     if service_principal_id and tenant_id and service_principal_password:
-        print(
+        logger.info(
             "Found environment variables for Service Principal authentication: First characters of App ID "
             f"are {service_principal_id[:8]}... in tenant {tenant_id[:8]}..."
         )
