@@ -464,6 +464,16 @@ def test_invalid_entry_script(tmp_path: Path) -> None:
     assert script_run.script == "some_string"
     assert script_run.arguments == ["--foo"]
 
+    # When proving a full command, this should override whatever is given in script and params
+    entry_command = "cmd"
+    script_params = ["arg1"]
+    script_run = himl.create_script_run(
+        snapshot_root_directory=None, entry_script="entry", entry_command="cmd", script_params=script_params
+    )
+    assert script_run.script is None
+    assert script_run.arguments is None
+    assert script_run.command == [entry_command, *script_params]
+
 
 @pytest.mark.fast
 def test_get_script_params() -> None:
@@ -1869,6 +1879,7 @@ def test_submitting_script_with_sdk_v2(tmp_path: Path, wait_for_completion: bool
     assert after_submission_called, "after_submission callback was not called"
 
 
+@pytest.mark.fast
 def test_submitting_script_with_sdk_v2_accepts_relative_path(tmp_path: Path) -> None:
     """
     Test that submission of a script with AML V2 works when the script path is relative to the current working folder.
@@ -1903,6 +1914,20 @@ def test_submitting_script_with_sdk_v2_accepts_relative_path(tmp_path: Path) -> 
                 expected_command = "python " + script_name
                 assert call_kwargs.get("command").startswith(expected_command), "Incorrect script argument"
 
+            with pytest.raises(NotImplementedError):
+                himl.submit_to_azure_if_needed(
+                    entry_command="foo",
+                    script_params=["bar"],
+                    conda_environment_file=conda_env_path,
+                    snapshot_root_directory=tmp_path,
+                    submit_to_azureml=True,
+                    strictly_aml_v1=False,
+                )
+            assert mock_command.call_count == 3
+            _, call_kwargs = mock_command.call_args
+            # The constructed command should be constructed from the entry_command and script_params arguments
+            assert call_kwargs.get("command").startswith("foo bar"), "Incorrect script argument"
+
             # Submission should fail with an error if the entry script is not inside the snapshot root
             with pytest.raises(ValueError, match="entry script must be inside of the snapshot root"):
                 with pytest.raises(NotImplementedError):
@@ -1915,6 +1940,7 @@ def test_submitting_script_with_sdk_v2_accepts_relative_path(tmp_path: Path) -> 
                     )
 
 
+@pytest.mark.fast
 def test_submitting_script_with_sdk_v2_passes_display_name(tmp_path: Path) -> None:
     """
     Test that submission of a script with SDK v2 passes the display_name parameter to the "command" function
@@ -1981,6 +2007,7 @@ def test_submitting_script_with_sdk_v2_passes_environment_variables(tmp_path: Pa
             assert call_kwargs.get("environment_variables") == environment_variables, "environment_variables not passed"
 
 
+@pytest.mark.fast
 def test_conda_env_missing(tmp_path: Path) -> None:
     """
     Test that submission fails if no Conda environment file is found.
