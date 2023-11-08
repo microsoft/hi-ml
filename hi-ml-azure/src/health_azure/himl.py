@@ -343,8 +343,9 @@ def create_crossval_hyperparam_args_v2(
 
 def create_script_run(
     script_params: List[str],
-    snapshot_root_directory: Optional[Path],
-    entry_script: Optional[PathOrString],
+    snapshot_root_directory: Optional[Path] = None,
+    entry_script: Optional[PathOrString] = None,
+    entry_command: Optional[PathOrString] = None,
 ) -> ScriptRunConfig:
     """
     Creates an AzureML ScriptRunConfig object, that holds the information about the snapshot, the entry script, and
@@ -354,13 +355,20 @@ def create_script_run(
         parameters can be generated using the ``_get_script_params()`` function.
     :param snapshot_root_directory: The directory that contains all code that should be packaged and sent to AzureML.
         All Python code that the script uses must be copied over.
-    :param entry_script: The script that should be run in AzureML. If None, the current main Python file will be
-        executed.
-    :return:
+    :param entry_script: The Python script that should be run in AzureML. If None, the current main Python file will be
+        executed. If entry_command is provided, this argument is ignored.
+    :param entry_command: The command that should be run in AzureML. Command arguments will be taken from
+        the 'script_params' argument. If provided, this will override the entry_script argument.
+    :return: A configuration object for a script run.
     """
     snapshot_root = sanitize_snapshoot_directory(snapshot_root_directory)
-    entry_script_relative = sanitize_entry_script(entry_script, snapshot_root)
-    return ScriptRunConfig(source_directory=str(snapshot_root), script=entry_script_relative, arguments=script_params)
+    if entry_command is not None:
+        return ScriptRunConfig(source_directory=str(snapshot_root), command=[entry_command, *script_params])
+    else:
+        entry_script_relative = sanitize_entry_script(entry_script, snapshot_root)
+        return ScriptRunConfig(
+            source_directory=str(snapshot_root), script=entry_script_relative, arguments=script_params
+        )
 
 
 def effective_experiment_name(experiment_name: Optional[str], entry_script: Optional[PathOrString] = None) -> str:
@@ -393,9 +401,10 @@ def effective_experiment_name(experiment_name: Optional[str], entry_script: Opti
 def submit_run_v2(
     ml_client: MLClient,
     environment: EnvironmentV2,
-    entry_script: PathOrString,
-    script_params: List[str],
     compute_target: str,
+    entry_script: Optional[PathOrString] = None,
+    script_params: Optional[List[str]] = None,
+    entry_command: Optional[PathOrString] = None,
     environment_variables: Optional[Dict[str, str]] = None,
     experiment_name: Optional[str] = None,
     input_datasets_v2: Optional[Dict[str, Input]] = None,
@@ -416,7 +425,10 @@ def submit_run_v2(
 
     :param ml_client: An Azure MLClient object for interacting with Azure resources.
     :param environment: An AML v2 Environment object.
-    :param entry_script: The script that should be run in AzureML.
+    :param entry_script: The Python script that should be run in AzureML. If None, the current main Python file will be
+        executed. If entry_command is provided, this argument is ignored.
+    :param entry_command: The command that should be run in AzureML. Command arguments will be taken from
+        the 'script_params' argument. If provided, this will override the entry_script argument.
     :param script_params: A list of parameter to pass on to the script as it runs in AzureML.
     :param compute_target: The name of a compute target in Azure ML to submit the job to.
     :param environment_variables: The environment variables that should be set when running in AzureML.
@@ -443,14 +455,15 @@ def submit_run_v2(
     :return: An AzureML Run object.
     """
     root_dir = sanitize_snapshoot_directory(snapshot_root_directory)
-    entry_script_relative = sanitize_entry_script(entry_script, root_dir)
-
-    experiment_name = effective_experiment_name(experiment_name, entry_script_relative)
-
     script_params = script_params or []
     script_param_str = create_v2_job_command_line_args_from_params(script_params)
-
-    cmd = " ".join(["python", str(entry_script_relative), script_param_str])
+    if entry_command is None:
+        entry_script_relative = sanitize_entry_script(entry_script, root_dir)
+        experiment_name = effective_experiment_name(experiment_name, entry_script_relative)
+        cmd = " ".join(["python", str(entry_script_relative), script_param_str])
+    else:
+        experiment_name = effective_experiment_name(experiment_name, entry_command)
+        cmd = " ".join([str(entry_command), script_param_str])
 
     print(f"The following command will be run in AzureML: {cmd}")
 
@@ -730,6 +743,7 @@ def submit_to_azure_if_needed(  # type: ignore
     pytorch_processes_per_node_v2: Optional[int] = None,
     use_mpi_run_for_single_node_jobs: bool = True,
     display_name: Optional[str] = None,
+    entry_command: Optional[PathOrString] = None,
 ) -> AzureRunInfo:  # pragma: no cover
     """
     Submit a folder to Azure, if needed and run it.
@@ -747,7 +761,10 @@ def submit_to_azure_if_needed(  # type: ignore
         floating point number with a string suffix s, m, h, d for seconds, minutes, hours, day. Examples: '3.5h', '2d'
     :param experiment_name: The name of the AzureML experiment in which the run should be submitted. If omitted,
         this is created based on the name of the current script.
-    :param entry_script: The script that should be run in AzureML
+    :param entry_script: The Python script that should be run in AzureML. If None, the current main Python file will be
+        executed. If entry_command is provided, this argument is ignored.
+    :param entry_command: The command that should be run in AzureML. Command arguments will be taken from
+        the 'script_params' argument. If provided, this will override the entry_script argument.
     :param compute_cluster_name: The name of the AzureML cluster that should run the job. This can be a cluster with
         CPU or GPU machines.
     :param conda_environment_file: The conda configuration file that describes which packages are necessary for your
@@ -915,6 +932,7 @@ def submit_to_azure_if_needed(  # type: ignore
                 script_params=script_params,
                 snapshot_root_directory=snapshot_root_directory,
                 entry_script=entry_script,
+                entry_command=entry_command,
             )
             script_run_config.run_config = run_config
 
@@ -942,9 +960,6 @@ def submit_to_azure_if_needed(  # type: ignore
             environment = create_python_environment_v2(
                 conda_environment_file=conda_environment_file, docker_base_image=docker_base_image
             )
-            if entry_script is None:
-                entry_script = Path(sys.argv[0])
-
             registered_env = register_environment_v2(environment, ml_client)
             input_datasets_v2 = create_v2_inputs(ml_client, cleaned_input_datasets)
             output_datasets_v2 = create_v2_outputs(ml_client, cleaned_output_datasets)
@@ -959,6 +974,7 @@ def submit_to_azure_if_needed(  # type: ignore
                 snapshot_root_directory=snapshot_root_directory,
                 entry_script=entry_script,
                 script_params=script_params,
+                entry_command=entry_command,
                 compute_target=compute_cluster_name,
                 tags=tags,
                 display_name=display_name,
