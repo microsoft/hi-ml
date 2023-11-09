@@ -173,6 +173,7 @@ def test_save_conf_matrix_integration(tmp_path: Path) -> None:
 def test_pr_curve_integration(
     tmp_path: Path, caplog: pytest.LogCaptureFixture, stratify_metadata: Optional[List[Any]]
 ) -> None:
+    caplog.set_level(logging.INFO)
     results = {ResultsKey.TRUE_LABEL: [0, 1, 0, 1, 0, 1], ResultsKey.PROB: [0.1, 0.8, 0.6, 0.3, 0.5, 0.4]}
 
     # check plot is produced and it has right filename

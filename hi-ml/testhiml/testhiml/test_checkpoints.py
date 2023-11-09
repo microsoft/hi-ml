@@ -60,7 +60,7 @@ def test_checkpoint_downloader_run_id() -> None:
 def _test_invalid_checkpoint(checkpoint: str) -> None:
     with pytest.raises(ValueError, match=r"Invalid checkpoint "):
         CheckpointParser(checkpoint=checkpoint)
-        WorkflowParams(local_datasets=Path("foo"), src_checkpoint=checkpoint).validate()
+        WorkflowParams(src_checkpoint=checkpoint).validate()
 
 
 def test_validate_checkpoint_parser() -> None:
@@ -71,10 +71,10 @@ def test_validate_checkpoint_parser() -> None:
     # The following should be okay
     checkpoint = str(full_test_data_path(suffix="hello_world_checkpoint.ckpt"))
     CheckpointParser(checkpoint=checkpoint)
-    WorkflowParams(local_datasets=Path("foo"), src_checkpoint=CheckpointParser(checkpoint)).validate()
+    WorkflowParams(src_checkpoint=CheckpointParser(checkpoint)).validate()
     checkpoint = mock_run_id(id=0)
     CheckpointParser(checkpoint=checkpoint)
-    WorkflowParams(local_datasets=Path("foo"), src_checkpoint=CheckpointParser(checkpoint)).validate()
+    WorkflowParams(src_checkpoint=CheckpointParser(checkpoint)).validate()
 
 
 def get_checkpoint_handler(tmp_path: Path, src_checkpoint: str) -> Tuple[LightningContainer, CheckpointHandler]:

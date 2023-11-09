@@ -97,6 +97,8 @@ def change_working_directory(path_or_str: PathOrString) -> Generator:
         the side effect of the working directory temporarily changing
     """
     new_path = Path(path_or_str).expanduser()
+    if not new_path.is_dir():
+        raise FileNotFoundError(f"Path {new_path} is not a directory")
     old_path = Path.cwd()
     os.chdir(new_path)
     yield
@@ -134,13 +136,14 @@ def choose_conda_env_file(env_file: Optional[Path] = None) -> Path:
     # When running from the Git repo, then stop search for environment file at repository root. Otherwise,
     # search from current folder all the way up
     stop_at = [paths.git_repo_root_folder()] if paths.is_himl_used_from_git_repo() else []
+    current_folder = Path.cwd()
     env_file = find_file_in_parent_folders(
-        paths.ENVIRONMENT_YAML_FILE_NAME, start_at_path=Path.cwd(), stop_at_path=stop_at
+        paths.ENVIRONMENT_YAML_FILE_NAME, start_at_path=current_folder, stop_at_path=stop_at
     )
     if env_file is None:
         raise FileNotFoundError(
             f"No Conda environment file '{paths.ENVIRONMENT_YAML_FILE_NAME}' was found in the "
-            "current folder or its parent folders"
+            f"current folder {current_folder} or its parent folders"
         )
     return env_file
 

@@ -74,7 +74,7 @@ class IdentityEncoder(TileEncoder):
     """Dummy encoder that just flattens the input"""
 
     def _get_encoder(self) -> Tuple[Callable, int]:
-        return nn.Flatten(), np.prod(self.input_dim)
+        return nn.Flatten(), np.prod(self.input_dim)  # type: ignore
 
 
 class ImageNetEncoder(TileEncoder):
