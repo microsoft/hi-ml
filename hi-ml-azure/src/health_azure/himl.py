@@ -160,6 +160,7 @@ def create_run_configuration(
     max_run_duration: str = "",
     input_datasets: Optional[List[DatasetConfig]] = None,
     output_datasets: Optional[List[DatasetConfig]] = None,
+    use_mpi_run_for_single_node_jobs: bool = False,
 ) -> RunConfiguration:
     """
     Creates an AzureML run configuration, that contains information about environment, multi node execution, and
@@ -188,6 +189,8 @@ def create_run_configuration(
     :param output_datasets: The script will create a temporary folder when running in AzureML, and while the job writes
         data to that folder, upload it to blob storage, in the data store.
     :param num_nodes: The number of nodes to use in distributed training on AzureML.
+    :param use_mpi_run_for_single_node_jobs: If True, even single node jobs will be run as distributed MPI jobs.
+        If False, single node jobs will not be run as distributed jobs.
     :return:
     """
     run_config = RunConfiguration()
@@ -225,9 +228,8 @@ def create_run_configuration(
     if max_run_duration:
         run_config.max_run_duration_seconds = run_duration_string_to_seconds(max_run_duration)
 
-    # Create MPI configuration for distributed jobs (unless num_splits > 1, in which case
-    # an AML HyperdriveConfig is instantiated instead
-    if num_nodes > 1:
+    # Create MPI configuration for distributed jobs
+    if num_nodes > 1 or use_mpi_run_for_single_node_jobs:
         distributed_job_config = MpiConfiguration(node_count=num_nodes)
         run_config.mpi = distributed_job_config
         run_config.framework = "Python"
@@ -926,6 +928,7 @@ def submit_to_azure_if_needed(  # type: ignore
                 max_run_duration=max_run_duration,
                 input_datasets=cleaned_input_datasets,
                 output_datasets=cleaned_output_datasets,
+                use_mpi_run_for_single_node_jobs=use_mpi_run_for_single_node_jobs,
             )
 
             script_run_config = create_script_run(
