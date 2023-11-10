@@ -485,7 +485,7 @@ def submit_run_v2(
             # On AML managed compute, we can set distribution to None for single node jobs.
             # However, on Kubernetes compute, single node jobs don't see any GPUs. GPUs are visible for MpiDistribution
             # jobs, so we set MpiDistribution even for single node jobs.
-            if use_mpi_run_for_single_node_jobs:
+            if num_nodes > 1 or use_mpi_run_for_single_node_jobs:
                 distribution = MpiDistribution(process_count_per_instance=1)
         else:
             distribution = PyTorchDistribution(process_count_per_instance=pytorch_processes_per_node)

@@ -2101,8 +2101,7 @@ def test_submit_to_azure_v2_distributed() -> None:
                 assert call_kwargs.get("num_nodes") == num_nodes
                 assert call_kwargs.get("pytorch_processes_per_node") == processes_per_node
 
-            # Single node job: The "distribution" argument of "command" should be set to MpiRun, to ensure that it
-            # runs fine on Kubernetes compute.
+            # Single node job: The "distribution" argument of "command" should be set to None
             with patch("health_azure.himl.command") as mock_command:
                 _ = himl.submit_to_azure_if_needed(
                     workspace_config_file="mockconfig.json",
@@ -2110,6 +2109,22 @@ def test_submit_to_azure_v2_distributed() -> None:
                     snapshot_root_directory=Path.cwd(),
                     submit_to_azureml=True,
                     strictly_aml_v1=False,
+                )
+                mock_command.assert_called_once()
+                _, call_kwargs = mock_command.call_args
+                assert call_kwargs.get("instance_count") == 1
+                assert call_kwargs.get("distribution") is None
+
+            # Single node job where we set the flag to use MPI runs nevertheless: The "distribution" argument of
+            # "command" should be set to MpiRun, to ensure that it runs fine on Kubernetes compute.
+            with patch("health_azure.himl.command") as mock_command:
+                _ = himl.submit_to_azure_if_needed(
+                    workspace_config_file="mockconfig.json",
+                    entry_script=Path(__file__),
+                    snapshot_root_directory=Path.cwd(),
+                    submit_to_azureml=True,
+                    strictly_aml_v1=False,
+                    use_mpi_run_for_single_node_jobs=True
                 )
                 mock_command.assert_called_once()
                 _, call_kwargs = mock_command.call_args
