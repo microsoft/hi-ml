@@ -2231,11 +2231,11 @@ def test_mpi_for_single_node_jobs_v1(use_mpi_run_for_single_node_jobs: bool) -> 
     ):
         with pytest.raises(SystemExit):
             himl.submit_to_azure_if_needed(
-                aml_workspace = MagicMock(name="workspace"),
+                aml_workspace=MagicMock(name="workspace"),
                 submit_to_azureml=True,
                 strictly_aml_v1=True,
                 use_mpi_run_for_single_node_jobs=use_mpi_run_for_single_node_jobs,
-                entry_script = "foo",
+                entry_script="foo",
             )
         mock_submit_run.assert_called_once()
         run_config = mock_submit_run.call_args[1]["script_run_config"].run_config
