@@ -2124,7 +2124,7 @@ def test_submit_to_azure_v2_distributed() -> None:
                     snapshot_root_directory=Path.cwd(),
                     submit_to_azureml=True,
                     strictly_aml_v1=False,
-                    use_mpi_run_for_single_node_jobs=True
+                    use_mpi_run_for_single_node_jobs=True,
                 )
                 mock_command.assert_called_once()
                 _, call_kwargs = mock_command.call_args
