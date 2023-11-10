@@ -33,6 +33,7 @@ from azureml._restclient.constants import RunStatus
 from azureml.core import ComputeTarget, Environment, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
+from azureml.core.runconfig import MpiConfiguration
 from azureml.dataprep.fuse.daemon import MountContext
 from azureml.train.hyperdrive import HyperDriveConfig
 
@@ -2217,3 +2218,31 @@ def test_extract_v2_data_asset_from_env_vars() -> None:
             himl._extract_v2_data_asset_from_env_vars(i, "INPUT_") for i in range(len(valid_mock_environment))
         ]
         assert input_datasets == [Path("input_0"), Path("input_1"), Path("input_2"), Path("input_3")]
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize("use_mpi_run_for_single_node_jobs", [True, False])
+def test_mpi_for_single_node_jobs_v1(use_mpi_run_for_single_node_jobs: bool) -> None:
+    """Test if we can create an MPI job with a single node using the v1 SDK."""
+    with (
+        patch("health_azure.himl.submit_run") as mock_submit_run,
+        patch("health_azure.himl.register_environment"),
+        patch("health_azure.himl.validate_compute_cluster"),
+    ):
+        with pytest.raises(SystemExit):
+            himl.submit_to_azure_if_needed(
+                aml_workspace = MagicMock(name="workspace"),
+                submit_to_azureml=True,
+                strictly_aml_v1=True,
+                use_mpi_run_for_single_node_jobs=use_mpi_run_for_single_node_jobs,
+                entry_script = "foo",
+            )
+        mock_submit_run.assert_called_once()
+        run_config = mock_submit_run.call_args[1]["script_run_config"].run_config
+        assert run_config.node_count == 1
+        assert isinstance(run_config.mpi, MpiConfiguration)
+        assert run_config.mpi.node_count == 1
+        if use_mpi_run_for_single_node_jobs:
+            assert run_config.communicator == "IntelMpi"
+        else:
+            assert run_config.communicator == "None"
