@@ -743,7 +743,7 @@ def submit_to_azure_if_needed(  # type: ignore
     strictly_aml_v1: bool = False,
     identity_based_auth: bool = False,
     pytorch_processes_per_node_v2: Optional[int] = None,
-    use_mpi_run_for_single_node_jobs: bool = True,
+    use_mpi_run_for_single_node_jobs: bool = False,
     display_name: Optional[str] = None,
     entry_command: Optional[PathOrString] = None,
 ) -> AzureRunInfo:  # pragma: no cover
