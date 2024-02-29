@@ -34,7 +34,6 @@ from azureml.core import ComputeTarget, Environment, RunConfiguration, ScriptRun
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.core.runconfig import MpiConfiguration
-from azureml.dataprep.fuse.daemon import MountContext
 from azureml.train.hyperdrive import HyperDriveConfig
 
 import health_azure.himl as himl
@@ -1797,7 +1796,7 @@ def test_submit_to_azure_if_needed_v2() -> None:
     set to True, in which case submit_run should be called instead
     """
     dummy_input_datasets: List[Optional[Path]] = []
-    dummy_mount_contexts: List[MountContext] = []
+    dummy_mount_contexts: List[Any] = []
 
     with patch.multiple(
         "health_azure.himl",
@@ -2055,7 +2054,7 @@ def test_experiment_name() -> None:
 @pytest.mark.fast
 def test_submit_to_azure_v2_distributed() -> None:
     dummy_input_datasets: List[Optional[Path]] = []
-    dummy_mount_contexts: List[MountContext] = []
+    dummy_mount_contexts: List[Any] = []
 
     with patch.multiple(
         "health_azure.himl",
