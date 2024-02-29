@@ -770,11 +770,17 @@ def submit_to_azure_if_needed(  # type: ignore
         CPU or GPU machines.
     :param conda_environment_file: The conda configuration file that describes which packages are necessary for your
         script to run.
-    :param aml_workspace: There are two optional parameters used to glean an existing AzureML Workspace. The simplest is
-        to pass it in as a parameter.
-    :param workspace_config_file: The 2nd option is to specify the path to the config.json file downloaded from the
-        Azure portal from which we can retrieve the existing Workspace.
-    :param ml_client: An Azure MLClient object for interacting with Azure resources.
+    :param aml_workspace: The AzureML workspace that should be used to submit the job. Use this if you already created
+        an actual Workspace object in your code. Alternatively, use the `workspace_config_file` argument to supply
+        the path to a JSON file that describes which workspace should be used.
+        This argument is ignored if the `strictly_aml_v1` flag is set to False.
+    :param workspace_config_file: The path to a JSON file that contains details of the AzureML workspace that should
+        used. The config.json file can be downloaded from the Azure portal of the workspace.
+        This argument is ignored if either `aml_workspace` or `ml_client` objects are passed as arguments.
+    :param ml_client: An Azure MLClient object for interacting with Azure resources, using the AML SDK v2.
+        Use this if you already created an MLClient object in your code, otherwise supply the
+        `workspace_config_file` argument.
+        This argument is ignored if the `strictly_aml_v1` flag is set to True.
     :param snapshot_root_directory: The directory that contains all code that should be packaged and sent to AzureML.
         All Python code that the script uses must be copied over.
     :param ignored_folders: A list of folders to exclude from the snapshot when copying it to AzureML.
@@ -811,7 +817,7 @@ def submit_to_azure_if_needed(  # type: ignore
         for local execution (i.e., return immediately) will be executed. If not provided (None), submission to AzureML
         will be triggered if the commandline flag '--azureml' is present in sys.argv
     :param hyperdrive_config: A configuration object for Hyperdrive (hyperparameter search).
-    :param strictly_aml_v1: If True, use Azure ML SDK v1. Otherwise, attempt to use Azure ML SDK v2.
+    :param strictly_aml_v1: If True, use Azure ML SDK v1. Otherwise, attempt to use Azure ML SDK v2 whereever possible.
     :param pytorch_processes_per_node_v2: For plain PyTorch multi-GPU processing: The number of processes per node. This
         is only supported with AML SDK v2, and ignored in v1. If supplied, the job will be submitted as using the
         "pytorch" framework (rather than "Python"), and using "nccl" as the communication backend.
