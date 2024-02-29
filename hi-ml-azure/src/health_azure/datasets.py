@@ -5,7 +5,7 @@
 import logging
 import tempfile
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from azure.ai.ml import MLClient
 from azure.ai.ml.entities import Data
@@ -17,7 +17,6 @@ from azureml.core import Dataset, Workspace, Datastore
 from azureml.data import FileDataset, OutputFileDatasetConfig
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
-from azureml.dataprep.fuse.daemon import MountContext
 from azureml.exceptions._azureml_exception import UserErrorException
 
 from health_azure.utils import PathOrString, get_ml_client
@@ -358,7 +357,7 @@ class DatasetConfig:
     def to_input_dataset_local(
         self,
         workspace: Workspace,
-    ) -> Tuple[Path, Optional[MountContext]]:
+    ) -> Tuple[Path, Any]:
         """
         Return a local path to the dataset when outside of an AzureML run.
         If local_folder is supplied, then this is assumed to be a local dataset, and this is returned.
@@ -557,7 +556,7 @@ def create_dataset_configs(
 def setup_local_datasets(
     dataset_configs: List[DatasetConfig],
     workspace: Optional[Workspace],
-) -> Tuple[List[Path], List[MountContext]]:
+) -> Tuple[List[Path], List[Any]]:
     """
     When running outside of AzureML, setup datasets to be used locally.
 
@@ -575,7 +574,7 @@ def setup_local_datasets(
     :return: Pair of: list of paths to the input datasets, list of mountcontexts, one for each mounted dataset.
     """
     mounted_input_datasets: List[Path] = []
-    mount_contexts: List[MountContext] = []
+    mount_contexts: List[Any] = []
 
     for data_config in dataset_configs:
         target_path, mount_context = data_config.to_input_dataset_local(workspace)
