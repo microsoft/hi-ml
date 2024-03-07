@@ -16,7 +16,7 @@ logging_stdout_handler: Optional[logging.StreamHandler] = None
 logger = logging.getLogger(__name__)
 
 
-def logging_to_stdout(log_level: Union[int, str] = logger.info) -> None:
+def logging_to_stdout(log_level: Union[int, str] = logging.INFO) -> None:
     """
     Instructs the Python logging libraries to start writing logs to stdout up to the given logging level.
     Logging will use a timestamp as the prefix, using UTC.
