@@ -45,7 +45,7 @@ def get_datastore(workspace: Workspace, datastore_name: str) -> Union[AzureBlobD
             if len(existing_stores) == 1:
                 return datastores[existing_stores[0]]
             datastore = workspace.get_default_datastore()
-            logging.info(f"Using the workspace default datastore {datastore.name} to access datasets.")
+            logger.info(f"Using the workspace default datastore {datastore.name} to access datasets.")
             return datastore
 
         if datastore_name in datastores:
@@ -61,7 +61,7 @@ def get_datastore(workspace: Workspace, datastore_name: str) -> Union[AzureBlobD
             if len(existing_stores) == 1:
                 return existing_stores[0]
             datastore = datastores.get_default()
-            logging.info(f"Using the workspace default datastore {datastore.name} to access datasets.")
+            logger.info(f"Using the workspace default datastore {datastore.name} to access datasets.")
             return datastore
 
         try:
@@ -87,7 +87,7 @@ def _retrieve_v1_dataset(dataset_name: str, workspace: Workspace) -> Optional[Fi
     :param workspace: An Azure ML Workspace object for retrieving the Dataset.
     :return: A Dataset object if it is found, else None.
     """
-    logging.info(f"Trying to retrieve AzureML Dataset '{dataset_name}'")
+    logger.info(f"Trying to retrieve AzureML Dataset '{dataset_name}'")
     azureml_dataset = Dataset.get_by_name(workspace, name=dataset_name)
     return azureml_dataset
 
@@ -107,11 +107,11 @@ def _create_v1_dataset(datastore_name: str, dataset_name: str, workspace: Worksp
     datastore = get_datastore(workspace, datastore_name)
 
     assert isinstance(datastore, AzureBlobDatastore)
-    logging.info(f"Creating a new dataset from data in folder '{dataset_name}' in the datastore")
+    logger.info(f"Creating a new dataset from data in folder '{dataset_name}' in the datastore")
     # Ensure that there is a / at the end of the file path, otherwise folder that share a prefix could create
     # trouble (for example, folders foo and foo_bar exist, and I'm trying to create a dataset from "foo")
     azureml_dataset = Dataset.File.from_files(path=(datastore, dataset_name + "/"))
-    logging.info("Registering the dataset for future use.")
+    logger.info("Registering the dataset for future use.")
     azureml_dataset.register(workspace, name=dataset_name)
     return azureml_dataset
 
@@ -214,7 +214,7 @@ def _create_v2_data_asset(
             "Cannot create data asset with empty datastore name. Please specify a datastore name using the --datastore flag."
         )
 
-    logging.info(
+    logger.info(
         f"Creating a new Data asset from data in folder '{data_asset_name}' in the datastore '{datastore_name}'"
     )
     azureml_data_asset = Data(
@@ -244,7 +244,7 @@ def _get_or_create_v2_data_asset(
     try:
         azureml_data_asset = _retrieve_v2_data_asset(ml_client, data_asset_name, version)
     except ResourceNotFoundError:  # catch the exception and create the dataset, raise all other types of exceptions
-        logging.info(
+        logger.info(
             f"Data asset {data_asset_name} not found in datastore {datastore_name}. Version specified: {version}."
             "Attempting to create a new data asset with specified name and version."
         )
@@ -289,7 +289,7 @@ def get_or_create_dataset(
             aml_dataset = _get_or_create_v2_data_asset(ml_client, datastore_name, dataset_name)
         except HttpResponseError as e:
             if "Cannot create v2 Data Version in v1 Data Container" in e.message:
-                logging.info("This appears to be a v1 Data Container. Reverting to API v1 to create this Dataset")
+                logger.info("This appears to be a v1 Data Container. Reverting to API v1 to create this Dataset")
             aml_dataset = _get_or_create_v1_dataset(datastore_name, dataset_name, workspace)
 
         return aml_dataset
@@ -473,7 +473,7 @@ class DatasetConfig:
         else:
             status += "uploaded when the job completes."
             result = dataset.as_upload(overwrite=self.overwrite_existing)
-        logging.info(status)
+        logger.info(status)
         return result
 
 

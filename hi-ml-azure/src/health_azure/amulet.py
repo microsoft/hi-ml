@@ -23,6 +23,8 @@ ENV_AMLT_AZ_BATCHAI_DIR = "AZ_BATCHAI_JOB_WORK_DIR"
 ENV_AMLT_DATAREFERENCE_DATA = 'AZUREML_DATAREFERENCE_data'
 ENV_AMLT_DATAREFERENCE_OUTPUT = "AZUREML_DATAREFERENCE_output"
 
+logger = logging.getLogger(__name__)
+
 
 def _path_from_env(env_name: str) -> Optional[Path]:
     """Reads a path from an environment variable, and returns it as a Path object
@@ -61,12 +63,12 @@ def get_amulet_aml_working_dir() -> Optional[Path]:
     snapshot_dir = _path_from_env(ENV_AMLT_SNAPSHOT_DIR)
     if snapshot_dir is not None:
         # A non-distributed job submitted by Amulet
-        logging.debug(f"Found {ENV_AMLT_SNAPSHOT_DIR} in env vars: {snapshot_dir}")
+        logger.debug(f"Found {ENV_AMLT_SNAPSHOT_DIR} in env vars: {snapshot_dir}")
         return snapshot_dir
     batchai_dir = _path_from_env(ENV_AMLT_AZ_BATCHAI_DIR)
     if batchai_dir is not None:
         # A distributed job submitted by Amulet
-        logging.debug(f"Found {ENV_AMLT_AZ_BATCHAI_DIR} in env vars: {batchai_dir}")
+        logger.debug(f"Found {ENV_AMLT_AZ_BATCHAI_DIR} in env vars: {batchai_dir}")
         return batchai_dir
     return None
 
@@ -97,5 +99,5 @@ def prepare_amulet_job() -> None:
     # The RANK environment is set by Amulet, but not by AzureML. If set, PyTorch Lightning will think that all
     # processes are running at rank 0 in its `rank_zero_only` decorator, which will cause the logging to fail.
     if ENV_RANK in os.environ:
-        logging.info("Removing RANK environment variable.")
+        logger.info("Removing RANK environment variable.")
         del os.environ[ENV_RANK]

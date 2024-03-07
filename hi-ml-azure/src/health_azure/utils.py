@@ -264,7 +264,7 @@ def find_file_in_parent_folders(
     start_at_path = start_at_path or Path.cwd()
 
     def return_file_or_parent(start_at: Path) -> Optional[Path]:
-        logging.debug(f"Searching for file {file_name} in {start_at}")
+        logger.debug(f"Searching for file {file_name} in {start_at}")
         expected = start_at / file_name
         if expected.is_file() and expected.name == file_name:
             return expected
@@ -421,7 +421,7 @@ def fetch_run(workspace: Workspace, run_recovery_id: str) -> Run:
     except Exception as ex:
         raise Exception(f"Unable to retrieve run {run} in experiment {experiment}: {str(ex)}")
     run_to_recover = fetch_run_for_experiment(experiment_to_recover, run)
-    logging.info(f"Fetched run #{run_to_recover.number} {run} from experiment {experiment}.")
+    logger.info(f"Fetched run #{run_to_recover.number} {run} from experiment {experiment}.")
     return run_to_recover
 
 
@@ -465,7 +465,7 @@ def get_authentication() -> Union[InteractiveLoginAuthentication, ServicePrincip
             service_principal_id=service_principal_id,
             service_principal_password=service_principal_password,
         )
-    logging.info(
+    logger.info(
         "Using interactive login to Azure. To use Service Principal authentication, set the environment "
         f"variables {ENV_SERVICE_PRINCIPAL_ID}, {ENV_SERVICE_PRINCIPAL_PASSWORD}, and {ENV_TENANT_ID}"
     )
@@ -511,13 +511,13 @@ def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str)
     """
     conda_packages_count = len(list(conda.conda_packages))
     pip_packages_count = len(list(conda.pip_packages))
-    logging.info(f"{message_prefix}: {conda_packages_count} conda packages, {pip_packages_count} pip packages")
-    logging.debug("  Conda packages:")
+    logger.info(f"{message_prefix}: {conda_packages_count} conda packages, {pip_packages_count} pip packages")
+    logger.debug("  Conda packages:")
     for p in conda.conda_packages:
-        logging.debug(f"    {p}")
-    logging.debug("  Pip packages:")
+        logger.debug(f"    {p}")
+    logger.debug("  Pip packages:")
     for p in conda.pip_packages:
-        logging.debug(f"    {p}")
+        logger.debug(f"    {p}")
 
 
 def _split_dependency(dep_str: str) -> Tuple[str, ...]:
@@ -749,7 +749,7 @@ def create_python_environment(
             workspace=workspace, file_path=str(private_pip_wheel_path), exist_ok=True
         )
         conda_dependencies.add_pip_package(whl_url)
-        logging.info(f"Added add_private_pip_wheel {private_pip_wheel_path} to AzureML environment.")
+        logger.info(f"Added add_private_pip_wheel {private_pip_wheel_path} to AzureML environment.")
     # Create a name for the environment that will likely uniquely identify it. AzureML does hashing on top of that,
     # and will re-use existing environments even if they don't have the same name.
     env_description_string = "\n".join(
@@ -788,13 +788,13 @@ def register_environment(workspace: Workspace, environment: Environment) -> Envi
     """
     try:
         env = Environment.get(workspace, name=environment.name, version=environment.version)
-        logging.info(f"Using existing Python environment '{env.name}' with version '{env.version}'.")
+        logger.info(f"Using existing Python environment '{env.name}' with version '{env.version}'.")
         return env
     # If environment doesn't exist, AML raises a generic Exception
     except Exception:  # type: ignore
         if environment.version is None:
             environment.version = ENVIRONMENT_VERSION
-        logging.info(
+        logger.info(
             f"Python environment '{environment.name}' does not yet exist, creating and registering it"
             f" with version '{environment.version}'"
         )
@@ -857,9 +857,9 @@ def register_environment_v2(environment: EnvironmentV2, ml_client: MLClient) -> 
             env = ml_client.environments.get(environment.name, environment.version)
         else:
             env = ml_client.environments.get(environment.name, label="latest")
-        logging.info(f"Found a registered environment with name {environment.name}, returning that.")
+        logger.info(f"Found a registered environment with name {environment.name}, returning that.")
     except ResourceNotFoundError:
-        logging.info("Didn't find existing environment. Registering a new one.")
+        logger.info("Didn't find existing environment. Registering a new one.")
         env = ml_client.environments.create_or_update(environment)
     return env
 
@@ -896,7 +896,7 @@ def set_environment_variables_for_multi_node() -> None:
     """
     if ENV_AZ_BATCH_MASTER_NODE in os.environ:
         master_node = os.environ[ENV_AZ_BATCH_MASTER_NODE]
-        logging.debug(f"Found AZ_BATCH_MASTER_NODE: {master_node} in environment variables")
+        logger.debug(f"Found AZ_BATCH_MASTER_NODE: {master_node} in environment variables")
         # For AML BATCHAI
         split_master_node_addr = master_node.split(":")
         if len(split_master_node_addr) == 2:
@@ -909,16 +909,16 @@ def set_environment_variables_for_multi_node() -> None:
         os.environ[ENV_MASTER_ADDR] = master_addr
     elif ENV_AZ_BATCHAI_MPI_MASTER_NODE in os.environ and os.environ.get(ENV_AZ_BATCHAI_MPI_MASTER_NODE) != "localhost":
         mpi_master_node = os.environ[ENV_AZ_BATCHAI_MPI_MASTER_NODE]
-        logging.debug(f"Found AZ_BATCHAI_MPI_MASTER_NODE: {mpi_master_node} in environment variables")
+        logger.debug(f"Found AZ_BATCHAI_MPI_MASTER_NODE: {mpi_master_node} in environment variables")
         # For AML BATCHAI
         os.environ[ENV_MASTER_ADDR] = mpi_master_node
     elif ENV_MASTER_IP in os.environ:
         master_ip = os.environ[ENV_MASTER_IP]
-        logging.debug(f"Found MASTER_IP: {master_ip} in environment variables")
+        logger.debug(f"Found MASTER_IP: {master_ip} in environment variables")
         # AKS
         os.environ[ENV_MASTER_ADDR] = master_ip
     else:
-        logging.info("No settings for the MPI central node found. Assuming that this is a single node training job.")
+        logger.info("No settings for the MPI central node found. Assuming that this is a single node training job.")
         return
 
     if ENV_MASTER_PORT not in os.environ:
@@ -926,11 +926,11 @@ def set_environment_variables_for_multi_node() -> None:
 
     if ENV_OMPI_COMM_WORLD_RANK in os.environ:
         world_rank = os.environ[ENV_OMPI_COMM_WORLD_RANK]
-        logging.debug(f"Found OMPI_COMM_WORLD_RANK: {world_rank} in environment variables")
+        logger.debug(f"Found OMPI_COMM_WORLD_RANK: {world_rank} in environment variables")
         os.environ[ENV_NODE_RANK] = world_rank  # node rank is the world_rank from mpi run
 
     env_vars = ", ".join(f"{var} = {os.environ[var]}" for var in [ENV_MASTER_ADDR, ENV_MASTER_PORT, ENV_NODE_RANK])
-    logging.info(f"Distributed training: {env_vars}")
+    logger.info(f"Distributed training: {env_vars}")
 
 
 def is_run_and_child_runs_completed(run: Run) -> bool:
@@ -946,7 +946,7 @@ def is_run_and_child_runs_completed(run: Run) -> bool:
         status = run_.get_status()
         if run_.status == RunStatus.COMPLETED:
             return True
-        logging.info(f"Run {run_.id} in experiment {run_.experiment.name} finished with status {status}.")
+        logger.info(f"Run {run_.id} in experiment {run_.experiment.name} finished with status {status}.")
         return False
 
     runs = list(run.get_children())
@@ -992,7 +992,7 @@ def get_most_recent_run_id(run_recovery_file: Path) -> str:
     assert run_recovery_file.is_file(), f"No such file: {run_recovery_file}"
 
     run_id = run_recovery_file.read_text().strip()
-    logging.info(f"Read this run ID from file: {run_id}.")
+    logger.info(f"Read this run ID from file: {run_id}.")
     return run_id
 
 
@@ -1065,7 +1065,7 @@ def get_run_file_names(run: Run, prefix: str = "") -> List[str]:
     :return: A list of paths within the Run's container
     """
     all_files = run.get_file_names()
-    logging.info(f"Selecting files with prefix {prefix}")
+    logger.info(f"Selecting files with prefix {prefix}")
     return [f for f in all_files if f.startswith(prefix)] if prefix else all_files
 
 
@@ -1138,7 +1138,7 @@ def download_files_by_suffix(
     """
     for file in get_run_file_names(run):
         if file.endswith(suffix):
-            logging.info(f"Downloading file {file}")
+            logger.info(f"Downloading file {file}")
             output_folder.mkdir(parents=True, exist_ok=True)
             output_file = output_folder / file
             _download_file_from_run(run, file, output_file, validate_checksum=validate_checksum)
@@ -1166,7 +1166,7 @@ def get_driver_log_file_text(run: Run, download_file: bool = True) -> Optional[s
                 return tmp_log_file_path.read_text()
 
     files_as_str = ', '.join(f"'{log_file_path}'" for log_file_path in VALID_LOG_FILE_PATHS)
-    logging.warning(
+    logger.warning(
         "Tried to get driver log file for run {run.id} text when no such file exists. Expected to find "
         f"one of the following: {files_as_str}"
     )
@@ -1206,11 +1206,11 @@ def download_file_if_necessary(run: Run, filename: str, output_file: Path, overw
     :return: Local path to the downloaded file.
     """
     if not overwrite and output_file.exists():
-        logging.info(f"File already exists at {output_file}")
+        logger.info(f"File already exists at {output_file}")
     else:
         output_file.parent.mkdir(exist_ok=True, parents=True)
         _download_file_from_run(run, filename, output_file, validate_checksum=True)
-        logging.info(f"File is downloaded at {output_file}")
+        logger.info(f"File is downloaded at {output_file}")
     return output_file
 
 
@@ -1282,7 +1282,7 @@ def download_from_datastore(
         datastore, AzureBlobDatastore
     ), "Invalid datastore type. Can only download from AzureBlobDatastore"  # for mypy
     datastore.download(str(output_folder), prefix=file_prefix, overwrite=overwrite, show_progress=show_progress)
-    logging.info(f"Downloaded data to {str(output_folder)}")
+    logger.info(f"Downloaded data to {str(output_folder)}")
 
 
 def upload_to_datastore(
@@ -1325,7 +1325,7 @@ def upload_to_datastore(
     datastore.upload(
         str(local_data_folder), target_path=str(remote_path), overwrite=overwrite, show_progress=show_progress
     )
-    logging.info(f"Uploaded data to {str(remote_path)}")
+    logger.info(f"Uploaded data to {str(remote_path)}")
 
 
 class AmlRunScriptConfig(param.Parameterized):
@@ -1455,7 +1455,7 @@ def torch_barrier() -> None:
     try:
         from torch import distributed
     except ModuleNotFoundError:
-        logging.info("Skipping the barrier because PyTorch is not available.")
+        logger.info("Skipping the barrier because PyTorch is not available.")
         return
     if distributed.is_available() and distributed.is_initialized():
         distributed.barrier()
@@ -1582,7 +1582,7 @@ def get_metrics_for_run(
             raise ValueError("Either run or run_id must be provided")
         run = get_aml_run_from_run_id(run_id, aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
     if isinstance(run, _OfflineRun):
-        logging.warning("Can't get metrics for _OfflineRun object")
+        logger.warning("Can't get metrics for _OfflineRun object")
         return {}
     if run.status != RunStatus.COMPLETED:  # type: ignore
         logger.warning(
@@ -1680,7 +1680,7 @@ def download_files_from_hyperdrive_children(
             download_files_from_run_id(child_run.id, local_folder_child_run, prefix=remote_file_path)
             downloaded_file_path = local_folder_child_run / remote_file_path
             if not downloaded_file_path.exists():
-                logging.warning(
+                logger.warning(
                     f"Unable to download the file {remote_file_path} from the datastore associated with this run."
                 )
             else:
@@ -1803,11 +1803,11 @@ def check_config_json(script_folder: Path, shared_config_json: Path) -> Generato
         pass
     elif shared_config_json.exists():
         # This will execute on local dev machines
-        logging.info(f"Copying {shared_config_json} to folder {script_folder}")
+        logger.info(f"Copying {shared_config_json} to folder {script_folder}")
         shutil.copy(shared_config_json, target_config_json)
     else:
         # This will execute on github agents
-        logging.info(f"Creating {str(target_config_json)} from environment variables.")
+        logger.info(f"Creating {str(target_config_json)} from environment variables.")
         subscription_id = os.getenv(ENV_SUBSCRIPTION_ID, "")
         resource_group = os.getenv(ENV_RESOURCE_GROUP, "")
         workspace_name = os.getenv(ENV_WORKSPACE_NAME, "")
