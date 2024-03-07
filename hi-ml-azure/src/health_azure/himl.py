@@ -68,8 +68,7 @@ from health_azure.utils import (
     _is_module_calling_syntax,
 )
 
-logger = logging.getLogger('health_azure')
-logger.setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 AML_IGNORE_FILE = ".amlignore"
 AZUREML_FLAG = "--azureml"
@@ -265,7 +264,7 @@ def create_grid_hyperdrive_config(values: List[str], argument_name: str, metric_
         your responsibility to make sure a metric with this name is logged to the Run in your training script
     :return: an Azure ML HyperDriveConfig object
     """
-    logging.info(
+    logger.info(
         f"Creating a HyperDriveConfig. Please note that this expects to find the specified "
         f"metric '{metric_name}' logged to AzureML from your training script (for example, using the "
         f"AzureMLLogger with Pytorch Lightning)"
@@ -618,7 +617,7 @@ def submit_run(
 
     _write_run_recovery_file(run)
 
-    # These need to be 'print' not 'logging.info' so that the calling script sees them outside AzureML
+    # These need to be 'print' not 'logger.info' so that the calling script sees them outside AzureML
     print("\n==============================================================================")
     print(f"Successfully queued run {run.id} in experiment {run.experiment.name}")
     print(f"Experiment name and run ID are available in file {RUN_RECOVERY_FILE}")
@@ -652,7 +651,7 @@ def get_data_asset_from_config(ml_client: MLClient, dataset_config: DatasetConfi
     """
 
     version = dataset_config.version
-    logging.info(
+    logger.info(
         f"Trying to access data asset {dataset_config.name} version {version}, datastore {dataset_config.datastore}"
     )
 
@@ -1070,18 +1069,18 @@ def _generate_azure_datasets(
     """
     if is_amulet_job():
         input_data_mount_folder = Path(os.environ[ENV_AMLT_DATAREFERENCE_DATA])
-        logging.info(f"Path to mounted data: {ENV_AMLT_DATAREFERENCE_DATA}: {str(input_data_mount_folder)}")
+        logger.info(f"Path to mounted data: {ENV_AMLT_DATAREFERENCE_DATA}: {str(input_data_mount_folder)}")
         returned_input_datasets = [
             input_data_mount_folder / input_dataset.name for input_dataset in cleaned_input_datasets
         ]
 
         output_data_mount_folder = Path(os.environ[ENV_AMLT_DATAREFERENCE_OUTPUT])
-        logging.info(f"Path to output datasets: {output_data_mount_folder}")
+        logger.info(f"Path to output datasets: {output_data_mount_folder}")
         returned_output_datasets = [
             output_data_mount_folder / output_dataset.name for output_dataset in cleaned_output_datasets
         ]
-        logging.info(f"Stitched returned input datasets: {returned_input_datasets}")
-        logging.info(f"Stitched returned output datasets: {returned_output_datasets}")
+        logger.info(f"Stitched returned input datasets: {returned_input_datasets}")
+        logger.info(f"Stitched returned output datasets: {returned_output_datasets}")
     else:
         returned_input_datasets = [
             Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)]) for index in range(len(cleaned_input_datasets))

@@ -13,6 +13,7 @@ from typing import Generator, Optional, Union
 from health_azure.utils import ENV_LOCAL_RANK, check_is_any_of, is_global_rank_zero
 
 logging_stdout_handler: Optional[logging.StreamHandler] = None
+logger = logging.getLogger(__name__)
 
 
 def logging_to_stdout(log_level: Union[int, str] = logging.INFO) -> None:
@@ -96,18 +97,18 @@ def logging_section(gerund: str) -> Generator:
     """
     from time import time
 
-    logging.info("")
+    logger.info("")
     msg = f"**** STARTING: {gerund} "
-    logging.info(msg + (100 - len(msg)) * "*")
-    logging.info("")
+    logger.info(msg + (100 - len(msg)) * "*")
+    logger.info("")
     start_time = time()
     yield
     elapsed = time() - start_time
-    logging.info("")
+    logger.info("")
     time_expr = format_time_from_seconds(elapsed)
     msg = f"**** FINISHED: {gerund} after {time_expr} "
-    logging.info(msg + (100 - len(msg)) * "*")
-    logging.info("")
+    logger.info(msg + (100 - len(msg)) * "*")
+    logger.info("")
 
 
 def print_message_with_rank_pid(message: str = '', level: str = 'DEBUG') -> None:

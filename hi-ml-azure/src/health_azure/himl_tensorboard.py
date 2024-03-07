@@ -26,6 +26,8 @@ ROOT_DIR = Path.cwd()
 OUTPUT_DIR = ROOT_DIR / "outputs"
 TENSORBOARD_DIR = ROOT_DIR / "tensorboard_logs"
 
+logger = logging.getLogger(__name__)
+
 
 class HimlTensorboardConfig(AmlRunScriptConfig):
     log_dir: Path = param.ClassSelector(
@@ -87,7 +89,7 @@ class WrappedTensorboard(Tensorboard):
             # logdir_spec is not recommended but it is the only working way to display multiple dirs
             logdir_str = ','.join(local_log_dirs)
             python_command.append("--logdir_spec")
-            logging.info(
+            logger.info(
                 "Loading tensorboard files for > 1 run. You may notice reduced functionality as noted "
                 "here: https://github.com/tensorflow/tensorboard#logdir--logdir_spec-legacy-mode "
             )
@@ -103,7 +105,7 @@ class WrappedTensorboard(Tensorboard):
 
         url = self._wait_for_url()
         # in notebooks, this shows as a clickable link (whereas the returned value is not parsed in output)
-        logging.info(f"Tensorboard running at: {url}")
+        logger.info(f"Tensorboard running at: {url}")
 
         return url
 
@@ -115,7 +117,7 @@ def main() -> None:  # pragma: no cover
     config_path = tb_config.config_file
 
     if not config_path:
-        logging.info(
+        logger.info(
             "You have not provided a config path. Therefore we will try to find one in your "
             "current directory, and its parents"
         )
@@ -129,7 +131,7 @@ def main() -> None:  # pragma: no cover
         raise ValueError("No runs were found")
 
     local_logs_dir = ROOT_DIR / tb_config.log_dir
-    logging.info(f"Creating directory {local_logs_dir} to store TensorBoard logs in")
+    logger.info(f"Creating directory {local_logs_dir} to store TensorBoard logs in")
     local_logs_dir.mkdir(exist_ok=True, parents=True)
 
     remote_logs_dir = local_logs_dir.relative_to(ROOT_DIR)
