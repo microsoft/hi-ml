@@ -1860,9 +1860,11 @@ def test_submitting_script_with_sdk_v2(tmp_path: Path, wait_for_completion: bool
         else:
             assert job.status == JobStatus.STARTING.value
 
-    with check_config_json(tmp_path, shared_config_json=shared_config_json), change_working_directory(
-        tmp_path
-    ), pytest.raises(SystemExit):
+    with (
+        check_config_json(tmp_path, shared_config_json=shared_config_json),
+        change_working_directory(tmp_path),
+        pytest.raises(SystemExit),
+    ):
         himl.submit_to_azure_if_needed(
             aml_workspace=None,
             experiment_name="test_submitting_script_with_sdk_v2",
@@ -2017,9 +2019,11 @@ def test_conda_env_missing(tmp_path: Path) -> None:
     test_script.write_text("print('hello world')")
     shared_config_json = get_shared_config_json()
 
-    with check_config_json(tmp_path, shared_config_json=shared_config_json), change_working_directory(
-        tmp_path
-    ), pytest.raises(ValueError, match="No conda environment file"):
+    with (
+        check_config_json(tmp_path, shared_config_json=shared_config_json),
+        change_working_directory(tmp_path),
+        pytest.raises(ValueError, match="No conda environment file"),
+    ):
         himl.submit_to_azure_if_needed(
             aml_workspace=None,
             experiment_name="test_conda_env_missing",
