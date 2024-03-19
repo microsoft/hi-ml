@@ -9,7 +9,14 @@ import os
 from pathlib import Path
 from uuid import uuid4
 
-from azureml.core.authentication import ServicePrincipalAuthentication
+from azureml.core.authentication import (
+    InteractiveLoginAuthentication,
+    ServicePrincipalAuthentication,
+    AzureCliAuthentication,
+)
+from azureml.exceptions import AuthenticationException
+
+from azureml.core.authentication import ServicePrincipalAuthentication, AzureCliAuthentication
 from azureml.exceptions._azureml_exception import UserErrorException
 from _pytest.logging import LogCaptureFixture
 import pytest
@@ -212,3 +219,27 @@ def test_get_workspace_from_existing_file(tmp_path: Path) -> None:
         assert get_workspace(workspace_config_path=config_file) == workspace
         mock_auth.assert_called_once_with()
         mock_workspace_from_config.assert_called_once_with(path=str(config_file), auth=auth)
+
+
+@pytest.mark.fast
+def test_auth_azure_cli() -> None:
+    """Test if Azure CLI authentication is attempted when no service principal is available"""
+    mock_env_vars = {
+        ENV_SERVICE_PRINCIPAL_ID: "foo",
+        ENV_TENANT_ID: "bar",
+    }
+
+    # Patch environment variables to have no service principal
+    with patch.dict(os.environ, mock_env_vars):
+        # If token retrieval works: return Azure CLI authentication
+        with patch.object(AzureCliAuthentication, "get_token", new=MagicMock()) as mock_azure_cli:
+            auth = get_authentication()
+            mock_azure_cli.assert_called_once()
+            assert isinstance(auth, AzureCliAuthentication), "Expected Azure CLI authentication"
+
+        # If token retrieval raises an AuthenticationException: return InteractiveLoginAuthentication
+        mock_raise = MagicMock(side_effect=AuthenticationException("foo"))
+        with patch.object(AzureCliAuthentication, "get_token", mock_raise) as mock_azure_cli:
+            auth = get_authentication()
+            mock_azure_cli.assert_called_once()
+            assert isinstance(auth, InteractiveLoginAuthentication), "Expected InteractiveAuth if AzureCLI fails"
