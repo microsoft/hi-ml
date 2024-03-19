@@ -13,17 +13,19 @@ import pytest
 from azure.core.exceptions import ClientAuthenticationError
 from azure.identity import ClientSecretCredential, DefaultAzureCredential, DeviceCodeCredential
 
-from health_azure.utils import (
-    ENV_RESOURCE_GROUP,
+from health_azure.auth import (
+    get_credential,
     ENV_SERVICE_PRINCIPAL_ID,
     ENV_SERVICE_PRINCIPAL_PASSWORD,
-    ENV_SUBSCRIPTION_ID,
     ENV_TENANT_ID,
-    ENV_WORKSPACE_NAME,
     _get_legitimate_default_credential,
     _get_legitimate_device_code_credential,
     _get_legitimate_service_principal_credential,
-    get_credential,
+)
+from health_azure.utils import (
+    ENV_RESOURCE_GROUP,
+    ENV_SUBSCRIPTION_ID,
+    ENV_WORKSPACE_NAME,
     get_ml_client,
 )
 

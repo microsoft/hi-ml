@@ -15,17 +15,15 @@ from _pytest.logging import LogCaptureFixture
 import pytest
 from unittest.mock import MagicMock, patch
 
-from health_azure.utils import (
-    find_file_in_parent_folders,
-    find_file_in_parent_to_pythonpath,
-    get_authentication,
+from health_azure.auth import (
     get_secret_from_environment,
-    get_workspace,
-)
-from health_azure.utils import (
+    get_authentication,
     ENV_SERVICE_PRINCIPAL_ID,
     ENV_SERVICE_PRINCIPAL_PASSWORD,
     ENV_TENANT_ID,
+)
+from health_azure.utils import find_file_in_parent_folders, find_file_in_parent_to_pythonpath, get_workspace
+from health_azure.utils import (
     ENV_WORKSPACE_NAME,
     ENV_SUBSCRIPTION_ID,
     ENV_RESOURCE_GROUP,
@@ -98,7 +96,7 @@ def test_find_file_in_parent_folders(caplog: LogCaptureFixture) -> None:
 
 
 @pytest.mark.fast
-@patch("health_azure.utils.InteractiveLoginAuthentication")
+@patch("health_azure.auth.InteractiveLoginAuthentication")
 def test_get_authentication(mock_interactive_authentication: MagicMock) -> None:
     with patch.dict(os.environ, {}, clear=True):
         get_authentication()
