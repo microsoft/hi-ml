@@ -240,7 +240,9 @@ def test_auth_azure_cli() -> None:
 
         # If token retrieval raises an AuthenticationException: return InteractiveLoginAuthentication
         mock_raise = MagicMock(side_effect=AuthenticationException("foo"))
+        mock_interactive = "mock_interactive"
         with patch.object(AzureCliAuthentication, "get_token", mock_raise) as mock_azure_cli:
-            auth = get_authentication()
-            mock_azure_cli.assert_called_once()
-            assert isinstance(auth, InteractiveLoginAuthentication), "Expected InteractiveAuth if AzureCLI fails"
+            with patch("health_azure.auth.InteractiveLoginAuthentication", return_value=mock_interactive):
+                auth = get_authentication()
+                mock_azure_cli.assert_called_once()
+                assert auth == mock_interactive, "Expected InteractiveAuth if AzureCLI fails"
