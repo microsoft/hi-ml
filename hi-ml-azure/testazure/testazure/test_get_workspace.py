@@ -227,6 +227,7 @@ def test_auth_azure_cli() -> None:
     mock_env_vars = {
         ENV_SERVICE_PRINCIPAL_ID: "foo",
         ENV_TENANT_ID: "bar",
+        ENV_SERVICE_PRINCIPAL_PASSWORD: "",
     }
 
     # Patch environment variables to have no service principal
