@@ -9,23 +9,28 @@ import os
 from pathlib import Path
 from uuid import uuid4
 
-from azureml.core.authentication import ServicePrincipalAuthentication
+from azureml.core.authentication import (
+    InteractiveLoginAuthentication,
+    ServicePrincipalAuthentication,
+    AzureCliAuthentication,
+)
+from azureml.exceptions import AuthenticationException
+
+from azureml.core.authentication import ServicePrincipalAuthentication, AzureCliAuthentication
 from azureml.exceptions._azureml_exception import UserErrorException
 from _pytest.logging import LogCaptureFixture
 import pytest
 from unittest.mock import MagicMock, patch
 
-from health_azure.utils import (
-    find_file_in_parent_folders,
-    find_file_in_parent_to_pythonpath,
-    get_authentication,
+from health_azure.auth import (
     get_secret_from_environment,
-    get_workspace,
-)
-from health_azure.utils import (
+    get_authentication,
     ENV_SERVICE_PRINCIPAL_ID,
     ENV_SERVICE_PRINCIPAL_PASSWORD,
     ENV_TENANT_ID,
+)
+from health_azure.utils import find_file_in_parent_folders, find_file_in_parent_to_pythonpath, get_workspace
+from health_azure.utils import (
     ENV_WORKSPACE_NAME,
     ENV_SUBSCRIPTION_ID,
     ENV_RESOURCE_GROUP,
@@ -98,7 +103,7 @@ def test_find_file_in_parent_folders(caplog: LogCaptureFixture) -> None:
 
 
 @pytest.mark.fast
-@patch("health_azure.utils.InteractiveLoginAuthentication")
+@patch("health_azure.auth.InteractiveLoginAuthentication")
 def test_get_authentication(mock_interactive_authentication: MagicMock) -> None:
     with patch.dict(os.environ, {}, clear=True):
         get_authentication()
@@ -214,3 +219,30 @@ def test_get_workspace_from_existing_file(tmp_path: Path) -> None:
         assert get_workspace(workspace_config_path=config_file) == workspace
         mock_auth.assert_called_once_with()
         mock_workspace_from_config.assert_called_once_with(path=str(config_file), auth=auth)
+
+
+@pytest.mark.fast
+def test_auth_azure_cli() -> None:
+    """Test if Azure CLI authentication is attempted when no service principal is available"""
+    mock_env_vars = {
+        ENV_SERVICE_PRINCIPAL_ID: "foo",
+        ENV_TENANT_ID: "bar",
+        ENV_SERVICE_PRINCIPAL_PASSWORD: "",
+    }
+
+    # Patch environment variables to have no service principal
+    with patch.dict(os.environ, mock_env_vars):
+        # If token retrieval works: return Azure CLI authentication
+        with patch.object(AzureCliAuthentication, "get_token", new=MagicMock()) as mock_azure_cli:
+            auth = get_authentication()
+            mock_azure_cli.assert_called_once()
+            assert isinstance(auth, AzureCliAuthentication), "Expected Azure CLI authentication"
+
+        # If token retrieval raises an AuthenticationException: return InteractiveLoginAuthentication
+        mock_raise = MagicMock(side_effect=AuthenticationException("foo"))
+        mock_interactive = "mock_interactive"
+        with patch.object(AzureCliAuthentication, "get_token", mock_raise) as mock_azure_cli:
+            with patch("health_azure.auth.InteractiveLoginAuthentication", return_value=mock_interactive):
+                auth = get_authentication()
+                mock_azure_cli.assert_called_once()
+                assert auth == mock_interactive, "Expected InteractiveAuth if AzureCLI fails"
