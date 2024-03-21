@@ -1,0 +1,22 @@
+name: 'Log into Azure using OpenID Connect'
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: Login to Azure via OpenID Connect
+      uses: azure/login@v1
+      with:
+        client-id: ${{ env.HIML_SERVICE_PRINCIPAL_ID }}
+        tenant-id: ${{ env.HIML_TENANT_ID }}
+        subscription-id: ${{ env.HIML_SUBSCRIPTION_ID }}
+
+    - name: Print Azure user name
+      run: az account show --query 'user.name'
+      shell: bash
+
+    - name: Print Azure token expiry
+      run: |
+        echo Token expiry date: `az account get-access-token --query 'expiresOn'`
+        echo Current date: `date`
+      shell: bash

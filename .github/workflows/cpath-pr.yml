@@ -26,7 +26,6 @@ env:
   HIML_SUBSCRIPTION_ID: ${{ secrets.HIML_SUBSCRIPTION_ID }}
   HIML_WORKSPACE_NAME: ${{ secrets.HIML_WORKSPACE_NAME }}
   HIML_SERVICE_PRINCIPAL_ID: ${{ secrets.HIML_SERVICE_PRINCIPAL_ID }}
-  HIML_SERVICE_PRINCIPAL_PASSWORD: ${{ secrets.HIML_SERVICE_PRINCIPAL_PASSWORD }}
   # Set the AML experiment name for all AML jobs submitted during tests. Github.ref looks like
   # "refs/pull/123/merge" for PR builds.
   HIML_EXPERIMENT_NAME: ${{ github.ref }}
@@ -37,6 +36,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: Cancel previous AzureML runs
         uses: ./.github/actions/cancel_azureml_jobs
@@ -84,6 +86,9 @@ jobs:
         with:
           lfs: true
 
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
+
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
 
@@ -111,6 +116,9 @@ jobs:
         with:
           lfs: true
 
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
+
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
 
@@ -135,6 +143,9 @@ jobs:
         with:
           lfs: true
 
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
+
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
 
@@ -150,6 +161,9 @@ jobs:
       - uses: actions/checkout@v3
         with:
           lfs: true
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
@@ -167,6 +181,9 @@ jobs:
         with:
           lfs: true
 
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
+
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
 
@@ -182,6 +199,9 @@ jobs:
       - uses: actions/checkout@v3
         with:
           lfs: true
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
@@ -199,6 +219,9 @@ jobs:
         with:
           lfs: true
 
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
+
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
 
@@ -214,6 +237,9 @@ jobs:
       - uses: actions/checkout@v3
         with:
           lfs: true
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
@@ -231,6 +257,9 @@ jobs:
         with:
           lfs: true
 
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
+
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
 
@@ -246,6 +275,9 @@ jobs:
       - uses: actions/checkout@v3
         with:
           lfs: true
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
@@ -263,6 +295,9 @@ jobs:
         with:
           lfs: true
 
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
+
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
 
@@ -278,6 +313,9 @@ jobs:
       - uses: actions/checkout@v3
         with:
           lfs: true
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
@@ -295,6 +333,9 @@ jobs:
         with:
           lfs: true
 
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
+
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
 
@@ -310,6 +351,9 @@ jobs:
       - uses: actions/checkout@v3
         with:
           lfs: true
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
