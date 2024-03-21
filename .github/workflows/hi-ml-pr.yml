@@ -16,6 +16,12 @@ concurrency:
   group: ${{ github.ref }}/hi-ml-pr
   cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
+permissions:
+  # This is required for requesting the Azure login token
+  id-token: write
+  # This is required for actions/checkout
+  contents: read
+
 env:
   pythonVersion: 3.9
   HIML_TENANT_ID: ${{ secrets.HIML_TENANT_ID }}
