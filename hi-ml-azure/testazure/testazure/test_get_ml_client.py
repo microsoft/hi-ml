@@ -146,15 +146,19 @@ def test_get_legitimate_device_code_credential() -> None:
 
 
 @pytest.mark.fast
-def test_get_legitimate_default_credential() -> None:
+@pytest.mark.skip(reason="Default azure credential are now the default in CI, and test hence fails")
+def test_get_legitimate_default_credential_fails() -> None:
     def _mock_credential_fast_timeout(timeout: int) -> DefaultAzureCredential:
         return DefaultAzureCredential(timeout=1)
 
     with patch("health_azure.auth.DefaultAzureCredential", new=_mock_credential_fast_timeout):
         exception_message = r"DefaultAzureCredential failed to retrieve a token from the included credentials."
         with pytest.raises(ClientAuthenticationError, match=exception_message):
-            cred = _get_legitimate_default_credential()
+            _get_legitimate_default_credential()
 
+
+@pytest.mark.fast
+def test_get_legitimate_default_credential() -> None:
     with patch("health_azure.auth._validate_credential"):
         cred = _get_legitimate_default_credential()
         assert isinstance(cred, DefaultAzureCredential)

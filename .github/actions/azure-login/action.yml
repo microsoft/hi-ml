@@ -1,0 +1,24 @@
+name: 'Log into Azure using OpenID Connect'
+
+runs:
+  using: "composite"
+  steps:
+
+    # Github agents runners are often out of sync with the NTP server, and this can cause issues with the token expiry.
+    # Hence, sync time before logging into Azure.
+    - name: Synchronize time with NTP server
+      run: sudo timedatectl set-ntp true
+      shell: bash
+
+    - name: Login to Azure via OpenID Connect
+      uses: azure/login@v1
+      with:
+        client-id: ${{ env.HIML_SERVICE_PRINCIPAL_ID }}
+        tenant-id: ${{ env.HIML_TENANT_ID }}
+        subscription-id: ${{ env.HIML_SUBSCRIPTION_ID }}
+
+    - name: Print Azure token expiry
+      run: |
+        echo Token expiry date: `az account get-access-token --query 'expiresOn'`
+        echo Current date: `date`
+      shell: bash

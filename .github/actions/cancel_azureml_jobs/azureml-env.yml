@@ -2,7 +2,8 @@ name: AzureML_SDK
 channels:
   - defaults
 dependencies:
-  - pip=23.3
-  - python=3.9.18
+  - pip=23.0.1
+  - python=3.10
   - pip:
-      - azureml-sdk==1.53.0
+      - azureml-sdk==1.54.0
+      - azure-cli

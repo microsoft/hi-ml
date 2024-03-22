@@ -104,10 +104,12 @@ def test_find_file_in_parent_folders(caplog: LogCaptureFixture) -> None:
 
 @pytest.mark.fast
 @patch("health_azure.auth.InteractiveLoginAuthentication")
-def test_get_authentication(mock_interactive_authentication: MagicMock) -> None:
-    with patch.dict(os.environ, {}, clear=True):
-        get_authentication()
-        assert mock_interactive_authentication.called
+def test_get_authentication(mock_auth: MagicMock) -> None:
+    # Disable Azure CLI authentication and SP via mocks
+    with patch("health_azure.auth.AzureCliAuthentication", side_effect=AuthenticationException("")):
+        with patch.dict(os.environ, {}, clear=True):
+            get_authentication()
+            assert mock_auth.called, "Expected InteractiveLoginAuthentication to be called"
     service_principal_id = "1"
     tenant_id = "2"
     service_principal_password = "3"
