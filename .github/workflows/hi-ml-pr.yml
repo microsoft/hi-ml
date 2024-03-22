@@ -408,6 +408,9 @@ jobs:
         with:
           lfs: true
 
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
+
       - name: Set up Python ${{ env.pythonVersion }}
         uses: actions/setup-python@v4
         with:
