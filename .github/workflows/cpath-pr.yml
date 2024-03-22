@@ -92,11 +92,11 @@ jobs:
         with:
           lfs: true
 
-      - name: Azure login using OpenID Connect
-        uses: ./.github/actions/azure-login
-
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: Test with pytest
         run: |
@@ -122,11 +122,11 @@ jobs:
         with:
           lfs: true
 
-      - name: Azure login using OpenID Connect
-        uses: ./.github/actions/azure-login
-
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: Run GPU tests
         run: |
@@ -149,11 +149,11 @@ jobs:
         with:
           lfs: true
 
-      - name: Azure login using OpenID Connect
-        uses: ./.github/actions/azure-login
-
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: smoke test
         run: |
@@ -168,11 +168,11 @@ jobs:
         with:
           lfs: true
 
-      - name: Azure login using OpenID Connect
-        uses: ./.github/actions/azure-login
-
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: smoke test
         run: |
@@ -187,11 +187,11 @@ jobs:
         with:
           lfs: true
 
-      - name: Azure login using OpenID Connect
-        uses: ./.github/actions/azure-login
-
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: smoke test
         run: |
@@ -206,11 +206,11 @@ jobs:
         with:
           lfs: true
 
-      - name: Azure login using OpenID Connect
-        uses: ./.github/actions/azure-login
-
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: smoke test
         run: |
@@ -225,11 +225,11 @@ jobs:
         with:
           lfs: true
 
-      - name: Azure login using OpenID Connect
-        uses: ./.github/actions/azure-login
-
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: smoke test
         run: |
@@ -244,11 +244,11 @@ jobs:
         with:
           lfs: true
 
-      - name: Azure login using OpenID Connect
-        uses: ./.github/actions/azure-login
-
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: smoke test
         run: |
@@ -263,11 +263,11 @@ jobs:
         with:
           lfs: true
 
-      - name: Azure login using OpenID Connect
-        uses: ./.github/actions/azure-login
-
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: smoke test
         run: |
@@ -282,11 +282,11 @@ jobs:
         with:
           lfs: true
 
-      - name: Azure login using OpenID Connect
-        uses: ./.github/actions/azure-login
-
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: smoke test
         run: |
@@ -301,11 +301,11 @@ jobs:
         with:
           lfs: true
 
-      - name: Azure login using OpenID Connect
-        uses: ./.github/actions/azure-login
-
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: smoke test
         run: |
@@ -320,11 +320,11 @@ jobs:
         with:
           lfs: true
 
-      - name: Azure login using OpenID Connect
-        uses: ./.github/actions/azure-login
-
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: smoke test
         run: |
@@ -339,11 +339,11 @@ jobs:
         with:
           lfs: true
 
-      - name: Azure login using OpenID Connect
-        uses: ./.github/actions/azure-login
-
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: smoke test
         run: |
@@ -358,11 +358,11 @@ jobs:
         with:
           lfs: true
 
-      - name: Azure login using OpenID Connect
-        uses: ./.github/actions/azure-login
-
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: smoke test
         run: |

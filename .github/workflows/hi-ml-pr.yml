@@ -113,9 +113,6 @@ jobs:
         with:
           lfs: true
 
-      - name: Azure login using OpenID Connect
-        uses: ./.github/actions/azure-login
-
       - name: Set up Python ${{ env.pythonVersion }}
         uses: actions/setup-python@v4
         with:
@@ -136,6 +133,9 @@ jobs:
 
           # Install local package in editable mode
           make pip_local
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: Test with pytest, fast only
         run: |
@@ -158,9 +158,6 @@ jobs:
       - uses: actions/checkout@v3
         with:
           lfs: true
-
-      - name: Azure login using OpenID Connect
-        uses: ./.github/actions/azure-login
 
       - name: Set up Python ${{ env.pythonVersion }}
         uses: actions/setup-python@v4
@@ -187,9 +184,6 @@ jobs:
       - uses: actions/checkout@v3
         with:
           lfs: true
-
-      - name: Azure login using OpenID Connect
-        uses: ./.github/actions/azure-login
 
       - name: Set up Python ${{ env.pythonVersion }}
         uses: actions/setup-python@v4
@@ -218,6 +212,9 @@ jobs:
         uses: ./.github/actions/download_package_artifacts
         with:
           folder: ${{ matrix.folder }}
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: Install artifact and test
         run: |
@@ -249,13 +246,13 @@ jobs:
         with:
           lfs: true
 
-      - name: Azure login using OpenID Connect
-        uses: ./.github/actions/azure-login
-
       - name: Set up Python ${{ env.pythonVersion }}
         uses: ./.github/actions/prepare_himl_python_env
         with:
           python-version: ${{ env.pythonVersion }}
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: Run smoke_helloworld_v1
         run: |
@@ -270,13 +267,13 @@ jobs:
         with:
           lfs: true
 
-      - name: Azure login using OpenID Connect
-        uses: ./.github/actions/azure-login
-
       - name: Set up Python ${{ env.pythonVersion }}
         uses: ./.github/actions/prepare_himl_python_env
         with:
           python-version: ${{ env.pythonVersion }}
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: Run smoke_helloworld_v2
         run: |
@@ -291,13 +288,13 @@ jobs:
         with:
           lfs: true
 
-      - name: Azure login using OpenID Connect
-        uses: ./.github/actions/azure-login
-
       - name: Set up Python ${{ env.pythonVersion }}
         uses: ./.github/actions/prepare_himl_python_env
         with:
           python-version: ${{ env.pythonVersion }}
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: Run smoke_helloworld_v1_2nodes
         run: |
@@ -312,13 +309,13 @@ jobs:
         with:
           lfs: true
 
-      - name: Azure login using OpenID Connect
-        uses: ./.github/actions/azure-login
-
       - name: Set up Python ${{ env.pythonVersion }}
         uses: ./.github/actions/prepare_himl_python_env
         with:
           python-version: ${{ env.pythonVersion }}
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: Run smoke_helloworld_v2_2nodes
         run: |
@@ -408,9 +405,6 @@ jobs:
         with:
           lfs: true
 
-      - name: Azure login using OpenID Connect
-        uses: ./.github/actions/azure-login
-
       - name: Set up Python ${{ env.pythonVersion }}
         uses: actions/setup-python@v4
         with:
@@ -429,6 +423,9 @@ jobs:
 
           # Install local package in editable mode
           make pip_local
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: Install PyPI package and test
         run: |
