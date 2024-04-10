@@ -27,6 +27,9 @@ from health_cpath.utils.heatmap_utils import location_selected_tiles
 from health_cpath.utils.tiles_selection_utils import SlideNode
 
 
+logger = logging.getLogger(__name__)
+
+
 def load_image_dict(sample: dict, loading_params: LoadingParams) -> Dict[SlideKey, Any]:
     """
     Load image from metadata dictionary
@@ -123,7 +126,7 @@ def plot_attention_tiles(
     tile_nodes = slide_node.top_tiles if top else slide_node.bottom_tiles
     num_rows = int(ceil(len(tile_nodes) / num_columns))
     if num_rows == 0:
-        logging.warning(
+        logger.warning(
             "The number of selected top and bottom tiles is too low, plotting will be skipped."
             "Try debugging with a higher num_top_tiles and/or a higher number of batches."
         )
@@ -189,7 +192,6 @@ def plot_heatmap_overlay(
     if extra_slide_dict:
         ax2 = fig.add_subplot(gs[2, 0], sharex=ax0, sharey=ax0)
         axes.append(ax2)
-    fig.execute_constrained_layout()
     fig.suptitle(_get_histo_plot_title(case, slide_node))
 
     def _get_slide_image_from_slide_dict(slide_dict: Dict[SlideKey, Any]) -> np.ndarray:

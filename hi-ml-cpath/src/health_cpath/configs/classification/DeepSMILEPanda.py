@@ -153,7 +153,7 @@ class DeepSMILESlidesPanda(BaseMILSlides, BaseDeepSMILEPanda):
             tiling_params=create_from_matching_params(self, TilingParams),
             loading_params=create_from_matching_params(self, LoadingParams),
             seed=self.get_effective_random_seed(),
-            transforms_dict=self.get_transforms_dict(PandaDataset.IMAGE_COLUMN),
+            transforms_dict=self.get_transforms_dict(SlideKey.IMAGE),
             crossval_count=self.crossval_count,
             crossval_index=self.crossval_index,
             dataloader_kwargs=self.get_dataloader_kwargs(),

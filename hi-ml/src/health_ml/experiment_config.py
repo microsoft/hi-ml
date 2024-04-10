@@ -15,6 +15,14 @@ class RunnerMode(Enum):
     EVAL_FULL = "eval_full"
 
 
+class LogLevel(Enum):
+    ERROR = "ERROR"
+    WARNING = "WARNING"
+    WARN = "WARN"
+    INFO = "INFO"
+    DEBUG = "DEBUG"
+
+
 DEBUG_DDP_ENV_VAR = "TORCH_DISTRIBUTED_DEBUG"
 
 
@@ -87,10 +95,22 @@ class ExperimentConfig(param.Parameterized):
         doc="The maximum runtime that is allowed for this job in AzureML. This is given as a floating"
         "point number with a string suffix s, m, h, d for seconds, minutes, hours, day. Examples: '3.5h', '2d'",
     )
-    mode: str = param.ClassSelector(
+    mode: RunnerMode = param.ClassSelector(
         class_=RunnerMode,
         default=RunnerMode.TRAIN,
         doc=f"The mode to run the experiment in. Can be one of '{RunnerMode.TRAIN}' (training and evaluation on the "
         f"test set), or '{RunnerMode.EVAL_FULL}' for evaluation on the full dataset specified by the "
         "'get_eval_data_module' method of the container.",
     )
+    log_level: Optional[RunnerMode] = param.ClassSelector(
+        class_=LogLevel,
+        default=None,
+        doc=f"The log level to use. Can be one of {list(map(str, LogLevel))}",
+    )
+
+    @property
+    def submit_to_azure_ml(self) -> bool:
+        """Returns True if the experiment should be submitted to AzureML, False if it should be run locally.
+
+        :return: True if the experiment should be submitted to AzureML, False if it should be run locally."""
+        return self.cluster != ""

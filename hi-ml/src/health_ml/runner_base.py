@@ -68,6 +68,7 @@ class RunnerBase:
         self.container = container
         self.experiment_config = experiment_config
         self.container.num_nodes = self.experiment_config.num_nodes
+        self.container.runner_mode = self.experiment_config.mode
         self.project_root: Path = project_root or fixed_paths.repository_root_directory()
         self.storing_logger: Optional[StoringLogger] = None
         self._has_setup_run = False

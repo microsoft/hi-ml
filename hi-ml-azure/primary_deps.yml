@@ -1,0 +1,12 @@
+# This environment definition contains all packages to run hi-ml-azure development work, building and
+# testing
+name: himl-azure
+channels:
+  - defaults
+dependencies:
+  - pip=23.3
+  - python=3.9.18
+  - pip:
+      - -r run_requirements.txt
+      - -r ../build_requirements.txt
+      - -r ../test_requirements.txt

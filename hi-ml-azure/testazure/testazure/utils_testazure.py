@@ -10,7 +10,6 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, Generator, Optional
 
-from azure.ai.ml import MLClient
 from azureml.core import Run
 from health_azure.utils import (
     ENV_EXPERIMENT_NAME,
@@ -20,7 +19,6 @@ from health_azure.utils import (
 )
 from health_azure import create_aml_run_object
 from health_azure.himl import effective_experiment_name
-from health_azure.utils import get_ml_client, get_workspace
 
 DEFAULT_DATASTORE = "himldatasets"
 
@@ -109,16 +107,6 @@ def create_unittest_run_object(snapshot_directory: Optional[Path] = None) -> Run
         workspace=DEFAULT_WORKSPACE.workspace,
         snapshot_directory=snapshot_directory,
     )
-
-
-def get_test_ml_client() -> MLClient:
-    """Generates an MLClient object for use in tests.
-
-    :return: MLClient object
-    """
-
-    workspace = get_workspace()
-    return get_ml_client(aml_workspace=workspace)
 
 
 def current_test_name() -> str:

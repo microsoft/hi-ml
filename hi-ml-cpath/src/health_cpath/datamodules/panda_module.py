@@ -50,7 +50,7 @@ class PandaSlidesDataModule(SlidesDataModule):
             proportion_train=0.8,
             proportion_test=0.1,
             proportion_val=0.1,
-            subject_column=dataset.SLIDE_ID_COLUMN,
+            subject_column=dataset.slide_id_column,
         )
 
         if self.crossval_count > 1:

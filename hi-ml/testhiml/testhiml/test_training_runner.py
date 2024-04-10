@@ -631,3 +631,26 @@ def test_inference_only_metrics_correctness(
     with open(training_runner_hello_world_with_checkpoint.container.outputs_folder / TEST_MAE_FILE) as f:
         mae = float(f.readlines()[0])
     assert isclose(mae, 0.08260975033044815, abs_tol=1e-3)
+
+
+def test_training_and_inference_metrics_match(tmp_path: Path) -> None:
+    """
+    Test if the metrics on the test set when training a model match with those when running inference on the
+    test set.
+    """
+    experiment_config = ExperimentConfig(model="HelloWorld")
+    container1 = HelloWorld()
+    container1.set_output_to(tmp_path / "training")
+    training_runner = TrainingRunner(experiment_config=experiment_config, container=container1)
+    training_runner.run_and_cleanup()
+    mse_training = float((training_runner.container.outputs_folder / TEST_MSE_FILE).read_text()[0])
+    checkpoint = training_runner.container.checkpoint_folder / "last.ckpt"
+    assert checkpoint.is_file()
+    container2 = HelloWorld()
+    container2.set_output_to(tmp_path / "eval")
+    container2.src_checkpoint = CheckpointParser(str(checkpoint))
+    container2.run_inference_only = True
+    eval_runner = TrainingRunner(experiment_config=experiment_config, container=container2)
+    eval_runner.run_and_cleanup()
+    mse_eval = float((eval_runner.container.outputs_folder / TEST_MSE_FILE).read_text()[0])
+    assert isclose(mse_training, mse_eval, rel_tol=1e-10)

@@ -11,6 +11,7 @@ import logging
 import os
 import re
 import shutil
+import sys
 import tempfile
 import time
 from collections import defaultdict
@@ -38,7 +39,6 @@ import param
 
 from azureml._restclient.constants import RunStatus
 from azureml.core import Environment, Experiment, Run, Workspace, get_run
-from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
 from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.run import _OfflineRun
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
@@ -47,17 +47,10 @@ from azure.ai.ml import MLClient
 from azure.ai.ml.entities import Job
 from azure.ai.ml.entities import Workspace as WorkspaceV2
 from azure.ai.ml.entities import Environment as EnvironmentV2
-from azure.core.credentials import TokenCredential
-from azure.core.exceptions import ClientAuthenticationError, ResourceNotFoundError
-from azure.identity import (
-    ClientSecretCredential,
-    DeviceCodeCredential,
-    DefaultAzureCredential,
-    InteractiveBrowserCredential,
-)
+from azure.core.exceptions import ResourceNotFoundError
 
 from health_azure.argparsing import EXPERIMENT_RUN_SEPARATOR, RunIdOrListParam, determine_run_id_type
-
+from health_azure.auth import get_authentication, get_credential, get_secret_from_environment
 
 logger = logging.getLogger(__name__)
 
@@ -68,11 +61,6 @@ DEFAULT_UPLOAD_TIMEOUT_SECONDS: int = 36_000  # 10 Hours
 # The version to use when creating an AzureML Python environment. We create all environments with a unique hashed
 # name, hence version will always be fixed
 ENVIRONMENT_VERSION = "1"
-
-# Environment variables used for authentication
-ENV_SERVICE_PRINCIPAL_ID = "HIML_SERVICE_PRINCIPAL_ID"
-ENV_SERVICE_PRINCIPAL_PASSWORD = "HIML_SERVICE_PRINCIPAL_PASSWORD"
-ENV_TENANT_ID = "HIML_TENANT_ID"
 
 # Environment variables used for workspace selection
 ENV_RESOURCE_GROUP = "HIML_RESOURCE_GROUP"
@@ -263,7 +251,7 @@ def find_file_in_parent_folders(
     start_at_path = start_at_path or Path.cwd()
 
     def return_file_or_parent(start_at: Path) -> Optional[Path]:
-        logging.debug(f"Searching for file {file_name} in {start_at}")
+        logger.debug(f"Searching for file {file_name} in {start_at}")
         expected = start_at / file_name
         if expected.is_file() and expected.name == file_name:
             return expected
@@ -286,6 +274,30 @@ def find_file_in_parent_to_pythonpath(file_name: str) -> Optional[Path]:
     if "PYTHONPATH" in os.environ:
         pythonpaths = [Path(path_string) for path_string in os.environ["PYTHONPATH"].split(os.pathsep)]
     return find_file_in_parent_folders(file_name=file_name, stop_at_path=pythonpaths)
+
+
+def resolve_workspace_config_path(workspace_config_path: Optional[Path] = None) -> Optional[Path]:
+    """Retrieve the path to the workspace config file, either from the argument, or from the current working directory.
+
+    :param workspace_config_path: A path to a workspace config file that was provided on the commandline, defaults to
+        None
+    :return: The path to the workspace config file, or None if it cannot be found.
+    :raises FileNotFoundError: If the workspace config file that was provided as an argument does not exist.
+    """
+    if workspace_config_path is None:
+        logger.info(
+            f"Trying to locate the workspace config file '{WORKSPACE_CONFIG_JSON}' in the current folder "
+            "and its parent folders"
+        )
+        result = find_file_in_parent_to_pythonpath(WORKSPACE_CONFIG_JSON)
+        if result:
+            logger.info(f"Using the workspace config file {str(result.absolute())}")
+        else:
+            logger.debug("No workspace config file found")
+        return result
+    if not workspace_config_path.is_file():
+        raise FileNotFoundError(f"Workspace config file does not exist: {workspace_config_path}")
+    return workspace_config_path
 
 
 def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_path: Optional[Path] = None) -> Workspace:
@@ -320,26 +332,16 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
     if aml_workspace:
         return aml_workspace
 
-    if workspace_config_path is None:
-        logging.info(
-            f"Trying to locate the workspace config file '{WORKSPACE_CONFIG_JSON}' in the current folder "
-            "and its parent folders"
-        )
-        workspace_config_path = find_file_in_parent_to_pythonpath(WORKSPACE_CONFIG_JSON)
-        if workspace_config_path:
-            logging.info(f"Using the workspace config file {str(workspace_config_path.absolute())}")
-
+    workspace_config_path = resolve_workspace_config_path(workspace_config_path)
     auth = get_authentication()
     if workspace_config_path is not None:
-        if not workspace_config_path.is_file():
-            raise FileNotFoundError(f"Workspace config file does not exist: {workspace_config_path}")
         workspace = Workspace.from_config(path=str(workspace_config_path), auth=auth)
-        logging.info(
+        logger.info(
             f"Logged into AzureML workspace {workspace.name} as specified in config file " f"{workspace_config_path}"
         )
         return workspace
 
-    logging.info("Trying to load the environment variables that define the workspace.")
+    logger.info("Trying to load the environment variables that define the workspace.")
     workspace_name = get_secret_from_environment(ENV_WORKSPACE_NAME, allow_missing=True)
     subscription_id = get_secret_from_environment(ENV_SUBSCRIPTION_ID, allow_missing=True)
     resource_group = get_secret_from_environment(ENV_RESOURCE_GROUP, allow_missing=True)
@@ -347,7 +349,7 @@ def get_workspace(aml_workspace: Optional[Workspace] = None, workspace_config_pa
         workspace = Workspace.get(
             name=workspace_name, auth=auth, subscription_id=subscription_id, resource_group=resource_group
         )
-        logging.info(f"Logged into AzureML workspace {workspace.name} as specified by environment variables")
+        logger.info(f"Logged into AzureML workspace {workspace.name} as specified by environment variables")
         return workspace
 
     raise ValueError(
@@ -406,7 +408,7 @@ def fetch_run(workspace: Workspace, run_recovery_id: str) -> Run:
     except Exception as ex:
         raise Exception(f"Unable to retrieve run {run} in experiment {experiment}: {str(ex)}")
     run_to_recover = fetch_run_for_experiment(experiment_to_recover, run)
-    logging.info(f"Fetched run #{run_to_recover.number} {run} from experiment {experiment}.")
+    logger.info(f"Fetched run #{run_to_recover.number} {run} from experiment {experiment}.")
     return run_to_recover
 
 
@@ -428,51 +430,9 @@ def fetch_run_for_experiment(experiment_to_recover: Experiment, run_id: str) -> 
         )
 
 
-def get_authentication() -> Union[InteractiveLoginAuthentication, ServicePrincipalAuthentication]:
-    """
-    Creates a service principal authentication object with the application ID stored in the present object. The
-    application key is read from the environment.
-
-    :return: A ServicePrincipalAuthentication object that has the application ID and key or None if the key is not
-        present
-    """
-    service_principal_id = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_ID, allow_missing=True)
-    tenant_id = get_secret_from_environment(ENV_TENANT_ID, allow_missing=True)
-    service_principal_password = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
-    # Check if all 3 environment variables are set
-    if bool(service_principal_id) and bool(tenant_id) and bool(service_principal_password):
-        logging.info("Found all necessary environment variables for Service Principal authentication.")
-        return ServicePrincipalAuthentication(
-            tenant_id=tenant_id,
-            service_principal_id=service_principal_id,
-            service_principal_password=service_principal_password,
-        )
-    logging.info(
-        "Using interactive login to Azure. To use Service Principal authentication, set the environment "
-        f"variables {ENV_SERVICE_PRINCIPAL_ID}, {ENV_SERVICE_PRINCIPAL_PASSWORD}, and {ENV_TENANT_ID}"
-    )
-    return InteractiveLoginAuthentication()
-
-
-def get_secret_from_environment(name: str, allow_missing: bool = False) -> Optional[str]:
-    """
-    Gets a password or key from the secrets file or environment variables.
-
-    :param name: The name of the environment variable to read. It will be converted to uppercase.
-    :param allow_missing: If true, the function returns None if there is no entry of the given name in any of the
-        places searched. If false, missing entries will raise a ValueError.
-    :return: Value of the secret. None, if there is no value and allow_missing is True.
-    """
-    name = name.upper()
-    value = os.environ.get(name, None)
-    if not value and not allow_missing:
-        raise ValueError(f"There is no value stored for the secret named '{name}'")
-    return value
-
-
 def to_azure_friendly_string(x: Optional[str]) -> Optional[str]:
     """
-    Given a string, ensure it can be used in Azure by replacing everything apart from a-z, A-Z, 0-9, or _ with _,
+    Given a string, ensure it can be used in Azure by replacing everything apart from a-z, A-Z, 0-9, - or _ with _,
     and replace multiple _ with a single _.
 
     :param x: Optional string to be converted.
@@ -481,7 +441,7 @@ def to_azure_friendly_string(x: Optional[str]) -> Optional[str]:
     if x is None:
         return x
     else:
-        return re.sub("_+", "_", re.sub(r"\W+", "_", x))
+        return re.sub("_+", "_", re.sub(r"[^\w-]+", "_", x))
 
 
 def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str) -> None:
@@ -493,13 +453,13 @@ def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str)
     """
     conda_packages_count = len(list(conda.conda_packages))
     pip_packages_count = len(list(conda.pip_packages))
-    logging.info(f"{message_prefix}: {conda_packages_count} conda packages, {pip_packages_count} pip packages")
-    logging.debug("  Conda packages:")
+    logger.info(f"{message_prefix}: {conda_packages_count} conda packages, {pip_packages_count} pip packages")
+    logger.debug("  Conda packages:")
     for p in conda.conda_packages:
-        logging.debug(f"    {p}")
-    logging.debug("  Pip packages:")
+        logger.debug(f"    {p}")
+    logger.debug("  Pip packages:")
     for p in conda.pip_packages:
-        logging.debug(f"    {p}")
+        logger.debug(f"    {p}")
 
 
 def _split_dependency(dep_str: str) -> Tuple[str, ...]:
@@ -731,7 +691,7 @@ def create_python_environment(
             workspace=workspace, file_path=str(private_pip_wheel_path), exist_ok=True
         )
         conda_dependencies.add_pip_package(whl_url)
-        logging.info(f"Added add_private_pip_wheel {private_pip_wheel_path} to AzureML environment.")
+        logger.info(f"Added add_private_pip_wheel {private_pip_wheel_path} to AzureML environment.")
     # Create a name for the environment that will likely uniquely identify it. AzureML does hashing on top of that,
     # and will re-use existing environments even if they don't have the same name.
     env_description_string = "\n".join(
@@ -770,13 +730,13 @@ def register_environment(workspace: Workspace, environment: Environment) -> Envi
     """
     try:
         env = Environment.get(workspace, name=environment.name, version=environment.version)
-        logging.info(f"Using existing Python environment '{env.name}' with version '{env.version}'.")
+        logger.info(f"Using existing Python environment '{env.name}' with version '{env.version}'.")
         return env
     # If environment doesn't exist, AML raises a generic Exception
     except Exception:  # type: ignore
         if environment.version is None:
             environment.version = ENVIRONMENT_VERSION
-        logging.info(
+        logger.info(
             f"Python environment '{environment.name}' does not yet exist, creating and registering it"
             f" with version '{environment.version}'"
         )
@@ -839,9 +799,9 @@ def register_environment_v2(environment: EnvironmentV2, ml_client: MLClient) -> 
             env = ml_client.environments.get(environment.name, environment.version)
         else:
             env = ml_client.environments.get(environment.name, label="latest")
-        logging.info(f"Found a registered environment with name {environment.name}, returning that.")
+        logger.info(f"Found a registered environment with name {environment.name}, returning that.")
     except ResourceNotFoundError:
-        logging.info("Didn't find existing environment. Registering a new one.")
+        logger.info("Didn't find existing environment. Registering a new one.")
         env = ml_client.environments.create_or_update(environment)
     return env
 
@@ -878,7 +838,7 @@ def set_environment_variables_for_multi_node() -> None:
     """
     if ENV_AZ_BATCH_MASTER_NODE in os.environ:
         master_node = os.environ[ENV_AZ_BATCH_MASTER_NODE]
-        logging.debug(f"Found AZ_BATCH_MASTER_NODE: {master_node} in environment variables")
+        logger.debug(f"Found AZ_BATCH_MASTER_NODE: {master_node} in environment variables")
         # For AML BATCHAI
         split_master_node_addr = master_node.split(":")
         if len(split_master_node_addr) == 2:
@@ -891,16 +851,16 @@ def set_environment_variables_for_multi_node() -> None:
         os.environ[ENV_MASTER_ADDR] = master_addr
     elif ENV_AZ_BATCHAI_MPI_MASTER_NODE in os.environ and os.environ.get(ENV_AZ_BATCHAI_MPI_MASTER_NODE) != "localhost":
         mpi_master_node = os.environ[ENV_AZ_BATCHAI_MPI_MASTER_NODE]
-        logging.debug(f"Found AZ_BATCHAI_MPI_MASTER_NODE: {mpi_master_node} in environment variables")
+        logger.debug(f"Found AZ_BATCHAI_MPI_MASTER_NODE: {mpi_master_node} in environment variables")
         # For AML BATCHAI
         os.environ[ENV_MASTER_ADDR] = mpi_master_node
     elif ENV_MASTER_IP in os.environ:
         master_ip = os.environ[ENV_MASTER_IP]
-        logging.debug(f"Found MASTER_IP: {master_ip} in environment variables")
+        logger.debug(f"Found MASTER_IP: {master_ip} in environment variables")
         # AKS
         os.environ[ENV_MASTER_ADDR] = master_ip
     else:
-        logging.info("No settings for the MPI central node found. Assuming that this is a single node training job.")
+        logger.info("No settings for the MPI central node found. Assuming that this is a single node training job.")
         return
 
     if ENV_MASTER_PORT not in os.environ:
@@ -908,11 +868,11 @@ def set_environment_variables_for_multi_node() -> None:
 
     if ENV_OMPI_COMM_WORLD_RANK in os.environ:
         world_rank = os.environ[ENV_OMPI_COMM_WORLD_RANK]
-        logging.debug(f"Found OMPI_COMM_WORLD_RANK: {world_rank} in environment variables")
+        logger.debug(f"Found OMPI_COMM_WORLD_RANK: {world_rank} in environment variables")
         os.environ[ENV_NODE_RANK] = world_rank  # node rank is the world_rank from mpi run
 
     env_vars = ", ".join(f"{var} = {os.environ[var]}" for var in [ENV_MASTER_ADDR, ENV_MASTER_PORT, ENV_NODE_RANK])
-    logging.info(f"Distributed training: {env_vars}")
+    logger.info(f"Distributed training: {env_vars}")
 
 
 def is_run_and_child_runs_completed(run: Run) -> bool:
@@ -928,7 +888,7 @@ def is_run_and_child_runs_completed(run: Run) -> bool:
         status = run_.get_status()
         if run_.status == RunStatus.COMPLETED:
             return True
-        logging.info(f"Run {run_.id} in experiment {run_.experiment.name} finished with status {status}.")
+        logger.info(f"Run {run_.id} in experiment {run_.experiment.name} finished with status {status}.")
         return False
 
     runs = list(run.get_children())
@@ -974,7 +934,7 @@ def get_most_recent_run_id(run_recovery_file: Path) -> str:
     assert run_recovery_file.is_file(), f"No such file: {run_recovery_file}"
 
     run_id = run_recovery_file.read_text().strip()
-    logging.info(f"Read this run ID from file: {run_id}.")
+    logger.info(f"Read this run ID from file: {run_id}.")
     return run_id
 
 
@@ -1047,7 +1007,7 @@ def get_run_file_names(run: Run, prefix: str = "") -> List[str]:
     :return: A list of paths within the Run's container
     """
     all_files = run.get_file_names()
-    logging.info(f"Selecting files with prefix {prefix}")
+    logger.info(f"Selecting files with prefix {prefix}")
     return [f for f in all_files if f.startswith(prefix)] if prefix else all_files
 
 
@@ -1120,7 +1080,7 @@ def download_files_by_suffix(
     """
     for file in get_run_file_names(run):
         if file.endswith(suffix):
-            logging.info(f"Downloading file {file}")
+            logger.info(f"Downloading file {file}")
             output_folder.mkdir(parents=True, exist_ok=True)
             output_file = output_folder / file
             _download_file_from_run(run, file, output_file, validate_checksum=validate_checksum)
@@ -1148,7 +1108,7 @@ def get_driver_log_file_text(run: Run, download_file: bool = True) -> Optional[s
                 return tmp_log_file_path.read_text()
 
     files_as_str = ', '.join(f"'{log_file_path}'" for log_file_path in VALID_LOG_FILE_PATHS)
-    logging.warning(
+    logger.warning(
         "Tried to get driver log file for run {run.id} text when no such file exists. Expected to find "
         f"one of the following: {files_as_str}"
     )
@@ -1188,11 +1148,11 @@ def download_file_if_necessary(run: Run, filename: str, output_file: Path, overw
     :return: Local path to the downloaded file.
     """
     if not overwrite and output_file.exists():
-        logging.info(f"File already exists at {output_file}")
+        logger.info(f"File already exists at {output_file}")
     else:
         output_file.parent.mkdir(exist_ok=True, parents=True)
         _download_file_from_run(run, filename, output_file, validate_checksum=True)
-        logging.info(f"File is downloaded at {output_file}")
+        logger.info(f"File is downloaded at {output_file}")
     return output_file
 
 
@@ -1264,7 +1224,7 @@ def download_from_datastore(
         datastore, AzureBlobDatastore
     ), "Invalid datastore type. Can only download from AzureBlobDatastore"  # for mypy
     datastore.download(str(output_folder), prefix=file_prefix, overwrite=overwrite, show_progress=show_progress)
-    logging.info(f"Downloaded data to {str(output_folder)}")
+    logger.info(f"Downloaded data to {str(output_folder)}")
 
 
 def upload_to_datastore(
@@ -1307,7 +1267,7 @@ def upload_to_datastore(
     datastore.upload(
         str(local_data_folder), target_path=str(remote_path), overwrite=overwrite, show_progress=show_progress
     )
-    logging.info(f"Uploaded data to {str(remote_path)}")
+    logger.info(f"Uploaded data to {str(remote_path)}")
 
 
 class AmlRunScriptConfig(param.Parameterized):
@@ -1437,7 +1397,7 @@ def torch_barrier() -> None:
     try:
         from torch import distributed
     except ModuleNotFoundError:
-        logging.info("Skipping the barrier because PyTorch is not available.")
+        logger.info("Skipping the barrier because PyTorch is not available.")
         return
     if distributed.is_available() and distributed.is_initialized():
         distributed.barrier()
@@ -1564,7 +1524,7 @@ def get_metrics_for_run(
             raise ValueError("Either run or run_id must be provided")
         run = get_aml_run_from_run_id(run_id, aml_workspace=aml_workspace, workspace_config_path=workspace_config_path)
     if isinstance(run, _OfflineRun):
-        logging.warning("Can't get metrics for _OfflineRun object")
+        logger.warning("Can't get metrics for _OfflineRun object")
         return {}
     if run.status != RunStatus.COMPLETED:  # type: ignore
         logger.warning(
@@ -1662,7 +1622,7 @@ def download_files_from_hyperdrive_children(
             download_files_from_run_id(child_run.id, local_folder_child_run, prefix=remote_file_path)
             downloaded_file_path = local_folder_child_run / remote_file_path
             if not downloaded_file_path.exists():
-                logging.warning(
+                logger.warning(
                     f"Unable to download the file {remote_file_path} from the datastore associated with this run."
                 )
             else:
@@ -1747,7 +1707,8 @@ class UnitTestWorkspaceWrapper:
         """
         Init.
         """
-        self._workspace: Workspace = None
+        self._workspace: Optional[Workspace] = None
+        self._ml_client: Optional[MLClient] = None
 
     @property
     def workspace(self) -> Workspace:
@@ -1757,6 +1718,15 @@ class UnitTestWorkspaceWrapper:
         if self._workspace is None:
             self._workspace = get_workspace()
         return self._workspace
+
+    @property
+    def ml_client(self) -> MLClient:
+        """
+        Lazily load the ML Client.
+        """
+        if self._ml_client is None:
+            self._ml_client = get_ml_client()
+        return self._ml_client
 
 
 @contextmanager
@@ -1775,11 +1745,11 @@ def check_config_json(script_folder: Path, shared_config_json: Path) -> Generato
         pass
     elif shared_config_json.exists():
         # This will execute on local dev machines
-        logging.info(f"Copying {shared_config_json} to folder {script_folder}")
+        logger.info(f"Copying {shared_config_json} to folder {script_folder}")
         shutil.copy(shared_config_json, target_config_json)
     else:
         # This will execute on github agents
-        logging.info(f"Creating {str(target_config_json)} from environment variables.")
+        logger.info(f"Creating {str(target_config_json)} from environment variables.")
         subscription_id = os.getenv(ENV_SUBSCRIPTION_ID, "")
         resource_group = os.getenv(ENV_RESOURCE_GROUP, "")
         workspace_name = os.getenv(ENV_WORKSPACE_NAME, "")
@@ -1816,177 +1786,72 @@ def check_is_any_of(message: str, actual: Optional[str], valid: Iterable[Optiona
         raise ValueError("{} must be one of [{}], but got: {}".format(message, all_valid, actual))
 
 
-def _validate_credential(credential: TokenCredential) -> None:
-    """
-    Validate credential by attempting to get token. If authentication has been successful, get_token
-    will succeed. Otherwise an exception will be raised
-
-    :param credential: The credential object to validate.
-    """
-    credential.get_token("https://management.azure.com/.default")
-
-
-def _get_legitimate_service_principal_credential(
-    tenant_id: str, service_principal_id: str, service_principal_password: str
-) -> TokenCredential:
-    """
-    Create a ClientSecretCredential given a tenant id, service principal id and password
-
-    :param tenant_id: The Azure tenant id.
-    :param service_principal_id: The id of an existing Service Principal.
-    :param service_principal_password: The password of an existing Service Principal.
-    :raises ValueError: If the credential cannot be validated (i.e. authentication was unsucessful).
-    :return: The validated credential.
-    """
-    cred = ClientSecretCredential(
-        tenant_id=tenant_id, client_id=service_principal_id, client_secret=service_principal_password
-    )
-    try:
-        _validate_credential(cred)
-        return cred
-    except ClientAuthenticationError as e:
-        raise ValueError(
-            f"Found environment variables for {ENV_SERVICE_PRINCIPAL_ID}, "
-            f"{ENV_SERVICE_PRINCIPAL_PASSWORD}, and {ENV_TENANT_ID} but was "
-            f"not able to authenticate: {e}"
-        )
-
-
-def _get_legitimate_device_code_credential() -> Optional[TokenCredential]:
-    """
-    Create a DeviceCodeCredential for interacting with Azure resources. If the credential can't be
-    validated, return None.
-
-    :return: A valid Azure credential.
-    """
-    cred = DeviceCodeCredential(timeout=60)
-    try:
-        _validate_credential(cred)
-        return cred
-    except ClientAuthenticationError:
-        return None
-
-
-def _get_legitimate_default_credential() -> Optional[TokenCredential]:
-    """
-    Create a DefaultAzure credential for interacting with Azure resources and validates it.
-
-    :return: A valid Azure credential.
-    """
-    cred = DefaultAzureCredential(timeout=60)
-    _validate_credential(cred)
-    return cred
-
-
-def _get_legitimate_interactive_browser_credential() -> Optional[TokenCredential]:
-    """
-    Create an InteractiveBrowser credential for interacting with Azure resources. If the credential can't be
-    validated, return None.
-
-    :return: A valid Azure credential.
-    """
-    cred = InteractiveBrowserCredential(timeout=60)
-    try:
-        _validate_credential(cred)
-        return cred
-    except ClientAuthenticationError:
-        return None
-
-
-def get_credential() -> Optional[TokenCredential]:
-    """
-    Get a credential for authenticating with Azure.There are multiple ways to retrieve a credential.
-    If environment variables pertaining to details of a Service Principal are available, those will be used
-    to authenticate. If no environment variables exist, and the script is not currently
-    running inside of Azure ML or another Azure agent, will attempt to retrieve a credential via a
-    device code (which requires the user to visit a link and enter a provided code). If this fails, or if running in
-    Azure, DefaultAzureCredential will be used which iterates through a number of possible authentication methods
-    including identifying an Azure managed identity, cached credentials from VS code, Azure CLI, Powershell etc.
-    Otherwise returns None.
-
-    :return: Any of the aforementioned credentials if available, else None.
-    """
-    service_principal_id = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_ID, allow_missing=True)
-    tenant_id = get_secret_from_environment(ENV_TENANT_ID, allow_missing=True)
-    service_principal_password = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
-    if service_principal_id and tenant_id and service_principal_password:
-        return _get_legitimate_service_principal_credential(tenant_id, service_principal_id, service_principal_password)
-
-    try:
-        cred = _get_legitimate_default_credential()
-        if cred is not None:
-            return cred
-    except ClientAuthenticationError:
-        cred = _get_legitimate_device_code_credential()
-        if cred is not None:
-            return cred
-
-        cred = _get_legitimate_interactive_browser_credential()
-        if cred is not None:
-            return cred
-
-    raise ValueError(
-        "Unable to generate and validate a credential. Please see Azure ML documentation"
-        "for instructions on diffrent options to get a credential"
-    )
-
-
 def get_ml_client(
     ml_client: Optional[MLClient] = None,
-    aml_workspace: Optional[Workspace] = None,
-    workspace_config_path: Optional[PathOrString] = None,
-    subscription_id: Optional[str] = None,
-    resource_group: Optional[str] = None,
-    workspace_name: str = "",
+    workspace_config_path: Optional[Path] = None,
 ) -> MLClient:
     """
-    Instantiate an MLClient for interacting with Azure resources via v2 of the Azure ML SDK.
-    If a ml_client is provided, return that. Otherwise, create one using workspace details
-    coming from either an existing Workspace object, a config.json file or passed in as an argument.
+    Instantiate an MLClient for interacting with Azure resources via v2 of the Azure ML SDK. The following ways of
+    creating the client are tried out:
+
+      1. If an MLClient object has been provided in the `ml_client` argument, return that.
+
+      2. If a path to a workspace config file has been provided, load the MLClient according to that config file.
+
+      3. If a workspace config file is present in the current working directory or one of its parents, load the
+        MLClient according to that config file.
+
+      4. If 3 environment variables are found, use them to identify the workspace (`HIML_RESOURCE_GROUP`,
+        `HIML_SUBSCRIPTION_ID`, `HIML_WORKSPACE_NAME`)
+
+    If none of the above succeeds, an exception is raised.
 
     :param ml_client: An optional existing MLClient object to be returned.
-    :param aml_workspace: An optional Workspace object to take connection details from.
     :param workspace_config_path: An optional path toa  config.json file containing details of the Workspace.
     :param subscription_id: An optional subscription ID.
     :param resource_group: An optional resource group name.
     :param workspace_name: An optional workspace name.
     :return: An instance of MLClient to interact with Azure resources.
     """
-    if ml_client:
+    if ml_client is not None:
         return ml_client
-
+    logger.debug("Getting credentials")
     credential = get_credential()
     if credential is None:
         raise ValueError("Can't connect to MLClient without a valid credential")
-    if aml_workspace is not None:
-        ml_client = MLClient(
-            subscription_id=aml_workspace.subscription_id,
-            resource_group_name=aml_workspace.resource_group,
-            workspace_name=aml_workspace.name,
-            credential=credential,
-        )  # type: ignore
-    elif workspace_config_path:
+    workspace_config_path = resolve_workspace_config_path(workspace_config_path)
+    if workspace_config_path is not None:
+        logger.debug(f"Retrieving MLClient from workspace config {workspace_config_path}")
         ml_client = MLClient.from_config(credential=credential, path=str(workspace_config_path))  # type: ignore
-    elif subscription_id and resource_group and workspace_name:
+        logger.info(
+            f"Using MLClient for AzureML workspace {ml_client.workspace_name} as specified in config file"
+            f"{workspace_config_path}"
+        )
+        return ml_client
+
+    logger.info("Trying to load the environment variables that define the workspace.")
+    workspace_name = get_secret_from_environment(ENV_WORKSPACE_NAME, allow_missing=True)
+    subscription_id = get_secret_from_environment(ENV_SUBSCRIPTION_ID, allow_missing=True)
+    resource_group = get_secret_from_environment(ENV_RESOURCE_GROUP, allow_missing=True)
+    if workspace_name and subscription_id and resource_group:
+        logger.debug(
+            "Retrieving MLClient via subscription ID, resource group and workspace name retrieved from "
+            "environment variables."
+        )
         ml_client = MLClient(
             subscription_id=subscription_id,
             resource_group_name=resource_group,
             workspace_name=workspace_name,
             credential=credential,
         )  # type: ignore
-    else:
-        try:
-            workspace = get_workspace()
-            ml_client = MLClient(
-                subscription_id=workspace.subscription_id,
-                resource_group_name=workspace.resource_group,
-                workspace_name=workspace.name,
-                credential=credential,
-            )  # type: ignore
-        except ValueError as e:
-            raise ValueError(f"Couldn't connect to MLClient: {e}")
-    logging.info(f"Logged into AzureML workspace {ml_client.workspace_name}")
-    return ml_client
+        logger.info(f"Using MLClient for AzureML workspace {workspace_name} as specified by environment variables")
+        return ml_client
+
+    raise ValueError(
+        "Tried all ways of identifying the MLClient, but failed. Please provide a workspace config "
+        f"file {WORKSPACE_CONFIG_JSON} or set the environment variables {ENV_RESOURCE_GROUP}, "
+        f"{ENV_SUBSCRIPTION_ID}, and {ENV_WORKSPACE_NAME}."
+    )
 
 
 def retrieve_workspace_from_client(ml_client: MLClient, workspace_name: Optional[str] = None) -> WorkspaceV2:
@@ -2031,3 +1896,42 @@ def filter_v2_input_output_args(args: List[str]) -> List[str]:
         any integer.
     """
     return [a for a in args if not re.match(V2_INPUT_DATASET_PATTERN, a) and not re.match(V2_OUTPUT_DATASET_PATTERN, a)]
+
+
+def _is_module_calling_syntax(entry_script: str) -> bool:
+    """Returns True if the entry script is of the format seen when calling Python like 'python -m Foo.bar'"""
+    return entry_script.startswith("-m ")
+
+
+def sanitize_snapshoot_directory(snapshot_root_directory: Optional[PathOrString]) -> Path:
+    """Sets the default values for the snapshoot root directory, which is the current working directory."""
+    if snapshot_root_directory is None:
+        print("No snapshot root directory given. All files in the current working directory will be copied to AzureML.")
+        return Path.cwd()
+    else:
+        print(f"All files in this folder will be copied to AzureML: {snapshot_root_directory}")
+        return Path(snapshot_root_directory)
+
+
+def sanitize_entry_script(entry_script: Optional[PathOrString], snapshot_root: Path) -> str:
+    if entry_script is None:
+        print("No entry script given. The current main Python file will be executed in AzureML.")
+        entry_script_path = Path(sys.argv[0])
+    elif isinstance(entry_script, str):
+        if _is_module_calling_syntax(entry_script):
+            return entry_script
+        entry_script_path = Path(entry_script)
+    elif isinstance(entry_script, Path):
+        entry_script_path = entry_script
+    else:
+        raise ValueError(f"entry_script must be a string or Path, but got {type(entry_script)}")
+    if entry_script_path.is_absolute():
+        try:
+            entry_script_path = entry_script_path.relative_to(snapshot_root)
+        except ValueError:
+            raise ValueError(
+                "The entry script must be inside of the snapshot root directory. "
+                f"Snapshot root: {snapshot_root}, entry script: {entry_script}"
+            )
+    # The entry script always needs to use Linux path separators, even when submitting from Windows
+    return str(entry_script_path.as_posix())

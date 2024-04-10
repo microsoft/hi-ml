@@ -8,7 +8,9 @@ from io import StringIO
 from typing import Any, Dict, Iterable, Union, List, Optional
 
 import param
-from ruamel import yaml
+from ruamel.yaml import YAML
+
+logger = logging.getLogger(__name__)
 
 
 def is_basic_type(o: Any) -> bool:
@@ -44,18 +46,18 @@ def get_all_writable_attributes(o: Any) -> Dict[str, Any]:
     if isinstance(o, param.Parameterized):
         for param_name, p in o.params().items():
             if _is_private(param_name):
-                logging.debug(f"get_all_writable_attributes: Skipping private field {param_name}")
+                logger.debug(f"get_all_writable_attributes: Skipping private field {param_name}")
             elif p.constant:
-                logging.debug(f"get_all_writable_attributes: Skipping constant field {param_name}")
+                logger.debug(f"get_all_writable_attributes: Skipping constant field {param_name}")
             elif p.readonly:
-                logging.debug(f"get_all_writable_attributes: Skipping readonly field {param_name}")
+                logger.debug(f"get_all_writable_attributes: Skipping readonly field {param_name}")
             else:
                 result[param_name] = getattr(o, param_name)
         return result
     try:
         for name, value in vars(o).items():
             if _is_private(name):
-                logging.debug(f"get_all_writable_attributes: Skipping private field {name}")
+                logger.debug(f"get_all_writable_attributes: Skipping private field {name}")
             else:
                 result[name] = value
         return result
@@ -125,7 +127,7 @@ def object_to_dict(o: Any) -> Dict[str, Any]:
     fields = get_all_writable_attributes(o)
     result = {}
     for field, value in fields.items():
-        logging.debug(f"object_to_dict: Processing {field}")
+        logger.debug(f"object_to_dict: Processing {field}")
         result[field] = _object_to_dict(value)
     return result
 
@@ -138,7 +140,13 @@ def object_to_yaml(o: Any) -> str:
     :param o: The object to inspect.
     :return: A string in YAML format.
     """
-    return yaml.safe_dump(object_to_dict(o), default_flow_style=False)  # type: ignore
+    yaml = YAML(typ='safe', pure=True)
+    stream = StringIO()
+    yaml.default_flow_style = False
+    yaml.dump(object_to_dict(o), stream)
+    result = stream.getvalue()
+    stream.close()
+    return result
 
 
 def yaml_to_dict(s: str) -> Dict[str, Any]:
@@ -150,7 +158,8 @@ def yaml_to_dict(s: str) -> Dict[str, Any]:
     or dictionaries again.
     """
     stream = StringIO(s)
-    return yaml.safe_load(stream=stream)
+    yaml = YAML(typ='safe', pure=True)
+    return yaml.load(stream=stream)
 
 
 def _write_dict_to_object(o: Any, d: Dict[str, Any], traversed_fields: Optional[List] = None) -> List[str]:
@@ -246,11 +255,11 @@ def write_dict_to_object(o: Any, d: Dict[str, Any], strict: bool = True) -> None
         return
     message = f"Unable to complete writing to the object: Found {len(issues)} problems. Please inspect console log."
     for issue in issues:
-        logging.warning(issue)
+        logger.warning(issue)
     if strict:
         raise ValueError(message)
     else:
-        logging.warning(message)
+        logger.warning(message)
 
 
 def write_yaml_to_object(o: Any, yaml_string: str, strict: bool = False) -> None:

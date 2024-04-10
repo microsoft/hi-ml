@@ -1,4 +1,4 @@
-black==23.1.0
+black==22.1.0
 coverage==7.1.0
 flake8==6.0.0
 mypy==1.0.1

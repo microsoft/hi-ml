@@ -24,14 +24,13 @@ from azure.ai.ml.constants import InputOutputModes
 from azure.ai.ml.entities import Command, Data
 from azure.ai.ml.entities import Environment as EnvironmentV2
 from azure.ai.ml.entities import Job, Sweep, UserIdentityConfiguration
-from azure.ai.ml.entities._job.distribution import MpiDistribution, PyTorchDistribution
+from azure.ai.ml.entities._job.distribution import DistributionConfiguration, MpiDistribution, PyTorchDistribution
 from azure.ai.ml.sweep import Choice
 from azureml._base_sdk_common import user_agent
 from azureml.core import ComputeTarget, Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
 from azureml.data import OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
-from azureml.dataprep.fuse.daemon import MountContext
 from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
 
 from health_azure.amulet import ENV_AMLT_DATAREFERENCE_DATA, ENV_AMLT_DATAREFERENCE_OUTPUT, is_amulet_job
@@ -64,10 +63,12 @@ from health_azure.utils import (
     run_duration_string_to_seconds,
     to_azure_friendly_string,
     wait_for_job_completion,
+    sanitize_snapshoot_directory,
+    sanitize_entry_script,
+    _is_module_calling_syntax,
 )
 
-logger = logging.getLogger('health_azure')
-logger.setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 AML_IGNORE_FILE = ".amlignore"
 AZUREML_FLAG = "--azureml"
@@ -78,7 +79,7 @@ RUN_RECOVERY_FILE = "most_recent_run.txt"
 SDK_NAME = "innereye"
 SDK_VERSION = "2.0"
 
-DEFAULT_DOCKER_BASE_IMAGE = "mcr.microsoft.com/azureml/openmpi4.1.0-cuda11.3-cudnn8-ubuntu20.04"
+DEFAULT_DOCKER_BASE_IMAGE = "mcr.microsoft.com/azureml/openmpi4.1.0-cuda11.3-cudnn8-ubuntu20.04:20230509.v1"
 DEFAULT_DOCKER_SHM_SIZE = "100g"
 
 # hyperparameter search args
@@ -111,7 +112,7 @@ class AzureRunInfo:
     """A list of folders that contain all the datasets that the script uses as outputs. Output datasets must be
          specified when calling `submit_to_azure_if_needed`. Here, they are made available as Path objects. If no output
          datasets are specified, the list is empty."""
-    mount_contexts: List[MountContext]
+    mount_contexts: List[Any]
     """A list of mount contexts for input datasets when running outside AzureML. There will be a mount context
     for each input dataset where there is no local_folder, there is a workspace, and use_mounting is set.
     This list is maintained only to prevent exit from these contexts until the RunInfo object is deleted."""
@@ -128,51 +129,19 @@ class AzureRunInfo:
     folder will be uploaded to blob storage regularly during the script run."""
 
 
-def validate_num_nodes(compute_cluster: ComputeTarget, num_nodes: int) -> None:
+def validate_compute_cluster(workspace: Workspace, compute_cluster_name: str) -> None:
     """
-    Check that the user hasn't requested more nodes than the maximum number of nodes allowed by
-    their compute cluster
+    Check that the specified compute cluster exists in the given Workspace
 
-    :param compute_cluster: An AML ComputeTarget representing the cluster whose upper node limit
-        should be checked
-    :param num_nodes: The number of nodes that the user has requested
-    """
-    max_cluster_nodes: int = compute_cluster.scale_settings.maximum_node_count
-    if num_nodes > max_cluster_nodes:
-        raise ValueError(
-            f"You have requested {num_nodes} nodes, which is more than your compute cluster "
-            f"({compute_cluster.name})'s maximum of {max_cluster_nodes} nodes."
-        )
-
-
-def validate_compute_name(existing_compute_targets: Dict[str, ComputeTarget], compute_target_name: str) -> None:
-    """
-    Check that a specified compute target is one of the available existing compute targets in a Workspace
-
-    :param existing_compute_targets: A list of AML ComputeTarget objects available to a given AML Workspace
-    :param compute_cluster_name: The name of the specific compute target whose name to look up in existing
-        compute targets
-    """
-    if compute_target_name not in existing_compute_targets:
-        raise ValueError(
-            f"Could not find the compute target {compute_target_name} in the AzureML workspace. ",
-            f"Existing compute targets: {list(existing_compute_targets)}",
-        )
-
-
-def validate_compute_cluster(workspace: Workspace, compute_cluster_name: str, num_nodes: int) -> None:
-    """
-    Check that both the specified compute cluster exists in the given Workspace, and that it has enough
-    nodes to spin up the requested number of nodes
-
-    :param existing_compute_clusters: A list of AML ComputeTarget objects in a given AML Workspace
+    :param workspace: The AML Workspace to check
     :param compute_cluster_name: The name of the specific compute cluster whose properties should be checked
-    :param num_nodes: The number of nodes that the user has requested
     """
-    existing_compute_clusters: Dict[str, ComputeTarget] = workspace.compute_targets
-    validate_compute_name(existing_compute_clusters, compute_cluster_name)
-    compute_cluster = existing_compute_clusters[compute_cluster_name]
-    validate_num_nodes(compute_cluster, num_nodes)
+    existing_compute_targets: Dict[str, ComputeTarget] = workspace.compute_targets
+    if compute_cluster_name not in existing_compute_targets:
+        raise ValueError(
+            f"Could not find compute target '{compute_cluster_name}' in the AzureML workspace. ",
+            f"Existing compute targets: {list(existing_compute_targets.keys())}",
+        )
 
 
 def create_run_configuration(
@@ -189,6 +158,7 @@ def create_run_configuration(
     max_run_duration: str = "",
     input_datasets: Optional[List[DatasetConfig]] = None,
     output_datasets: Optional[List[DatasetConfig]] = None,
+    use_mpi_run_for_single_node_jobs: bool = False,
 ) -> RunConfiguration:
     """
     Creates an AzureML run configuration, that contains information about environment, multi node execution, and
@@ -217,6 +187,8 @@ def create_run_configuration(
     :param output_datasets: The script will create a temporary folder when running in AzureML, and while the job writes
         data to that folder, upload it to blob storage, in the data store.
     :param num_nodes: The number of nodes to use in distributed training on AzureML.
+    :param use_mpi_run_for_single_node_jobs: If True, even single node jobs will be run as distributed MPI jobs.
+        If False, single node jobs will not be run as distributed jobs.
     :return:
     """
     run_config = RunConfiguration()
@@ -247,16 +219,15 @@ def create_run_configuration(
     if docker_shm_size:
         run_config.docker = DockerConfiguration(use_docker=True, shm_size=docker_shm_size)
 
-    validate_compute_cluster(workspace, compute_cluster_name, num_nodes)
+    validate_compute_cluster(workspace, compute_cluster_name)
 
     run_config.target = compute_cluster_name
 
     if max_run_duration:
         run_config.max_run_duration_seconds = run_duration_string_to_seconds(max_run_duration)
 
-    # Create MPI configuration for distributed jobs (unless num_splits > 1, in which case
-    # an AML HyperdriveConfig is instantiated instead
-    if num_nodes > 1:
+    # Create MPI configuration for distributed jobs
+    if num_nodes > 1 or use_mpi_run_for_single_node_jobs:
         distributed_job_config = MpiConfiguration(node_count=num_nodes)
         run_config.mpi = distributed_job_config
         run_config.framework = "Python"
@@ -293,7 +264,7 @@ def create_grid_hyperdrive_config(values: List[str], argument_name: str, metric_
         your responsibility to make sure a metric with this name is logged to the Run in your training script
     :return: an Azure ML HyperDriveConfig object
     """
-    logging.info(
+    logger.info(
         f"Creating a HyperDriveConfig. Please note that this expects to find the specified "
         f"metric '{metric_name}' logged to AzureML from your training script (for example, using the "
         f"AzureMLLogger with Pytorch Lightning)"
@@ -374,6 +345,7 @@ def create_script_run(
     script_params: List[str],
     snapshot_root_directory: Optional[Path] = None,
     entry_script: Optional[PathOrString] = None,
+    entry_command: Optional[PathOrString] = None,
 ) -> ScriptRunConfig:
     """
     Creates an AzureML ScriptRunConfig object, that holds the information about the snapshot, the entry script, and
@@ -383,35 +355,20 @@ def create_script_run(
         parameters can be generated using the ``_get_script_params()`` function.
     :param snapshot_root_directory: The directory that contains all code that should be packaged and sent to AzureML.
         All Python code that the script uses must be copied over.
-    :param entry_script: The script that should be run in AzureML. If None, the current main Python file will be
-        executed.
-    :return:
+    :param entry_script: The Python script that should be run in AzureML. If None, the current main Python file will be
+        executed. If entry_command is provided, this argument is ignored.
+    :param entry_command: The command that should be run in AzureML. Command arguments will be taken from
+        the 'script_params' argument. If provided, this will override the entry_script argument.
+    :return: A configuration object for a script run.
     """
-    if snapshot_root_directory is None:
-        print("No snapshot root directory given. All files in the current working directory will be copied to AzureML.")
-        snapshot_root_directory = Path.cwd()
+    snapshot_root = sanitize_snapshoot_directory(snapshot_root_directory)
+    if entry_command is not None:
+        return ScriptRunConfig(source_directory=str(snapshot_root), command=[entry_command, *script_params])
     else:
-        print(f"All files in this folder will be copied to AzureML: {snapshot_root_directory}")
-    if entry_script is None:
-        entry_script = Path(sys.argv[0])
-        print("No entry script given. The current main Python file will be executed in AzureML.")
-    elif isinstance(entry_script, str):
-        entry_script = Path(entry_script)
-    if entry_script.is_absolute():
-        try:
-            # The entry script always needs to use Linux path separators, even when submitting from Windows
-            entry_script_relative = entry_script.relative_to(snapshot_root_directory).as_posix()
-        except ValueError:
-            raise ValueError(
-                "The entry script must be inside of the snapshot root directory. "
-                f"Snapshot root: {snapshot_root_directory}, entry script: {entry_script}"
-            )
-    else:
-        entry_script_relative = str(entry_script)
-    print(f"This command will be run in AzureML: {entry_script_relative} {' '.join(script_params)}")
-    return ScriptRunConfig(
-        source_directory=str(snapshot_root_directory), script=entry_script_relative, arguments=script_params
-    )
+        entry_script_relative = sanitize_entry_script(entry_script, snapshot_root)
+        return ScriptRunConfig(
+            source_directory=str(snapshot_root), script=entry_script_relative, arguments=script_params
+        )
 
 
 def effective_experiment_name(experiment_name: Optional[str], entry_script: Optional[PathOrString] = None) -> str:
@@ -430,7 +387,7 @@ def effective_experiment_name(experiment_name: Optional[str], entry_script: Opti
     elif experiment_name:
         raw_value = experiment_name
     elif entry_script is not None:
-        if str(entry_script)[:3] == "-m ":
+        if _is_module_calling_syntax(str(entry_script)):
             raw_value = str(entry_script)[3:]
         else:
             raw_value = Path(entry_script).stem
@@ -442,84 +399,71 @@ def effective_experiment_name(experiment_name: Optional[str], entry_script: Opti
 
 
 def submit_run_v2(
-    workspace: Optional[Workspace],
+    ml_client: MLClient,
     environment: EnvironmentV2,
+    compute_target: str,
+    entry_script: Optional[PathOrString] = None,
+    script_params: Optional[List[str]] = None,
+    entry_command: Optional[PathOrString] = None,
+    environment_variables: Optional[Dict[str, str]] = None,
     experiment_name: Optional[str] = None,
     input_datasets_v2: Optional[Dict[str, Input]] = None,
     output_datasets_v2: Optional[Dict[str, Output]] = None,
     snapshot_root_directory: Optional[Path] = None,
-    entry_script: Optional[PathOrString] = None,
-    script_params: Optional[List[str]] = None,
-    compute_target: Optional[str] = None,
     tags: Optional[Dict[str, str]] = None,
     docker_shm_size: str = "",
     wait_for_completion: bool = False,
     identity_based_auth: bool = False,
-    workspace_config_path: Optional[PathOrString] = None,
-    ml_client: Optional[MLClient] = None,
     hyperparam_args: Optional[Dict[str, Any]] = None,
     num_nodes: int = 1,
     pytorch_processes_per_node: Optional[int] = None,
+    use_mpi_run_for_single_node_jobs: bool = True,
     display_name: Optional[str] = None,
 ) -> Job:
     """
     Starts a v2 AML Job on a given workspace by submitting a command
 
-    :param workspace: The AzureML workspace to use.
+    :param ml_client: An Azure MLClient object for interacting with Azure resources.
     :param environment: An AML v2 Environment object.
+    :param entry_script: The Python script that should be run in AzureML. If None, the current main Python file will be
+        executed. If entry_command is provided, this argument is ignored.
+    :param entry_command: The command that should be run in AzureML. Command arguments will be taken from
+        the 'script_params' argument. If provided, this will override the entry_script argument.
+    :param script_params: A list of parameter to pass on to the script as it runs in AzureML.
+    :param compute_target: The name of a compute target in Azure ML to submit the job to.
+    :param environment_variables: The environment variables that should be set when running in AzureML.
     :param experiment_name: The name of the experiment that will be used or created. If the experiment name contains
         characters that are not valid in Azure, those will be removed.
     :param input_datasets_v2: An optional dictionary of Inputs to pass in to the command.
     :param output_datasets_v2: An optional dictionary of Outputs to pass in to the command.
     :param snapshot_root_directory: The directory that contains all code that should be packaged and sent to AzureML.
         All Python code that the script uses must be copied over.
-    :param entry_script: The script that should be run in AzureML.
-    :param script_params: A list of parameter to pass on to the script as it runs in AzureML.
-    :param compute_target: Optional name of a compute target in Azure ML to submit the job to. If None, will run
-        locally.
     :param tags: A dictionary of string key/value pairs, that will be added as metadata to the run. If set to None,
         a default metadata field will be added that only contains the commandline arguments that started the run.
     :param docker_shm_size: The Docker shared memory size that should be used when creating a new Docker image.
     :param wait_for_completion: If False (the default) return after the run is submitted to AzureML, otherwise wait for
         the completion of this run (if True).
-    :param workspace_config_path: If not provided with an AzureML Workspace, then load one given the information in this
-        config
-    :param ml_client: An Azure MLClient object for interacting with Azure resources.
     :param hyperparam_args: A dictionary of hyperparameter search args to pass into a sweep job.
     :param num_nodes: The number of nodes to use for the job in AzureML. The value must be 1 or greater.
     :param pytorch_processes_per_node: For plain PyTorch multi-GPU processing: The number of processes per node.
         If supplied, it will run a command job with the "pytorch" framework (rather than "Python"), and using "nccl"
         as the communication backend.
+    :param use_mpi_run_for_single_node_jobs: If True, even single node jobs will be run as distributed MPI jobs.
+        This is required for Kubernetes compute. If False, single node jobs will not be run as distributed jobs.
     :param display_name: The name for the run that will be displayed in the AML UI. If not provided, a random
         display name will be generated by AzureML.
     :return: An AzureML Run object.
     """
-    if ml_client is None:
-        if workspace is not None:
-            ml_client = get_ml_client(
-                subscription_id=workspace.subscription_id,
-                resource_group=workspace.resource_group,
-                workspace_name=workspace.name,
-            )
-        elif workspace_config_path is not None:
-            ml_client = get_ml_client(workspace_config_path=workspace_config_path)
-        else:
-            raise ValueError("Either workspace or workspace_config_path must be specified to connect to the Workspace")
-
-    assert compute_target is not None, "No compute_target has been provided"
-    assert entry_script is not None, "No entry_script has been provided"
-    snapshot_root_directory = snapshot_root_directory or Path.cwd()
-    root_dir = Path(snapshot_root_directory)
-
-    if str(entry_script)[:2] != "-m":
-        entry_script = Path(entry_script).relative_to(root_dir).as_posix()
-
-    experiment_name = effective_experiment_name(experiment_name, entry_script)
-
+    root_dir = sanitize_snapshoot_directory(snapshot_root_directory)
     script_params = script_params or []
     script_param_str = create_v2_job_command_line_args_from_params(script_params)
-
-    cmd = " ".join(["python", str(entry_script), script_param_str])
+    if entry_command is None:
+        entry_script_relative = sanitize_entry_script(entry_script, root_dir)
+        experiment_name = effective_experiment_name(experiment_name, entry_script_relative)
+        cmd = " ".join(["python", str(entry_script_relative), script_param_str])
+    else:
+        experiment_name = effective_experiment_name(experiment_name, entry_command)
+        cmd = " ".join([str(entry_command), script_param_str])
 
     print(f"The following command will be run in AzureML: {cmd}")
 
@@ -534,11 +478,13 @@ def submit_run_v2(
             raise ValueError("pytorch_processes_per_node must be >= 1")
 
     def create_command_job(cmd: str) -> Command:
+        distribution: Optional[DistributionConfiguration] = None
         if pytorch_processes_per_node is None:
             # On AML managed compute, we can set distribution to None for single node jobs.
             # However, on Kubernetes compute, single node jobs don't see any GPUs. GPUs are visible for MpiDistribution
             # jobs, so we set MpiDistribution even for single node jobs.
-            distribution: Union[MpiDistribution, PyTorchDistribution] = MpiDistribution(process_count_per_instance=1)
+            if num_nodes > 1 or use_mpi_run_for_single_node_jobs:
+                distribution = MpiDistribution(process_count_per_instance=1)
         else:
             distribution = PyTorchDistribution(process_count_per_instance=pytorch_processes_per_node)
         return command(
@@ -547,6 +493,7 @@ def submit_run_v2(
             inputs=input_datasets_v2,
             outputs=output_datasets_v2,
             environment=environment.name + "@latest",
+            environment_variables=environment_variables,
             compute=compute_target,
             experiment_name=experiment_name,
             tags=tags or {},
@@ -589,7 +536,11 @@ def submit_run_v2(
         job_to_submit = create_command_job(cmd)
 
     returned_job = ml_client.jobs.create_or_update(job_to_submit)
-    print(f"URL to job: {returned_job.services['Studio'].endpoint}")  # type: ignore
+    print("\n==============================================================================")
+    # The ID field looks like /subscriptions/<sub>/resourceGroups/<rg?/providers/Microsoft.MachineLearningServices/..
+    print(f"Successfully queued run {(returned_job.id or '').split('/')[-1]}")
+    print(f"Run URL: {returned_job.services['Studio'].endpoint}")  # type: ignore
+    print("==============================================================================\n")
     if wait_for_completion:
         print("Waiting for the completion of the AzureML job.")
         wait_for_job_completion(ml_client, job_name=returned_job.name)
@@ -666,9 +617,9 @@ def submit_run(
 
     _write_run_recovery_file(run)
 
-    # These need to be 'print' not 'logging.info' so that the calling script sees them outside AzureML
+    # These need to be 'print' not 'logger.info' so that the calling script sees them outside AzureML
     print("\n==============================================================================")
-    print(f"Successfully queued run number {run.number} (ID {run.id}) in experiment {run.experiment.name}")
+    print(f"Successfully queued run {run.id} in experiment {run.experiment.name}")
     print(f"Experiment name and run ID are available in file {RUN_RECOVERY_FILE}")
     print(f"Experiment URL: {run.experiment.get_portal_url()}")
     print(f"Run URL: {run.get_portal_url()}")
@@ -700,7 +651,7 @@ def get_data_asset_from_config(ml_client: MLClient, dataset_config: DatasetConfi
     """
 
     version = dataset_config.version
-    logging.info(
+    logger.info(
         f"Trying to access data asset {dataset_config.name} version {version}, datastore {dataset_config.datastore}"
     )
 
@@ -790,7 +741,9 @@ def submit_to_azure_if_needed(  # type: ignore
     strictly_aml_v1: bool = False,
     identity_based_auth: bool = False,
     pytorch_processes_per_node_v2: Optional[int] = None,
+    use_mpi_run_for_single_node_jobs: bool = False,
     display_name: Optional[str] = None,
+    entry_command: Optional[PathOrString] = None,
 ) -> AzureRunInfo:  # pragma: no cover
     """
     Submit a folder to Azure, if needed and run it.
@@ -808,7 +761,10 @@ def submit_to_azure_if_needed(  # type: ignore
         floating point number with a string suffix s, m, h, d for seconds, minutes, hours, day. Examples: '3.5h', '2d'
     :param experiment_name: The name of the AzureML experiment in which the run should be submitted. If omitted,
         this is created based on the name of the current script.
-    :param entry_script: The script that should be run in AzureML
+    :param entry_script: The Python script that should be run in AzureML. If None, the current main Python file will be
+        executed. If entry_command is provided, this argument is ignored.
+    :param entry_command: The command that should be run in AzureML. Command arguments will be taken from
+        the 'script_params' argument. If provided, this will override the entry_script argument.
     :param compute_cluster_name: The name of the AzureML cluster that should run the job. This can be a cluster with
         CPU or GPU machines.
     :param conda_environment_file: The conda configuration file that describes which packages are necessary for your
@@ -821,8 +777,8 @@ def submit_to_azure_if_needed(  # type: ignore
     :param snapshot_root_directory: The directory that contains all code that should be packaged and sent to AzureML.
         All Python code that the script uses must be copied over.
     :param ignored_folders: A list of folders to exclude from the snapshot when copying it to AzureML.
-    :param script_params: A list of parameter to pass on to the script as it runs in AzureML. If empty (or None, the
-        default) these will be copied over from sys.argv, omitting the --azureml flag.
+    :param script_params: A list of parameters to pass on to the script as it runs in AzureML. If `None` (the
+        default), these will be copied over from `sys.argv` (excluding the `--azureml` flag, if found).
     :param environment_variables: The environment variables that should be set when running in AzureML.
     :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
         The list of available images can be found here: https://github.com/Azure/AzureML-Containers
@@ -858,6 +814,9 @@ def submit_to_azure_if_needed(  # type: ignore
     :param pytorch_processes_per_node_v2: For plain PyTorch multi-GPU processing: The number of processes per node. This
         is only supported with AML SDK v2, and ignored in v1. If supplied, the job will be submitted as using the
         "pytorch" framework (rather than "Python"), and using "nccl" as the communication backend.
+    :param use_mpi_run_for_single_node_jobs: If True, even single node jobs will be run as distributed MPI
+        jobs. If False, single node jobs will not be run as distributed jobs.
+        Setting this flag to True is required Kubernetes compute.
     :param display_name: The name for the run that will be displayed in the AML UI. If not provided, a random
         display name will be generated by AzureML.
     :return: If the script is submitted to AzureML then we terminate python as the script should be executed in AzureML,
@@ -882,6 +841,18 @@ def submit_to_azure_if_needed(  # type: ignore
     # is necessary. If not, return to the caller for local execution.
     if submit_to_azureml is None:
         submit_to_azureml = AZUREML_FLAG in sys.argv[1:]
+
+    has_input_datasets = len(cleaned_input_datasets) > 0
+    if submit_to_azureml or has_input_datasets:
+        if strictly_aml_v1:
+            aml_workspace = get_workspace(aml_workspace, workspace_config_path)
+            assert aml_workspace is not None
+            print(f"Loaded AzureML workspace {aml_workspace.name}")
+        else:
+            ml_client = get_ml_client(ml_client=ml_client, workspace_config_path=workspace_config_path)
+            assert ml_client is not None
+            print(f"Created MLClient for AzureML workspace {ml_client.workspace_name}")
+
     if not submit_to_azureml:
         # Set the environment variables for local execution.
         environment_variables = {**DEFAULT_ENVIRONMENT_VARIABLES, **(environment_variables or {})}
@@ -895,16 +866,24 @@ def submit_to_azure_if_needed(  # type: ignore
         logs_folder = Path.cwd() / LOGS_FOLDER
         logs_folder.mkdir(exist_ok=True)
 
+        any_local_folders_missing = any(dataset.local_folder is None for dataset in cleaned_input_datasets)
+
+        if has_input_datasets and any_local_folders_missing and not strictly_aml_v1:
+            raise ValueError(
+                "AzureML SDK v2 does not support downloading datasets from AzureML for local execution. "
+                "Please switch to AzureML SDK v1 by setting strictly_aml_v1=True, or use "
+                "--strictly_aml_v1 on the commandline, or provide a local folder for each input dataset. "
+                "Note that you will not be able use AzureML datasets for runs outside AzureML if the datasets were "
+                "created via SDK v2."
+            )
+
         mounted_input_datasets, mount_contexts = setup_local_datasets(
             cleaned_input_datasets,
-            strictly_aml_v1,
-            aml_workspace=aml_workspace,
-            ml_client=ml_client,
-            workspace_config_path=workspace_config_path,
+            workspace=aml_workspace,
         )
 
         return AzureRunInfo(
-            input_datasets=mounted_input_datasets,
+            input_datasets=mounted_input_datasets,  # type: ignore
             output_datasets=[d.local_folder for d in cleaned_output_datasets],
             mount_contexts=mount_contexts,
             run=None,
@@ -916,9 +895,6 @@ def submit_to_azure_if_needed(  # type: ignore
     if snapshot_root_directory is None:
         print(f"No snapshot root directory given. Uploading all files in the current directory {Path.cwd()}")
         snapshot_root_directory = Path.cwd()
-
-    workspace = get_workspace(aml_workspace, workspace_config_path)
-    print(f"Loaded AzureML workspace {workspace.name}")
 
     if conda_environment_file is None:
         conda_environment_file = find_file_in_parent_to_pythonpath(CONDA_ENVIRONMENT_FILE)
@@ -935,8 +911,9 @@ def submit_to_azure_if_needed(  # type: ignore
 
     with append_to_amlignore(amlignore=amlignore_path, lines_to_append=lines_to_append):
         if strictly_aml_v1:
+            assert aml_workspace is not None, "An AzureML workspace should have been created already."
             run_config = create_run_configuration(
-                workspace=workspace,
+                workspace=aml_workspace,
                 compute_cluster_name=compute_cluster_name,
                 aml_environment_name=aml_environment_name,
                 conda_environment_file=conda_environment_file,
@@ -949,12 +926,14 @@ def submit_to_azure_if_needed(  # type: ignore
                 max_run_duration=max_run_duration,
                 input_datasets=cleaned_input_datasets,
                 output_datasets=cleaned_output_datasets,
+                use_mpi_run_for_single_node_jobs=use_mpi_run_for_single_node_jobs,
             )
 
             script_run_config = create_script_run(
                 script_params=script_params,
                 snapshot_root_directory=snapshot_root_directory,
                 entry_script=entry_script,
+                entry_command=entry_command,
             )
             script_run_config.run_config = run_config
 
@@ -965,7 +944,7 @@ def submit_to_azure_if_needed(  # type: ignore
                 config_to_submit = script_run_config
 
             run = submit_run(
-                workspace=workspace,
+                workspace=aml_workspace,
                 experiment_name=effective_experiment_name(experiment_name, script_run_config.script),
                 script_run_config=config_to_submit,
                 tags=tags,
@@ -976,28 +955,27 @@ def submit_to_azure_if_needed(  # type: ignore
             if after_submission is not None:
                 after_submission(run)  # type: ignore
         else:
+            assert ml_client is not None, "An AzureML MLClient should have been created already."
             if conda_environment_file is None:
                 raise ValueError("Argument 'conda_environment_file' must be specified when using AzureML v2")
             environment = create_python_environment_v2(
                 conda_environment_file=conda_environment_file, docker_base_image=docker_base_image
             )
-            if entry_script is None:
-                entry_script = Path(sys.argv[0])
-
-            ml_client = get_ml_client(ml_client=ml_client, aml_workspace=workspace)
             registered_env = register_environment_v2(environment, ml_client)
             input_datasets_v2 = create_v2_inputs(ml_client, cleaned_input_datasets)
             output_datasets_v2 = create_v2_outputs(ml_client, cleaned_output_datasets)
 
             job = submit_run_v2(
-                workspace=workspace,
+                ml_client=ml_client,
                 input_datasets_v2=input_datasets_v2,
                 output_datasets_v2=output_datasets_v2,
                 experiment_name=experiment_name,
                 environment=registered_env,
+                environment_variables=environment_variables,
                 snapshot_root_directory=snapshot_root_directory,
                 entry_script=entry_script,
                 script_params=script_params,
+                entry_command=entry_command,
                 compute_target=compute_cluster_name,
                 tags=tags,
                 display_name=display_name,
@@ -1007,6 +985,7 @@ def submit_to_azure_if_needed(  # type: ignore
                 hyperparam_args=hyperparam_args,
                 num_nodes=num_nodes,
                 pytorch_processes_per_node=pytorch_processes_per_node_v2,
+                use_mpi_run_for_single_node_jobs=use_mpi_run_for_single_node_jobs,
             )
 
             if after_submission is not None:
@@ -1072,9 +1051,10 @@ def _get_script_params(script_params: Optional[List[str]] = None) -> List[str]:
     :param script_params: The optional script parameters
     :return: The given script parameters or ones derived from sys.argv
     """
-    if script_params:
+    if script_params is None:
+        return [p for p in sys.argv[1:] if p != AZUREML_FLAG]
+    else:
         return script_params
-    return [p for p in sys.argv[1:] if p != AZUREML_FLAG]
 
 
 def _generate_azure_datasets(
@@ -1089,18 +1069,18 @@ def _generate_azure_datasets(
     """
     if is_amulet_job():
         input_data_mount_folder = Path(os.environ[ENV_AMLT_DATAREFERENCE_DATA])
-        logging.info(f"Path to mounted data: {ENV_AMLT_DATAREFERENCE_DATA}: {str(input_data_mount_folder)}")
+        logger.info(f"Path to mounted data: {ENV_AMLT_DATAREFERENCE_DATA}: {str(input_data_mount_folder)}")
         returned_input_datasets = [
             input_data_mount_folder / input_dataset.name for input_dataset in cleaned_input_datasets
         ]
 
         output_data_mount_folder = Path(os.environ[ENV_AMLT_DATAREFERENCE_OUTPUT])
-        logging.info(f"Path to output datasets: {output_data_mount_folder}")
+        logger.info(f"Path to output datasets: {output_data_mount_folder}")
         returned_output_datasets = [
             output_data_mount_folder / output_dataset.name for output_dataset in cleaned_output_datasets
         ]
-        logging.info(f"Stitched returned input datasets: {returned_input_datasets}")
-        logging.info(f"Stitched returned output datasets: {returned_output_datasets}")
+        logger.info(f"Stitched returned input datasets: {returned_input_datasets}")
+        logger.info(f"Stitched returned output datasets: {returned_output_datasets}")
     else:
         returned_input_datasets = [
             Path(RUN_CONTEXT.input_datasets[_input_dataset_key(index)]) for index in range(len(cleaned_input_datasets))
@@ -1189,13 +1169,14 @@ def append_to_amlignore(lines_to_append: List[str], amlignore: Optional[Path] = 
     amlignore_exists_already = amlignore.exists()
     old_contents = amlignore.read_text() if amlignore_exists_already else ""
     new_lines = old_contents.splitlines() + lines_to_append
-    new_text = "\n".join(new_lines)
-    if new_text:
-        amlignore.write_text(new_text)
+    linefeed = "\n"
+    new_text = linefeed.join(new_lines)
+    if new_lines:
+        amlignore.write_text(new_text + linefeed)
     yield
     if amlignore_exists_already:
         amlignore.write_text(old_contents)
-    elif new_text:
+    elif new_lines:
         amlignore.unlink()
 
 

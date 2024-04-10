@@ -95,12 +95,15 @@ class TiffConversionConfig(param.Parameterized):
         :param output_folder: The folder where the new dataset csv file will be saved.
         """
         new_dataset_df = deepcopy(self.slides_dataset.dataset_df)
-        new_dataset_df[self.slides_dataset.IMAGE_COLUMN] = (
-            new_dataset_df[self.slides_dataset.IMAGE_COLUMN]
+        new_dataset_df[self.slides_dataset.image_column] = (
+            new_dataset_df[self.slides_dataset.image_column]
             .str.replace(AMPERSAND, self.replace_ampersand_by)
             .map(lambda x: str(Path(x).with_suffix(TIFF_EXTENSION)))
         )
-        new_dataset_path = output_folder / (self.converted_dataset_csv or self.slides_dataset.DEFAULT_CSV_FILENAME)
+        new_dataset_file = (
+            self.converted_dataset_csv if self.converted_dataset_csv else self.slides_dataset.default_csv_filename
+        )
+        new_dataset_path = output_folder / new_dataset_file
         new_dataset_df.to_csv(new_dataset_path, sep="\t" if new_dataset_path.suffix == ".tsv" else ",")
         logging.info(f"Saved new dataset tsv file to {new_dataset_path}")
 

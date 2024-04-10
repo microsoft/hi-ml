@@ -17,8 +17,8 @@ from health_cpath.utils.montage import (
     make_montage_from_dir,
     restrict_dataset,
 )
-from health_cpath.datasets.base_dataset import SlidesDataset
-from health_cpath.datasets.panda_dataset import PandaDataset
+from health_cpath.datasets.base_dataset import DEFAULT_DATASET_CSV, SlidesDataset
+from health_cpath.datasets.panda_dataset import PandaColumns, PandaDataset
 from health_cpath.scripts.create_montage import main as script_main
 from health_cpath.utils.naming import SlideKey
 from testhisto.mocks.base_data_generator import MockHistoDataType
@@ -62,8 +62,8 @@ def temp_panda_dataset(tmp_path_factory: pytest.TempPathFactory) -> Generator:
     """A fixture that creates a PandaDataset object with randomly created slides."""
     tmp_path = tmp_path_factory.mktemp("mock_panda")
     _create_slides_images(tmp_path)
-    usecols = [PandaDataset.SLIDE_ID_COLUMN, PandaDataset.MASK_COLUMN]
-    yield PandaDataset(root=tmp_path, dataframe_kwargs={"usecols": usecols + list(PandaDataset.METADATA_COLUMNS)})
+    usecols = [PandaColumns.SLIDE_ID, PandaColumns.MASK]
+    yield PandaDataset(root=tmp_path, dataframe_kwargs={"usecols": usecols + list(PandaColumns.METADATA)})
 
 
 @pytest.fixture(scope="module")
@@ -86,7 +86,7 @@ def temp_slides_dataset(tmp_path_factory: pytest.TempPathFactory) -> Generator:
         SlideKey.LABEL: [f"Label {i}" for i in range(NUM_SLIDES)],
     }
     df = pd.DataFrame(data=metadata)
-    csv_filename = tmp_path / SlidesDataset.DEFAULT_CSV_FILENAME
+    csv_filename = tmp_path / DEFAULT_DATASET_CSV
     df.to_csv(csv_filename, index=False)
     # Tests fail non-deterministically, saying that the dataset file does not exist (yet). Hence, wait.
     wait_until_file_exists(csv_filename)

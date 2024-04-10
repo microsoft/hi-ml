@@ -33,7 +33,7 @@ from azureml._restclient.constants import RunStatus
 from azureml.core import ComputeTarget, Environment, RunConfiguration, ScriptRunConfig, Workspace
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
-from azureml.dataprep.fuse.daemon import MountContext
+from azureml.core.runconfig import MpiConfiguration
 from azureml.train.hyperdrive import HyperDriveConfig
 
 import health_azure.himl as himl
@@ -73,14 +73,13 @@ from testazure.utils_testazure import (
     current_test_name,
     get_shared_config_json,
     repository_root,
+    DEFAULT_WORKSPACE,
 )
 
 INEXPENSIVE_TESTING_CLUSTER_NAME = "lite-testing-ds2"
-EXPECTED_QUEUED = "This command will be run in AzureML:"
+EXPECTED_QUEUED = "Successfully queued run"
 GITHUB_SHIBBOLETH = "GITHUB_RUN_ID"  # https://docs.github.com/en/actions/reference/environment-variables
 AZUREML_FLAG = himl.AZUREML_FLAG
-
-TEST_ML_CLIENT = get_ml_client()
 
 logger = logging.getLogger('test.health_azure')
 logger.setLevel(logging.DEBUG)
@@ -172,94 +171,18 @@ def mock_workspace(mock_compute_cluster: MagicMock, dummy_compute_cluster_name: 
     return MagicMock(compute_targets={dummy_compute_cluster_name: mock_compute_cluster})
 
 
-@pytest.mark.fast
-def test_validate_num_nodes(
-    dummy_max_num_nodes_available: int, mock_compute_cluster: MagicMock, dummy_compute_cluster_name: str
-) -> None:
-    # If number of requested nodes <= max available nodes, nothing should happen
-    num_nodes_requested = dummy_max_num_nodes_available // 2
-    himl.validate_num_nodes(mock_compute_cluster, num_nodes_requested)
-    num_nodes_requested = dummy_max_num_nodes_available
-    himl.validate_num_nodes(mock_compute_cluster, num_nodes_requested)
-
-    # But if number of nodes requested > max available, a ValueError should be raised
-    num_nodes_requested = randint(dummy_max_num_nodes_available + 1, 5000)
-    expected_error_msg = f"You have requested {num_nodes_requested} nodes, which is more than your compute "
-    f"cluster {dummy_compute_cluster_name}'s maximum of {dummy_max_num_nodes_available} nodes "
-    with pytest.raises(ValueError, match=expected_error_msg):
-        himl.validate_num_nodes(mock_compute_cluster, num_nodes_requested)
-
-
-@pytest.mark.fast
-def test_validate_compute_name(mock_workspace: MagicMock, dummy_compute_cluster_name: str) -> None:
-    existing_compute_clusters = mock_workspace.compute_targets
-    existent_compute_name = dummy_compute_cluster_name
-    himl.validate_compute_name(existing_compute_clusters, existent_compute_name)
-
-    nonexistent_compute_name = 'idontexist'
-    assert nonexistent_compute_name not in existing_compute_clusters
-    expected_error_msg = f"Could not find the compute target {nonexistent_compute_name} in the AzureML workspace."
-    with pytest.raises(ValueError, match=expected_error_msg):
-        himl.validate_compute_name(existing_compute_clusters, nonexistent_compute_name)
-
-
-@pytest.mark.fast
-@patch("health_azure.himl.validate_compute_name")
-@patch("health_azure.himl.validate_num_nodes")
-def test_validate_compute(
-    mock_validate_num_nodes: MagicMock,
-    mock_validate_compute_name: MagicMock,
-    mock_workspace: MagicMock,
-    dummy_compute_cluster_name: str,
-) -> None:
-    def _raise_value_error(*args: Any) -> None:
-        raise ValueError("A ValueError has been raised")
-
-    def _raise_assertion_error(*args: Any) -> None:
-        raise AssertionError("An AssertionError has been raised")
-
-    # first mock the case where validate_num_nodes and validate_compute_name both return None
-    mock_validate_compute_name.return_value = None
-    mock_validate_num_nodes.return_value = None
-    mock_num_available_nodes = 0
-    himl.validate_compute_cluster(mock_workspace, dummy_compute_cluster_name, mock_num_available_nodes)
-    assert mock_validate_num_nodes.call_count == 1
-    assert mock_validate_compute_name.call_count == 1
-
-    # now have validate_num_nodes raise an Assertionerror and check that calling validate_compute_cluster
-    # raises the error
-    mock_validate_num_nodes.side_effect = _raise_assertion_error
-    with pytest.raises(AssertionError, match="An AssertionError has been raised"):
-        himl.validate_compute_cluster(mock_workspace, dummy_compute_cluster_name, mock_num_available_nodes)
-    assert mock_validate_num_nodes.call_count == 2
-    assert mock_validate_compute_name.call_count == 2
-
-    # now have validate_compute_name raise a ValueError and check that calling validate_compute_cluster raises the error
-    mock_validate_compute_name.side_effect = _raise_value_error
-    with pytest.raises(ValueError, match="A ValueError has been raised"):
-        himl.validate_compute_cluster(mock_workspace, dummy_compute_cluster_name, mock_num_available_nodes)
-    assert mock_validate_num_nodes.call_count == 2
-    assert mock_validate_compute_name.call_count == 3
-
-
-def test_validate_compute_real(tmp_path: Path) -> None:
+def test_validate_compute() -> None:
     """
-    Get a real Workspace object and attempt to validate a compute cluster from it, if any exist.
-    This checks that the properties/ methods in the Azure ML SDK are consistent with those used in our
-    codebase
+    Get a real Workspace object and attempt to validate a compute cluster from it.
     """
-    with check_config_json(tmp_path, shared_config_json=get_shared_config_json()):
-        workspace = get_workspace(aml_workspace=None, workspace_config_path=tmp_path / WORKSPACE_CONFIG_JSON)
+    workspace = DEFAULT_WORKSPACE.workspace
     existing_compute_targets: Dict[str, ComputeTarget] = workspace.compute_targets
-    if len(existing_compute_targets) == 0:
-        return
+    assert len(existing_compute_targets) > 0, "Expecting at least one compute target for this test"
     compute_target_name: str = list(existing_compute_targets)[0]
-    compute_target: ComputeTarget = existing_compute_targets[compute_target_name]
-    max_num_nodes = compute_target.scale_settings.maximum_node_count
-    request_num_nodes = max_num_nodes - 1
-    assert isinstance(compute_target_name, str)
-    assert isinstance(compute_target, ComputeTarget)
-    himl.validate_compute_cluster(workspace, compute_target_name, request_num_nodes)
+    himl.validate_compute_cluster(workspace, compute_target_name)
+    does_not_exist = uuid4().hex
+    with pytest.raises(ValueError, match="Could not find compute target"):
+        himl.validate_compute_cluster(workspace, does_not_exist)
 
 
 @pytest.mark.fast
@@ -332,7 +255,7 @@ def test_create_run_configuration_fails(
         himl.create_run_configuration(
             conda_environment_file=Path(__file__), compute_cluster_name="b", workspace=mock_workspace
         )
-    assert "Could not find the compute target b in the AzureML workspace" in str(e.value)
+    assert "Could not find compute target 'b' in the AzureML workspace" in str(e.value)
     assert existing_compute_target in str(e.value)
 
 
@@ -402,7 +325,7 @@ def test_create_run_configuration(
 
 def create_empty_conda_env(tmp_path: Path) -> Path:
     """Create an empty conda environment in a given folder, and returns its path."""
-    conda_env_spec = dict(name="dummy_env", channels=["default"], dependencies=["pip=20.1.1", "python=3.7.3"])
+    conda_env_spec = dict(name="dummy_env", channels=["default"], dependencies=["pip=23.3", "python=3.9.18"])
     conda_env_path = tmp_path / "dummy_conda_env.yml"
     yaml = YAML()
     yaml.dump(conda_env_spec, conda_env_path)
@@ -462,7 +385,7 @@ def test_create_run_configuration_correct_env(
     conda_env_spec = dict(
         name="dummy_env",
         channels=["default"],
-        dependencies=["pip=20.1.1"],
+        dependencies=["pip=23.3"],
     )
 
     conda_env_path = tmp_path / "dummy_conda_env_no_python.yml"
@@ -525,17 +448,31 @@ def test_invalid_entry_script(tmp_path: Path) -> None:
         )
     assert "entry script must be inside of the snapshot root directory" in str(e)
 
+    # If no info is provided, the script run should copy all of the current working directory, and read the entry
+    # script from sys.argv
     with mock.patch("sys.argv", ["foo"]):
         script_params = himl._get_script_params()
-        script_run = himl.create_script_run(script_params)
+        script_run = himl.create_script_run(script_params, snapshot_root_directory=None, entry_script=None)
         assert script_run.source_directory == str(Path.cwd())
         assert script_run.script == "foo"
         assert script_run.arguments == []
 
     # Entry scripts where the path is not absolute should be left unchanged
-    script_run = himl.create_script_run(entry_script="some_string", script_params=["--foo"])
+    script_run = himl.create_script_run(
+        script_params=["--foo"], snapshot_root_directory=None, entry_script="some_string"
+    )
     assert script_run.script == "some_string"
     assert script_run.arguments == ["--foo"]
+
+    # When proving a full command, this should override whatever is given in script and params
+    entry_command = "cmd"
+    script_params = ["arg1"]
+    script_run = himl.create_script_run(
+        snapshot_root_directory=None, entry_script="entry", entry_command="cmd", script_params=script_params
+    )
+    assert script_run.script is None
+    assert script_run.arguments is None
+    assert script_run.command == [entry_command, *script_params]
 
 
 @pytest.mark.fast
@@ -614,7 +551,7 @@ def test_append_to_amlignore(tmp_path: Path) -> None:
     amlignore_path = tmp_path / Path(uuid4().hex)
     with himl.append_to_amlignore(amlignore=amlignore_path, lines_to_append=["1st line", "2nd line"]):
         amlignore_text = amlignore_path.read_text()
-    assert "1st line\n2nd line" == amlignore_text
+    assert "1st line\n2nd line\n" == amlignore_text
     assert not amlignore_path.exists()
 
     # If there is no .amlignore file before the test, and there are no lines to append, then there should be no
@@ -625,23 +562,49 @@ def test_append_to_amlignore(tmp_path: Path) -> None:
     assert not amlignore_exists_during_test
     assert not amlignore_path.exists()
 
-    # If there is an empty .amlignore file before the test, it should be there afterwards
+
+@pytest.mark.fast
+def test_append_to_amlignore_empty(tmp_path: Path) -> None:
+    """If there is an empty .amlignore file before the test, it should be there afterwards"""
     amlignore_path = tmp_path / Path(uuid4().hex)
     amlignore_path.touch()
     with himl.append_to_amlignore(amlignore=amlignore_path, lines_to_append=["1st line", "2nd line"]):
         amlignore_text = amlignore_path.read_text()
-    assert "1st line\n2nd line" == amlignore_text
+    assert "1st line\n2nd line\n" == amlignore_text
     assert amlignore_path.exists()
     assert amlignore_path.read_text() == ""
 
-    # If there is a .amlignore file before the test, it should be identical afterwards
+
+@pytest.mark.fast
+@pytest.mark.parametrize("aml_ignore_contents", ["0th line", "0th line\n"])
+def test_append_to_amlignore_exists1(tmp_path: Path, aml_ignore_contents: str) -> None:
+    """
+    If there is a .amlignore file before the test, it should be identical afterwards.
+    In particular, this should be the case even if there's a linebreak at the end or not
+    """
     amlignore_path = tmp_path / Path(uuid4().hex)
-    amlignore_path.write_text("0th line")
+    amlignore_path.write_text(aml_ignore_contents)
     with himl.append_to_amlignore(amlignore=amlignore_path, lines_to_append=["1st line", "2nd line"]):
         amlignore_text = amlignore_path.read_text()
-    assert "0th line\n1st line\n2nd line" == amlignore_text
+    assert "0th line\n1st line\n2nd line\n" == amlignore_text
     amlignore_text = amlignore_path.read_text()
-    assert "0th line" == amlignore_text
+    assert amlignore_text == aml_ignore_contents
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize("aml_ignore_contents", ["0th line", "0th line\n"])
+def test_append_to_amlignore_exists2(tmp_path: Path, aml_ignore_contents: str) -> None:
+    """
+    If there is a .amlignore file before the test, it should be identical afterwards.
+    In particular, this should be the case even if there's a linebreak at the end or not, and if nothing is added
+    to the file.
+    """
+    amlignore_path = tmp_path / Path(uuid4().hex)
+    amlignore_path.write_text(aml_ignore_contents)
+    with himl.append_to_amlignore(amlignore=amlignore_path, lines_to_append=[]):
+        amlignore_text = amlignore_path.read_text()
+    amlignore_text = amlignore_path.read_text()
+    assert amlignore_text == aml_ignore_contents
 
 
 class TestTagOption(Enum):
@@ -773,7 +736,7 @@ def test_submit_run_v2(tmp_path: Path) -> None:
     with patch("azure.ai.ml.MLClient") as mock_ml_client:
         with patch("health_azure.himl.command") as mock_command:
             himl.submit_run_v2(
-                workspace=None,
+                ml_client=mock_ml_client,
                 experiment_name=dummy_experiment_name,
                 environment=dummy_environment,
                 input_datasets_v2=dummy_inputs,
@@ -784,8 +747,6 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 compute_target=dummy_compute_target,
                 tags=dummy_tags,
                 docker_shm_size=dummy_docker_shm_size,
-                workspace_config_path=None,
-                ml_client=mock_ml_client,
                 hyperparam_args=None,
                 display_name=dummy_display_name,
             )
@@ -800,6 +761,7 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 inputs=dummy_inputs,
                 outputs=dummy_outputs,
                 environment=dummy_environment_name + "@latest",
+                environment_variables=None,
                 compute=dummy_compute_target,
                 experiment_name=dummy_experiment_name,
                 tags=dummy_tags,
@@ -834,7 +796,6 @@ def test_submit_run_v2(tmp_path: Path) -> None:
             expected_command += " --learning_rate=${{inputs.learning_rate}}"
 
             himl.submit_run_v2(
-                workspace=None,
                 experiment_name=dummy_experiment_name,
                 environment=dummy_environment,
                 input_datasets_v2=dummy_inputs,
@@ -845,7 +806,6 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 compute_target=dummy_compute_target,
                 tags=dummy_tags,
                 docker_shm_size=dummy_docker_shm_size,
-                workspace_config_path=None,
                 ml_client=mock_ml_client,
                 hyperparam_args=dummy_hyperparam_args,
                 display_name=dummy_display_name,
@@ -862,6 +822,7 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 inputs=dummy_inputs,
                 outputs=dummy_outputs,
                 environment=dummy_environment_name + "@latest",
+                environment_variables=None,
                 compute=dummy_compute_target,
                 experiment_name=dummy_experiment_name,
                 tags=dummy_tags,
@@ -880,7 +841,7 @@ def test_submit_run_v2(tmp_path: Path) -> None:
             expected_command = f"python {dummy_entry_script_for_module} {expected_arg_str}"
 
             himl.submit_run_v2(
-                workspace=None,
+                ml_client=mock_ml_client,
                 experiment_name=dummy_experiment_name,
                 environment=dummy_environment,
                 input_datasets_v2=dummy_inputs,
@@ -891,8 +852,6 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 compute_target=dummy_compute_target,
                 tags=dummy_tags,
                 docker_shm_size=dummy_docker_shm_size,
-                workspace_config_path=None,
-                ml_client=mock_ml_client,
                 hyperparam_args=None,
                 display_name=dummy_display_name,
             )
@@ -903,6 +862,7 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 inputs=dummy_inputs,
                 outputs=dummy_outputs,
                 environment=dummy_environment_name + "@latest",
+                environment_variables=None,
                 compute=dummy_compute_target,
                 experiment_name=dummy_experiment_name,
                 tags=dummy_tags,
@@ -1305,9 +1265,7 @@ def test_mounting_and_downloading_dataset(tmp_path: Path) -> None:
             target_path = tmp_path / action
             dataset_config = DatasetConfig(name="hello_world", use_mounting=use_mounting, target_folder=target_path)
             logging.info(f"ready to {action}")
-            paths, mount_contexts = setup_local_datasets(
-                dataset_configs=[dataset_config], strictly_aml_v1=True, aml_workspace=workspace
-            )
+            paths, mount_contexts = setup_local_datasets(dataset_configs=[dataset_config], workspace=workspace)
             logging.info(f"{action} done")
             path = paths[0]
             assert path is not None
@@ -1369,7 +1327,7 @@ class TestOutputDataset:
 @pytest.mark.parametrize(
     ["run_target", "local_folder", "strictly_aml_v1"],
     [
-        (RunTarget.LOCAL, True, False),
+        (RunTarget.LOCAL, True, True),
         (RunTarget.AZUREML, False, True),
     ],
 )
@@ -1733,7 +1691,7 @@ def test_get_data_asset_from_config() -> None:
     ]
 
     test_assets = [
-        himl.get_data_asset_from_config(TEST_ML_CLIENT, test_dataset_config)
+        himl.get_data_asset_from_config(DEFAULT_WORKSPACE.ml_client, test_dataset_config)
         for test_dataset_config in test_dataset_configs
     ]
     assert len(test_assets) == n_configs
@@ -1745,7 +1703,7 @@ def test_get_data_asset_from_config() -> None:
         datastore=TEST_DATASTORE_NAME,
         version=test_version,
     )
-    test_versioned_asset = himl.get_data_asset_from_config(TEST_ML_CLIENT, test_versioned_config)
+    test_versioned_asset = himl.get_data_asset_from_config(DEFAULT_WORKSPACE.ml_client, test_versioned_config)
     assert test_versioned_asset.version == str(test_version)
 
 
@@ -1820,7 +1778,7 @@ def test_create_v2_outputs() -> None:
         name=TEST_DATA_ASSET_NAME,
         datastore=TEST_DATASTORE_NAME,
     )
-    outputs = himl.create_v2_outputs(TEST_ML_CLIENT, [test_dataset_config])
+    outputs = himl.create_v2_outputs(DEFAULT_WORKSPACE.ml_client, [test_dataset_config])
 
     output_key = "OUTPUT_0"
     assert output_key in outputs
@@ -1838,7 +1796,7 @@ def test_submit_to_azure_if_needed_v2() -> None:
     set to True, in which case submit_run should be called instead
     """
     dummy_input_datasets: List[Optional[Path]] = []
-    dummy_mount_contexts: List[MountContext] = []
+    dummy_mount_contexts: List[Any] = []
 
     with patch.multiple(
         "health_azure.himl",
@@ -1921,6 +1879,68 @@ def test_submitting_script_with_sdk_v2(tmp_path: Path, wait_for_completion: bool
     assert after_submission_called, "after_submission callback was not called"
 
 
+@pytest.mark.fast
+def test_submitting_script_with_sdk_v2_accepts_relative_path(tmp_path: Path) -> None:
+    """
+    Test that submission of a script with AML V2 works when the script path is relative to the current working folder.
+    """
+    # Create a minimal script in a temp folder. Script
+    script_name = "test_script.py"
+    test_script = tmp_path / script_name
+    test_script.write_text("print('hello world')")
+    conda_env_path = create_empty_conda_env(tmp_path)
+
+    with patch.multiple(
+        "health_azure.himl",
+        get_ml_client=DEFAULT,
+        create_python_environment_v2=DEFAULT,
+        register_environment_v2=DEFAULT,
+    ):
+        with patch("health_azure.himl.command", side_effect=NotImplementedError) as mock_command:
+            # Try calling the submission code with both relative and absolute paths. In either case, the entry script
+            # should be converted to a single string that is relative to the snapshot root directory.
+            for index, entry_script in enumerate([script_name, test_script]):
+                with pytest.raises(NotImplementedError):
+                    himl.submit_to_azure_if_needed(
+                        entry_script=entry_script,  # type: ignore
+                        conda_environment_file=conda_env_path,
+                        snapshot_root_directory=tmp_path,
+                        submit_to_azureml=True,
+                        strictly_aml_v1=False,
+                    )
+                assert mock_command.call_count == index + 1
+                _, call_kwargs = mock_command.call_args
+                # The constructed command is to start python with the given entry script, given as a relative path
+                expected_command = "python " + script_name
+                assert call_kwargs.get("command").startswith(expected_command), "Incorrect script argument"
+
+            with pytest.raises(NotImplementedError):
+                himl.submit_to_azure_if_needed(
+                    entry_command="foo",
+                    script_params=["bar"],
+                    conda_environment_file=conda_env_path,
+                    snapshot_root_directory=tmp_path,
+                    submit_to_azureml=True,
+                    strictly_aml_v1=False,
+                )
+            assert mock_command.call_count == 3
+            _, call_kwargs = mock_command.call_args
+            # The constructed command should be constructed from the entry_command and script_params arguments
+            assert call_kwargs.get("command").startswith("foo bar"), "Incorrect script argument"
+
+            # Submission should fail with an error if the entry script is not inside the snapshot root
+            with pytest.raises(ValueError, match="entry script must be inside of the snapshot root"):
+                with pytest.raises(NotImplementedError):
+                    himl.submit_to_azure_if_needed(
+                        entry_script=test_script,
+                        conda_environment_file=conda_env_path,
+                        snapshot_root_directory=tmp_path / "subfolder",
+                        submit_to_azureml=True,
+                        strictly_aml_v1=False,
+                    )
+
+
+@pytest.mark.fast
 def test_submitting_script_with_sdk_v2_passes_display_name(tmp_path: Path) -> None:
     """
     Test that submission of a script with SDK v2 passes the display_name parameter to the "command" function
@@ -1929,28 +1949,65 @@ def test_submitting_script_with_sdk_v2_passes_display_name(tmp_path: Path) -> No
     # Create a minimal script in a temp folder.
     test_script = tmp_path / "test_script.py"
     test_script.write_text("print('hello world')")
-    shared_config_json = get_shared_config_json()
     conda_env_path = create_empty_conda_env(tmp_path)
     display_name = "my_display_name"
+    with patch.multiple(
+        "health_azure.himl",
+        get_ml_client=DEFAULT,
+        get_workspace=DEFAULT,
+        create_python_environment_v2=DEFAULT,
+        register_environment_v2=DEFAULT,
+    ):
+        with patch("health_azure.himl.command", side_effect=NotImplementedError) as mock_command:
+            with pytest.raises(NotImplementedError):
+                himl.submit_to_azure_if_needed(
+                    entry_script=test_script,
+                    conda_environment_file=conda_env_path,
+                    snapshot_root_directory=tmp_path,
+                    submit_to_azureml=True,
+                    strictly_aml_v1=False,
+                    display_name=display_name,
+                )
+            mock_command.assert_called_once()
+            _, call_kwargs = mock_command.call_args
+            assert call_kwargs.get("display_name") == display_name, "display_name was not passed to command"
 
-    with check_config_json(tmp_path, shared_config_json=shared_config_json), change_working_directory(tmp_path), patch(
-        "health_azure.himl.command", side_effect=ValueError
-    ) as mock_command:
-        with pytest.raises(ValueError):
-            himl.submit_to_azure_if_needed(
-                aml_workspace=None,
-                entry_script=test_script,
-                conda_environment_file=conda_env_path,
-                snapshot_root_directory=tmp_path,
-                submit_to_azureml=True,
-                strictly_aml_v1=False,
-                display_name=display_name,
-            )
-        mock_command.assert_called_once()
-        _, call_kwargs = mock_command.call_args
-        assert call_kwargs.get("display_name") == display_name, "display_name was not passed to command"
+
+def test_submitting_script_with_sdk_v2_passes_environment_variables(tmp_path: Path) -> None:
+    """
+    Test that submission of a script with SDK v2 passes the environment variables to the "command" function
+    that does the actual submission.
+    """
+    # Create a minimal script in a temp folder.
+    test_script = tmp_path / "test_script.py"
+    test_script.write_text("print('hello world')")
+    conda_env_path = create_empty_conda_env(tmp_path)
+    environment_variables = {"foo": "bar"}
+
+    with patch.multiple(
+        "health_azure.himl",
+        get_ml_client=DEFAULT,
+        get_workspace=DEFAULT,
+        create_python_environment_v2=DEFAULT,
+        register_environment_v2=DEFAULT,
+    ):
+        with patch("health_azure.himl.command", side_effect=NotImplementedError) as mock_command:
+            with pytest.raises(NotImplementedError):
+                himl.submit_to_azure_if_needed(
+                    entry_script=test_script,
+                    conda_environment_file=conda_env_path,
+                    snapshot_root_directory=tmp_path,
+                    submit_to_azureml=True,
+                    strictly_aml_v1=False,
+                    environment_variables=environment_variables,
+                )
+            mock_command.assert_called_once()
+            _, call_kwargs = mock_command.call_args
+            assert "environment_variables" in call_kwargs
+            assert call_kwargs.get("environment_variables") == environment_variables, "environment_variables not passed"
 
 
+@pytest.mark.fast
 def test_conda_env_missing(tmp_path: Path) -> None:
     """
     Test that submission fails if no Conda environment file is found.
@@ -1997,7 +2054,7 @@ def test_experiment_name() -> None:
 @pytest.mark.fast
 def test_submit_to_azure_v2_distributed() -> None:
     dummy_input_datasets: List[Optional[Path]] = []
-    dummy_mount_contexts: List[MountContext] = []
+    dummy_mount_contexts: List[Any] = []
 
     with patch.multiple(
         "health_azure.himl",
@@ -2055,7 +2112,38 @@ def test_submit_to_azure_v2_distributed() -> None:
                 mock_command.assert_called_once()
                 _, call_kwargs = mock_command.call_args
                 assert call_kwargs.get("instance_count") == 1
+                assert call_kwargs.get("distribution") is None
+
+            # Single node job where we set the flag to use MPI runs nevertheless: The "distribution" argument of
+            # "command" should be set to MpiRun, to ensure that it runs fine on Kubernetes compute.
+            with patch("health_azure.himl.command") as mock_command:
+                _ = himl.submit_to_azure_if_needed(
+                    workspace_config_file="mockconfig.json",
+                    entry_script=Path(__file__),
+                    snapshot_root_directory=Path.cwd(),
+                    submit_to_azureml=True,
+                    strictly_aml_v1=False,
+                    use_mpi_run_for_single_node_jobs=True,
+                )
+                mock_command.assert_called_once()
+                _, call_kwargs = mock_command.call_args
+                assert call_kwargs.get("instance_count") == 1
                 assert call_kwargs.get("distribution") == MpiDistribution(process_count_per_instance=1)
+
+            # Single node job: The "distribution" argument of "command" should be set to None if we are passing a flag
+            with patch("health_azure.himl.command") as mock_command:
+                _ = himl.submit_to_azure_if_needed(
+                    workspace_config_file="mockconfig.json",
+                    entry_script=Path(__file__),
+                    snapshot_root_directory=Path.cwd(),
+                    submit_to_azureml=True,
+                    strictly_aml_v1=False,
+                    use_mpi_run_for_single_node_jobs=False,
+                )
+                mock_command.assert_called_once()
+                _, call_kwargs = mock_command.call_args
+                assert call_kwargs.get("instance_count") == 1
+                assert call_kwargs.get("distribution") == None
 
             with pytest.raises(ValueError, match="num_nodes must be >= 1"):
                 _ = himl.submit_to_azure_if_needed(
@@ -2144,3 +2232,31 @@ def test_extract_v2_data_asset_from_env_vars() -> None:
             himl._extract_v2_data_asset_from_env_vars(i, "INPUT_") for i in range(len(valid_mock_environment))
         ]
         assert input_datasets == [Path("input_0"), Path("input_1"), Path("input_2"), Path("input_3")]
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize("use_mpi_run_for_single_node_jobs", [True, False])
+def test_mpi_for_single_node_jobs_v1(use_mpi_run_for_single_node_jobs: bool) -> None:
+    """Test if we can create an MPI job with a single node using the v1 SDK."""
+    with (
+        patch("health_azure.himl.submit_run") as mock_submit_run,
+        patch("health_azure.himl.register_environment"),
+        patch("health_azure.himl.validate_compute_cluster"),
+    ):
+        with pytest.raises(SystemExit):
+            himl.submit_to_azure_if_needed(
+                aml_workspace=MagicMock(name="workspace"),
+                submit_to_azureml=True,
+                strictly_aml_v1=True,
+                use_mpi_run_for_single_node_jobs=use_mpi_run_for_single_node_jobs,
+                entry_script="foo",
+            )
+        mock_submit_run.assert_called_once()
+        run_config = mock_submit_run.call_args[1]["script_run_config"].run_config
+        assert run_config.node_count == 1
+        assert isinstance(run_config.mpi, MpiConfiguration)
+        assert run_config.mpi.node_count == 1
+        if use_mpi_run_for_single_node_jobs:
+            assert run_config.communicator == "IntelMpi"
+        else:
+            assert run_config.communicator == "None"

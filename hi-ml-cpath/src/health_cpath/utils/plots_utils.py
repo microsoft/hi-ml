@@ -27,6 +27,8 @@ from health_cpath.utils.tiles_selection_utils import SlideNode, TilesSelector
 from health_cpath.utils.viz_utils import save_figure
 
 
+logger = logging.getLogger(__name__)
+
 ResultsType = Dict[ResultsKey, List[Any]]
 SlideDictType = Dict[SlideKey, Any]
 
@@ -81,7 +83,7 @@ def save_pr_curve(
         format_pr_or_roc_axes(plot_type='pr', ax=ax)
         save_figure(fig=fig, figpath=figures_dir / f"pr_curve_{stage}.png")
     else:
-        logging.warning("The PR curve plot implementation works only for binary cases, this plot will be skipped.")
+        logger.warning("The PR curve plot implementation works only for binary cases, this plot will be skipped.")
 
 
 def save_roc_curve(
@@ -112,7 +114,7 @@ def save_roc_curve(
         format_pr_or_roc_axes(plot_type='roc', ax=ax)
         save_figure(fig=fig, figpath=figures_dir / f"roc_curve_{stage}.png")
     else:
-        logging.warning("The ROC curve plot implementation works only for binary cases, this plot will be skipped.")
+        logger.warning("The ROC curve plot implementation works only for binary cases, this plot will be skipped.")
 
 
 def save_confusion_matrix(results: ResultsType, class_names: Sequence[str], figures_dir: Path, stage: str = '') -> None:
@@ -306,7 +308,7 @@ class DeepMILPlotsHandler:
         try:
             slide_index = slides_dataset.dataset_df.index.get_loc(slide_node.slide_id)
         except KeyError:
-            logging.warning(f"Could not find slide {slide_node.slide_id} in the dataset. Skipping extra slide...")
+            logger.warning(f"Could not find slide {slide_node.slide_id} in the dataset. Skipping extra slide...")
             return None
         assert isinstance(slide_index, int), f"Got non-unique slide ID: {slide_node.slide_id}"
         slide_dict = slides_dataset[slide_index]
@@ -361,7 +363,7 @@ class DeepMILPlotsHandler:
         if self.slides_dataset is None or self.stratify_plots_by is None:
             stratify_metadata = None
             if self.stratify_plots_by is not None:
-                logging.warning("Slides dataset is missing so stratified plots will be skipped.")
+                logger.warning("Slides dataset is missing so stratified plots will be skipped.")
         else:
             slides_df = self.slides_dataset.dataset_df
             all_slide_ids = slides_df.index.to_list()
@@ -371,7 +373,7 @@ class DeepMILPlotsHandler:
                 idx = all_slide_ids.index(slide)
                 sample = self.slides_dataset[idx]
                 if self.stratify_plots_by not in sample[SlideKey.METADATA]:
-                    logging.warning(
+                    logger.warning(
                         f"{self.stratify_plots_by} not available in the slides dataset metadata, \
                         make sure the dataset includes stratify_plots_by, so stratified plots will be skipped."
                     )
@@ -388,7 +390,7 @@ class DeepMILPlotsHandler:
         :param stage: The model stage: validation or test.
         """
         if self.plot_options:
-            logging.info(f"Plotting {[opt.value for opt in self.plot_options]}...")
+            logger.info(f"Plotting {[opt.value for opt in self.plot_options]}...")
             figures_dir = make_figure_dirs(subfolder="fig", parent_dir=outputs_dir)
 
             stratify_metadata = self.get_metadata(results=results)

@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional, Union
 from unittest import mock
-from unittest.mock import DEFAULT, MagicMock, patch
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 from xmlrpc.client import Boolean
 
@@ -23,13 +23,12 @@ import pandas as pd
 import param
 import pytest
 from _pytest.logging import LogCaptureFixture
-from azure.identity import ClientSecretCredential, DeviceCodeCredential, DefaultAzureCredential
 from azure.storage.blob import ContainerClient
 from azureml._restclient.constants import RunStatus
 from azureml.core import Experiment, Run, ScriptRunConfig, Workspace
 from azureml.core.run import _OfflineRun
 from azureml.core.environment import CondaDependencies
-from azure.core.exceptions import ClientAuthenticationError, ResourceNotFoundError
+from azure.core.exceptions import ResourceNotFoundError
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 
 import health_azure.utils as util
@@ -41,14 +40,17 @@ from health_azure.utils import (
     MASTER_PORT_DEFAULT,
     PackageDependency,
     download_files_by_suffix,
-    get_credential,
     download_file_if_necessary,
+    resolve_workspace_config_path,
+    sanitize_snapshoot_directory,
+    sanitize_entry_script,
 )
 from testazure.test_himl import RunTarget, render_and_run_test_script
 from testazure.utils_testazure import (
     DEFAULT_IGNORE_FOLDERS,
     DEFAULT_WORKSPACE,
     MockRun,
+    change_working_directory,
     create_unittest_run_object,
     experiment_for_unittests,
     repository_root,
@@ -131,10 +133,10 @@ def test_to_azure_friendly_string() -> None:
     Tests the to_azure_friendly_string function which should replace everything apart from a-zA-Z0-9_ with _, and
     replace multiple _ with a single _
     """
-    bad_string = "full__0f_r*bb%sh"
+    bad_string = "full__0f-r*bb%sh"
     good_version = util.to_azure_friendly_string(bad_string)
-    assert good_version == "full_0f_r_bb_sh"
-    good_string = "Not_Full_0f_Rubbish"
+    assert good_version == "full_0f-r_bb_sh"
+    good_string = "Not_Full_0f-Rubbish"
     good_version = util.to_azure_friendly_string(good_string)
     assert good_version == good_string
     optional_string = None
@@ -458,7 +460,7 @@ def test_pip_include_1(tmp_path: Path) -> None:
 channels:
   - defaults
 dependencies:
-  - pip=20.1.1
+  - pip=23.3
   - pip:
       - -r run_requirements.txt
       - some_other_pip_package
@@ -573,8 +575,8 @@ def test_create_python_environment(
 ) -> None:
     conda_str = """name: simple-env
 dependencies:
-  - pip=20.1.1
-  - python=3.7.3
+  - pip=23.3
+  - python=3.9.18
   - pip:
     - azureml-sdk==1.23.0
     - something-else==0.1.5
@@ -623,8 +625,8 @@ def test_create_python_environment_v2(
 ) -> None:
     conda_str = """name: simple-env
 dependencies:
-  - pip=20.1.1
-  - python=3.7.3
+  - pip=23.3
+  - python=3.9.18
   - pip:
     - azureml-sdk==1.23.0
     - something-else==0.1.5
@@ -659,8 +661,8 @@ def test_create_environment_unique_name(random_folder: Path) -> None:
     """
     conda_str1 = """name: simple-env
 dependencies:
-  - pip=20.1.1
-  - python=3.7.3
+  - pip=23.3
+  - python=3.9.18
 """
     conda_environment_file = random_folder / "environment.yml"
     conda_environment_file.write_text(conda_str1)
@@ -669,7 +671,7 @@ dependencies:
     # Changing the contents of the conda file should create a new environment names
     conda_str2 = """name: simple-env
 dependencies:
-  - pip=20.1.1
+  - pip=23.3
 """
     assert conda_str1 != conda_str2
     conda_environment_file.write_text(conda_str2)
@@ -705,8 +707,8 @@ def test_create_environment_wheel_fails(random_folder: Path) -> None:
     """
     conda_str = """name: simple-env
 dependencies:
-  - pip=20.1.1
-  - python=3.7.3
+  - pip=23.3
+  - python=3.9.18
 """
     conda_environment_file = random_folder / "environment.yml"
     conda_environment_file.write_text(conda_str)
@@ -1996,136 +1998,6 @@ def test_create_run() -> None:
             run.complete()
 
 
-def test_get_credential() -> None:
-    def _mock_validation_error() -> None:
-        raise ClientAuthenticationError("")
-
-    # test the case where service principal credentials are set as environment variables
-    mock_env_vars = {
-        util.ENV_SERVICE_PRINCIPAL_ID: "foo",
-        util.ENV_TENANT_ID: "bar",
-        util.ENV_SERVICE_PRINCIPAL_PASSWORD: "baz",
-    }
-
-    with patch.object(os.environ, "get", return_value=mock_env_vars):
-        with patch.multiple(
-            "health_azure.utils",
-            is_running_in_azure_ml=DEFAULT,
-            is_running_on_azure_agent=DEFAULT,
-            _get_legitimate_service_principal_credential=DEFAULT,
-            _get_legitimate_device_code_credential=DEFAULT,
-            _get_legitimate_default_credential=DEFAULT,
-            _get_legitimate_interactive_browser_credential=DEFAULT,
-        ) as mocks:
-            mocks["is_running_in_azure_ml"].return_value = False
-            mocks["is_running_on_azure_agent"].return_value = False
-            _ = get_credential()
-            mocks["_get_legitimate_service_principal_credential"].assert_called_once()
-            mocks["_get_legitimate_device_code_credential"].assert_not_called()
-            mocks["_get_legitimate_default_credential"].assert_not_called()
-            mocks["_get_legitimate_interactive_browser_credential"].assert_not_called()
-
-    # if the environment variables are not set and we are running on a local machine, a
-    # DefaultAzureCredential should be attempted first
-    with patch.object(os.environ, "get", return_value={}):
-        with patch.multiple(
-            "health_azure.utils",
-            is_running_in_azure_ml=DEFAULT,
-            is_running_on_azure_agent=DEFAULT,
-            _get_legitimate_service_principal_credential=DEFAULT,
-            _get_legitimate_device_code_credential=DEFAULT,
-            _get_legitimate_default_credential=DEFAULT,
-            _get_legitimate_interactive_browser_credential=DEFAULT,
-        ) as mocks:
-            mock_get_sp_cred = mocks["_get_legitimate_service_principal_credential"]
-            mock_get_device_cred = mocks["_get_legitimate_device_code_credential"]
-            mock_get_default_cred = mocks["_get_legitimate_default_credential"]
-            mock_get_browser_cred = mocks["_get_legitimate_interactive_browser_credential"]
-
-            mocks["is_running_in_azure_ml"].return_value = False
-            mocks["is_running_on_azure_agent"].return_value = False
-            _ = get_credential()
-            mock_get_sp_cred.assert_not_called()
-            mock_get_device_cred.assert_not_called()
-            mock_get_default_cred.assert_called_once()
-            mock_get_browser_cred.assert_not_called()
-
-            # if that fails, a DeviceCode credential should be attempted
-            mock_get_default_cred.side_effect = _mock_validation_error
-            _ = get_credential()
-            mock_get_sp_cred.assert_not_called()
-            mock_get_device_cred.assert_called_once()
-            assert mock_get_default_cred.call_count == 2
-            mock_get_browser_cred.assert_not_called()
-
-            # if None of the previous credentials work, an InteractiveBrowser credential should be tried
-            mock_get_device_cred.return_value = None
-            _ = get_credential()
-            mock_get_sp_cred.assert_not_called()
-            assert mock_get_device_cred.call_count == 2
-            assert mock_get_default_cred.call_count == 3
-            mock_get_browser_cred.assert_called_once()
-
-            # finally, if none of the methods work, an Exception should be raised
-            mock_get_browser_cred.return_value = None
-            with pytest.raises(Exception) as e:
-                get_credential()
-                assert (
-                    "Unable to generate and validate a credential. Please see Azure ML documentation"
-                    "for instructions on different options to get a credential" in str(e)
-                )
-
-
-def test_get_legitimate_service_principal_credential() -> None:
-    # first attempt to create and valiadate a credential with non-existant service principal credentials
-    # and check it fails
-    mock_service_principal_id = "foo"
-    mock_service_principal_password = "bar"
-    mock_tenant_id = "baz"
-    expected_error_msg = f"Found environment variables for {util.ENV_SERVICE_PRINCIPAL_ID}, "
-    f"{util.ENV_SERVICE_PRINCIPAL_PASSWORD}, and {util.ENV_TENANT_ID} but was not able to authenticate"
-    with pytest.raises(Exception) as e:
-        util._get_legitimate_service_principal_credential(
-            mock_tenant_id, mock_service_principal_id, mock_service_principal_password
-        )
-        assert expected_error_msg in str(e)
-
-    # now mock the case where validating the credential succeeds and check the value of that
-    with patch("health_azure.utils._validate_credential"):
-        cred = util._get_legitimate_service_principal_credential(
-            mock_tenant_id, mock_service_principal_id, mock_service_principal_password
-        )
-        assert isinstance(cred, ClientSecretCredential)
-
-
-def test_get_legitimate_device_code_credential() -> None:
-    def _mock_credential_fast_timeout(timeout: int) -> DeviceCodeCredential:
-        return DeviceCodeCredential(timeout=1)
-
-    with patch("health_azure.utils.DeviceCodeCredential", new=_mock_credential_fast_timeout):
-        cred = util._get_legitimate_device_code_credential()
-        assert cred is None
-
-    # now mock the case where validating the credential succeeds
-    with patch("health_azure.utils._validate_credential"):
-        cred = util._get_legitimate_device_code_credential()
-        assert isinstance(cred, DeviceCodeCredential)
-
-
-def test_get_legitimate_default_credential() -> None:
-    def _mock_credential_fast_timeout(timeout: int) -> DefaultAzureCredential:
-        return DefaultAzureCredential(timeout=1)
-
-    with patch("health_azure.utils.DefaultAzureCredential", new=_mock_credential_fast_timeout):
-        exception_message = r"DefaultAzureCredential failed to retrieve a token from the included credentials."
-        with pytest.raises(ClientAuthenticationError, match=exception_message):
-            cred = util._get_legitimate_default_credential()
-
-    with patch("health_azure.utils._validate_credential"):
-        cred = util._get_legitimate_default_credential()
-        assert isinstance(cred, DefaultAzureCredential)
-
-
 def test_filter_v2_input_output_args() -> None:
     def _compare_args(expected: List[str], actual: List[str]) -> None:
         assert len(actual) == len(expected)
@@ -2244,3 +2116,69 @@ def test_download_files_by_suffix(tmp_path: Path, files: List[str], expected_dow
                 assert f.is_file()
             downloaded_filenames = [f.name for f in downloaded_list]
             assert downloaded_filenames == expected_downloaded
+
+
+def test_resolve_workspace_config_path_no_argument(tmp_path: Path) -> None:
+    """Test for resolve_workspace_config_path without argument: It should try to find a config file in the folders.
+    If the file exists, it should return the path"""
+    mocked_file = tmp_path / "foo.json"
+    with patch("health_azure.utils.find_file_in_parent_to_pythonpath", return_value=mocked_file):
+        result = resolve_workspace_config_path()
+        assert result == mocked_file
+
+
+def test_resolve_workspace_config_path_no_argument_no_file() -> None:
+    """Test for resolve_workspace_config_path without argument: It should try to find a config file in the folders.
+    If the file does not exist, return None"""
+    with patch("health_azure.utils.find_file_in_parent_to_pythonpath", return_value=None):
+        result = resolve_workspace_config_path()
+        assert result is None
+
+
+def test_resolve_workspace_config_path_file_exists(tmp_path: Path) -> None:
+    mocked_file = tmp_path / "foo.json"
+    mocked_file.touch()
+    result = resolve_workspace_config_path(mocked_file)
+    assert result == mocked_file
+
+
+def test_resolve_workspace_config_path_missing(tmp_path: Path) -> None:
+    mocked_file = tmp_path / "foo.json"
+    with pytest.raises(FileNotFoundError, match="Workspace config file does not exist"):
+        resolve_workspace_config_path(mocked_file)
+
+
+@pytest.mark.fast
+def test_sanitize_snapshot_root(tmp_path: Path) -> None:
+    """Test if the snapshot root directory will default to the current working directory if not provided.
+    Otherwise, pass through unchanged.
+    """
+    with change_working_directory(tmp_path):
+        assert sanitize_snapshoot_directory(None) == tmp_path
+    folder = tmp_path / "foo"
+    assert sanitize_snapshoot_directory(folder) == folder
+    assert sanitize_snapshoot_directory(str(folder)) == folder
+
+
+@pytest.mark.fast
+def test_sanitize_entry_script(tmp_path: Path) -> None:
+    script = "some_script"
+    # If no entry script is given, derive from sys.argv
+    with patch("sys.argv", [script]):
+        assert sanitize_entry_script(None, tmp_path) == script
+    # If an entry script is given and it is valid, pass through unchanged
+    assert sanitize_entry_script(script, tmp_path) == script
+    # If the entry script is in a subfolder, we want to get the script with folder back, as a string.
+    folder = "folder"
+    script_with_folder = tmp_path / folder / script
+    assert sanitize_entry_script(script_with_folder, tmp_path) == f"{folder}/{script}"
+    # If the entry script is of the format "-m Foo.bar", return unchanged.
+    entry_module = "-m Foo.bar"
+    assert sanitize_entry_script(entry_module, tmp_path) == entry_module
+
+    # Error case: Invalid argument
+    with pytest.raises(ValueError, match="entry_script must be a string or Path"):
+        assert sanitize_entry_script([], tmp_path)  # type: ignore
+    # Error case: Entry script is not in the snapshot
+    with pytest.raises(ValueError, match="entry script must be inside of the snapshot root"):
+        assert sanitize_entry_script(script_with_folder, tmp_path / "other_folder")

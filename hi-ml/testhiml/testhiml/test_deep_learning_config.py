@@ -25,46 +25,35 @@ from testhiml.utils.fixed_paths_for_tests import full_test_data_path, mock_run_i
 
 def test_validate_workflow_params_for_inference_only() -> None:
     with pytest.raises(ValueError, match=r"Cannot run inference without a src_checkpoint."):
-        WorkflowParams(local_datasets=Path("foo"), run_inference_only=True).validate()
+        WorkflowParams(run_inference_only=True).validate()
 
     full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
     run_id = mock_run_id(id=0)
+    WorkflowParams(run_inference_only=True, src_checkpoint=CheckpointParser(run_id)).validate()
     WorkflowParams(
-        local_dataset=Path("foo"), run_inference_only=True, src_checkpoint=CheckpointParser(run_id)
-    ).validate()
-    WorkflowParams(
-        local_dataset=Path("foo"),
         run_inference_only=True,
         src_checkpoint=CheckpointParser(f"{run_id}:best_val_loss.ckpt"),
     ).validate()
     WorkflowParams(
-        local_dataset=Path("foo"),
         run_inference_only=True,
         src_checkpoint=CheckpointParser(f"{run_id}:custom/path/model.ckpt"),
     ).validate()
-    WorkflowParams(
-        local_dataset=Path("foo"), run_inference_only=True, src_checkpoint=CheckpointParser(str(full_file_path))
-    ).validate()
+    WorkflowParams(run_inference_only=True, src_checkpoint=CheckpointParser(str(full_file_path))).validate()
 
 
 def test_validate_workflow_params_for_resume_training() -> None:
     with pytest.raises(ValueError, match=r"Cannot resume training without a src_checkpoint."):
-        WorkflowParams(local_datasets=Path("foo"), resume_training=True).validate()
+        WorkflowParams(resume_training=True).validate()
 
     full_file_path = full_test_data_path(suffix="hello_world_checkpoint.ckpt")
     run_id = mock_run_id(id=0)
-    WorkflowParams(local_dataset=Path("foo"), resume_training=True, src_checkpoint=CheckpointParser(run_id)).validate()
+    WorkflowParams(resume_training=True, src_checkpoint=CheckpointParser(run_id)).validate()
+    WorkflowParams(resume_training=True, src_checkpoint=CheckpointParser(f"{run_id}:best_val_loss.ckpt")).validate()
     WorkflowParams(
-        local_dataset=Path("foo"), resume_training=True, src_checkpoint=CheckpointParser(f"{run_id}:best_val_loss.ckpt")
-    ).validate()
-    WorkflowParams(
-        local_dataset=Path("foo"),
         resume_training=True,
         src_checkpoint=CheckpointParser(f"{run_id}:custom/path/model.ckpt"),
     ).validate()
-    WorkflowParams(
-        local_dataset=Path("foo"), resume_training=True, src_checkpoint=CheckpointParser(str(full_file_path))
-    ).validate()
+    WorkflowParams(resume_training=True, src_checkpoint=CheckpointParser(str(full_file_path))).validate()
 
 
 @pytest.mark.fast
@@ -87,27 +76,22 @@ def test_workflow_params_get_effective_random_seed() -> None:
 @pytest.mark.fast
 def test_validate_dataset_params() -> None:
     # DatasetParams cannot be initialized with neither of azure_datasets or local_datasets set
-    with pytest.raises(ValueError) as ex:
+    with pytest.raises(ValueError, match=r"Either local_datasets or azure_datasets must be set."):
         DatasetParams(local_datasets=[], azure_datasets=[]).validate()
-    assert ex.value.args[0] == "Either local_datasets or azure_datasets must be set."
 
     # If azure_datasets or local_datasets is not a list an exception should be raised
-    with pytest.raises(Exception) as e:
+    with pytest.raises(Exception, match=f"must be a list"):
         DatasetParams(local_datasets="", azure_datasets=[]).validate()
-    assert "must be a list" in str(e)
 
-    with pytest.raises(Exception) as e:
+    with pytest.raises(Exception, match=r"must be a list"):
         DatasetParams(local_datasets=[], azure_datasets=None).validate()
-    assert "must be a list" in str(e)
 
     # local datasets and dataset_mountpoints must be Paths
-    with pytest.raises(Exception) as e:
+    with pytest.raises(Exception, match=r"items must be instances of"):
         DatasetParams(local_datasets=["foo"])
-    assert "items must be instances of type <class 'pathlib.Path'>" in str(e)
 
-    with pytest.raises(Exception) as e:
+    with pytest.raises(Exception, match=r"items must be instances of"):
         DatasetParams(dataset_mountpoints=["foo"])
-    assert "items must be instances of type <class 'pathlib.Path'>" in str(e)
 
     # The following should be okay
     DatasetParams(local_datasets=[Path("foo")]).validate()
@@ -138,9 +122,8 @@ def test_validate_dataset_params() -> None:
     assert len(config.dataset_mountpoints) == 1
 
     # the number of mountpoints must not be larger than the number of datasets
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match=r"Expected the number of azure datasets to equal the number of mountpoints"):
         DatasetParams(azure_datasets=["foo"], dataset_mountpoints=[Path("foo"), Path("bar")]).validate()
-    assert "Expected the number of azure datasets to equal the number of mountpoints" in str(e)
 
 
 def test_output_params_set_output_to() -> None:
@@ -182,31 +165,26 @@ def test_validate_optimizer_params() -> None:
     # assert that passing a string to a param expecting a numeric value causes an Exception to be raised
     numeric_params = [k for k, v in config.params().items() if isinstance(v, Number)]
     for numeric_param_name in numeric_params:
-        with pytest.raises(Exception) as e:
+        with pytest.raises(Exception):
             config = OptimizerParams()
             setattr(config, numeric_param_name, "foo")
             config.validate()
 
     # For non-numeric parametes, check that Exceptions are raised when params with invalid types are provided
-    with pytest.raises(Exception) as e:
+    with pytest.raises(Exception, match=r"must be an instance of LRSchedulerType"):
         OptimizerParams(l_rate_scheduler="foo").validate()
-    assert "must be an instance of LRSchedulerType" in str(e)
 
-    with pytest.raises(Exception) as e:
+    with pytest.raises(Exception, match=r"must be a list"):
         OptimizerParams(l_rate_multi_step_milestones="foo")
-    assert "must be a list" in str(e)
 
-    with pytest.raises(Exception) as e:
+    with pytest.raises(Exception, match=r"must be an instance of LRWarmUpType"):
         OptimizerParams(l_rate_warmup="foo").validate()
-    assert "must be an instance of LRWarmUpType" in str(e)
 
-    with pytest.raises(Exception) as e:
+    with pytest.raises(Exception, match=r"must be an instance of OptimizerType"):
         OptimizerParams(optimizer_type="foo").validate()
-    assert "must be an instance of OptimizerType" in str(e)
 
-    with pytest.raises(Exception) as e:
+    with pytest.raises(Exception, match="only takes a tuple value"):
         OptimizerParams(adam_betas="foo").validate()
-    assert "only takes a tuple value" in str(e)
 
 
 def test_optimizer_params_min_l_rate() -> None:
@@ -224,7 +202,7 @@ def test_trainer_params_use_gpu() -> None:
 
 
 def test_trainer_params_max_num_gpus_inference(caplog: LogCaptureFixture) -> None:
-    config = TrainerParams(max_num_gpus_inference=2, pl_replce_sampler_ddp=True)
+    config = TrainerParams(max_num_gpus_inference=2, pl_replace_sampler_ddp=True)
     config.validate()
     assert config.max_num_gpus_inference == 2
     assert config.pl_replace_sampler_ddp is True

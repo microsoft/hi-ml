@@ -12,6 +12,9 @@ REPO_HIML_FOLDER = "hi-ml"
 REPO_HIML_AZURE_FOLDER = "hi-ml-azure"
 
 
+logger = logging.getLogger(__name__)
+
+
 def is_himl_used_from_git_repo() -> bool:
     """Returns False if HI-ML was installed as a package into site-packages. Returns True if the HI-ML codebase is
     used from a clone of the full git repository.
@@ -19,7 +22,7 @@ def is_himl_used_from_git_repo() -> bool:
     :return: False if HI-ML is installed as a package, True if used via source from git.
     """
     health_ml_root = Path(__file__).resolve().parent.parent
-    logging.debug(f"health_ml root: {health_ml_root}")
+    logger.debug(f"health_ml root: {health_ml_root}")
     if health_ml_root.parent.stem == "site-packages":
         return False
     himl_root = health_ml_root.parent.parent
