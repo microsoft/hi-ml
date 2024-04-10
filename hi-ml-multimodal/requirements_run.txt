@@ -1,5 +1,6 @@
 huggingface-hub
-pillow
+matplotlib
+Pillow
 pydicom
 scikit-image
 SimpleITK
