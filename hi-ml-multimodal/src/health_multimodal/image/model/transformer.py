@@ -11,7 +11,6 @@ from typing import Any, Callable, Optional, Set, Tuple
 import torch
 import torch.nn as nn
 from timm.models.layers import DropPath, Mlp, trunc_normal_
-from transformers.pytorch_utils import torch_int_div
 
 
 @dataclass
@@ -265,7 +264,7 @@ class SinePositionEmbedding:
             x_embed = x_embed / (x_embed[:, :, -1:] + 1e-6) * self.scale
 
         dim_t = torch.arange(self.embedding_dim, dtype=torch.float32)
-        dim_t = self.temperature ** (2 * torch_int_div(dim_t, 2) / self.embedding_dim)
+        dim_t = self.temperature ** (2 * torch.div(dim_t, 2, rounding_mode="floor") / self.embedding_dim)
 
         pos_x = x_embed[:, :, :, None] / dim_t
         pos_y = y_embed[:, :, :, None] / dim_t

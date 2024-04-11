@@ -10,7 +10,7 @@ from pathlib import Path
 
 from torch.hub import load_state_dict_from_url
 from torchvision.datasets.utils import download_url
-from torchvision.models.resnet import model_urls
+from torchvision.models.resnet import ResNet50_Weights
 
 from .model import ImageModel
 from .types import ImageEncoderType, ImageEncoderWeightTypes
@@ -75,7 +75,7 @@ def get_biovil_image_encoder(pretrained: bool = True) -> ImageModel:
     return image_model
 
 
-def get_biovil_t_image_encoder() -> ImageModel:
+def get_biovil_t_image_encoder(**kwargs) -> ImageModel:
     """Download weights from Hugging Face and instantiate the image model."""
 
     biovilt_checkpoint_path = _download_biovil_t_image_model_weights()
@@ -84,14 +84,15 @@ def get_biovil_t_image_encoder() -> ImageModel:
         img_encoder_type=model_type,
         joint_feature_size=JOINT_FEATURE_SIZE,
         pretrained_model_path=biovilt_checkpoint_path,
+        **kwargs,
     )
     return image_model
 
 
 def get_imagenet_init_encoder() -> ImageModel:
     """Download ImageNet pre-trained weights and instantiate the image model."""
-
-    state_dict = load_state_dict_from_url(model_urls[ImageEncoderType.RESNET50])
+    url = ResNet50_Weights.IMAGENET1K_V1.url
+    state_dict = load_state_dict_from_url(url)
     image_model = ImageModel(
         img_encoder_type=ImageEncoderType.RESNET50,
         joint_feature_size=JOINT_FEATURE_SIZE,
