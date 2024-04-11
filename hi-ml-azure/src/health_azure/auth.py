@@ -25,6 +25,10 @@ ENV_SERVICE_PRINCIPAL_ID = "HIML_SERVICE_PRINCIPAL_ID"
 ENV_SERVICE_PRINCIPAL_PASSWORD = "HIML_SERVICE_PRINCIPAL_PASSWORD"
 ENV_TENANT_ID = "HIML_TENANT_ID"
 
+# This is an environment variable that is set by GitHub Actions, for checking if the code is running in GitHub
+ENV_GITHUB_ACTIONS = "GITHUB_ACTIONS"
+
+# The scope for the access tokens that are requested from Azure
 ACCESS_TOKEN_SCOPE = "https://management.azure.com/.default"
 
 
@@ -80,7 +84,7 @@ def get_authentication() -> (
         # Otherwise, try to authenticate interactively.
         # The GITHUB_ACTIONS environment variable is meant to be used exactly for this check
         # https://docs.github.com/en/actions/learn-github-actions/variables
-        if os.getenv("GITHUB_ACTIONS", "") == "true":
+        if os.getenv(ENV_GITHUB_ACTIONS, "") == "true":
             raise
 
     logger.info(

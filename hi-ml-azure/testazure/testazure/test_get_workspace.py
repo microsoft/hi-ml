@@ -25,6 +25,7 @@ from unittest.mock import MagicMock, patch
 from health_azure.auth import (
     get_secret_from_environment,
     get_authentication,
+    ENV_GITHUB_ACTIONS,
     ENV_SERVICE_PRINCIPAL_ID,
     ENV_SERVICE_PRINCIPAL_PASSWORD,
     ENV_TENANT_ID,
@@ -230,6 +231,7 @@ def test_auth_azure_cli() -> None:
         ENV_SERVICE_PRINCIPAL_ID: "foo",
         ENV_TENANT_ID: "bar",
         ENV_SERVICE_PRINCIPAL_PASSWORD: "",
+        ENV_GITHUB_ACTIONS: "",
     }
 
     # Patch environment variables to have no service principal
