@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+from typing import Any
 
 from torch.hub import load_state_dict_from_url
 from torchvision.datasets.utils import download_url
@@ -75,7 +76,7 @@ def get_biovil_image_encoder(pretrained: bool = True) -> ImageModel:
     return image_model
 
 
-def get_biovil_t_image_encoder(**kwargs) -> ImageModel:
+def get_biovil_t_image_encoder(**kwargs: Any) -> ImageModel:
     """Download weights from Hugging Face and instantiate the image model."""
 
     biovilt_checkpoint_path = _download_biovil_t_image_model_weights()
