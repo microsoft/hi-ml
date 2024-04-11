@@ -30,6 +30,8 @@ runs:
         az account get-access-token --scope https://management.core.windows.net/.default --output none
       shell: bash
 
+    # Workaround for bug in MSAL taken from
+    # https://github.com/Azure/azure-cli/issues/28708#issuecomment-2049718869
     - name: Fetch OID token every 4 mins in the background
       shell: bash
       run: |
