@@ -93,7 +93,7 @@ bump_version: pip_test
 
 # build Python package
 build: pip_publish
-	rm --recursive --force --interactive dist
+	rm --recursive --force dist
 	python -m build
 
 # publish package to TestPyPI
