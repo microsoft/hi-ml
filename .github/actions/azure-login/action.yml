@@ -29,3 +29,15 @@ runs:
         az account get-access-token --scope https://ml.azure.com/.default --output none
         az account get-access-token --scope https://management.core.windows.net/.default --output none
       shell: bash
+
+    - name: Fetch OID token every 4 mins in the background
+      shell: bash
+      run: |
+        while true; do
+          token_request=$ACTIONS_ID_TOKEN_REQUEST_TOKEN
+          token_uri=$ACTIONS_ID_TOKEN_REQUEST_URL
+          token=$(curl -H "Authorization: bearer $token_request" "${token_uri}&audience=api://AzureADTokenExchange" | jq .value -r)
+          az login --service-principal -u ${{ env.HIML_SERVICE_PRINCIPAL_ID }} -t ${{ env.HIML_TENANT_ID }} --federated-token $token --output none
+          # Sleep for 4 minutes
+          sleep 240
+        done &
