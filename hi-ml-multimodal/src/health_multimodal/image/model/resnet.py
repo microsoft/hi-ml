@@ -7,7 +7,9 @@ from typing import Any, List, Tuple, Type, Union
 
 import torch
 from torch.hub import load_state_dict_from_url
-from torchvision.models.resnet import model_urls, ResNet, BasicBlock, Bottleneck
+from torchvision.models.resnet import ResNet, BasicBlock, Bottleneck
+from torchvision.models.resnet import ResNet18_Weights
+from torchvision.models.resnet import ResNet50_Weights
 
 TypeSkipConnections = Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
 
@@ -49,7 +51,7 @@ class ResNetHIML(ResNet):
 
 
 def _resnet(
-    arch: str,
+    url: str,
     block: Type[Union[BasicBlock, Bottleneck]],
     layers: List[int],
     pretrained: bool,
@@ -62,7 +64,7 @@ def _resnet(
     """
     model = ResNetHIML(block=block, layers=layers, **kwargs)
     if pretrained:
-        state_dict = load_state_dict_from_url(model_urls[arch], progress=progress)
+        state_dict = load_state_dict_from_url(url, progress=progress)
         model.load_state_dict(state_dict)
     return model
 
@@ -74,7 +76,8 @@ def resnet18(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> 
     :param pretrained: If ``True``, returns a model pre-trained on ImageNet.
     :param progress: If ``True``, displays a progress bar of the download to ``stderr``.
     """
-    return _resnet('resnet18', BasicBlock, [2, 2, 2, 2], pretrained, progress, **kwargs)
+    url = ResNet18_Weights.IMAGENET1K_V1.url
+    return _resnet(url, BasicBlock, [2, 2, 2, 2], pretrained, progress, **kwargs)
 
 
 def resnet50(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNetHIML:
@@ -84,4 +87,5 @@ def resnet50(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> 
     :param pretrained: If ``True``, returns a model pre-trained on ImageNet
     :param progress: If ``True``, displays a progress bar of the download to ``stderr``.
     """
-    return _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress, **kwargs)
+    url = ResNet50_Weights.IMAGENET1K_V1.url
+    return _resnet(url, Bottleneck, [3, 4, 6, 3], pretrained, progress, **kwargs)
