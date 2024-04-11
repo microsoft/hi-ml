@@ -26,6 +26,7 @@ runs:
       run: |
         az account get-access-token --scope https://storage.azure.com/.default --output none
         az account get-access-token --scope https://ml.azure.com/.default --output none
+        az account get-access-token --scope https://management.core.windows.net/.default --output none
       shell: bash
 
     - name: Print Azure token expiry
