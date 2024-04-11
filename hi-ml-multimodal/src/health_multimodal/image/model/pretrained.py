@@ -75,7 +75,7 @@ def get_biovil_image_encoder(pretrained: bool = True) -> ImageModel:
     return image_model
 
 
-def get_biovil_t_image_encoder() -> ImageModel:
+def get_biovil_t_image_encoder() -> ImageModel:  # type: ignore
     """Download weights from Hugging Face and instantiate the image model."""
 
     biovilt_checkpoint_path = _download_biovil_t_image_model_weights()
