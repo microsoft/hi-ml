@@ -4,7 +4,7 @@ runs:
   using: "composite"
   steps:
 
-    # Github agents runners are often out of sync with the NTP server, and this can cause issues with the token expiry.
+    # Github agents runners sometimes are out of sync with the NTP server, and this can cause issues with the token expiry.
     # Hence, sync time before logging into Azure.
     - name: Synchronize time with NTP server
       run: sudo timedatectl set-ntp true
@@ -16,6 +16,17 @@ runs:
         client-id: ${{ env.HIML_SERVICE_PRINCIPAL_ID }}
         tenant-id: ${{ env.HIML_TENANT_ID }}
         subscription-id: ${{ env.HIML_SUBSCRIPTION_ID }}
+
+    # The step above only acquires an ID token and an access token for the Azure Resource Manager scope.
+    # This ID token has an expiry of 10min. During the tests, we will acquire access tokens for further
+    # scopes, but at that time, the ID token will be expired. Hence, acquire those access tokens now,
+    # because they will have an expiry of 60min.
+    # https://github.com/Azure/azure-cli/issues/28708#issuecomment-2047256166
+    - name: Get access tokens
+      run: |
+        az account get-access-token --scope https://storage.azure.com/.default --output none
+        az account get-access-token --scope https://ml.azure.com/.default --output none
+      shell: bash
 
     - name: Print Azure token expiry
       run: |
