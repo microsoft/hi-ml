@@ -25,6 +25,8 @@ ENV_SERVICE_PRINCIPAL_ID = "HIML_SERVICE_PRINCIPAL_ID"
 ENV_SERVICE_PRINCIPAL_PASSWORD = "HIML_SERVICE_PRINCIPAL_PASSWORD"
 ENV_TENANT_ID = "HIML_TENANT_ID"
 
+ACCESS_TOKEN_SCOPE = "https://management.azure.com/.default"
+
 
 def get_secret_from_environment(name: str, allow_missing: bool = False) -> Optional[str]:
     """
@@ -69,7 +71,7 @@ def get_authentication() -> (
     try:
         logger.debug("Trying to authenticate using Azure CLI")
         auth = AzureCliAuthentication()
-        _ = auth.get_token()
+        _ = auth.get_token(ACCESS_TOKEN_SCOPE)
         logger.info("Successfully started AzureCLI authentication.")
         return auth
     except AuthenticationException:
@@ -90,7 +92,7 @@ def _validate_credential(credential: TokenCredential) -> None:
 
     :param credential: The credential object to validate.
     """
-    credential.get_token("https://management.azure.com/.default")
+    credential.get_token(ACCESS_TOKEN_SCOPE)
 
 
 def _get_legitimate_service_principal_credential(
