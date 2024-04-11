@@ -16,7 +16,6 @@ import tempfile
 import time
 from collections import defaultdict
 from contextlib import contextmanager
-from datetime import datetime
 from enum import Enum
 from itertools import islice
 from pathlib import Path
@@ -1710,20 +1709,14 @@ class UnitTestWorkspaceWrapper:
         """
         self._workspace: Optional[Workspace] = None
         self._ml_client: Optional[MLClient] = None
-        self.last_workspace_refresh = datetime.now()
-        self.last_mlclient_refresh = datetime.now()
-        # Credentials appear to expire after 5 minutes. Refresh every 3min to be on the safe side.
-        self.credential_refresh_seconds = 3 * 60
 
     @property
     def workspace(self) -> Workspace:
         """
         Lazily load the aml_workspace.
         """
-        time_since_refresh = (datetime.now() - self.last_workspace_refresh).total_seconds()
-        if self._workspace is None or time_since_refresh > self.credential_refresh_seconds:
+        if self._workspace is None:
             self._workspace = get_workspace()
-            self.last_workspace_refresh = datetime.now()
         return self._workspace
 
     @property
@@ -1731,10 +1724,8 @@ class UnitTestWorkspaceWrapper:
         """
         Lazily load the ML Client.
         """
-        time_since_refresh = (datetime.now() - self.last_mlclient_refresh).total_seconds()
-        if self._ml_client is None or time_since_refresh > self.credential_refresh_seconds:
+        if self._ml_client is None:
             self._ml_client = get_ml_client()
-            self.last_mlclient_refresh = datetime.now()
         return self._ml_client
 
 
