@@ -78,14 +78,14 @@ def get_authentication() -> (
         _ = auth.get_token(ACCESS_TOKEN_SCOPE)
         logger.info("Successfully started AzureCLI authentication.")
         return auth
-    except AuthenticationException:
+    except AuthenticationException as ex:
         # If the code is running in GitHub, there is no point in even trying to authenticate interactively.
         # Raise the exception to get some information about the authentication problem.
         # Otherwise, try to authenticate interactively.
         # The GITHUB_ACTIONS environment variable is meant to be used exactly for this check
         # https://docs.github.com/en/actions/learn-github-actions/variables
         if os.getenv(ENV_GITHUB_ACTIONS, "") == "true":
-            raise
+            raise AuthenticationException("AzureCLI authentication must be set up when running in GitHub") from ex
 
     logger.info(
         "Using interactive login to Azure. To use Service Principal authentication, set the environment "

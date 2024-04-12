@@ -150,8 +150,7 @@ jobs:
 
   himl-build-python:
     runs-on: ubuntu-20.04
-    # TODO: Remove before checkin. This is to make the job startup faster for testin
-    # needs: [ himl-pytest-fast ]
+    needs: [ himl-pytest-fast ]
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
