@@ -7,16 +7,12 @@ import re
 
 from azureml._restclient.constants import RunStatus
 from azureml.core import Experiment, Run, Workspace
-from azureml.core.authentication import ServicePrincipalAuthentication
+from azureml.core.authentication import AzureCliAuthentication
 
 
 def cancel_running_and_queued_jobs() -> None:
     print("Authenticating")
-    auth = ServicePrincipalAuthentication(
-        tenant_id='72f988bf-86f1-41af-91ab-2d7cd011db47',
-        service_principal_id=os.environ["HIML_SERVICE_PRINCIPAL_ID"],
-        service_principal_password=os.environ["HIML_SERVICE_PRINCIPAL_PASSWORD"],
-    )
+    auth = AzureCliAuthentication()
     print("Getting AML workspace")
     workspace = Workspace.get(
         name="hi-ml",

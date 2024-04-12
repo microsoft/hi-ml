@@ -1,0 +1,45 @@
+name: 'Log into Azure using OpenID Connect'
+
+runs:
+  using: "composite"
+  steps:
+
+    # Github agents runners sometimes are out of sync with the NTP server, and this can cause issues with the token expiry.
+    # Hence, sync time before logging into Azure.
+    - name: Synchronize time with NTP server
+      run: sudo timedatectl set-ntp true
+      shell: bash
+
+    - name: Login to Azure via OpenID Connect
+      uses: azure/login@v1
+      with:
+        client-id: ${{ env.HIML_SERVICE_PRINCIPAL_ID }}
+        tenant-id: ${{ env.HIML_TENANT_ID }}
+        subscription-id: ${{ env.HIML_SUBSCRIPTION_ID }}
+
+    # The step above only acquires an ID token and an access token for the Azure Resource Manager scope.
+    # This ID token has an expiry of 10min. During the tests, we will acquire access tokens for further
+    # scopes, but at that time, the ID token will be expired. Hence, acquire those access tokens now,
+    # because they will have an expiry of 60min.
+    # https://github.com/Azure/azure-cli/issues/28708#issuecomment-2047256166
+    - name: Get access tokens
+      run: |
+        az account get-access-token --scope https://management.azure.com/.default --output none
+        az account get-access-token --scope https://storage.azure.com/.default --output none
+        az account get-access-token --scope https://ml.azure.com/.default --output none
+        az account get-access-token --scope https://management.core.windows.net/.default --output none
+      shell: bash
+
+    # Workaround for bug in MSAL taken from
+    # https://github.com/Azure/azure-cli/issues/28708#issuecomment-2049718869
+    - name: Fetch OID token every 4 mins in the background
+      shell: bash
+      run: |
+        while true; do
+          token_request=$ACTIONS_ID_TOKEN_REQUEST_TOKEN
+          token_uri=$ACTIONS_ID_TOKEN_REQUEST_URL
+          token=$(curl -H "Authorization: bearer $token_request" "${token_uri}&audience=api://AzureADTokenExchange" | jq .value -r)
+          az login --service-principal -u ${{ env.HIML_SERVICE_PRINCIPAL_ID }} -t ${{ env.HIML_TENANT_ID }} --federated-token $token --output none
+          # Sleep for 4 minutes
+          sleep 240
+        done &

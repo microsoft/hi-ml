@@ -10,7 +10,6 @@ from pathlib import Path
 from uuid import uuid4
 
 from azureml.core.authentication import (
-    InteractiveLoginAuthentication,
     ServicePrincipalAuthentication,
     AzureCliAuthentication,
 )
@@ -25,6 +24,7 @@ from unittest.mock import MagicMock, patch
 from health_azure.auth import (
     get_secret_from_environment,
     get_authentication,
+    ENV_GITHUB_ACTIONS,
     ENV_SERVICE_PRINCIPAL_ID,
     ENV_SERVICE_PRINCIPAL_PASSWORD,
     ENV_TENANT_ID,
@@ -104,10 +104,12 @@ def test_find_file_in_parent_folders(caplog: LogCaptureFixture) -> None:
 
 @pytest.mark.fast
 @patch("health_azure.auth.InteractiveLoginAuthentication")
-def test_get_authentication(mock_interactive_authentication: MagicMock) -> None:
-    with patch.dict(os.environ, {}, clear=True):
-        get_authentication()
-        assert mock_interactive_authentication.called
+def test_get_authentication(mock_auth: MagicMock) -> None:
+    # Disable Azure CLI authentication and SP via mocks
+    with patch("health_azure.auth.AzureCliAuthentication", side_effect=AuthenticationException("")):
+        with patch.dict(os.environ, {}, clear=True):
+            get_authentication()
+            assert mock_auth.called, "Expected InteractiveLoginAuthentication to be called"
     service_principal_id = "1"
     tenant_id = "2"
     service_principal_password = "3"
@@ -228,6 +230,7 @@ def test_auth_azure_cli() -> None:
         ENV_SERVICE_PRINCIPAL_ID: "foo",
         ENV_TENANT_ID: "bar",
         ENV_SERVICE_PRINCIPAL_PASSWORD: "",
+        ENV_GITHUB_ACTIONS: "",
     }
 
     # Patch environment variables to have no service principal
