@@ -18,6 +18,12 @@ concurrency:
   group: ${{ github.ref }}/cpath-pr
   cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
+permissions:
+  # This is required for requesting the Azure login token
+  id-token: write
+  # This is required for actions/checkout
+  contents: read
+
 env:
   pythonVersion: 3.9
   folder: hi-ml-cpath
@@ -26,7 +32,6 @@ env:
   HIML_SUBSCRIPTION_ID: ${{ secrets.HIML_SUBSCRIPTION_ID }}
   HIML_WORKSPACE_NAME: ${{ secrets.HIML_WORKSPACE_NAME }}
   HIML_SERVICE_PRINCIPAL_ID: ${{ secrets.HIML_SERVICE_PRINCIPAL_ID }}
-  HIML_SERVICE_PRINCIPAL_PASSWORD: ${{ secrets.HIML_SERVICE_PRINCIPAL_PASSWORD }}
   # Set the AML experiment name for all AML jobs submitted during tests. Github.ref looks like
   # "refs/pull/123/merge" for PR builds.
   HIML_EXPERIMENT_NAME: ${{ github.ref }}
@@ -37,6 +42,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: Cancel previous AzureML runs
         uses: ./.github/actions/cancel_azureml_jobs
@@ -87,6 +95,9 @@ jobs:
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
 
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
+
       - name: Test with pytest
         run: |
           cd ${{ env.folder }}
@@ -114,6 +125,9 @@ jobs:
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
 
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
+
       - name: Run GPU tests
         run: |
           cd ${{ env.folder }}
@@ -138,6 +152,9 @@ jobs:
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
 
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
+
       - name: smoke test
         run: |
           cd ${{ env.folder }}
@@ -153,6 +170,9 @@ jobs:
 
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: smoke test
         run: |
@@ -170,6 +190,9 @@ jobs:
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
 
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
+
       - name: smoke test
         run: |
           cd ${{ env.folder }}
@@ -185,6 +208,9 @@ jobs:
 
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: smoke test
         run: |
@@ -202,6 +228,9 @@ jobs:
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
 
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
+
       - name: smoke test
         run: |
           cd ${{ env.folder }}
@@ -217,6 +246,9 @@ jobs:
 
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: smoke test
         run: |
@@ -234,6 +266,9 @@ jobs:
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
 
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
+
       - name: smoke test
         run: |
           cd ${{ env.folder }}
@@ -249,6 +284,9 @@ jobs:
 
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: smoke test
         run: |
@@ -266,6 +304,9 @@ jobs:
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
 
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
+
       - name: smoke test
         run: |
           cd ${{ env.folder }}
@@ -281,6 +322,9 @@ jobs:
 
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: smoke test
         run: |
@@ -298,6 +342,9 @@ jobs:
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
 
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
+
       - name: smoke test
         run: |
           cd ${{ env.folder }}
@@ -313,6 +360,9 @@ jobs:
 
       - name: Prepare Conda environment
         uses: ./.github/actions/prepare_cpath_environment
+
+      - name: Azure login using OpenID Connect
+        uses: ./.github/actions/azure-login
 
       - name: smoke test
         run: |

@@ -25,6 +25,12 @@ ENV_SERVICE_PRINCIPAL_ID = "HIML_SERVICE_PRINCIPAL_ID"
 ENV_SERVICE_PRINCIPAL_PASSWORD = "HIML_SERVICE_PRINCIPAL_PASSWORD"
 ENV_TENANT_ID = "HIML_TENANT_ID"
 
+# This is an environment variable that is set by GitHub Actions, for checking if the code is running in GitHub
+ENV_GITHUB_ACTIONS = "GITHUB_ACTIONS"
+
+# The scope for the access tokens that are requested from Azure
+ACCESS_TOKEN_SCOPE = "https://management.azure.com/.default"
+
 
 def get_secret_from_environment(name: str, allow_missing: bool = False) -> Optional[str]:
     """
@@ -69,11 +75,17 @@ def get_authentication() -> (
     try:
         logger.debug("Trying to authenticate using Azure CLI")
         auth = AzureCliAuthentication()
-        _ = auth.get_token()
+        _ = auth.get_token(ACCESS_TOKEN_SCOPE)
         logger.info("Successfully started AzureCLI authentication.")
         return auth
-    except AuthenticationException:
-        pass
+    except AuthenticationException as ex:
+        # If the code is running in GitHub, there is no point in even trying to authenticate interactively.
+        # Raise the exception to get some information about the authentication problem.
+        # Otherwise, try to authenticate interactively.
+        # The GITHUB_ACTIONS environment variable is meant to be used exactly for this check
+        # https://docs.github.com/en/actions/learn-github-actions/variables
+        if os.getenv(ENV_GITHUB_ACTIONS, "") == "true":
+            raise AuthenticationException("AzureCLI authentication must be set up when running in GitHub") from ex
 
     logger.info(
         "Using interactive login to Azure. To use Service Principal authentication, set the environment "
@@ -90,7 +102,7 @@ def _validate_credential(credential: TokenCredential) -> None:
 
     :param credential: The credential object to validate.
     """
-    credential.get_token("https://management.azure.com/.default")
+    credential.get_token(ACCESS_TOKEN_SCOPE)
 
 
 def _get_legitimate_service_principal_credential(
