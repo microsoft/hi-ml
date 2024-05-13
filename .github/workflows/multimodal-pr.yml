@@ -81,7 +81,7 @@ jobs:
       - name: Upload coverage reports to Codecov
         # Coverage should also be uploaded even if tests fail
         if: always()
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           flags: ${{ env.folder }}
 
