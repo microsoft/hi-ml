@@ -12,6 +12,6 @@ pandas
 param
 protobuf
 pysocks
-ruamel.yaml
+ruamel.yaml>=0.16.12
 tensorboard
 typing-extensions
