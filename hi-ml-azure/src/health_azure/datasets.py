@@ -7,10 +7,10 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
-from azure.ai.ml import MLClient
+from azure.ai.ml import MLClient, Input
 from azure.ai.ml.entities import Data
 from azure.ai.ml.entities import Datastore as V2Datastore
-from azure.ai.ml.constants import AssetTypes
+from azure.ai.ml.constants import AssetTypes, InputOutputModes
 from azure.ai.ml.operations import DatastoreOperations
 from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
 from azureml.core import Dataset, Workspace, Datastore
@@ -475,6 +475,71 @@ class DatasetConfig:
             result = dataset.as_upload(overwrite=self.overwrite_existing)
         logger.info(status)
         return result
+
+    def to_data_asset(self, ml_client: MLClient) -> Data:
+        """Retrieves or creates a v2 Data Asset using the provided MLClient object, using the settings in the present object.
+
+        :param ml_client: An MLClient object.
+        :return: The data asset associated with the dataset described in the present object.
+        """
+        version = self.version
+        logger.info(
+            f"Trying to access data asset {self.name} version {version}, datastore {self.datastore}"
+        )
+
+        # if version is None, this function gets the latest version
+        data_asset: Data = _get_or_create_v2_data_asset(
+            ml_client,
+            self.datastore,
+            self.name,
+            version=str(version) if version else None,
+        )
+        if not data_asset.path:
+            raise ValueError(f"Data asset {data_asset.id} has no path.")
+
+        return data_asset
+
+
+def create_v2_inputs(ml_client: MLClient, input_datasets: List[DatasetConfig]) -> Dict[str, Input]:
+    """
+    Create a dictionary of Azure ML v2 Input objects, required for passing input data in to an AML job
+
+    :param ml_client: An MLClient object.
+    :param input_datasets: A list of DatasetConfigs to convert to Inputs.
+    :return: A dictionary in the format "input_name": Input.
+    """
+    result = {}
+    for i, dataset in enumerate(input_datasets):
+        data_asset = dataset.to_data_asset(ml_client)
+        result[f"{V2_INPUT_ASSET_IDENTIFIER}{i}"] = Input(
+            type=data_asset.type,
+            path=data_asset.path,
+            mode=InputOutputModes.MOUNT if dataset.use_mounting else InputOutputModes.DOWNLOAD,
+            path
+        )
+    return result
+
+
+def create_v2_outputs(ml_client: MLClient, output_datasets: List[DatasetConfig]) -> Dict[str, Output]:
+    """
+    Create a dictionary of Azure ML v2 Output objects, required for passing output data in to an AML job
+
+    :ml_client: An MLClient object.
+    :param output_datasets: A list of DatasetConfigs to convert to Outputs.
+    :return: A dictionary in the format "output_name": Output.
+    """
+
+    output_assets = [get_data_asset_from_config(ml_client, output_dataset) for output_dataset in output_datasets]
+    return {
+        # Data assets can be of type "uri_folder", "uri_file", "mltable", all of which are value types in Input
+        f"{V2_OUTPUT_ASSET_IDENTIFIER}{i}": Output(  # type: ignore
+            type=data_asset.type,  # type: ignore
+            path=data_asset.path,
+            mode=InputOutputModes.MOUNT,  # hard-coded to mount for now, as this is the only mode that doesn't break
+        )
+        for i, data_asset in enumerate(output_assets)
+    }
+
 
 
 StrOrDatasetConfig = Union[str, DatasetConfig]
