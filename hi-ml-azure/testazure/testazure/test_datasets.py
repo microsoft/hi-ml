@@ -563,6 +563,7 @@ def test_create_dataset_configs() -> None:
         assert "Invalid dataset setup" in str(e)
 
 
+@pytest.mark.skip(reason="This test no longer works because we removed access keys from the datastores")
 def test_local_datasets() -> None:
     """Test if Azure datasets can be mounted for local runs"""
     # Dataset hello_world must exist in the test AzureML workspace
