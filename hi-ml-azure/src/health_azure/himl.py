@@ -413,6 +413,7 @@ def submit_run_v2(
     tags: Optional[Dict[str, str]] = None,
     docker_shm_size: str = "",
     wait_for_completion: bool = False,
+    wait_for_completion_show_output: bool = False,
     identity_based_auth: bool = False,
     hyperparam_args: Optional[Dict[str, Any]] = None,
     num_nodes: int = 1,
@@ -444,6 +445,8 @@ def submit_run_v2(
     :param docker_shm_size: The Docker shared memory size that should be used when creating a new Docker image.
     :param wait_for_completion: If False (the default) return after the run is submitted to AzureML, otherwise wait for
         the completion of this run (if True).
+    :param wait_for_completion_show_output: If wait_for_completion is True this parameter indicates whether to show the
+        run output on sys.stdout.
     :param hyperparam_args: A dictionary of hyperparameter search args to pass into a sweep job.
     :param num_nodes: The number of nodes to use for the job in AzureML. The value must be 1 or greater.
     :param pytorch_processes_per_node: For plain PyTorch multi-GPU processing: The number of processes per node.
@@ -547,7 +550,7 @@ def submit_run_v2(
     print("==============================================================================\n")
     if wait_for_completion:
         print("Waiting for the completion of the AzureML job.")
-        wait_for_job_completion(ml_client, job_name=returned_job.name)
+        wait_for_job_completion(ml_client, job_name=returned_job.name, show_output=wait_for_completion_show_output)
         print("AzureML job completed.")
         # After waiting, ensure that the caller gets the latest version job object
         returned_job = ml_client.jobs.get(returned_job.name)
@@ -989,6 +992,7 @@ def submit_to_azure_if_needed(  # type: ignore
                 display_name=display_name,
                 docker_shm_size=docker_shm_size,
                 wait_for_completion=wait_for_completion,
+                wait_for_completion_show_output=wait_for_completion_show_output,
                 identity_based_auth=identity_based_auth,
                 hyperparam_args=hyperparam_args,
                 num_nodes=num_nodes,
