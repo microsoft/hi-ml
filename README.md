@@ -10,19 +10,19 @@ by providing tested components (data loaders, pre-processing), deep learning mod
 
 This repository consists of two Python packages, as well as project-specific codebases:
 
-* PyPi package [hi-ml-azure](https://pypi.org/project/hi-ml-azure/) - providing helper functions for running in AzureML.
-* PyPi package [hi-ml](https://pypi.org/project/hi-ml/) - providing ML components.
-* hi-ml-cpath: Models and workflows for working with histopathology images
+- PyPi package [hi-ml-azure](https://pypi.org/project/hi-ml-azure/) - providing helper functions for running in AzureML.
+- PyPi package [hi-ml](https://pypi.org/project/hi-ml/) - providing ML components.
+- hi-ml-cpath: Models and workflows for working with histopathology images
 
 ## Getting started
 
 For the full toolbox (this will also install `hi-ml-azure`):
 
-* Install from `pypi` via `pip`, by running `pip install hi-ml`
+- Install from `pypi` via `pip`, by running `pip install hi-ml`
 
 For just the AzureML helper functions:
 
-* Install from `pypi` via `pip`, by running `pip install hi-ml-azure`
+- Install from `pypi` via `pip`, by running `pip install hi-ml-azure`
 
 For the histopathology workflows, please follow the instructions [here](hi-ml-cpath/README.md).
 
@@ -99,19 +99,19 @@ For more examples, please see [examples.md](docs/source/examples.md).
 If you've found a bug in the code, please check the [issues](https://github.com/microsoft/hi-ml/issues) page.
 If no existing issue exists, please open a new one. Be sure to include
 
-* A descriptive title
-* Expected behaviour (including a code sample if possible)
-* Actual behavior
+- A descriptive title
+- Expected behaviour (including a code sample if possible)
+- Actual behavior
 
 ## Contributing
 
 We welcome all contributions that help us achieve our aim of speeding up ML/AI research in health and life sciences.
 Examples of contributions are
 
-* Data loaders for specific health & life sciences data
-* Network architectures and components for deep learning models
-* Tools to analyze and/or visualize data
-* ...
+- Data loaders for specific health & life sciences data
+- Network architectures and components for deep learning models
+- Tools to analyze and/or visualize data
+- ...
 
 Please check the [detailed page about contributions](.github/CONTRIBUTING.md).
 
