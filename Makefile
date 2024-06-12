@@ -124,5 +124,9 @@ combine: pip_test
 		coverage xml && \
 		pycobertura show --format text --output coverage.txt coverage.xml
 
+blobfuse:
+	setup/prepare_blobfuse_installation.sh
+	sudo apt-get install blobfuse fuse
+
 mount:
-	scripts/mount_datastores.sh
+	setup/mount_datastores.sh
