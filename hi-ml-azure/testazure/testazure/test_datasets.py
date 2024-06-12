@@ -423,10 +423,7 @@ def test_retrieve_v2_data_asset(asset_name: str, asset_version: Optional[str]) -
                 if asset_version is None:
                     expected_error_message = f"{TEST_INVALID_DATA_ASSET_NAME} container was not found."
                 else:
-                    expected_error_message = (
-                        f"{TEST_INVALID_DATA_ASSET_NAME}:{asset_version} (dataContainerName:version) not found."
-                    )
-
+                    expected_error_message = "Asset with Asset ID was not found"
                 assert expected_error_message in str(ex)
             else:
                 pytest.fail(f"Unexpected error: {ex}")
