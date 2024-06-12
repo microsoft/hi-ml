@@ -100,8 +100,6 @@ jobs:
 
       - name: Test with pytest
         run: |
-          make blobfuse
-          make mount
           cd ${{ env.folder }}
 
           # Run tests
