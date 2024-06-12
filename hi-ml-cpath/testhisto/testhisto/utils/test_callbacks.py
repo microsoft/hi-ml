@@ -119,6 +119,8 @@ def test_loss_analysis_epochs_interval(epochs_interval: int) -> None:
     assert callback.should_cache_loss_values(current_epoch) is False
 
 
+@pytest.mark.gpu
+@skipif_no_gpu("This test requires the PathMNIST dataset, which is only mounted in the AzureML environment.")
 def test_on_train_and_val_batch_end(tmp_path: Path, mock_panda_tiles_root_dir: Path) -> None:
     batch_size = 2
     container = MockDeepSMILETilesPanda(tmp_path=mock_panda_tiles_root_dir, analyse_loss=True, batch_size=batch_size)

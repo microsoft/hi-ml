@@ -18,7 +18,7 @@ from health_cpath.utils.naming import ModelKey, SlideKey
 from health_cpath.utils.wsi_utils import TilingParams
 from health_ml.utils.common_utils import is_gpu_available
 from testhisto.datamodules.test_slides_datamodule import get_loading_params
-from testhisto.utils.utils_testhisto import run_distributed
+from testhisto.utils.utils_testhisto import run_distributed, skipif_no_gpu
 
 
 no_gpu = not is_gpu_available()
@@ -75,6 +75,8 @@ def test_slides_datamodule_different_bag_sizes(
     _assert_correct_bag_sizes(datamodule, max_bag_size, max_bag_size_inf, true_bag_sizes=[4, 4])
 
 
+@pytest.mark.gpu
+@skipif_no_gpu("This test requires the PathMNIST dataset, which is only mounted in the AzureML environment.")
 @pytest.mark.parametrize("max_bag_size, max_bag_size_inf", [(2, 0), (2, 3)])
 def test_tiles_datamodule_different_bag_sizes(
     mock_panda_tiles_root_dir: Path, max_bag_size: int, max_bag_size_inf: int
@@ -110,6 +112,8 @@ def test_slides_datamodule_different_batch_sizes(
     _assert_correct_batch_sizes(datamodule, batch_size, batch_size_inf)
 
 
+@pytest.mark.gpu
+@skipif_no_gpu("This test requires the PathMNIST dataset, which is only mounted in the AzureML environment.")
 @pytest.mark.parametrize("batch_size, batch_size_inf", [(2, 2), (2, 1), (2, None)])
 def test_tiles_datamodule_different_batch_sizes(
     mock_panda_tiles_root_dir: Path,
@@ -171,6 +175,8 @@ def test_tiles_datamodule_pl_replace_sampler_ddp(mock_panda_tiles_root_dir: Path
     run_distributed(_test_datamodule_pl_replace_sampler_ddp, [tiles_datamodule, False], world_size=2)
 
 
+@pytest.mark.gpu
+@skipif_no_gpu("This test requires the PathMNIST dataset, which is only mounted in the AzureML environment.")
 def test_assertion_error_missing_seed(mock_panda_slides_root_dir: Path) -> None:
     with pytest.raises(AssertionError, match="seed must be set when using distributed training for reproducibility"):
         with patch("torch.distributed.is_initialized", return_value=True):
@@ -184,6 +190,8 @@ def test_assertion_error_missing_seed(mock_panda_slides_root_dir: Path) -> None:
                 slides_datamodule._get_ddp_sampler(MagicMock(), ModelKey.TRAIN)
 
 
+@pytest.mark.gpu
+@skipif_no_gpu("This test requires the PathMNIST dataset, which is only mounted in the AzureML environment.")
 def test_histo_module_class_weights(mock_panda_slides_root_dir: Path) -> None:
     """Test if the class weights argument of the HistoDataModule is correctly set."""
     datamodule = PandaSlidesDataModule(

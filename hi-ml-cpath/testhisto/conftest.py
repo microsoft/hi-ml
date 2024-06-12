@@ -65,7 +65,10 @@ def tmp_path_to_pathmnist_dataset(tmp_path_factory: pytest.TempPathFactory) -> G
     from testhisto.mocks.utils import download_azure_dataset
     from testhisto.mocks.base_data_generator import MockHistoDataType
 
-    expected_file = Path("/datasetdrive/himlstoragef191c40dff524/datasets/UI/04-19-2022_025955_UTC/pathmnist.npz")
+    if is_running_in_azure_ml():
+        expected_file = Path("/datasets/PathMNIST.npz")
+    else:
+        expected_file = Path("/datasetdrive/himlstoragef191c40dff524/datasets/UI/04-19-2022_025955_UTC/pathmnist.npz")
     if not expected_file.exists():
         raise FileNotFoundError(f"Expected file not found: {expected_file}. Did you forget to run `make mount`?")
     yield expected_file.parent

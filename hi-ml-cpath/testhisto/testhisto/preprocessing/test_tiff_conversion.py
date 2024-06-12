@@ -54,6 +54,8 @@ def test_get_tiff_path(src_format: str, replace_ampersand_by: str) -> None:
     assert formated_path == output_folder / f"h{replace_ampersand_by}e_foo.tiff"
 
 
+@pytest.mark.gpu
+@skipif_no_gpu("This test requires the PathMNIST dataset, which is only mounted in the AzureML environment.")
 def test_base_objective_power(wsi_samples: WSISamplesType) -> None:
     target_mag = 2.5
     transform = ConvertWSIToTiffd(
@@ -241,6 +243,8 @@ def test_convert_wsi_to_tiff_existing_empty_file(
     assert "Tiff file size 0.01 MB" in messages[2]
 
 
+@pytest.mark.gpu
+@skipif_no_gpu("This test requires the PathMNIST dataset, which is only mounted in the AzureML environment.")
 def test_tiff_conversion_config(mock_panda_slides_root_dir: Path, tmp_path: Path) -> None:
     dataset = PandaDataset(mock_panda_slides_root_dir)
     target_mag = 5
