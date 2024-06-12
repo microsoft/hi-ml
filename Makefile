@@ -123,3 +123,6 @@ combine: pip_test
 		coverage html && \
 		coverage xml && \
 		pycobertura show --format text --output coverage.txt coverage.xml
+
+mount:
+	scripts/mount_datastores.sh

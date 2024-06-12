@@ -4,6 +4,7 @@ Global PyTest configuration -- used to define global fixtures for the entire tes
 DO NOT RENAME THIS FILE: (https://docs.pytest.org/en/latest/fixture.html#sharing-a-fixture-across-tests-in-a-module
 -or-class-session)
 """
+
 import logging
 import shutil
 import uuid
@@ -64,10 +65,10 @@ def tmp_path_to_pathmnist_dataset(tmp_path_factory: pytest.TempPathFactory) -> G
     from testhisto.mocks.utils import download_azure_dataset
     from testhisto.mocks.base_data_generator import MockHistoDataType
 
-    tmp_dir = tmp_path_factory.mktemp(MockHistoDataType.PATHMNIST.value)
-    download_azure_dataset(tmp_dir, dataset_id=MockHistoDataType.PATHMNIST.value)
-    yield tmp_dir
-    shutil.rmtree(tmp_dir)
+    expected_file = Path("/datasetdrive/himlstoragef191c40dff524/datasets/UI/04-19-2022_025955_UTC/pathmnist.npz")
+    if not expected_file.exists():
+        raise FileNotFoundError(f"Expected file not found: {expected_file}. Did you forget to run `make mount`?")
+    yield expected_file.parent
 
 
 @pytest.fixture(scope="session")
