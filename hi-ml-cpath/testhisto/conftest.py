@@ -12,11 +12,12 @@ import pytest
 from pathlib import Path
 from typing import Generator
 
-from health_cpath.utils import health_cpath_package_setup  # noqa: E402
-from health_ml.utils.fixed_paths import OutputFolderForTests  # noqa: E402
-from testhisto.mocks.base_data_generator import MockHistoDataType  # noqa: E402
-from testhisto.mocks.tiles_generator import MockPandaTilesGenerator  # noqa: E402
-from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPositioningType  # noqa: E402
+from health_azure import is_running_in_azure_ml
+from health_cpath.utils import health_cpath_package_setup
+from health_ml.utils.fixed_paths import OutputFolderForTests
+from testhisto.mocks.base_data_generator import MockHistoDataType
+from testhisto.mocks.tiles_generator import MockPandaTilesGenerator
+from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPositioningType
 
 
 testhisto_root_dir = Path(__file__).parent

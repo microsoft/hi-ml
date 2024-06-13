@@ -39,7 +39,7 @@ from health_cpath.models.transforms import (
     transform_dict_adaptor,
     NormalizeBackgroundd,
 )
-from testhisto.utils.utils_testhisto import assert_dicts_equal
+from testhisto.utils.utils_testhisto import assert_dicts_equal, skipif_no_gpu
 
 
 @pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR), reason="TCGA-CRCk tiles dataset is unavailable")

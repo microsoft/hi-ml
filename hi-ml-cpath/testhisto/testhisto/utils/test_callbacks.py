@@ -13,7 +13,7 @@ from health_cpath.configs.classification.BaseMIL import BaseMIL
 from health_cpath.utils.naming import ModelKey, ResultsKey
 from health_cpath.utils.callbacks import LossAnalysisCallback, LossCacheDictType
 from testhisto.mocks.container import MockDeepSMILETilesPanda
-from testhisto.utils.utils_testhisto import run_distributed
+from testhisto.utils.utils_testhisto import run_distributed, skipif_no_gpu
 
 
 def _assert_is_sorted(array: np.ndarray) -> None:
