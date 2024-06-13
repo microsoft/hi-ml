@@ -48,6 +48,7 @@ from azure.ai.ml.entities import Job
 from azure.ai.ml.entities import Workspace as WorkspaceV2
 from azure.ai.ml.entities import Environment as EnvironmentV2
 from azure.core.exceptions import ResourceNotFoundError
+from azure.storage.blob import BlobSasPermissions, BlobServiceClient, UserDelegationKey, generate_blob_sas
 
 from health_azure.argparsing import EXPERIMENT_RUN_SEPARATOR, RunIdOrListParam, determine_run_id_type
 from health_azure.auth import get_authentication, get_credential, get_secret_from_environment
@@ -687,9 +688,7 @@ def create_python_environment(
             raise FileNotFoundError(f"Cannot add private wheel: {private_pip_wheel_path} is not a file.")
         if workspace is None:
             raise ValueError("To use a private pip wheel, an AzureML workspace must be provided.")
-        whl_url = Environment.add_private_pip_wheel(
-            workspace=workspace, file_path=str(private_pip_wheel_path), exist_ok=True
-        )
+        whl_url = upload_wheel_to_workspace(workspace, private_pip_wheel_path)
         conda_dependencies.add_pip_package(whl_url)
         logger.info(f"Added add_private_pip_wheel {private_pip_wheel_path} to AzureML environment.")
     # Create a name for the environment that will likely uniquely identify it. AzureML does hashing on top of that,
@@ -716,6 +715,40 @@ def create_python_environment(
         env.docker.base_image = docker_base_image
     return env
 
+
+def upload_wheel_to_workspace(workspace: Workspace, private_pip_wheel_path: Path) -> str:
+    """
+    Uploads a wheel file to the AzureML workspace, and returns the URL of the uploaded file with a SAS token.
+
+    :param workspace: The AzureML workspace to use.
+    :param private_pip_wheel_path: The path to the wheel file to upload.
+    :return: The URL of the uploaded wheel file with a SAS token.
+    """
+    datastore = workspace.datastores["workspaceblobstore"]
+    account_name = datastore.account_name
+    container_name = datastore.container_name
+    account_url = f"{datastore.protocol}://{account_name}.blob.{datastore.endpoint}/"
+    blob_client = BlobServiceClient(account_url=account_url, credential=get_credential())
+    delegation_key = blob_client.get_user_delegation_key(
+                            self.start_time, self.expiry_time, timeout=5
+                        )
+    container_client = blob_client.get_container_client(container_name)
+    full_path = "private_pip_wheels/{private_pip_wheel_path.name}"
+    container_client.upload_blob(full_path, private_pip_wheel_path)
+    url = f"{account_url}{container_name}/{full_path}"
+    expiry = today + timedelta(days=1) set to hour23
+    sas: str = generate_blob_sas(
+                    account_name=account_name,
+                    container_name=container_name,
+                    blob_name=str(full_file_path),
+                    user_delegation_key=delegation_key,
+                    permission="rl",
+                    start=self.start_time,
+                    expiry=self.expiry_time,
+                )
+    url_with_sas = full_url + "?" + sas    # Upload the wheel to the workspace
+    logger.info(f"Uploading private wheel {private_pip_wheel_path} to AzureML workspace.")
+    whl_url = workspace.datasets.upload_files([str(private_pip_wheel_path)], target_path="private_pip_wheels")
 
 def register_environment(workspace: Workspace, environment: Environment) -> Environment:
     """
