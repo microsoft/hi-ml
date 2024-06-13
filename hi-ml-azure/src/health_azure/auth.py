@@ -13,7 +13,7 @@ from azure.core.credentials import TokenCredential
 from azure.identity import (
     ClientSecretCredential,
     DeviceCodeCredential,
-    DefaultAzureCredential,
+    AzureCliCredential,
     InteractiveBrowserCredential,
 )
 
@@ -146,13 +146,13 @@ def _get_legitimate_device_code_credential() -> Optional[TokenCredential]:
         return None
 
 
-def _get_legitimate_default_credential() -> Optional[TokenCredential]:
+def _get_legitimate_cli_credential() -> Optional[TokenCredential]:
     """
-    Create a DefaultAzure credential for interacting with Azure resources and validates it.
+    Create an AzureCli credential for interacting with Azure resources and validates it.
 
     :return: A valid Azure credential.
     """
-    cred = DefaultAzureCredential(timeout=60)
+    cred = AzureCliCredential(timeout=60)
     _validate_credential(cred)
     return cred
 
@@ -196,7 +196,7 @@ def get_credential() -> Optional[TokenCredential]:
         return _get_legitimate_service_principal_credential(tenant_id, service_principal_id, service_principal_password)
 
     try:
-        cred = _get_legitimate_default_credential()
+        cred = _get_legitimate_cli_credential()
         if cred is not None:
             return cred
     except ClientAuthenticationError:

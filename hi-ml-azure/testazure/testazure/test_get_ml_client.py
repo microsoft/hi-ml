@@ -11,14 +11,14 @@ from unittest.mock import DEFAULT, MagicMock, patch
 
 import pytest
 from azure.core.exceptions import ClientAuthenticationError
-from azure.identity import ClientSecretCredential, DefaultAzureCredential, DeviceCodeCredential
+from azure.identity import ClientSecretCredential, AzureCliCredential, DeviceCodeCredential
 
 from health_azure.auth import (
     get_credential,
     ENV_SERVICE_PRINCIPAL_ID,
     ENV_SERVICE_PRINCIPAL_PASSWORD,
     ENV_TENANT_ID,
-    _get_legitimate_default_credential,
+    _get_legitimate_cli_credential,
     _get_legitimate_device_code_credential,
     _get_legitimate_service_principal_credential,
 )
@@ -62,7 +62,7 @@ def test_get_credential() -> None:
                 mocks["_get_legitimate_interactive_browser_credential"].assert_not_called()
 
         # if the environment variables are not set and we are running on a local machine, a
-        # DefaultAzureCredential should be attempted first
+        # AzureCliCredential should be attempted first
         with patch.object(os.environ, "get", return_value={}):
             with patch.multiple(
                 "health_azure.auth",
@@ -148,20 +148,20 @@ def test_get_legitimate_device_code_credential() -> None:
 @pytest.mark.fast
 @pytest.mark.skip(reason="Default azure credential are now the default in CI, and test hence fails")
 def test_get_legitimate_default_credential_fails() -> None:
-    def _mock_credential_fast_timeout(timeout: int) -> DefaultAzureCredential:
-        return DefaultAzureCredential(timeout=1)
+    def _mock_credential_fast_timeout(timeout: int) -> AzureCliCredential:
+        return AzureCliCredential(timeout=1)
 
-    with patch("health_azure.auth.DefaultAzureCredential", new=_mock_credential_fast_timeout):
-        exception_message = r"DefaultAzureCredential failed to retrieve a token from the included credentials."
+    with patch("health_azure.auth.AzureCliCredential", new=_mock_credential_fast_timeout):
+        exception_message = r"AzureCliCredential failed to retrieve a token from the included credentials."
         with pytest.raises(ClientAuthenticationError, match=exception_message):
-            _get_legitimate_default_credential()
+            _get_legitimate_cli_credential()
 
 
 @pytest.mark.fast
 def test_get_legitimate_default_credential() -> None:
     with patch("health_azure.auth._validate_credential"):
-        cred = _get_legitimate_default_credential()
-        assert isinstance(cred, DefaultAzureCredential)
+        cred = _get_legitimate_cli_credential()
+        assert isinstance(cred, AzureCliCredential)
 
 
 @pytest.mark.fast
