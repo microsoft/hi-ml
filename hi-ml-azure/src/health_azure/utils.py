@@ -16,6 +16,7 @@ import tempfile
 import time
 from collections import defaultdict
 from contextlib import contextmanager
+from datetime import datetime, timedelta
 from enum import Enum
 from itertools import islice
 from pathlib import Path
@@ -719,6 +720,7 @@ def create_python_environment(
 def upload_wheel_to_workspace(workspace: Workspace, private_pip_wheel_path: Path) -> str:
     """
     Uploads a wheel file to the AzureML workspace, and returns the URL of the uploaded file with a SAS token.
+    The SAS token is signed with a user delegation key, which should work also if storage account access keys.
 
     :param workspace: The AzureML workspace to use.
     :param private_pip_wheel_path: The path to the wheel file to upload.
@@ -729,26 +731,27 @@ def upload_wheel_to_workspace(workspace: Workspace, private_pip_wheel_path: Path
     container_name = datastore.container_name
     account_url = f"{datastore.protocol}://{account_name}.blob.{datastore.endpoint}/"
     blob_client = BlobServiceClient(account_url=account_url, credential=get_credential())
-    delegation_key = blob_client.get_user_delegation_key(
-                            self.start_time, self.expiry_time, timeout=5
-                        )
+    start_time = datetime.now()
+    # Set the expiry time to the end of the day, so that we do not get different SAS tokens for each
+    # upload, which could in turn trigger multiple AML image builds.
+    expiry_time = start_time + timedelta(hours=1)
+    expiry_time = expiry_time.replace(hour=23, minute=59, second=59, microsecond=0)
+    delegation_key = blob_client.get_user_delegation_key(start_time, expiry_time, timeout=5)
     container_client = blob_client.get_container_client(container_name)
-    full_path = "private_pip_wheels/{private_pip_wheel_path.name}"
-    container_client.upload_blob(full_path, private_pip_wheel_path)
-    url = f"{account_url}{container_name}/{full_path}"
-    expiry = today + timedelta(days=1) set to hour23
-    sas: str = generate_blob_sas(
-                    account_name=account_name,
-                    container_name=container_name,
-                    blob_name=str(full_file_path),
-                    user_delegation_key=delegation_key,
-                    permission="rl",
-                    start=self.start_time,
-                    expiry=self.expiry_time,
-                )
-    url_with_sas = full_url + "?" + sas    # Upload the wheel to the workspace
+    full_path = f"private_pip_wheels/{private_pip_wheel_path.name}"
     logger.info(f"Uploading private wheel {private_pip_wheel_path} to AzureML workspace.")
-    whl_url = workspace.datasets.upload_files([str(private_pip_wheel_path)], target_path="private_pip_wheels")
+    blob = container_client.upload_blob(full_path, str(private_pip_wheel_path), overwrite=True)
+    sas: str = generate_blob_sas(
+        account_name=account_name,
+        container_name=container_name,
+        blob_name=blob.blob_name,
+        user_delegation_key=delegation_key,
+        permission=BlobSasPermissions(read=True),
+        start=start_time,
+        expiry=expiry_time,
+    )
+    return blob.url + "?" + sas
+
 
 def register_environment(workspace: Workspace, environment: Environment) -> Environment:
     """
