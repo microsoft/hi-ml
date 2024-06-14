@@ -52,13 +52,13 @@ def test_get_credential() -> None:
                 "health_azure.auth",
                 _get_legitimate_service_principal_credential=DEFAULT,
                 _get_legitimate_device_code_credential=DEFAULT,
-                _get_legitimate_default_credential=DEFAULT,
+                _get_legitimate_cli_credential=DEFAULT,
                 _get_legitimate_interactive_browser_credential=DEFAULT,
             ) as mocks:
                 _ = get_credential()
                 mocks["_get_legitimate_service_principal_credential"].assert_called_once()
                 mocks["_get_legitimate_device_code_credential"].assert_not_called()
-                mocks["_get_legitimate_default_credential"].assert_not_called()
+                mocks["_get_legitimate_cli_credential"].assert_not_called()
                 mocks["_get_legitimate_interactive_browser_credential"].assert_not_called()
 
         # if the environment variables are not set and we are running on a local machine, a
@@ -68,12 +68,12 @@ def test_get_credential() -> None:
                 "health_azure.auth",
                 _get_legitimate_service_principal_credential=DEFAULT,
                 _get_legitimate_device_code_credential=DEFAULT,
-                _get_legitimate_default_credential=DEFAULT,
+                _get_legitimate_cli_credential=DEFAULT,
                 _get_legitimate_interactive_browser_credential=DEFAULT,
             ) as mocks:
                 mock_get_sp_cred = mocks["_get_legitimate_service_principal_credential"]
                 mock_get_device_cred = mocks["_get_legitimate_device_code_credential"]
-                mock_get_default_cred = mocks["_get_legitimate_default_credential"]
+                mock_get_default_cred = mocks["_get_legitimate_cli_credential"]
                 mock_get_browser_cred = mocks["_get_legitimate_interactive_browser_credential"]
                 _ = get_credential()
                 mock_get_sp_cred.assert_not_called()
