@@ -152,7 +152,7 @@ def _get_legitimate_cli_credential() -> Optional[TokenCredential]:
 
     :return: A valid Azure credential.
     """
-    cred = AzureCliCredential(timeout=60)
+    cred = AzureCliCredential()
     _validate_credential(cred)
     return cred
 
