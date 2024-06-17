@@ -1252,7 +1252,7 @@ def _assert_hello_world_files_exist(folder: Path) -> None:
     }
 
 
-@pytest.skip("This test no longer works when datastores do not store credentials")
+@pytest.mark.skip("This test no longer works when datastores do not store credentials")
 @pytest.mark.timeout(120)
 def test_mounting_and_downloading_dataset(tmp_path: Path) -> None:
     logging.info("creating config.json")
@@ -1325,7 +1325,7 @@ class TestOutputDataset:
     folder_name: Optional[Path] = None
 
 
-@pytest.skip("This test no longer works when datastores do not store credentials")
+@pytest.mark.skip("This test no longer works when datastores do not store credentials")
 @pytest.mark.parametrize(
     ["run_target", "local_folder", "strictly_aml_v1"],
     [
