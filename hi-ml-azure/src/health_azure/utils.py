@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import re
+import requests
 import shutil
 import sys
 import tempfile
@@ -19,7 +20,7 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta
 from enum import Enum
 from itertools import islice
-from pathlib import Path
+from pathlib import Path, PosixPath
 from typing import (
     Any,
     DefaultDict,
@@ -689,7 +690,7 @@ def create_python_environment(
             raise FileNotFoundError(f"Cannot add private wheel: {private_pip_wheel_path} is not a file.")
         if workspace is None:
             raise ValueError("To use a private pip wheel, an AzureML workspace must be provided.")
-        whl_url = upload_wheel_to_workspace(workspace, private_pip_wheel_path)
+        whl_url = upload_file_to_workspace_storage(workspace, private_pip_wheel_path)
         conda_dependencies.add_pip_package(whl_url)
         logger.info(f"Added add_private_pip_wheel {private_pip_wheel_path} to AzureML environment.")
     # Create a name for the environment that will likely uniquely identify it. AzureML does hashing on top of that,
@@ -717,13 +718,18 @@ def create_python_environment(
     return env
 
 
-def upload_wheel_to_workspace(workspace: Workspace, private_pip_wheel_path: Path) -> str:
+def upload_file_to_workspace_storage(
+        workspace: Workspace,
+        file: Path,
+        folder_in_storage: str = "private_pip_wheels"
+    ) -> str:
     """
-    Uploads a wheel file to the AzureML workspace, and returns the URL of the uploaded file with a SAS token.
+    Uploads a file to the AzureML workspace, and returns the URL of the uploaded file with a SAS token.
     The SAS token is signed with a user delegation key, which should work also if storage account access keys.
 
     :param workspace: The AzureML workspace to use.
-    :param private_pip_wheel_path: The path to the wheel file to upload.
+    :param file: The path to the file to upload.
+
     :return: The URL of the uploaded wheel file with a SAS token.
     """
     datastore = workspace.datastores["workspaceblobstore"]
@@ -738,9 +744,9 @@ def upload_wheel_to_workspace(workspace: Workspace, private_pip_wheel_path: Path
     expiry_time = expiry_time.replace(hour=23, minute=59, second=59, microsecond=0)
     delegation_key = blob_client.get_user_delegation_key(start_time, expiry_time, timeout=5)
     container_client = blob_client.get_container_client(container_name)
-    full_path = f"private_pip_wheels/{private_pip_wheel_path.name}"
-    logger.info(f"Uploading private wheel {private_pip_wheel_path} to AzureML workspace.")
-    blob = container_client.upload_blob(full_path, str(private_pip_wheel_path), overwrite=True)
+    full_path = PosixPath(folder_in_storage) / file.name
+    logger.info(f"Uploading file {file} to AzureML workspace.")
+    blob = container_client.upload_blob(str(full_path), str(file), overwrite=True)
     sas: str = generate_blob_sas(
         account_name=account_name,
         container_name=container_name,
@@ -750,7 +756,21 @@ def upload_wheel_to_workspace(workspace: Workspace, private_pip_wheel_path: Path
         start=start_time,
         expiry=expiry_time,
     )
-    return blob.url + "?" + sas
+    full_url = blob.url + "?" + sas
+    check_if_file_can_be_downloaded(full_url)
+    return full_url
+
+
+def check_if_file_can_be_downloaded(url: str) -> None:
+    """Check if a URL is valid and a file can be downloaded from it, without doing the actual download.
+    If the file can be correctly downloaded, return, otherwise raise a ValueError.
+
+    :param url: The URL to check
+    :raises ValueError: If the argument does not point to a URL that can be correctly downloaded.
+    """
+    response = requests.head(url, allow_redirects=True, timeout=10)
+    if response.status_code != 200:
+        raise ValueError(f"Invalid URL: HTTP status code {response.status_code} when retrieving {url}")
 
 
 def register_environment(workspace: Workspace, environment: Environment) -> Environment:

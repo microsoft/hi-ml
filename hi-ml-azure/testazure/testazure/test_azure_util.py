@@ -10,6 +10,7 @@ import logging
 import os
 import sys
 import time
+import requests
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional, Union
 from unittest import mock
@@ -44,6 +45,7 @@ from health_azure.utils import (
     resolve_workspace_config_path,
     sanitize_snapshoot_directory,
     sanitize_entry_script,
+    upload_file_to_workspace_storage,
 )
 from testazure.test_himl import RunTarget, render_and_run_test_script
 from testazure.utils_testazure import (
@@ -2184,3 +2186,14 @@ def test_sanitize_entry_script(tmp_path: Path) -> None:
     # Error case: Entry script is not in the snapshot
     with pytest.raises(ValueError, match="entry script must be inside of the snapshot root"):
         assert sanitize_entry_script(script_with_folder, tmp_path / "other_folder")
+
+
+def test_upload_wheel(tmp_path: Path) -> None:
+    """Test uploading a wheel file to workspace blob storage"""
+    # Write a random file that will be uploaded
+    random_file_name = tmp_path / uuid4().hex
+    random_file_name.write_text("mock content")
+    workspace = DEFAULT_WORKSPACE.workspace
+    # We only need to call the upload function, it automatically checks if the resulting URL can
+    # be used for downloading
+    upload_file_to_workspace_storage(workspace, random_file_name, folder_in_storage="unit_test_uploads")
