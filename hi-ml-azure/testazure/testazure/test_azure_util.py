@@ -607,17 +607,19 @@ dependencies:
     )
     assert env.docker.base_image == docker_base_image
 
-    private_pip_wheel_url = "https://some.blob/private/wheel"
-    with mock.patch("health_azure.utils.Environment") as mock_environment:
-        mock_environment.add_private_pip_wheel.return_value = private_pip_wheel_url
+    mock_sas_url = "https://some.blob/sas"
+    random_file = random_folder / "some_file.txt"
+    random_file.touch()
+    with mock.patch("health_azure.utils.upload_file_to_workspace_storage", return_value=mock_sas_url) as mock_upload:
         env = util.create_python_environment(
             conda_environment_file=conda_environment_file,
             workspace=mock_workspace,
-            private_pip_wheel_path=Path(__file__),
+            private_pip_wheel_path=random_file,
         )
+        mock_upload.assert_called_once_with(mock_workspace, random_file)
     envs_pip_packages = list(env.python.conda_dependencies.pip_packages)
     assert "hi-ml-azure" in envs_pip_packages
-    assert private_pip_wheel_url in envs_pip_packages
+    assert mock_sas_url in envs_pip_packages
 
 
 @patch("health_azure.utils.Workspace")
