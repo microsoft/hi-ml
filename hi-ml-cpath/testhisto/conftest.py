@@ -67,7 +67,7 @@ def tmp_path_to_pathmnist_dataset(tmp_path_factory: pytest.TempPathFactory) -> G
     from testhisto.mocks.base_data_generator import MockHistoDataType
 
     if is_running_in_azure_ml():
-        expected_file = Path("/datasets/PathMNIST.npz")
+        expected_file = Path("/pathmnist/pathmnist.npz")
     else:
         expected_file = Path("/datasetdrive/himlstoragef191c40dff524/datasets/UI/04-19-2022_025955_UTC/pathmnist.npz")
     if not expected_file.exists():

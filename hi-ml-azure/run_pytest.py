@@ -78,8 +78,8 @@ class RunPytestConfig(param.Parameterized):
     strictly_aml_v1: bool = param.Boolean(
         default=True, doc="If True (default), use AzureML v1 SDK. If False, use the v2 of the SDK"
     )
-    mount_pathmnist_dataset: bool = param.Boolean(
-        default=False, doc="If True, make the PathMNIST dataset available in the AML run (for the cpath test suite)"
+    mount_cpath_datasets: bool = param.Boolean(
+        default=False, doc="If True, mount the datasets required for the cpath folder (PathMNIST and PANDA)"
     )
 
 
@@ -182,8 +182,11 @@ if __name__ == "__main__":
         add_to_sys_path(himl_root / config.add_to_sys_path)
     logging_to_stdout()
     submit_to_azureml = config.cluster != ""
-    if config.mount_pathmnist_dataset:
-        input_datasets = [DatasetConfig(name="PathMNIST", target_folder="/datasets/")]
+    if config.mount_cpath_datasets:
+        input_datasets = [
+            DatasetConfig(name="PathMNIST", target_folder="/pathmnist/"),
+            DatasetConfig(name="panda", target_folder="/panda/"),
+        ]
     else:
         input_datasets = []
     if submit_to_azureml and not is_running_in_azure_ml():
