@@ -719,10 +719,8 @@ def create_python_environment(
 
 
 def upload_file_to_workspace_storage(
-        workspace: Workspace,
-        file: Path,
-        folder_in_storage: str = "private_pip_wheels"
-    ) -> str:
+    workspace: Workspace, file: Path, folder_in_storage: str = "private_pip_wheels"
+) -> str:
     """
     Uploads a file to the AzureML workspace, and returns the URL of the uploaded file with a SAS token.
     The SAS token is signed with a user delegation key, which should work also if storage account access keys.
