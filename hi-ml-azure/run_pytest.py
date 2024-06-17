@@ -205,5 +205,8 @@ if __name__ == "__main__":
                 docker_shm_size="40g",
                 strictly_aml_v1=config.strictly_aml_v1,
             )
+    folder = Path("/datasets")
+    for file in folder.rglob("*"):
+        print(file)
     run_pytest(folder_to_test=config.folder, pytest_mark=config.mark, coverage_module=config.coverage_module)
     time.sleep(10)  # Give the AzureML job time to finish uploading the pytest result file.
