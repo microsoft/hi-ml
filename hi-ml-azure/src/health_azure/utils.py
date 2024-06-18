@@ -17,7 +17,7 @@ import tempfile
 import time
 from collections import defaultdict
 from contextlib import contextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from itertools import islice
 from pathlib import Path, PosixPath
@@ -735,7 +735,7 @@ def upload_file_to_workspace_storage(
     container_name = datastore.container_name
     account_url = f"{datastore.protocol}://{account_name}.blob.{datastore.endpoint}/"
     blob_client = BlobServiceClient(account_url=account_url, credential=get_credential())
-    start_time = datetime.now()
+    start_time = datetime.now(tz=timezone.utc)
     # Set the expiry time to the end of the day, so that we do not get different SAS tokens for each
     # upload, which could in turn trigger multiple AML image builds.
     expiry_time = start_time + timedelta(hours=1)
