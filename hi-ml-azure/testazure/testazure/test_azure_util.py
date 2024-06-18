@@ -2193,9 +2193,17 @@ def test_sanitize_entry_script(tmp_path: Path) -> None:
 def test_upload_wheel(tmp_path: Path) -> None:
     """Test uploading a wheel file to workspace blob storage"""
     # Write a random file that will be uploaded
+    file_contents = "mock content"
     random_file_name = tmp_path / uuid4().hex
-    random_file_name.write_text("mock content")
+    random_file_name.write_text(file_contents)
     workspace = DEFAULT_WORKSPACE.workspace
     # We only need to call the upload function, it automatically checks if the resulting URL can
     # be used for downloading
-    upload_file_to_workspace_storage(workspace, random_file_name, folder_in_storage="unit_test_uploads")
+    url = upload_file_to_workspace_storage(workspace, random_file_name, folder_in_storage="unit_test_uploads")
+    # Download the file, check if the contents are the same
+    downloaded_file = tmp_path / "downloaded_file"
+
+    response = requests.get(url, stream=True)
+    response.raise_for_status()
+    downloaded_file.write_bytes(response.content)
+    assert downloaded_file.read_text() == file_contents, "Downloaded file content is incorrect"
