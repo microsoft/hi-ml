@@ -736,16 +736,20 @@ def upload_file_to_workspace_storage(
     account_name = datastore.account_name
     container_name = datastore.container_name
     account_url = f"{datastore.protocol}://{account_name}.blob.{datastore.endpoint}/"
+    logger.info("Creating a BlobServiceClient to upload the file.")
     blob_client = BlobServiceClient(account_url=account_url, credential=get_credential())
     start_time = datetime.now(tz=timezone.utc)
     # Set the expiry time to the end of the day, so that we do not get different SAS tokens for each
     # upload, which could in turn trigger multiple AML image builds.
     expiry_time = start_time + timedelta(hours=1)
     expiry_time = expiry_time.replace(hour=23, minute=59, second=59, microsecond=0)
+    logger.info("Creating a user delegation key")
     delegation_key = blob_client.get_user_delegation_key(start_time, expiry_time, timeout=5)
     container_client = blob_client.get_container_client(container_name)
     full_path = PosixPath(folder_in_storage) / file.name
+    logger.info("Uploading the file to workspace blob storage.")
     blob = container_client.upload_blob(str(full_path), str(file), overwrite=True)
+    logger.info(f"Generating SAS token for blob {blob.blob_name}")
     sas: str = generate_blob_sas(
         account_name=account_name,
         container_name=container_name,
@@ -757,9 +761,9 @@ def upload_file_to_workspace_storage(
     )
     logger.info(f"Uploaded file {file} to account {account_name} container {container_name} at path {blob.blob_name}")
     full_url = blob.url + "?" + sas
-    print(f"Blob: {blob.blob_name}")
-    print(f"Start of SAS: {sas[:13]}")
-    print(f"End of SAS: {sas[-60:]}")
+    logger.info(f"Blob: {blob.blob_name}")
+    logger.info(f"Start of SAS: {sas[:13]}")
+    logger.info(f"End of SAS: {sas[-60:]}")
     check_if_file_can_be_downloaded(full_url)
     return full_url
 
