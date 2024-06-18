@@ -1222,12 +1222,12 @@ def test_download_file_from_run_remote(tmp_path: Path) -> None:
     )
 
 
-@pytest.mark.fast
 def test_download_run_file_during_run(tmp_path: Path) -> None:
     """
     Test if we can download files from a run, when executing inside AzureML. This should not require any additional
     information about the workspace to use, but pick up the current workspace.
     """
+    print("This is a test to see if stdout is showing")
     # Create a run that contains a simple txt file
     experiment_name = effective_experiment_name("himl-tests")
     run_to_download_from = util.create_aml_run_object(
