@@ -1222,6 +1222,7 @@ def test_download_file_from_run_remote(tmp_path: Path) -> None:
     )
 
 
+@pytest.mark.fast
 def test_download_run_file_during_run(tmp_path: Path) -> None:
     """
     Test if we can download files from a run, when executing inside AzureML. This should not require any additional

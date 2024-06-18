@@ -743,14 +743,14 @@ def upload_file_to_workspace_storage(
     # upload, which could in turn trigger multiple AML image builds.
     expiry_time = start_time + timedelta(hours=1)
     expiry_time = expiry_time.replace(hour=23, minute=59, second=59, microsecond=0)
-    logger.debug("Creating a user delegation key")
+    print("Creating a user delegation key")
     delegation_key = blob_service_client.get_user_delegation_key(key_start_time=start_time, key_expiry_time=expiry_time)
     container_client = blob_service_client.get_container_client(container_name)
     full_path = PosixPath(folder_in_storage) / file.name
-    logger.debug("Uploading the file to workspace blob storage.")
+    print("Uploading the file to workspace blob storage.")
     with file.open("rb") as f:
         blob_client = container_client.upload_blob(str(full_path), f, overwrite=True)
-    logger.debug(f"Generating SAS token for blob {blob_client.blob_name}")
+    print(f"Generating SAS token for blob {blob_client.blob_name}")
     sas: str = generate_blob_sas(
         account_name=blob_client.account_name,
         container_name=blob_client.container_name,
@@ -762,11 +762,11 @@ def upload_file_to_workspace_storage(
     )
     if "skoid=" not in sas:
         raise ValueError("The SAS token does not contain the skoid parameter, which indicates user delegation keys.")
-    logger.info(f"Uploaded file {file} to account {account_name} container {container_name} at {blob_client.blob_name}")
+    print(f"Uploaded file {file} to account {account_name} container {container_name} at {blob_client.blob_name}")
     full_url = blob_client.url + "?" + sas
-    logger.info(f"Blob: {blob_client.blob_name}")
-    logger.info(f"Start of SAS: {sas[:13]}")
-    logger.info(f"End of SAS: {sas[-60:]}")
+    print(f"Blob: {blob_client.blob_name}")
+    print(f"Start of SAS: {sas[:13]}")
+    print(f"End of SAS: {sas[-60:]}")
     check_if_file_can_be_downloaded(full_url)
     return full_url
 
