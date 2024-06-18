@@ -690,9 +690,9 @@ def create_python_environment(
             raise FileNotFoundError(f"Cannot add private wheel: {private_pip_wheel_path} is not a file.")
         if workspace is None:
             raise ValueError("To use a private pip wheel, an AzureML workspace must be provided.")
-        whl_url = upload_file_to_workspace_storage(workspace, private_pip_wheel_path)
+        whl_url = upload_file_to_workspace_storage(workspace, file=private_pip_wheel_path)
         conda_dependencies.add_pip_package(whl_url)
-        logger.info(f"Added add_private_pip_wheel {private_pip_wheel_path} to AzureML environment.")
+        logger.info(f"Added private wheel {private_pip_wheel_path.name} to AzureML environment.")
     # Create a name for the environment that will likely uniquely identify it. AzureML does hashing on top of that,
     # and will re-use existing environments even if they don't have the same name.
     env_description_string = "\n".join(
@@ -723,10 +723,12 @@ def upload_file_to_workspace_storage(
 ) -> str:
     """
     Uploads a file to the AzureML workspace, and returns the URL of the uploaded file with a SAS token.
-    The SAS token is signed with a user delegation key, which should work also if storage account access keys.
+    The SAS token is signed with a user delegation key, which should work also if storage account access keys are
+    disabled.
 
     :param workspace: The AzureML workspace to use.
     :param file: The path to the file to upload.
+    :param folder_in_storage: The folder in the workspace blob storage to upload the file to.
 
     :return: The URL of the uploaded wheel file with a SAS token.
     """
@@ -743,7 +745,6 @@ def upload_file_to_workspace_storage(
     delegation_key = blob_client.get_user_delegation_key(start_time, expiry_time, timeout=5)
     container_client = blob_client.get_container_client(container_name)
     full_path = PosixPath(folder_in_storage) / file.name
-    logger.info(f"Uploading file {file} to AzureML workspace.")
     blob = container_client.upload_blob(str(full_path), str(file), overwrite=True)
     sas: str = generate_blob_sas(
         account_name=account_name,
@@ -754,7 +755,11 @@ def upload_file_to_workspace_storage(
         start=start_time,
         expiry=expiry_time,
     )
+    logger.info(f"Uploaded file {file} to account {account_name} container {container_name} at path {blob.blob_name}")
     full_url = blob.url + "?" + sas
+    print(f"Blob: {blob.blob_name}")
+    print(f"Start of SAS: {sas[:13]}")
+    print(f"End of SAS: {sas[-60:]}")
     check_if_file_can_be_downloaded(full_url)
     return full_url
 
