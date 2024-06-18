@@ -616,7 +616,7 @@ dependencies:
             workspace=mock_workspace,
             private_pip_wheel_path=random_file,
         )
-        mock_upload.assert_called_once_with(mock_workspace, random_file)
+        mock_upload.assert_called_once_with(mock_workspace, file=random_file)
     envs_pip_packages = list(env.python.conda_dependencies.pip_packages)
     assert "hi-ml-azure" in envs_pip_packages
     assert mock_sas_url in envs_pip_packages
