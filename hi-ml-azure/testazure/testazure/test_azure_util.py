@@ -691,14 +691,14 @@ dependencies:
     assert env5.name != env2.name
 
     # PIP wheel
-    with mock.patch("health_azure.utils.Environment") as mock_environment:
-        mock_environment.add_private_pip_wheel.return_value = "private_pip_wheel_url"
+    with mock.patch("health_azure.utils.upload_file_to_workspace_storage", return_value="wheel_url") as mock_upload
         env6 = util.create_python_environment(
             conda_environment_file=conda_environment_file,
             workspace=DEFAULT_WORKSPACE.workspace,
             private_pip_wheel_path=Path(__file__),
         )
         assert env6.name != env2.name
+        mock_upload.assert_called_once()
 
     all_names = [env1.name, env2.name, env3.name, env5.name, env6.name]
     all_names_set = {*all_names}
