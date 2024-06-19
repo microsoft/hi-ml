@@ -734,7 +734,7 @@ def upload_file_to_workspace_storage(
     """
     datastore = workspace.datastores["workspaceblobstore"]
     account_name = datastore.account_name
-    container_name = "antontestwheels"
+    container_name = datastore.container_name
     account_url = f"{datastore.protocol}://{account_name}.blob.{datastore.endpoint}/"
     logger.debug("Creating a BlobServiceClient to upload the file.")
     blob_service_client = BlobServiceClient(account_url=account_url, credential=get_credential())
