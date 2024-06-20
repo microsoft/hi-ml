@@ -691,7 +691,7 @@ dependencies:
     assert env5.name != env2.name
 
     # PIP wheel
-    with mock.patch("health_azure.utils.upload_file_to_workspace_storage", return_value="wheel_url") as mock_upload
+    with mock.patch("health_azure.utils.upload_file_to_workspace_storage", return_value="wheel_url") as mock_upload:
         env6 = util.create_python_environment(
             conda_environment_file=conda_environment_file,
             workspace=DEFAULT_WORKSPACE.workspace,
