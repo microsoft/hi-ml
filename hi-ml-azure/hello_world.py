@@ -43,7 +43,7 @@ def main() -> None:
         workspace_config_file=himl_azure_root/"config.json",
         snapshot_root_directory=himl_azure_root,
     )
-    print("Hello Chris!")
+    print("Hello Chris! This is your first successful AzureML run :-)")
 
 
 if __name__ == "__main__":
