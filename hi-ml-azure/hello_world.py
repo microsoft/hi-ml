@@ -40,7 +40,7 @@ def main() -> None:
         compute_cluster_name=args.cluster,
         strictly_aml_v1=True,
         submit_to_azureml=True,
-        workspace_config_file=himl_azure_root/"config.json",
+        workspace_config_file=himl_azure_root / "config.json",
         snapshot_root_directory=himl_azure_root,
     )
     print("Hello Chris! This is your first successful AzureML run :-)")
