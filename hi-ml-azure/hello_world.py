@@ -13,7 +13,6 @@ import sys
 from argparse import ArgumentParser
 
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 # Add hi-ml packages to sys.path so that AML can find them
 himl_azure_root = Path(__file__).resolve().parent
