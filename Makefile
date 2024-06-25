@@ -23,7 +23,7 @@ endef
 
 # pip upgrade
 pip_upgrade:
-	python -m pip install --upgrade pip
+	python -m pip install --upgrade "pip<24.1"
 
 # pip upgrade and install build requirements
 pip_build: pip_upgrade
