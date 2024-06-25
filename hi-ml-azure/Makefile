@@ -68,7 +68,7 @@ pytest:
 
 # run pytest fast subset on package, assuming test requirements already installed
 pytest_fast:
-	pytest -s -m fast testazure
+	pytest -m fast testazure
 
 # run pytest with coverage on package
 # Output the slowest tests via the --durations flag.

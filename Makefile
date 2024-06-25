@@ -21,7 +21,9 @@ endef
 
 ## Package management
 
-# pip upgrade
+# pip upgrade.
+# As of PIP version 24.1, conditions like ">1.8.*" are no longer supported, but pytorch lightning
+# in the version we are using is still using this syntax. So we need to restrict the pip versions.
 pip_upgrade:
 	python -m pip install --upgrade "pip<24.1"
 
