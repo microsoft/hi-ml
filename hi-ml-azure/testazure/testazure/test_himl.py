@@ -970,7 +970,7 @@ def render_and_run_test_script(
     expected_pass: bool,
     suppress_config_creation: bool = False,
     upload_package: bool = True,
-    use_local_package: bool = False
+    use_local_package: bool = False,
 ) -> str:
     """
     Prepare test scripts, submit them, and return response.
