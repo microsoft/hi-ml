@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 from torch.utils.data import DataLoader, DistributedSampler, RandomSampler, SequentialSampler
 from pytorch_lightning.overrides.distributed import UnrepeatedDistributedSampler
 
-
+from health_azure.utils import is_running_in_azure_ml
 from health_cpath.datamodules.base_module import HistoDataModule
 from health_cpath.datamodules.panda_module import PandaSlidesDataModule, PandaTilesDataModule
 from health_cpath.utils.naming import ModelKey, SlideKey
@@ -151,6 +151,7 @@ def _test_datamodule_pl_replace_sampler_ddp(
 
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
 @pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
+@pytest.mark.skipif(is_running_in_azure_ml(), reason="This test appears to hang in AzureML")
 @pytest.mark.gpu
 def test_slides_datamodule_pl_replace_sampler_ddp(mock_panda_slides_root_dir: Path) -> None:
     slides_datamodule = PandaSlidesDataModule(
@@ -167,6 +168,7 @@ def test_slides_datamodule_pl_replace_sampler_ddp(mock_panda_slides_root_dir: Pa
 
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
 @pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
+@pytest.mark.skipif(is_running_in_azure_ml(), reason="This test appears to hang in AzureML")
 @pytest.mark.gpu
 def test_tiles_datamodule_pl_replace_sampler_ddp(mock_panda_tiles_root_dir: Path) -> None:
     tiles_datamodule = PandaTilesDataModule(root_path=mock_panda_tiles_root_dir, seed=42, pl_replace_sampler_ddp=True)

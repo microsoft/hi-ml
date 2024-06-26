@@ -8,8 +8,9 @@ from pathlib import Path
 
 from typing import Callable, List
 from unittest.mock import MagicMock, patch
-from health_cpath.configs.classification.BaseMIL import BaseMIL
 
+from health_azure.utils import is_running_in_azure_ml
+from health_cpath.configs.classification.BaseMIL import BaseMIL
 from health_cpath.utils.naming import ModelKey, ResultsKey
 from health_cpath.utils.callbacks import LossAnalysisCallback, LossCacheDictType
 from testhisto.mocks.container import MockDeepSMILETilesPanda
@@ -196,6 +197,7 @@ def test_on_train_and_val_epoch_end(
 
 
 @pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
+@pytest.mark.skipif(is_running_in_azure_ml(), reason="This test appears to hang in AzureML")
 @pytest.mark.gpu
 def test_on_train_epoch_end_distributed(tmp_path: Path) -> None:
     # Test that the loss cache is saved correctly when using multiple GPUs
