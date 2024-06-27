@@ -10,17 +10,15 @@ import json
 import logging
 import os
 import re
-import requests
 import shutil
 import sys
 import tempfile
 import time
 from collections import defaultdict
 from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
 from enum import Enum
 from itertools import islice
-from pathlib import Path, PosixPath
+from pathlib import Path
 from typing import (
     Any,
     DefaultDict,
@@ -50,7 +48,6 @@ from azure.ai.ml.entities import Job
 from azure.ai.ml.entities import Workspace as WorkspaceV2
 from azure.ai.ml.entities import Environment as EnvironmentV2
 from azure.core.exceptions import ResourceNotFoundError
-from azure.storage.blob import BlobSasPermissions, BlobServiceClient, UserDelegationKey, generate_blob_sas
 
 from health_azure.argparsing import EXPERIMENT_RUN_SEPARATOR, RunIdOrListParam, determine_run_id_type
 from health_azure.auth import get_authentication, get_credential, get_secret_from_environment
@@ -690,9 +687,11 @@ def create_python_environment(
             raise FileNotFoundError(f"Cannot add private wheel: {private_pip_wheel_path} is not a file.")
         if workspace is None:
             raise ValueError("To use a private pip wheel, an AzureML workspace must be provided.")
-        whl_url = upload_file_to_workspace_storage(workspace, file=private_pip_wheel_path)
+        whl_url = Environment.add_private_pip_wheel(
+            workspace=workspace, file_path=str(private_pip_wheel_path), exist_ok=True
+        )
         conda_dependencies.add_pip_package(whl_url)
-        logger.info(f"Added private wheel {private_pip_wheel_path.name} to AzureML environment.")
+        logger.info(f"Added add_private_pip_wheel {private_pip_wheel_path} to AzureML environment.")
     # Create a name for the environment that will likely uniquely identify it. AzureML does hashing on top of that,
     # and will re-use existing environments even if they don't have the same name.
     env_description_string = "\n".join(
@@ -716,68 +715,6 @@ def create_python_environment(
     if docker_base_image:
         env.docker.base_image = docker_base_image
     return env
-
-
-def upload_file_to_workspace_storage(
-    workspace: Workspace, file: Path, folder_in_storage: str = "private_pip_wheels"
-) -> str:
-    """
-    Uploads a file to the AzureML workspace, and returns the URL of the uploaded file with a SAS token.
-    The SAS token is signed with a user delegation key, which should work also if storage account access keys are
-    disabled.
-
-    :param workspace: The AzureML workspace to use.
-    :param file: The path to the file to upload.
-    :param folder_in_storage: The folder in the workspace blob storage to upload the file to.
-
-    :return: The URL of the uploaded wheel file with a SAS token.
-    """
-    datastore = workspace.datastores["workspaceblobstore"]
-    account_name = datastore.account_name
-    container_name = datastore.container_name
-    account_url = f"{datastore.protocol}://{account_name}.blob.{datastore.endpoint}/"
-    logger.debug("Creating a BlobServiceClient to upload the file.")
-    blob_service_client = BlobServiceClient(account_url=account_url, credential=get_credential())
-    start_time = datetime.now(tz=timezone.utc)
-    # Set the expiry time to the end of the day, so that we do not get different SAS tokens for each
-    # upload, which could in turn trigger multiple AML image builds.
-    expiry_time = start_time + timedelta(hours=1)
-    expiry_time = expiry_time.replace(hour=23, minute=59, second=59, microsecond=0)
-    logger.debug("Creating a user delegation key")
-    delegation_key = blob_service_client.get_user_delegation_key(key_start_time=start_time, key_expiry_time=expiry_time)
-    container_client = blob_service_client.get_container_client(container_name)
-    full_path = PosixPath(folder_in_storage) / file.name
-    logger.debug("Uploading the file to workspace blob storage.")
-    with file.open("rb") as f:
-        blob_client = container_client.upload_blob(str(full_path), f, overwrite=True)
-    logger.debug(f"Generating SAS token for blob {blob_client.blob_name}")
-    sas: str = generate_blob_sas(
-        account_name=blob_client.account_name,
-        container_name=blob_client.container_name,
-        blob_name=blob_client.blob_name,
-        user_delegation_key=delegation_key,
-        permission=BlobSasPermissions(read=True),
-        start=start_time,
-        expiry=expiry_time,
-    )
-    if "skoid=" not in sas:
-        raise ValueError("The SAS token does not contain the skoid parameter, which indicates user delegation keys.")
-    logger.info(f"Uploaded file {file} to account {account_name} container {container_name} at {blob_client.blob_name}")
-    full_url = blob_client.url + "?" + sas
-    check_if_file_can_be_downloaded(full_url)
-    return full_url
-
-
-def check_if_file_can_be_downloaded(url: str) -> None:
-    """Check if a URL is valid and a file can be downloaded from it, without doing the actual download.
-    If the file can be correctly downloaded, return, otherwise raise a ValueError.
-
-    :param url: The URL to check
-    :raises ValueError: If the argument does not point to a URL that can be correctly downloaded.
-    """
-    response = requests.head(url, allow_redirects=True, timeout=10)
-    if response.status_code != 200:
-        raise ValueError(f"Invalid URL: HTTP status code {response.status_code} when retrieving {url}")
 
 
 def register_environment(workspace: Workspace, environment: Environment) -> Environment:

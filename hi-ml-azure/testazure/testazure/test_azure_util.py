@@ -10,7 +10,6 @@ import logging
 import os
 import sys
 import time
-import requests
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional, Union
 from unittest import mock
@@ -45,7 +44,6 @@ from health_azure.utils import (
     resolve_workspace_config_path,
     sanitize_snapshoot_directory,
     sanitize_entry_script,
-    upload_file_to_workspace_storage,
 )
 from testazure.test_himl import RunTarget, render_and_run_test_script
 from testazure.utils_testazure import (
@@ -607,19 +605,17 @@ dependencies:
     )
     assert env.docker.base_image == docker_base_image
 
-    mock_sas_url = "https://some.blob/sas"
-    random_file = random_folder / "some_file.txt"
-    random_file.touch()
-    with mock.patch("health_azure.utils.upload_file_to_workspace_storage", return_value=mock_sas_url) as mock_upload:
+    private_pip_wheel_url = "https://some.blob/private/wheel"
+    with mock.patch("health_azure.utils.Environment") as mock_environment:
+        mock_environment.add_private_pip_wheel.return_value = private_pip_wheel_url
         env = util.create_python_environment(
             conda_environment_file=conda_environment_file,
             workspace=mock_workspace,
-            private_pip_wheel_path=random_file,
+            private_pip_wheel_path=Path(__file__),
         )
-        mock_upload.assert_called_once_with(mock_workspace, file=random_file)
     envs_pip_packages = list(env.python.conda_dependencies.pip_packages)
     assert "hi-ml-azure" in envs_pip_packages
-    assert mock_sas_url in envs_pip_packages
+    assert private_pip_wheel_url in envs_pip_packages
 
 
 @patch("health_azure.utils.Workspace")
@@ -691,14 +687,14 @@ dependencies:
     assert env5.name != env2.name
 
     # PIP wheel
-    with mock.patch("health_azure.utils.upload_file_to_workspace_storage", return_value="wheel_url") as mock_upload:
+    with mock.patch("health_azure.utils.Environment") as mock_environment:
+        mock_environment.add_private_pip_wheel.return_value = "private_pip_wheel_url"
         env6 = util.create_python_environment(
             conda_environment_file=conda_environment_file,
             workspace=DEFAULT_WORKSPACE.workspace,
             private_pip_wheel_path=Path(__file__),
         )
         assert env6.name != env2.name
-        mock_upload.assert_called_once()
 
     all_names = [env1.name, env2.name, env3.name, env5.name, env6.name]
     all_names_set = {*all_names}
@@ -1227,7 +1223,6 @@ def test_download_run_file_during_run(tmp_path: Path) -> None:
     Test if we can download files from a run, when executing inside AzureML. This should not require any additional
     information about the workspace to use, but pick up the current workspace.
     """
-    print("This is a test to see if stdout is showing")
     # Create a run that contains a simple txt file
     experiment_name = effective_experiment_name("himl-tests")
     run_to_download_from = util.create_aml_run_object(
@@ -1373,7 +1368,6 @@ def delete_blobs_in_datastore(datastore: AzureBlobDatastore, prefix: str) -> Non
 
 
 @pytest.mark.parametrize("overwrite", [True, False])
-@pytest.mark.skip(reason="This test no longer works because we removed access keys from the datastores")
 def test_download_from_datastore(tmp_path: Path, overwrite: bool) -> None:
     """
     Test that download_from_datastore successfully downloads file from Blob Storage.
@@ -1426,7 +1420,6 @@ def test_download_from_datastore(tmp_path: Path, overwrite: bool) -> None:
 
 
 @pytest.mark.parametrize("overwrite", [True, False])
-@pytest.mark.skip(reason="This test no longer works because we removed access keys from the datastores")
 def test_upload_to_datastore(tmp_path: Path, overwrite: bool) -> None:
     """
     Test that upload_to_datastore successfully uploads a file to Blob Storage.
@@ -2189,22 +2182,3 @@ def test_sanitize_entry_script(tmp_path: Path) -> None:
     # Error case: Entry script is not in the snapshot
     with pytest.raises(ValueError, match="entry script must be inside of the snapshot root"):
         assert sanitize_entry_script(script_with_folder, tmp_path / "other_folder")
-
-
-def test_upload_wheel(tmp_path: Path) -> None:
-    """Test uploading a wheel file to workspace blob storage"""
-    # Write a random file that will be uploaded
-    file_contents = "mock content"
-    random_file_name = tmp_path / uuid4().hex
-    random_file_name.write_text(file_contents)
-    workspace = DEFAULT_WORKSPACE.workspace
-    # We only need to call the upload function, it automatically checks if the resulting URL can
-    # be used for downloading
-    url = upload_file_to_workspace_storage(workspace, random_file_name, folder_in_storage="unit_test_uploads")
-    # Download the file, check if the contents are the same
-    downloaded_file = tmp_path / "downloaded_file"
-
-    response = requests.get(url, stream=True)
-    response.raise_for_status()
-    downloaded_file.write_bytes(response.content)
-    assert downloaded_file.read_text() == file_contents, "Downloaded file content is incorrect"
