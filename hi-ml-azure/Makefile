@@ -99,3 +99,6 @@ conda:
 	conda update -y -n base conda
 	conda install -y -n base conda-libmamba-solver
 	conda config --set solver libmamba
+
+env_openai_lock:
+	../create_and_lock_environment.sh primary_deps_openai.yml environment_openai.yml
