@@ -12,7 +12,7 @@ Invoke like this:
 import os
 import sys
 from argparse import ArgumentParser
-from typing import Callable
+from typing import Callable, Union
 from pathlib import Path
 from datetime import datetime
 
@@ -35,7 +35,7 @@ AZURE_COGNITIVE_SERVICES = "https://cognitiveservices.azure.com"
 
 ENV_AZUREML_IDENTITY_ID = "DEFAULT_IDENTITY_CLIENT_ID"
 
-def get_credential() -> AzureCliCredential | ManagedIdentityCredential:
+def get_credential() -> Union[AzureCliCredential, ManagedIdentityCredential]:
     """Get the appropriate Azure credential based on the environment. The credential is a managed identity when running
     in AzureML, otherwise Azure CLI credential."""
     if is_running_in_azure_ml():
