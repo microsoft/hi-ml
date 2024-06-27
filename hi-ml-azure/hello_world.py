@@ -70,19 +70,21 @@ def main() -> None:
         workspace_config_file=himl_azure_root / "config.json",
         snapshot_root_directory=himl_azure_root,
         input_datasets=input_datasets,
+        output_datasets=output_datasets,
         conda_environment_file=himl_azure_root / "environment_hello_world.yml",
     )
     print("Hello Chris! This is your first successful AzureML run :-)")
+    any_error = False
     if args.input_dataset:
         try:
             input_dataset = run_info.input_datasets[0]
             assert input_dataset is not None
-            print(f"Dataset {args.dataset} was mounted at {input_dataset}")
-            print("Files in the dataset:")
+            print("Files in dataset at {input_dataset}:")
             for file in input_dataset.glob("*"):
                 print(file)
         except Exception as e:
             print(f"Failed to read input dataset: {e}")
+            any_error = True
     else:
         print("No input dataset was specified.")
     if args.output_dataset:
@@ -94,6 +96,7 @@ def main() -> None:
             output_file.write_text(f"Calling all dentists, the private song group starts at {timestamp}!")
         except Exception as e:
             print(f"Failed to write output dataset: {e}")
+            any_error = True
     else:
         print("No output dataset was specified..")
     if args.openai_url and args.openai_model:
@@ -115,7 +118,10 @@ def main() -> None:
             print(f"Response from OpenAI: {content}")
         except Exception as e:
             print(f"Failed to connect to OpenAI: {e}")
-            raise
+            any_error = True
+
+    if any_error:
+        raise RuntimeError("There were errors during the run.")
 
 
 if __name__ == "__main__":
