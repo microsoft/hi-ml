@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function mount_container {
-  if (($# != 4)); then
+  if (($# != 5)); then
     echo "ERROR: bad arguments to mount_container()" >&2
     return 1
   fi
@@ -10,7 +10,8 @@ function mount_container {
   container_name="$2"
   permissions="$3"
   mount_base="$4"
-  mount_dir="$mount_base/$storage_account_name/$container_name/"
+  mount_folder="$5"
+  mount_dir="$mount_base/$mount_folder/$container_name/"
 
   blobfuse_config_file="$HOME/.blobfuse.$storage_account_name.$container_name"
 
