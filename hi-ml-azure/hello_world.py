@@ -101,7 +101,9 @@ def main() -> None:
             assert output_dataset is not None
             timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H%M%S")
             output_file = output_dataset / f"hello_world_{timestamp}.txt"
-            output_file.write_text(f"Calling all dentists, the private song group starts at {timestamp}!")
+            output_text = f"Calling all dentists, the private song group starts at {timestamp}!"
+            print(f"Writing to output file: {output_text}")
+            output_file.write_text(output_text)
         except Exception as e:
             print(f"Failed to write output dataset: {e}")
             any_error = True
