@@ -100,5 +100,8 @@ conda:
 	conda install -y -n base conda-libmamba-solver
 	conda config --set solver libmamba
 
-env_openai_lock:
-	../create_and_lock_environment.sh primary_deps_openai.yml environment_openai.yml
+env_hello_world_lock:
+	../create_and_lock_environment.sh primary_deps_hello_world.yml environment_hello_world.yml
+
+env_hello_world:
+	conda env create --file environment_hello_world.yml

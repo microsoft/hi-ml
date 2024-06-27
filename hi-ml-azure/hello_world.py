@@ -70,7 +70,7 @@ def main() -> None:
         workspace_config_file=himl_azure_root / "config.json",
         snapshot_root_directory=himl_azure_root,
         input_datasets=input_datasets,
-        conda_environment_file=himl_azure_root / "environment_openai.yml",
+        conda_environment_file=himl_azure_root / "environment_hello_world.yml",
     )
     print("Hello Chris! This is your first successful AzureML run :-)")
     if args.input_dataset:
