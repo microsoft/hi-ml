@@ -13,6 +13,7 @@ import sys
 from argparse import ArgumentParser
 from typing import Callable
 from pathlib import Path
+from datetime import datetime
 
 from azure.identity import get_bearer_token_provider
 import openai
@@ -52,36 +53,56 @@ def main() -> None:
     parser.add_argument("-c", "--cluster", type=str, required=True, help="The name of the compute cluster to run on")
     parser.add_argument("--openai_url", type=str, required=False, help="The URL of the OpenAI endpoint to use")
     parser.add_argument("--openai_model", type=str, required=False, help="The OpenAI deployment to use")
-    parser.add_argument("--dataset", type=str, required=False, help="The name of the dataset to mount and enumerate")
+    parser.add_argument("--input_dataset", type=str, required=False, help="The name of the input dataset to enumerate")
+    parser.add_argument("--output_dataset", type=str, required=False, help="The name of the output dataset")
     args = parser.parse_args()
     input_datasets: list[DatasetConfig] = []
-    DATASET_FOLDER = Path("/dataset")
-    if args.dataset:
-        input_datasets.append(DatasetConfig(name=args.dataset, target_folder=DATASET_FOLDER, use_mounting=True))
+    output_datasets: list[DatasetConfig] = []
+    if args.input_dataset:
+        input_datasets.append(DatasetConfig(name=args.input_dataset, use_mounting=True))
+    if args.output_dataset:
+        output_datasets.append(DatasetConfig(name=args.output_dataset, use_mounting=True))
     logging_to_stdout
-    # _ = submit_to_azure_if_needed(
-    #     compute_cluster_name=args.cluster,
-    #     strictly_aml_v1=True,
-    #     submit_to_azureml=True,
-    #     workspace_config_file=himl_azure_root / "config.json",
-    #     snapshot_root_directory=himl_azure_root,
-    #     input_datasets=input_datasets,
-    # )
+    run_info = submit_to_azure_if_needed(
+        compute_cluster_name=args.cluster,
+        strictly_aml_v1=True,
+        submit_to_azureml=True,
+        workspace_config_file=himl_azure_root / "config.json",
+        snapshot_root_directory=himl_azure_root,
+        input_datasets=input_datasets,
+        conda_environment_file=himl_azure_root / "environment_openai.yml",
+    )
     print("Hello Chris! This is your first successful AzureML run :-)")
-    if args.dataset:
-        print(f"Dataset {args.dataset} was mounted at {DATASET_FOLDER}")
-        print("Files in the dataset:")
-        for file in DATASET_FOLDER.glob("*"):
-            print(file)
-    else:
-        print("No dataset was mounted.")
-    if args.openai_url and args.openai_model:
-        print(f"OpenAI URL: {args.openai_url}")
-        token_provider = get_azure_token_provider()
-        openai.api_version = "2023-12-01-preview"
-        openai.azure_endpoint = args.openai_url
-        openai.azure_ad_token_provider = token_provider
+    if args.input_dataset:
         try:
+            input_dataset = run_info.input_datasets[0]
+            assert input_dataset is not None
+            print(f"Dataset {args.dataset} was mounted at {input_dataset}")
+            print("Files in the dataset:")
+            for file in input_dataset.glob("*"):
+                print(file)
+        except Exception as e:
+            print(f"Failed to read input dataset: {e}")
+    else:
+        print("No input dataset was specified.")
+    if args.output_dataset:
+        try:
+            output_dataset = run_info.output_datasets[0]
+            assert output_dataset is not None
+            timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H%M%S")
+            output_file = output_dataset / f"hello_world_{timestamp}.txt"
+            output_file.write_text(f"Calling all dentists, the private song group starts at {timestamp}!")
+        except Exception as e:
+            print(f"Failed to write output dataset: {e}")
+    else:
+        print("No output dataset was specified..")
+    if args.openai_url and args.openai_model:
+        try:
+            print(f"OpenAI URL: {args.openai_url}")
+            token_provider = get_azure_token_provider()
+            openai.api_version = "2023-12-01-preview"
+            openai.azure_endpoint = args.openai_url
+            openai.azure_ad_token_provider = token_provider
             prompt = "Write a 4 line poem using the words 'private', 'dentist', 'song' and 'group'. "
             print(f"Prompt: {prompt}")
             response = openai.chat.completions.create(
@@ -93,7 +114,7 @@ def main() -> None:
             content = response.choices[0].message.content
             print(f"Response from OpenAI: {content}")
         except Exception as e:
-            print(f"Failed to connect to openai: {e}")
+            print(f"Failed to connect to OpenAI: {e}")
             raise
 
 
