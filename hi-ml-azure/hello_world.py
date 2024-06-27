@@ -35,12 +35,14 @@ AZURE_COGNITIVE_SERVICES = "https://cognitiveservices.azure.com"
 
 ENV_AZUREML_IDENTITY_ID = "DEFAULT_IDENTITY_CLIENT_ID"
 
+
 def get_credential() -> Union[AzureCliCredential, ManagedIdentityCredential]:
     """Get the appropriate Azure credential based on the environment. The credential is a managed identity when running
     in AzureML, otherwise Azure CLI credential."""
     if is_running_in_azure_ml():
         return ManagedIdentityCredential(client_id=os.environ[ENV_AZUREML_IDENTITY_ID])
     return AzureCliCredential()
+
 
 def get_azure_token_provider() -> Callable[[], str]:
     """Get a token provider for Azure Cognitive Services. The bearer token provider gets authentication tokens and
