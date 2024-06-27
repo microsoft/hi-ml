@@ -9,13 +9,14 @@ Invoke like this:
     python hello_world.py --cluster <name_of_compute_cluster>
 
 """
+import os
 import sys
 from argparse import ArgumentParser
 from typing import Callable
 from pathlib import Path
 from datetime import datetime
 
-from azure.identity import get_bearer_token_provider
+from azure.identity import get_bearer_token_provider, AzureCliCredential, ManagedIdentityCredential
 import openai
 
 # Add hi-ml packages to sys.path so that AML can find them
@@ -25,14 +26,21 @@ for folder in folders_to_add:
     if folder.is_dir():
         sys.path.insert(0, str(folder))
 
-from health_azure import submit_to_azure_if_needed, DatasetConfig
+from health_azure import submit_to_azure_if_needed, DatasetConfig, is_running_in_azure_ml
 from health_azure.logging import logging_to_stdout
-from health_azure.auth import get_credential
 
 # The default scope for the Azure Cognitive Services. Tokens are retrieve from this page, and later used instead
 # of the API key.
 AZURE_COGNITIVE_SERVICES = "https://cognitiveservices.azure.com"
 
+ENV_AZUREML_IDENTITY_ID = "DEFAULT_IDENTITY_CLIENT_ID"
+
+def get_credential() -> AzureCliCredential | ManagedIdentityCredential:
+    """Get the appropriate Azure credential based on the environment. The credential is a managed identity when running
+    in AzureML, otherwise Azure CLI credential."""
+    if is_running_in_azure_ml():
+        return ManagedIdentityCredential(client_id=os.environ[ENV_AZUREML_IDENTITY_ID])
+    return AzureCliCredential()
 
 def get_azure_token_provider() -> Callable[[], str]:
     """Get a token provider for Azure Cognitive Services. The bearer token provider gets authentication tokens and
