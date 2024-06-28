@@ -226,7 +226,8 @@ jobs:
           pip install ${{ steps.download.outputs.package_filename }}
 
           # Set env vars so wheel is sent to azureml as a private package
-          echo "HIML_AZURE_WHEEL_FILENAME=${{ steps.download.outputs.package_filename }}" >> $GITHUB_ENV
+          # This had to be deprecated because the upload always uses SAS tokens encrypted with the now disabled storage account key
+          # echo "HIML_AZURE_WHEEL_FILENAME=${{ steps.download.outputs.package_filename }}" >> $GITHUB_ENV
 
           # Test with pytest
           make pytest_and_coverage

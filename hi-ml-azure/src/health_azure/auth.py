@@ -1,6 +1,8 @@
 import logging
 import os
-from typing import Union, Optional
+import base64
+import json
+from typing import Optional, Union
 
 from azureml.core.authentication import (
     InteractiveLoginAuthentication,
@@ -13,7 +15,7 @@ from azure.core.credentials import TokenCredential
 from azure.identity import (
     ClientSecretCredential,
     DeviceCodeCredential,
-    DefaultAzureCredential,
+    AzureCliCredential,
     InteractiveBrowserCredential,
 )
 
@@ -63,6 +65,10 @@ def get_authentication() -> (
     service_principal_password = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
     # Check if all 3 environment variables are set
     if service_principal_id and tenant_id and service_principal_password:
+        logger.warning(
+            "The use of Service Principal credentials is discouraged because of the risk of password "
+            "compromise. Consider switching to OpenID Connect authentication."
+        )
         logger.info(
             "Found environment variables for Service Principal authentication: First characters of App ID "
             f"are {service_principal_id[:8]}... in tenant {tenant_id[:8]}..."
@@ -95,14 +101,15 @@ def get_authentication() -> (
     return InteractiveLoginAuthentication()
 
 
-def _validate_credential(credential: TokenCredential) -> None:
+def _validate_credential(credential: TokenCredential) -> str:
     """
     Validate credential by attempting to get token. If authentication has been successful, get_token
     will succeed. Otherwise an exception will be raised
 
     :param credential: The credential object to validate.
+    :return: The access token (read from AccessToken.token)
     """
-    credential.get_token(ACCESS_TOKEN_SCOPE)
+    return credential.get_token(ACCESS_TOKEN_SCOPE).token
 
 
 def _get_legitimate_service_principal_credential(
@@ -146,14 +153,17 @@ def _get_legitimate_device_code_credential() -> Optional[TokenCredential]:
         return None
 
 
-def _get_legitimate_default_credential() -> Optional[TokenCredential]:
+def _get_legitimate_cli_credential() -> TokenCredential:
     """
-    Create a DefaultAzure credential for interacting with Azure resources and validates it.
+    Create an AzureCli credential for interacting with Azure resources and validates it.
 
     :return: A valid Azure credential.
     """
-    cred = DefaultAzureCredential(timeout=60)
-    _validate_credential(cred)
+    cred = AzureCliCredential()
+    token = _validate_credential(cred)
+    object_id = extract_object_id_from_token(token)
+    message = object_id[:8] if object_id else "No object ID found"
+    logger.info(f"Successfully authenticated with Azure CLI. Object ID (first characters): {message}")
     return cred
 
 
@@ -189,6 +199,10 @@ def get_credential() -> Optional[TokenCredential]:
     tenant_id = get_secret_from_environment(ENV_TENANT_ID, allow_missing=True)
     service_principal_password = get_secret_from_environment(ENV_SERVICE_PRINCIPAL_PASSWORD, allow_missing=True)
     if service_principal_id and tenant_id and service_principal_password:
+        logger.warning(
+            "The use of Service Principal credentials is discouraged because of the risk of password "
+            "compromise. Consider switching to OpenID Connect authentication."
+        )
         logger.info(
             "Found environment variables for Service Principal authentication: First characters of App ID "
             f"are {service_principal_id[:8]}... in tenant {tenant_id[:8]}..."
@@ -196,9 +210,7 @@ def get_credential() -> Optional[TokenCredential]:
         return _get_legitimate_service_principal_credential(tenant_id, service_principal_id, service_principal_password)
 
     try:
-        cred = _get_legitimate_default_credential()
-        if cred is not None:
-            return cred
+        return _get_legitimate_cli_credential()
     except ClientAuthenticationError:
         cred = _get_legitimate_device_code_credential()
         if cred is not None:
@@ -212,3 +224,23 @@ def get_credential() -> Optional[TokenCredential]:
         "Unable to generate and validate a credential. Please see Azure ML documentation"
         "for instructions on different options to get a credential"
     )
+
+
+def extract_object_id_from_token(token: str) -> str:
+    """Extracts the object ID from an access token.
+    The object ID is the unique identifier for the user or service principal in Azure Active Directory.
+
+    :param token: The access token.
+    :return: The object ID of the token.
+    """
+    # This is magic code to disect the token, taken from
+    # https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/identity/azure-identity/azure/identity/_internal/decorators.py#L38
+    try:
+        encoding = "utf-8"
+        base64_meta_data = token.split(".")[1].encode(encoding) + b"=="
+        json_bytes = base64.decodebytes(base64_meta_data)
+        json_string = json_bytes.decode(encoding)
+        json_dict = json.loads(json_string)
+        return json_dict["oid"]  # type: ignore
+    except Exception:
+        return ""
