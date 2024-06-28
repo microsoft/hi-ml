@@ -1368,7 +1368,6 @@ def delete_blobs_in_datastore(datastore: AzureBlobDatastore, prefix: str) -> Non
 
 
 @pytest.mark.parametrize("overwrite", [True, False])
-@pytest.mark.skip(reason="This test no longer works because we removed access keys from the datastores")
 def test_download_from_datastore(tmp_path: Path, overwrite: bool) -> None:
     """
     Test that download_from_datastore successfully downloads file from Blob Storage.
@@ -1421,7 +1420,6 @@ def test_download_from_datastore(tmp_path: Path, overwrite: bool) -> None:
 
 
 @pytest.mark.parametrize("overwrite", [True, False])
-@pytest.mark.skip(reason="This test no longer works because we removed access keys from the datastores")
 def test_upload_to_datastore(tmp_path: Path, overwrite: bool) -> None:
     """
     Test that upload_to_datastore successfully uploads a file to Blob Storage.
