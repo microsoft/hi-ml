@@ -21,9 +21,11 @@ endef
 
 ## Package management
 
-# pip upgrade
+# pip upgrade.
+# As of PIP version 24.1, conditions like ">1.8.*" are no longer supported, but pytorch lightning
+# in the version we are using is still using this syntax. So we need to restrict the pip versions.
 pip_upgrade:
-	python -m pip install --upgrade pip
+	python -m pip install --upgrade "pip<24.1"
 
 # pip upgrade and install build requirements
 pip_build: pip_upgrade
@@ -123,3 +125,10 @@ combine: pip_test
 		coverage html && \
 		coverage xml && \
 		pycobertura show --format text --output coverage.txt coverage.xml
+
+blobfuse:
+	setup/prepare_blobfuse_installation.sh
+	sudo apt-get install blobfuse fuse
+
+mount:
+	setup/mount_datastores.sh

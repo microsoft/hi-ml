@@ -104,8 +104,8 @@ class ElasticTransform:
         dy = gaussian_filter((np.random.random(shape[-2:]) * 2 - 1), self.sigma, mode="constant", cval=0) * self.alpha
         all_dimensions_axes = [np.arange(dim) for dim in shape]
         grid = np.meshgrid(*all_dimensions_axes, indexing='ij')
-        grid[-2] = grid[-2] + dx
-        grid[-1] = grid[-1] + dy
+        grid[-2] = grid[-2] + dx  # type: ignore
+        grid[-1] = grid[-1] + dy  # type: ignore
         indices = [np.reshape(grid[i], (-1, 1)) for i in range(len(grid))]
 
         return torch.tensor(map_coordinates(data, indices, order=1).reshape(shape), dtype=result_type)

@@ -39,7 +39,7 @@ from health_cpath.models.transforms import (
     transform_dict_adaptor,
     NormalizeBackgroundd,
 )
-from testhisto.utils.utils_testhisto import assert_dicts_equal
+from testhisto.utils.utils_testhisto import assert_dicts_equal, skipif_no_gpu
 
 
 @pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR), reason="TCGA-CRCk tiles dataset is unavailable")
@@ -101,6 +101,8 @@ def test_load_tiles_batch() -> None:
     assert_dicts_equal(bagged_loaded_batch, loaded_bagged_batch)
 
 
+@pytest.mark.gpu
+@skipif_no_gpu("This test requires the PathMNIST dataset, which is only mounted in the AzureML environment.")
 @pytest.mark.parametrize("scale_intensity", [True, False])
 def test_itensity_scaling_load_tiles_batch(scale_intensity: bool, mock_panda_tiles_root_dir: Path) -> None:
     tiles_dataset = PandaTilesDataset(mock_panda_tiles_root_dir)

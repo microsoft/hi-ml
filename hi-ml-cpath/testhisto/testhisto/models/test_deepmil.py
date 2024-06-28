@@ -51,6 +51,7 @@ from testhisto.mocks.base_data_generator import MockHistoDataType
 from testhisto.mocks.container import MockDeepSMILESlidesPanda, MockDeepSMILETilesPanda
 from testhisto.mocks.tiles_generator import MockPandaTilesGenerator
 from testhisto.models.test_encoders import TEST_SSL_RUN_ID
+from testhisto.utils.utils_testhisto import skipif_no_gpu
 
 no_gpu = not is_gpu_available()
 
@@ -359,6 +360,8 @@ def _test_mock_panda_container(use_gpu: bool, mock_container: BaseDeepSMILEPanda
     assert_test_step(module, data_module, use_gpu)
 
 
+@pytest.mark.gpu
+@skipif_no_gpu("This test requires the PathMNIST dataset, which is only mounted in the AzureML environment.")
 def test_mock_tiles_panda_container_cpu(mock_panda_tiles_root_dir: Path) -> None:
     _test_mock_panda_container(
         use_gpu=False, mock_container=MockDeepSMILETilesPanda, tmp_path=mock_panda_tiles_root_dir  # type: ignore
@@ -706,6 +709,8 @@ def test_checkpoint_name(
     assert container.best_checkpoint_filename == f"checkpoint_{metric_optim}_val_{primary_val_metric.value}"
 
 
+@pytest.mark.gpu
+@skipif_no_gpu("This test requires the PathMNIST dataset, which is only mounted in the AzureML environment.")
 def test_on_run_extra_val_epoch(mock_panda_tiles_root_dir: Path) -> None:
     container = MockDeepSMILETilesPanda(tmp_path=mock_panda_tiles_root_dir)
     container.setup()
@@ -775,6 +780,8 @@ def validate_loss_with_activations_checkpointing(
             break
 
 
+@pytest.mark.gpu
+@skipif_no_gpu("This test requires the PathMNIST dataset, which is only mounted in the AzureML environment.")
 @pytest.mark.parametrize(
     "encoder_type, feature_dim, bn_momentum",
     [

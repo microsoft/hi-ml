@@ -10,6 +10,7 @@ import numpy as np
 from unittest.mock import patch
 from typing import Dict, List, Any, Set
 from testhisto.utils.utils_testhisto import run_distributed
+from health_azure.utils import is_running_in_azure_ml
 from health_cpath.utils.naming import ResultsKey, SlideKey
 from health_cpath.utils.plots_utils import TilesSelector, SlideNode
 
@@ -182,6 +183,7 @@ def test_aggregate_shallow_slide_nodes(
 
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
 @pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
+@pytest.mark.skipif(is_running_in_azure_ml(), reason="This test appears to hang in AzureML")
 @pytest.mark.gpu
 def test_aggregate_shallow_slide_nodes_distributed() -> None:
     """These tests need to be called sequentially to prevent them to be run in parallel."""
@@ -306,6 +308,7 @@ def test_select_k_top_bottom_tiles_on_the_fly(
 
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
 @pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
+@pytest.mark.skipif(is_running_in_azure_ml(), reason="This test appears to hang in AzureML")
 @pytest.mark.gpu
 def test_select_k_top_bottom_tiles_on_the_fly_distributed() -> None:
     """These tests need to be called sequentially to prevent them to be run in parallel"""
@@ -358,6 +361,7 @@ def test_tiles_are_selected_only_with_non_zero_num_top_slides(
 
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
 @pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
+@pytest.mark.skipif(is_running_in_azure_ml(), reason="This test appears to hang in AzureML")
 @pytest.mark.gpu
 def test_tiles_are_selected_only_with_non_zero_num_top_slides_distributed() -> None:
     """These tests need to be called sequentially to prevent them to be run in parallel"""
