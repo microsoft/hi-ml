@@ -903,22 +903,25 @@ def is_job_completed(job: Job) -> bool:
     return job.status == JobStatus.COMPLETED.value
 
 
-def wait_for_job_completion(ml_client: MLClient, job_name: str) -> None:
+def wait_for_job_completion(ml_client: MLClient, job_name: str, *, show_output: bool = False) -> None:
     """Wait until the job of the given ID is completed or failed with an error. If the job did not complete
     successfully, a ValueError is raised.
 
     :param ml_client: An MLClient object for the workspace where the job lives.
     :param job_name: The name (id) of the job to wait for.
+    :param show_output: If True, log the run output on sys.stdout.
     :raises ValueError: If the job did not complete successfully (any status other than Completed)
     """
-
-    while True:
-        # Get the latest job status by reading the whole job info again via the MLClient
-        updated_job = ml_client.jobs.get(name=job_name)
-        current_job_status = updated_job.status
-        if JobStatus.is_finished_state(current_job_status):
-            break
-        time.sleep(10)
+    if show_output:
+        ml_client.jobs.stream(job_name)
+    else:
+        while True:
+            # Get the latest job status by reading the whole job info again via the MLClient
+            updated_job = ml_client.jobs.get(name=job_name)
+            current_job_status = updated_job.status
+            if JobStatus.is_finished_state(current_job_status):
+                break
+            time.sleep(10)
     if not is_job_completed(updated_job):
         raise ValueError(f"Job {updated_job.name} jobs failed with status {current_job_status}.")
 
