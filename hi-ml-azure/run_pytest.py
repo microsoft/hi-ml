@@ -30,7 +30,7 @@ folders_to_add = [himl_root / "hi-ml" / "src", himl_root / "hi-ml-azure" / "src"
 for folder in folders_to_add:
     add_to_sys_path(folder)
 
-from health_azure import submit_to_azure_if_needed  # noqa: E402
+from health_azure import submit_to_azure_if_needed, DatasetConfig  # noqa: E402
 from health_azure.argparsing import create_argparser, parse_arguments  # noqa: E402
 from health_azure.himl import DEFAULT_DOCKER_BASE_IMAGE, OUTPUT_FOLDER  # noqa: E402
 from health_azure.logging import logging_to_stdout  # noqa: E402
@@ -77,6 +77,9 @@ class RunPytestConfig(param.Parameterized):
     )
     strictly_aml_v1: bool = param.Boolean(
         default=True, doc="If True (default), use AzureML v1 SDK. If False, use the v2 of the SDK"
+    )
+    mount_cpath_datasets: bool = param.Boolean(
+        default=False, doc="If True, mount the datasets required for the cpath folder (PathMNIST and PANDA)"
     )
 
 
@@ -179,6 +182,13 @@ if __name__ == "__main__":
         add_to_sys_path(himl_root / config.add_to_sys_path)
     logging_to_stdout()
     submit_to_azureml = config.cluster != ""
+    if config.mount_cpath_datasets:
+        input_datasets = [
+            DatasetConfig(name="PathMNIST", target_folder="/pathmnist/"),
+            DatasetConfig(name="panda", target_folder="/panda/"),
+        ]
+    else:
+        input_datasets = []
     if submit_to_azureml and not is_running_in_azure_ml():
         # For runs on the github agents: Create a workspace config file from environment variables.
         # For local runs, this will fall back to a config.json file in the current folder or at repository root
@@ -191,6 +201,7 @@ if __name__ == "__main__":
                 snapshot_root_directory=git_repo_root_folder(),
                 conda_environment_file=config.conda_env,
                 experiment_name=config.experiment,
+                input_datasets=input_datasets,  # type: ignore
                 max_run_duration=config.max_run_duration,
                 after_submission=pytest_after_submission_hook,
                 docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,

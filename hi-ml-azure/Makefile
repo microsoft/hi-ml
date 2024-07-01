@@ -72,7 +72,8 @@ pytest_fast:
 
 # run pytest with coverage on package
 # Output the slowest tests via the --durations flag.
-
+# For diagnostics, use this extra flag to output all captured stdout:
+# pytest -rP testazure/testazure/test_azure_util.py::test_download_run_file_during_run
 call_pytest_and_coverage:
 	pytest --durations=50 --cov=health_azure  --cov-branch --cov-report=html --cov-report=xml --cov-report=term-missing --cov-config=.coveragerc testazure
 

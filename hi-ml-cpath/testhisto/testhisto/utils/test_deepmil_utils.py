@@ -41,6 +41,7 @@ def test_load_ssl_checkpoint_from_local_file(tmp_path: Path) -> None:
         assert isinstance(encoder, SSLEncoder)
 
 
+@pytest.mark.skip(reason="This test is no longer working after removing the account key from datastores.")
 def test_load_ssl_checkpoint_from_url(tmp_path: Path) -> None:
     aml_workspace = DEFAULT_WORKSPACE.workspace
     blob_url = get_checkpoint_url_from_aml_run(

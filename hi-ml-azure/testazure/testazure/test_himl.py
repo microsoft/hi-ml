@@ -970,6 +970,7 @@ def render_and_run_test_script(
     expected_pass: bool,
     suppress_config_creation: bool = False,
     upload_package: bool = True,
+    use_local_package: bool = False,
 ) -> str:
     """
     Prepare test scripts, submit them, and return response.
@@ -982,6 +983,8 @@ def render_and_run_test_script(
     :param suppress_config_creation: (Optional, defaults to False) do not create a config.json file if none exists
     :param upload_package: If True, upload the current package version to the AzureML docker image. If False,
       skip uploading. Use only if the script does not use hi-ml.
+    :param use_local_package: If True, search for a local wheel to upload alongside the job. This is only used if
+        upload_package is True and no wheel location is found in the environment variables.
     :return: Either response from spawn_and_monitor_subprocess or run output if in AzureML.
     """
     path.mkdir(exist_ok=True)
@@ -989,11 +992,14 @@ def render_and_run_test_script(
     version = ""
     run_requirements = False
 
+    # In the PR workflow, we are setting this environment variable to contain the wheel that was built in a previous
+    # job. However, after retiring storage account keys, this is no longer executed because AzureML always uses
+    # SAS tokens with access keys to upload the file, even if we build a User Delegation SAS specifically.
     himl_wheel_filename = os.getenv('HIML_AZURE_WHEEL_FILENAME', '')
     himl_test_pypi_version = os.getenv('HIML_AZURE_TEST_PYPI_VERSION', '')
     himl_pypi_version = os.getenv('HIML_AZURE_PYPI_VERSION', '')
 
-    if not himl_wheel_filename:
+    if not himl_wheel_filename and use_local_package:
         # If testing locally, can build the package into the "dist" folder and use that.
         dist_folder = Path.cwd().joinpath('dist')
         whls = sorted(list(dist_folder.glob('*.whl')))
@@ -1252,6 +1258,7 @@ def _assert_hello_world_files_exist(folder: Path) -> None:
     }
 
 
+@pytest.mark.skip("This test no longer works when datastores do not store credentials")
 @pytest.mark.timeout(120)
 def test_mounting_and_downloading_dataset(tmp_path: Path) -> None:
     logging.info("creating config.json")
@@ -1324,6 +1331,7 @@ class TestOutputDataset:
     folder_name: Optional[Path] = None
 
 
+@pytest.mark.skip("This test no longer works when datastores do not store credentials")
 @pytest.mark.parametrize(
     ["run_target", "local_folder", "strictly_aml_v1"],
     [
@@ -1860,9 +1868,11 @@ def test_submitting_script_with_sdk_v2(tmp_path: Path, wait_for_completion: bool
         else:
             assert job.status == JobStatus.STARTING.value
 
-    with check_config_json(tmp_path, shared_config_json=shared_config_json), change_working_directory(
-        tmp_path
-    ), pytest.raises(SystemExit):
+    with (
+        check_config_json(tmp_path, shared_config_json=shared_config_json),
+        change_working_directory(tmp_path),
+        pytest.raises(SystemExit),
+    ):
         himl.submit_to_azure_if_needed(
             aml_workspace=None,
             experiment_name="test_submitting_script_with_sdk_v2",
@@ -2017,9 +2027,11 @@ def test_conda_env_missing(tmp_path: Path) -> None:
     test_script.write_text("print('hello world')")
     shared_config_json = get_shared_config_json()
 
-    with check_config_json(tmp_path, shared_config_json=shared_config_json), change_working_directory(
-        tmp_path
-    ), pytest.raises(ValueError, match="No conda environment file"):
+    with (
+        check_config_json(tmp_path, shared_config_json=shared_config_json),
+        change_working_directory(tmp_path),
+        pytest.raises(ValueError, match="No conda environment file"),
+    ):
         himl.submit_to_azure_if_needed(
             aml_workspace=None,
             experiment_name="test_conda_env_missing",

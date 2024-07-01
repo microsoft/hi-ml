@@ -7,6 +7,7 @@ import torch
 import torch.distributed
 import torch.multiprocessing
 from ruamel.yaml import YAML
+from health_azure.utils import is_running_in_azure_ml
 from health_cpath.preprocessing.loading import LoadingParams
 from health_cpath.utils.tiles_selection_utils import TilesSelector
 from testhisto.utils.utils_testhisto import run_distributed
@@ -166,6 +167,7 @@ def test_overwriting_val_outputs(tmp_path: Path, rank: int = 0, world_size: int 
 
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
 @pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
+@pytest.mark.skipif(is_running_in_azure_ml(), reason="This test appears to hang in AzureML")
 @pytest.mark.gpu
 def test_overwriting_val_outputs_distributed(tmp_path: Path) -> None:
     run_distributed(test_overwriting_val_outputs, args=(tmp_path,), world_size=2)
@@ -227,6 +229,7 @@ def test_gather_results(uneven_samples: bool = False, rank: int = 0, world_size:
 
 @pytest.mark.skipif(not torch.distributed.is_available(), reason="PyTorch distributed unavailable")
 @pytest.mark.skipif(torch.cuda.device_count() < 2, reason="Not enough GPUs available")
+@pytest.mark.skipif(is_running_in_azure_ml(), reason="This test appears to hang in AzureML")
 @pytest.mark.gpu
 def test_gather_results_distributed() -> None:
     # These tests need to be called sequentially to prevent them to be run in parallel

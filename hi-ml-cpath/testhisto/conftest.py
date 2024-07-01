@@ -4,6 +4,7 @@ Global PyTest configuration -- used to define global fixtures for the entire tes
 DO NOT RENAME THIS FILE: (https://docs.pytest.org/en/latest/fixture.html#sharing-a-fixture-across-tests-in-a-module
 -or-class-session)
 """
+
 import logging
 import shutil
 import uuid
@@ -11,11 +12,12 @@ import pytest
 from pathlib import Path
 from typing import Generator
 
-from health_cpath.utils import health_cpath_package_setup  # noqa: E402
-from health_ml.utils.fixed_paths import OutputFolderForTests  # noqa: E402
-from testhisto.mocks.base_data_generator import MockHistoDataType  # noqa: E402
-from testhisto.mocks.tiles_generator import MockPandaTilesGenerator  # noqa: E402
-from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPositioningType  # noqa: E402
+from health_azure import is_running_in_azure_ml
+from health_cpath.utils import health_cpath_package_setup
+from health_ml.utils.fixed_paths import OutputFolderForTests
+from testhisto.mocks.base_data_generator import MockHistoDataType
+from testhisto.mocks.tiles_generator import MockPandaTilesGenerator
+from testhisto.mocks.slides_generator import MockPandaSlidesGenerator, TilesPositioningType
 
 
 testhisto_root_dir = Path(__file__).parent
@@ -64,10 +66,13 @@ def tmp_path_to_pathmnist_dataset(tmp_path_factory: pytest.TempPathFactory) -> G
     from testhisto.mocks.utils import download_azure_dataset
     from testhisto.mocks.base_data_generator import MockHistoDataType
 
-    tmp_dir = tmp_path_factory.mktemp(MockHistoDataType.PATHMNIST.value)
-    download_azure_dataset(tmp_dir, dataset_id=MockHistoDataType.PATHMNIST.value)
-    yield tmp_dir
-    shutil.rmtree(tmp_dir)
+    if is_running_in_azure_ml():
+        expected_file = Path("/pathmnist/pathmnist.npz")
+    else:
+        expected_file = Path("/datasetdrive/himlstorage/datasets/UI/04-19-2022_025955_UTC/pathmnist.npz")
+    if not expected_file.exists():
+        raise FileNotFoundError(f"Expected file not found: {expected_file}. Did you forget to run `make mount`?")
+    yield expected_file.parent
 
 
 @pytest.fixture(scope="session")

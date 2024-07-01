@@ -52,11 +52,10 @@ def test_get_load_roid_transform(backend: WSIBackend, roi_type: ROIType) -> None
         assert isinstance(transform.reader.reader, reader_type[backend])  # type: ignore
 
 
-@pytest.mark.skipif(no_gpu, reason="Test requires GPU")
+@pytest.mark.skipif(no_gpu, reason="This test requires the PANDA dataset, which is only available in the AML run")
 @pytest.mark.gpu
-def test_load_slide(tmp_path: Path) -> None:
-    _ = mount_dataset(dataset_id=PANDA_DATASET_ID, tmp_root=str(tmp_path), aml_workspace=DEFAULT_WORKSPACE.workspace)
-    root_path = tmp_path / PANDA_DATASET_ID
+def test_load_slide() -> None:
+    root_path = Path("/panda")
 
     def _check_load_roi_transforms(
         backend: WSIBackend, expected_keys: List[SlideKey], expected_shape: Tuple[int, int, int]
