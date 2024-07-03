@@ -89,9 +89,15 @@ def main() -> None:
         try:
             input_dataset = run_info.input_datasets[0]
             assert input_dataset is not None
-            print("Files in dataset at {input_dataset}:")
-            for file in input_dataset.glob("*"):
-                print(file)
+            if input_dataset.is_file():
+                print(f"Input dataset is a single file: {input_dataset}")
+            elif input_dataset.is_dir():
+                print(f"Files in input dataset folder {input_dataset}:")
+                for file in input_dataset.glob("*"):
+                    print(file)
+            else:
+                print(f"Input dataset is neither a file nor a folder: {input_dataset}")
+                any_error = True
         except Exception as e:
             print(f"Failed to read input dataset: {e}")
             any_error = True
