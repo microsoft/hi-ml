@@ -1168,6 +1168,17 @@ def is_global_rank_zero() -> bool:
     node_rank = os.getenv(ENV_NODE_RANK, "0")
     return is_local_rank_zero() and node_rank == "0"
 
+def torch_rank() -> Optional[int]:
+    """
+    Returns the torch distributed rank of the current process. If PyTorch is not available, returns None.
+    """
+    try:
+        from torch import distributed
+    except ModuleNotFoundError:
+        logger.info("Skipping the barrier because PyTorch is not available.")
+        return None
+    if distributed.is_available() and distributed.is_initialized():
+        return distributed.get_rank()
 
 def is_local_rank_zero() -> bool:
     """
@@ -1180,7 +1191,7 @@ def is_local_rank_zero() -> bool:
     # set them only once starting its child processes.
     global_rank = os.getenv(ENV_GLOBAL_RANK)
     local_rank = os.getenv(ENV_LOCAL_RANK)
-    return global_rank is None and local_rank is None
+    return global_rank is None and local_rank is None or torch_rank() == 0
 
 
 def download_from_datastore(
