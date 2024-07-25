@@ -1194,7 +1194,7 @@ def is_local_rank_zero() -> bool:
     # set them only once starting its child processes.
     global_rank = os.getenv(ENV_GLOBAL_RANK)
     local_rank = os.getenv(ENV_LOCAL_RANK)
-    return global_rank is None and local_rank is None or torch_rank() == 0
+    return (global_rank is None and local_rank is None) or torch_rank() == 0
 
 
 def download_from_datastore(
