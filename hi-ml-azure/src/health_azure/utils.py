@@ -1182,6 +1182,7 @@ def torch_rank() -> Optional[int]:
         return distributed.get_rank()
     return None
 
+
 def is_local_rank_zero() -> bool:
     """
     Tries to guess if the current process is running as DDP local rank zero (i.e., the process that is responsible for
