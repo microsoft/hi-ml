@@ -1168,6 +1168,7 @@ def is_global_rank_zero() -> bool:
     node_rank = os.getenv(ENV_NODE_RANK, "0")
     return is_local_rank_zero() and node_rank == "0"
 
+
 def torch_rank() -> Optional[int]:
     """
     Returns the torch distributed rank of the current process. If PyTorch is not available, returns None.
@@ -1179,6 +1180,7 @@ def torch_rank() -> Optional[int]:
         return None
     if distributed.is_available() and distributed.is_initialized():
         return distributed.get_rank()
+
 
 def is_local_rank_zero() -> bool:
     """
