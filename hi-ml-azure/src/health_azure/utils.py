@@ -1180,7 +1180,7 @@ def torch_rank() -> Optional[int]:
         return None
     if distributed.is_available() and distributed.is_initialized():
         return distributed.get_rank()
-
+    return None
 
 def is_local_rank_zero() -> bool:
     """
