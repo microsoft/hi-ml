@@ -1176,7 +1176,7 @@ def torch_rank() -> Optional[int]:
     try:
         from torch import distributed
     except ModuleNotFoundError:
-        logger.info("Skipping the barrier because PyTorch is not available.")
+        logger.info("Skipping torch.distributed.get_rank() because PyTorch is not available.")
         return None
     if distributed.is_available() and distributed.is_initialized():
         return distributed.get_rank()
