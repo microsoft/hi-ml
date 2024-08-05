@@ -47,9 +47,9 @@ def test_reload_resnet_with_dilation(replace_stride_with_dilation: Sequence[bool
 
     resnet50_kwargs = {
         "pretrained": True,
-        "replace_stride_with_dilation": replace_stride_with_dilation
-        if replace_stride_with_dilation
-        else DEFAULT_DILATION_VALUES_FOR_RESNET,
+        "replace_stride_with_dilation": (
+            replace_stride_with_dilation if replace_stride_with_dilation else DEFAULT_DILATION_VALUES_FOR_RESNET
+        ),
     }
     expected_model = resnet50(**resnet50_kwargs)
 
