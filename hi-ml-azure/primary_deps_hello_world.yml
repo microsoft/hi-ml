@@ -1,0 +1,10 @@
+# This environment definition contains all packages required to run the hello_world script
+name: hello_world
+channels:
+  - defaults
+dependencies:
+  - pip=23.3
+  - python=3.9.18
+  - pip:
+      - -r run_requirements.txt
+      - openai

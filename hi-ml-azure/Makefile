@@ -87,3 +87,22 @@ test_all: pip_test call_flake8 call_mypy call_pytest_and_coverage
 example: pip_local
 	echo 'edit src/health/azure/examples/elevate_this.py to reference your compute_cluster_name'
 	cd src/health/azure/examples; python elevate_this.py --azureml --message 'running example from makefile'
+
+# Create a local Conda environment
+env:
+	conda env create --file environment.yml
+
+# Install Conda from scratch
+conda:
+	wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+	bash Miniconda3-latest-Linux-x86_64.sh -b
+	rm Miniconda3-latest-Linux-x86_64.sh
+	conda update -y -n base conda
+	conda install -y -n base conda-libmamba-solver
+	conda config --set solver libmamba
+
+env_hello_world_lock:
+	../create_and_lock_environment.sh primary_deps_hello_world.yml environment_hello_world.yml
+
+env_hello_world:
+	conda env create --file environment_hello_world.yml
