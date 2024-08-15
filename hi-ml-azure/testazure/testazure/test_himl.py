@@ -1854,7 +1854,7 @@ def test_submit_to_azure_if_needed_v2(exit_on_completion: bool) -> None:
                 mock_submit_run.assert_called_once()
                 if exit_on_completion:
                     mocks["exit"].assert_called_once()
-                    assert return_value == None
+                    assert return_value is None
                 else:
                     mocks["exit"].assert_not_called()
                     assert return_value == mock_submit_run.return_value
