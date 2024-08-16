@@ -749,7 +749,8 @@ def submit_to_azure_if_needed(  # type: ignore
     display_name: Optional[str] = None,
     entry_command: Optional[PathOrString] = None,
     hyperdrive_argument_prefix: str = "--",
-) -> AzureRunInfo:  # pragma: no cover
+    exit_on_completion: bool = True,
+) -> Union[AzureRunInfo, Run, Job]:  # pragma: no cover
     """
     Submit a folder to Azure, if needed and run it.
     Use the commandline flag --azureml to submit to AzureML, and leave it out to run locally.
@@ -827,8 +828,13 @@ def submit_to_azure_if_needed(  # type: ignore
     :param: hyperdrive_argument_prefix: Prefix to add to hyperparameter arguments. Some examples might be "--", "-"
         or "". For example, if "+" is used, a hyperparameter "learning_rate" with value 0.01 will be passed as
         `+learning_rate=0.01`.
-    :return: If the script is submitted to AzureML then we terminate python as the script should be executed in AzureML,
-        otherwise we return a AzureRunInfo object.
+    :param exit_on_completion: If True, exit the Python process after the AzureML job is submitted. If False,
+        return the submitted Run object (when using the `strictly_aml_v1=True` flag) or the submitted Job object (when
+        using `strictly_aml_v1=False` flag).
+    :return: If the script is submitted to AzureML and `exit_on_completion` is True then the Python process will be
+        terminated. Otherwise, we return either the AzureRunInfo object if `submit_to_azureml` is False, the submitted
+        Run object if the job is submitted using AzureML SDK v1, or the submitted Job object if the job is submitted
+        using AzureML SDK v2.
     """
     health_azure_package_setup()
     workspace_config_path = _str_to_path(workspace_config_file)
@@ -962,6 +968,12 @@ def submit_to_azure_if_needed(  # type: ignore
             )
             if after_submission is not None:
                 after_submission(run)  # type: ignore
+
+            if exit_on_completion:
+                exit(0)
+            else:
+                return run
+
         else:
             assert ml_client is not None, "An AzureML MLClient should have been created already."
             if conda_environment_file is None:
@@ -1000,7 +1012,10 @@ def submit_to_azure_if_needed(  # type: ignore
             if after_submission is not None:
                 after_submission(job, ml_client)  # type: ignore
 
-    exit(0)
+            if exit_on_completion:
+                exit(0)
+            else:
+                return job
 
 
 def _write_run_recovery_file(run: Run) -> None:
