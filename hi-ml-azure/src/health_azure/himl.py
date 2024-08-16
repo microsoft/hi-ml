@@ -1012,10 +1012,10 @@ def submit_to_azure_if_needed(  # type: ignore
             if after_submission is not None:
                 after_submission(job, ml_client)  # type: ignore
 
-            if not exit_on_completion:
+            if exit_on_completion:
+                exit(0)
+            else:
                 return job
-
-    exit(0)
 
 
 def _write_run_recovery_file(run: Run) -> None:
