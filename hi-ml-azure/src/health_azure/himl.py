@@ -828,7 +828,9 @@ def submit_to_azure_if_needed(  # type: ignore
     :param: hyperdrive_argument_prefix: Prefix to add to hyperparameter arguments. Some examples might be "--", "-"
         or "". For example, if "+" is used, a hyperparameter "learning_rate" with value 0.01 will be passed as
         `+learning_rate=0.01`.
-    :param exit_on_completion: If True, exit the Python process after the run is submitted.
+    :param exit_on_completion: If True, exit the Python process after the AzureML job is submitted. If False,
+        return the submitted Run object (when using the `strictly_aml_v1=True` flag) or the submitted Job object (when using `strictly_aml_v1=False` flag)
+        the 
     :return: If the script is submitted to AzureML and `exit_on_completion` is True then the Python process will be
         terminated. Otherwise, we return either the AzureRunInfo object if `submit_to_azureml` is False, the submitted
         Run object if the job is submitted using AzureML SDK v1, or the submitted Job object if the job is submitted
