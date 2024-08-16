@@ -969,7 +969,9 @@ def submit_to_azure_if_needed(  # type: ignore
             if after_submission is not None:
                 after_submission(run)  # type: ignore
 
-            if not exit_on_completion:
+            if exit_on_completion:
+                exit(0)
+            else:
                 return run
 
         else:
