@@ -1798,10 +1798,12 @@ def test_create_v2_outputs() -> None:
     assert output.mode == InputOutputModes.MOUNT
 
 
-def test_submit_to_azure_if_needed_v2() -> None:
+@pytest.mark.parametrize("exit_on_completion", [True, False])
+def test_submit_to_azure_if_needed_v2(exit_on_completion: bool) -> None:
     """
     Check that submit_run_v2 is called when submit_to_azure_if_needed is called, unless strictly_aml_v1 is
-    set to True, in which case submit_run should be called instead
+    set to True, in which case submit_run should be called instead.
+    It also tests the "exit_on_completion" parameter.
     """
     dummy_input_datasets: List[Optional[Path]] = []
     dummy_mount_contexts: List[Any] = []
@@ -1828,9 +1830,17 @@ def test_submit_to_azure_if_needed_v2() -> None:
                     snapshot_root_directory="dummy",
                     submit_to_azureml=True,
                     strictly_aml_v1=False,
+                    exit_on_completion=exit_on_completion,
                 )
                 mock_submit_run_v2.assert_called_once()
-                assert return_value is None
+                if exit_on_completion:
+                    mocks["exit"].assert_called_once()
+                    assert return_value is None
+                else:
+                    mocks["exit"].assert_not_called()
+                    assert return_value == mock_submit_run_v2.return_value
+
+            mocks["exit"].reset_mock()
 
             # Now supply strictly_aml_v1=True, and check that submit_run is called
             with patch("health_azure.himl.submit_run") as mock_submit_run:
@@ -1839,9 +1849,15 @@ def test_submit_to_azure_if_needed_v2() -> None:
                     snapshot_root_directory="dummy",
                     submit_to_azureml=True,
                     strictly_aml_v1=True,
+                    exit_on_completion=exit_on_completion,
                 )
                 mock_submit_run.assert_called_once()
-                assert return_value is None
+                if exit_on_completion:
+                    mocks["exit"].assert_called_once()
+                    assert return_value is None
+                else:
+                    mocks["exit"].assert_not_called()
+                    assert return_value == mock_submit_run.return_value
 
 
 @pytest.mark.parametrize("wait_for_completion", [True, False])
