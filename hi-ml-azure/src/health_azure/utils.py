@@ -914,16 +914,17 @@ def wait_for_job_completion(ml_client: MLClient, job_name: str, *, show_output: 
     """
     if show_output:
         ml_client.jobs.stream(job_name)
+        job = ml_client.jobs.get(name=job_name)
     else:
         while True:
             # Get the latest job status by reading the whole job info again via the MLClient
-            updated_job = ml_client.jobs.get(name=job_name)
-            current_job_status = updated_job.status
+            job = ml_client.jobs.get(name=job_name)
+            current_job_status = job.status
             if JobStatus.is_finished_state(current_job_status):
                 break
             time.sleep(10)
-    if not is_job_completed(updated_job):
-        raise ValueError(f"Job {updated_job.name} jobs failed with status {current_job_status}.")
+    if not is_job_completed(job):
+        raise ValueError(f'Job "{job.name}" failed with status "{current_job_status}"')
 
 
 def get_most_recent_run_id(run_recovery_file: Path) -> str:
