@@ -339,7 +339,10 @@ class DatasetConfig:
             is used only for runs outside of AzureML. If this is empty then the target_folder will be used to
             mount or download the dataset.
         :param data_name: Name of the input/output, used to infer the AML folder on which the data will be mounted or
-            downloaded.
+            downloaded. For example, if the `data_name` of an input dataset is `"mydata_dir"`, the argument
+            `'${{inputs.mydata_dir}}'` will be added to the script arguments to indicate the folder where the data is
+            mounted/downloaded inside the run. If used for an output dataset, the argument `'${{outputs.mydata_dir}}'`
+            may be used.
         """
         # This class would be a good candidate for a dataclass, but having an explicit constructor makes
         # documentation tools in the editor work nicer.
