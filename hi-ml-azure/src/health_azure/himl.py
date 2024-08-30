@@ -683,16 +683,21 @@ def create_v2_inputs(ml_client: MLClient, input_datasets: List[DatasetConfig]) -
     :param input_datasets: A list of DatasetConfigs to convert to Inputs.
     :return: A dictionary in the format "input_name": Input.
     """
-    input_assets = [get_data_asset_from_config(ml_client, input_dataset) for input_dataset in input_datasets]
-    # Data assets can be of type "uri_folder", "uri_file", "mltable", all of which are value types in Input
-    return {
-        f"{V2_INPUT_ASSET_IDENTIFIER}{i}": Input(  # type: ignore
+    input_name_to_input = {}
+    for i, input_dataset in enumerate(input_datasets):
+        data_asset = get_data_asset_from_config(ml_client, input_dataset)
+        if input_dataset.data_name is None:
+            input_name = f"{V2_INPUT_ASSET_IDENTIFIER}{i}"
+        else:
+            input_name = input_dataset.data_name
+        # Data assets can be of type "uri_folder", "uri_file", "mltable", all of which are value types in Input
+        input_data = Input(
             type=data_asset.type,  # type: ignore
             path=data_asset.path,
-            mode=InputOutputModes.MOUNT if input_datasets[i].use_mounting else InputOutputModes.DOWNLOAD,
+            mode=InputOutputModes.MOUNT if input_dataset.use_mounting else InputOutputModes.DOWNLOAD,
         )
-        for i, data_asset in enumerate(input_assets)
-    }
+        input_name_to_input[input_name] = input_data
+    return input_name_to_input
 
 
 def create_v2_outputs(ml_client: MLClient, output_datasets: List[DatasetConfig]) -> Dict[str, Output]:
@@ -703,17 +708,21 @@ def create_v2_outputs(ml_client: MLClient, output_datasets: List[DatasetConfig])
     :param output_datasets: A list of DatasetConfigs to convert to Outputs.
     :return: A dictionary in the format "output_name": Output.
     """
-
-    output_assets = [get_data_asset_from_config(ml_client, output_dataset) for output_dataset in output_datasets]
-    return {
-        # Data assets can be of type "uri_folder", "uri_file", "mltable", all of which are value types in Input
-        f"{V2_OUTPUT_ASSET_IDENTIFIER}{i}": Output(  # type: ignore
+    output_name_to_output = {}
+    for i, output_dataset in enumerate(output_datasets):
+        data_asset = get_data_asset_from_config(ml_client, output_dataset)
+        if output_dataset.data_name is None:
+            output_name = f"{V2_OUTPUT_ASSET_IDENTIFIER}{i}"
+        else:
+            output_name = output_dataset.data_name
+        # Data assets can be of type "uri_folder", "uri_file", "mltable", all of which are value types in output
+        output_data = Output(
             type=data_asset.type,  # type: ignore
             path=data_asset.path,
             mode=InputOutputModes.MOUNT,  # hard-coded to mount for now, as this is the only mode that doesn't break
         )
-        for i, data_asset in enumerate(output_assets)
-    }
+        output_name_to_output[output_name] = output_data
+    return output_name_to_output
 
 
 def submit_to_azure_if_needed(  # type: ignore
