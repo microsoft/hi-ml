@@ -141,10 +141,11 @@ def wait_until_file_exists(filename: Path, timeout_sec: float = 10.0, sleep_sec:
             raise TimeoutError(f"File {filename} still does not exist after waiting for {timeout_sec} seconds")
 
 
-def skipif_no_gpu() -> MarkDecorator:
+def skipif_no_gpu(reason: str = "No GPU available") -> MarkDecorator:
     """Convenience for pytest.mark.skipif() in case no GPU is available.
 
+    :param reason: The reason for skipping the test.
     :return: A Pytest skipif mark decorator.
     """
     has_gpu = cuda.is_available() and cuda.device_count() > 0
-    return pytest.mark.skipif(not has_gpu, reason="No GPU available")
+    return pytest.mark.skipif(not has_gpu, reason=reason)

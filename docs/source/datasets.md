@@ -168,6 +168,39 @@ input_folder = run_info.input_datasets[0]
 
 This is also true when running locally - if `local_folder` is not specified and an AzureML workspace can be found, then the dataset will be downloaded or mounted to the `target_folder`.
 
+### Inferring the location of a dataset on AML
+
+If one cannot / does not wish to specify the target folder on which the dataset will be mounted or downloaded, a `data_name` kwarg may be used instead of `target_folder`.
+This name may be referenced in an argument of the script, and AML will interpolate its value so it is readable at runtime.
+
+```python
+from health_azure import DatasetConfig, submit_to_azure_if_needed
+input_dataset = DatasetConfig(name="my_folder",
+                              datastore="my_datastore",
+                              use_mounting=True,
+                              data_name="mnist_dir",
+                             )
+run_info = submit_to_azure_if_needed(...,
+                                     input_datasets=[input_dataset],
+                                     script_params=["--data_dir", "${{inputs.mnist_dir}}"],
+                                    )
+```
+
+If `data_name` is used for an output dataset, the prefix `outputs.` should be used instead of `inputs.`:
+
+```python
+from health_azure import DatasetConfig, submit_to_azure_if_needed
+output_dataset = DatasetConfig(name="new_dataset",
+                               datastore="my_datastore",
+                               use_mounting=True,
+                               data_name="output_dir",
+                              )
+run_info = submit_to_azure_if_needed(...,
+                                     output_datasets=[output_dataset],
+                                     script_params=["--output_dir", "${{outputs.output_dir}}"],
+                                    )
+```
+
 ### Overwriting existing output datasets
 
 When creating an output dataset with the same name as an existing dataset, the default behaviour of `hi-ml` is to overwrite the existing datasets. This is as if a run fails during the upload stage, corrupt files may be created. Allowing overwriting means that these corrupt datasets will not cause errors. If you wish to disable this behaviour, it can be controlled using the `overwrite_existing` parameter (only available in sdk v1, hence setting `strictly_aml_v1=True`):

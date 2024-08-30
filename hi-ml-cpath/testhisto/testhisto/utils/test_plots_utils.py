@@ -26,7 +26,7 @@ from health_cpath.utils.plots_utils import (
 )
 from health_cpath.utils.tiles_selection_utils import SlideNode, TilesSelector
 from testhisto.mocks.container import MockDeepSMILETilesPanda
-from testhisto.utils.utils_testhisto import assert_binary_files_match, full_ml_test_data_path
+from testhisto.utils.utils_testhisto import assert_binary_files_match, full_ml_test_data_path, skipif_no_gpu
 
 
 def test_plots_handler_wrong_class_names() -> None:
@@ -247,6 +247,8 @@ def test_get_stratified_outputs() -> None:
         assert len(stratified_outputs[key][0]) == len(stratified_outputs[key][1])
 
 
+@pytest.mark.gpu
+@skipif_no_gpu("This test requires the PathMNIST dataset, which is only mounted in the AzureML environment.")
 @pytest.mark.parametrize("stratify_plots_by", ['data_provider', None])
 def test_plots_handler_get_metadata(mock_panda_slides_root_dir: Path, stratify_plots_by: Optional[str]) -> None:
     results = {
