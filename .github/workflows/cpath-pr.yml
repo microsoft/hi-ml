@@ -110,7 +110,7 @@ jobs:
         # Coverage should also be uploaded if tests still fail.
         # This will pick up the file coverage.xml from the test run
         if: always()
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
             flags: ${{ env.folder }}
 
@@ -137,7 +137,7 @@ jobs:
         # Coverage should also be uploaded if tests still fail.
         # This will pick up the file pytest_gpu_coverage.xml from the GPU tests.
         if: always()
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
             flags: ${{ env.folder }}
 
