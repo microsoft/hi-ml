@@ -228,9 +228,11 @@ def get_best_epoch_metrics(
         containing only scalar values.
     """
     best_metrics = [
-        metrics_df.loc[metrics_list, k].apply(lambda values: values[epoch])
-        if epoch is not None
-        else metrics_df.loc[metrics_list, k]
+        (
+            metrics_df.loc[metrics_list, k].apply(lambda values: values[epoch])
+            if epoch is not None
+            else metrics_df.loc[metrics_list, k]
+        )
         for k, epoch in best_epochs.items()
     ]
     best_metrics_df = pd.DataFrame(best_metrics).T
