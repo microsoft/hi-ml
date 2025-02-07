@@ -782,8 +782,8 @@ def test_submit_run_v2(tmp_path: Path) -> None:
             values = [0.1, 0.5, 0.9]
             argument_name = "learning_rate"
             argument_2_name = "batch_size"
-            distribution = QUniform(8, 32, 4)
-            param_sampling = {argument_name: Choice(values), argument_2_name: distribution}  # type: ignore
+            sweep_distribution = QUniform(8, 32, 4)
+            param_sampling = {argument_name: Choice(values), argument_2_name: sweep_distribution}  # type: ignore
             metric_name = "val/loss"
 
             dummy_hyperparam_args = {
@@ -795,7 +795,7 @@ def test_submit_run_v2(tmp_path: Path) -> None:
             }
 
             # The hyperparameter to be altered should have been added to the command
-            expected_command += " --learning_rate=${{inputs.learning_rate}}"
+            expected_command += " --learning_rate=${{inputs.learning_rate}} --batch_size=${{inputs.batch_size}}"
 
             himl.submit_run_v2(
                 experiment_name=dummy_experiment_name,
