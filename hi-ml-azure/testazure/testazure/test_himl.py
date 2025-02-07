@@ -27,7 +27,7 @@ from azure.ai.ml import Input, Output, MLClient
 from azure.ai.ml.constants import AssetTypes, InputOutputModes
 from azure.ai.ml.entities import Data, Job
 from azure.ai.ml.entities._job.distribution import MpiDistribution, PyTorchDistribution
-from azure.ai.ml.sweep import Choice
+from azure.ai.ml.sweep import Choice, QUniform
 from azure.core.exceptions import ResourceNotFoundError
 from azureml._restclient.constants import RunStatus
 from azureml.core import ComputeTarget, Environment, RunConfiguration, ScriptRunConfig, Workspace
@@ -781,7 +781,9 @@ def test_submit_run_v2(tmp_path: Path) -> None:
 
             values = [0.1, 0.5, 0.9]
             argument_name = "learning_rate"
-            param_sampling = {argument_name: Choice(values)}  # type: ignore
+            argument_2_name = "batch_size"
+            distribution = QUniform(8, 32, 4)
+            param_sampling = {argument_name: Choice(values), argument_2_name: distribution}  # type: ignore
             metric_name = "val/loss"
 
             dummy_hyperparam_args = {
