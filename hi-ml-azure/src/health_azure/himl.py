@@ -517,16 +517,20 @@ def submit_run_v2(
         if input_datasets_v2 is None:
             input_datasets_v2 = {}
 
-        for sample_param, choices in param_sampling.items():
-            input_datasets_v2[sample_param] = choices.values[0]
-            cmd += f" {hyperdrive_argument_prefix}{sample_param}=" + "${{inputs." + sample_param + "}}"
+        param_sampling_aml = {}
+        for sample_param, sweep in param_sampling.items():
+            # AzureML does not allow "." or "/" in input names
+            sample_param_aml = sample_param.replace(".", "_").replace('/', '_')
+            param_sampling_aml[sample_param_aml] = sweep
+            input_datasets_v2[sample_param_aml] = sweep
+            cmd += f" {hyperdrive_argument_prefix}{sample_param}=" + "${{inputs." + sample_param_aml + "}}"
 
         command_job = create_command_job(cmd)
 
         del hyperparam_args[PARAM_SAMPLING_ARG]
         # override command with parameter expressions
         command_job = command_job(
-            **param_sampling,
+            **param_sampling_aml,
         )
 
         job_to_submit = command_job.sweep(
