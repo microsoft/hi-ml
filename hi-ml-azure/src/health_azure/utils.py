@@ -638,6 +638,25 @@ def is_conda_file_with_pip_include(conda_file: Path) -> Tuple[bool, Dict]:
     return False, conda_yaml
 
 
+def load_and_hash_directory(folder_path: Path) -> str:
+    # Initialize an empty string to hold the concatenated contents
+    concatenated_content = b''
+
+    # Use pathlib to get all files in the folder
+    folder = Path(folder_path)
+    for filepath in folder.glob('*'):
+        # Check if it's a file (not a directory)
+        if filepath.is_file():
+            with filepath.open('rb') as file:
+                concatenated_content += file.read()
+
+    hash_object = hashlib.sha1()
+    hash_object.update(concatenated_content)
+    overall_hash = hash_object.hexdigest()[:32]
+    unique_env_name = f"HealthML-{overall_hash}"
+    return unique_env_name
+
+
 def generate_unique_environment_name(environment_description_string: str) -> str:
     """
     Generates a unique environment name beginning with "HealthML" and ending with a hash string generated

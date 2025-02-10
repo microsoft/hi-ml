@@ -21,7 +21,7 @@ from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
 
 from azure.ai.ml import Input, MLClient, Output, command
 from azure.ai.ml.constants import InputOutputModes
-from azure.ai.ml.entities import Command, Data
+from azure.ai.ml.entities import BuildContext, Command, Data
 from azure.ai.ml.entities import Environment as EnvironmentV2
 from azure.ai.ml.entities import Job, Sweep, UserIdentityConfiguration
 from azure.ai.ml.entities._job.distribution import DistributionConfiguration, MpiDistribution, PyTorchDistribution
@@ -58,6 +58,7 @@ from health_azure.utils import (
     get_workspace,
     is_run_and_child_runs_completed,
     is_running_in_azure_ml,
+    load_and_hash_directory,
     register_environment,
     register_environment_v2,
     run_duration_string_to_seconds,
@@ -464,13 +465,13 @@ def submit_run_v2(
     root_dir = sanitize_snapshoot_directory(snapshot_root_directory)
     script_params = script_params or []
     script_param_str = create_v2_job_command_line_args_from_params(script_params)
+    entry_script_relative = sanitize_entry_script(entry_script, root_dir)
     if entry_command is None:
-        entry_script_relative = sanitize_entry_script(entry_script, root_dir)
         experiment_name = effective_experiment_name(experiment_name, entry_script_relative)
         cmd = " ".join(["python", str(entry_script_relative), script_param_str])
     else:
         experiment_name = effective_experiment_name(experiment_name, entry_command)
-        cmd = " ".join([str(entry_command), script_param_str])
+        cmd = " ".join([str(entry_command), entry_script_relative, script_param_str])
 
     print(f"The following command will be run in AzureML: {cmd}")
 
@@ -734,6 +735,7 @@ def submit_to_azure_if_needed(  # type: ignore
     snapshot_root_directory: Optional[PathOrString] = None,
     script_params: Optional[List[str]] = None,
     conda_environment_file: Optional[PathOrString] = None,
+    build_context: Optional[BuildContext] = None,
     aml_environment_name: str = "",
     experiment_name: Optional[str] = None,
     environment_variables: Optional[Dict[str, str]] = None,
@@ -922,14 +924,16 @@ def submit_to_azure_if_needed(  # type: ignore
         print(f"No snapshot root directory given. Uploading all files in the current directory {Path.cwd()}")
         snapshot_root_directory = Path.cwd()
 
-    if conda_environment_file is None:
+    if conda_environment_file is None and build_context is None:
         conda_environment_file = find_file_in_parent_to_pythonpath(CONDA_ENVIRONMENT_FILE)
         if conda_environment_file is None:
             raise ValueError(
-                f"No conda environment file {CONDA_ENVIRONMENT_FILE} found in {Path.cwd()} or any parent directory."
+                f"Neither `build_context` nor `conda_environment_file` were provided and no conda environment file "
+                f"{CONDA_ENVIRONMENT_FILE} found in {Path.cwd()} or any parent directory."
             )
-        print(f"Using the Conda environment from this file: {conda_environment_file}")
-    conda_environment_file = _str_to_path(conda_environment_file)
+        else:
+            print(f"Using the Conda environment from this file: {conda_environment_file}")
+            conda_environment_file = _str_to_path(conda_environment_file)
 
     amlignore_path = snapshot_root_directory / AML_IGNORE_FILE
     lines_to_append = [str(path) for path in (ignored_folders or [])]
@@ -937,6 +941,7 @@ def submit_to_azure_if_needed(  # type: ignore
 
     with append_to_amlignore(amlignore=amlignore_path, lines_to_append=lines_to_append):
         if strictly_aml_v1:
+            assert isinstance(conda_environment_file, Path)
             assert aml_workspace is not None, "An AzureML workspace should have been created already."
             run_config = create_run_configuration(
                 workspace=aml_workspace,
@@ -988,15 +993,20 @@ def submit_to_azure_if_needed(  # type: ignore
 
         else:
             assert ml_client is not None, "An AzureML MLClient should have been created already."
-            if conda_environment_file is None:
-                logger.warning("No conda environment file provided. Using base docker image.")
-                environment = EnvironmentV2(
-                    image=docker_base_image,
-                )
-            else:
+            if conda_environment_file is not None:
+                assert isinstance(conda_environment_file, Path)
                 environment = create_python_environment_v2(
                     conda_environment_file=conda_environment_file, docker_base_image=docker_base_image
                 )
+            elif build_context is not None:
+                assert isinstance(build_context, BuildContext)
+                # Load all files in the build context directory into a single string
+                # and run generate_unique_environment_name
+                environment_name = load_and_hash_directory(Path(build_context.path))
+                environment = EnvironmentV2(build=build_context, name=environment_name)
+            else:
+                logger.warning("No build context or conda environment file provided. Using base docker image.")
+                environment = EnvironmentV2(image=docker_base_image)
 
             registered_env = register_environment_v2(environment, ml_client)
             input_datasets_v2 = create_v2_inputs(ml_client, cleaned_input_datasets)
