@@ -989,10 +989,15 @@ def submit_to_azure_if_needed(  # type: ignore
         else:
             assert ml_client is not None, "An AzureML MLClient should have been created already."
             if conda_environment_file is None:
-                raise ValueError("Argument 'conda_environment_file' must be specified when using AzureML v2")
-            environment = create_python_environment_v2(
-                conda_environment_file=conda_environment_file, docker_base_image=docker_base_image
-            )
+                logger.warning("No conda environment file provided. Using base docker image.")
+                environment = EnvironmentV2(
+                    image=docker_base_image,
+                )
+            else:
+                environment = create_python_environment_v2(
+                    conda_environment_file=conda_environment_file, docker_base_image=docker_base_image
+                )
+
             registered_env = register_environment_v2(environment, ml_client)
             input_datasets_v2 = create_v2_inputs(ml_client, cleaned_input_datasets)
             output_datasets_v2 = create_v2_outputs(ml_client, cleaned_output_datasets)
