@@ -250,7 +250,10 @@ def test_create_run_configuration_fails(
     mock_workspace.compute_targets = {existing_compute_target: 123}
     with pytest.raises(ValueError) as e:
         himl.create_run_configuration(compute_cluster_name="b", workspace=mock_workspace)
-    assert "One of the two arguments 'aml_environment_name' or 'conda_environment_file' must be given." == str(e.value)
+    assert (
+        "One of the three arguments 'aml_environment_name', 'docker_build_context' or "
+        "'conda_environment_file' must be given."
+    ) == str(e.value)
     with pytest.raises(ValueError) as e:
         himl.create_run_configuration(
             conda_environment_file=Path(__file__), compute_cluster_name="b", workspace=mock_workspace
@@ -2046,7 +2049,7 @@ def test_conda_env_missing(tmp_path: Path) -> None:
     with (
         check_config_json(tmp_path, shared_config_json=shared_config_json),
         change_working_directory(tmp_path),
-        pytest.raises(ValueError, match="No conda environment file"),
+        pytest.raises(ValueError, match="no conda environment file"),
     ):
         himl.submit_to_azure_if_needed(
             aml_workspace=None,
