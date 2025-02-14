@@ -942,7 +942,6 @@ def submit_to_azure_if_needed(  # type: ignore
         print(f"No snapshot root directory given. Uploading all files in the current directory {Path.cwd()}")
         snapshot_root_directory = Path.cwd()
 
-
     if conda_environment_file is not None and build_context is not None:
         raise ValueError("Only one of `conda_environment_file` or `build_context` can be provided.")
 
@@ -964,7 +963,7 @@ def submit_to_azure_if_needed(  # type: ignore
     with append_to_amlignore(amlignore=amlignore_path, lines_to_append=lines_to_append):
         if strictly_aml_v1:
             assert isinstance(conda_environment_file, Path)
-            assert aml_workspace is not None, "An AzureML workspace should have been created already."
+            assert aml_workspace is not None, "An qAzureML workspace should have been created already."
             assert isinstance(build_context, Union[DockerBuildContext, None])
             run_config = create_run_configuration(
                 workspace=aml_workspace,
