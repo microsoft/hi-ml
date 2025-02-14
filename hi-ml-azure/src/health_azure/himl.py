@@ -393,7 +393,8 @@ def create_script_run(
             )
         else:
             return ScriptRunConfig(
-                source_directory=str(snapshot_root), command=[python_launch_command, str(entry_script_relative), *script_params]
+                source_directory=str(snapshot_root),
+                command=[python_launch_command, str(entry_script_relative), *script_params],
             )
 
 
