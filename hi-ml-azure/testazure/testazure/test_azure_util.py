@@ -10,10 +10,11 @@ import logging
 import os
 import sys
 import time
+import hashlib
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional, Union
 from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, mock_open, patch
 from uuid import uuid4
 from xmlrpc.client import Boolean
 
@@ -44,6 +45,7 @@ from health_azure.utils import (
     resolve_workspace_config_path,
     sanitize_snapshoot_directory,
     sanitize_entry_script,
+    load_and_hash_directory,
 )
 from testazure.test_himl import RunTarget, render_and_run_test_script
 from testazure.utils_testazure import (
@@ -2184,3 +2186,45 @@ def test_sanitize_entry_script(tmp_path: Path) -> None:
     # Error case: Entry script is not in the snapshot
     with pytest.raises(ValueError, match="entry script must be inside of the snapshot root"):
         assert sanitize_entry_script(script_with_folder, tmp_path / "other_folder")
+
+
+@pytest.mark.fast
+def test_load_and_hash_directory(tmp_path: Path) -> None:
+    # Create a sample subdirectory and test that each file is read
+    folder_path = Path('/fake/directory')
+    with patch("health_azure.utils.Path.glob") as mock_glob:
+        mock_glob.return_value = [Path("file_1"), Path("file_2")]
+        with patch("health_azure.utils.Path.is_file", side_effect=[True, True]):
+            with patch("health_azure.utils.Path.open", mock_open(read_data=b'foo'), create=True) as m_open:
+                _ = load_and_hash_directory(folder_path)
+                # Ensure each file's read method was called
+                assert m_open.call_count == 2
+                # Verify that the read method was called for each file
+                handle = m_open()
+                handle.read.assert_called()
+                assert handle.read.call_count == 2
+
+    # Create two subdirectories. Put the same files in there and check that the hashes are the same
+    subdir_1 = tmp_path / "subdir_1"
+    subdir_2 = tmp_path / "subdir_2"
+    subdir_1.mkdir()
+    subdir_2.mkdir()
+    file_names = ["file1.txt", "file2.txt", "file3.txt"]
+    file_contents = ["Content of file 1", "Content of file 2", "Content of file 3"]
+    for file_name, content in zip(file_names, file_contents):
+        (subdir_1 / file_name).write_text(content)
+        (subdir_2 / file_name).write_text(content)
+    hash_1 = load_and_hash_directory(subdir_1)
+    hash_2 = load_and_hash_directory(subdir_2)
+    assert hash_1 == hash_2
+
+    # Create a third folder with different contents and check that the hashes are different
+    subdir_3 = tmp_path / "subdir_3"
+    subdir_3.mkdir()
+    file_names = ["file1.txt", "file2.txt", "file3.txt"]
+    file_contents = ["new content of file 1", "New content of file 2", "New content of file 3"]
+    for file_name, content in zip(file_names, file_contents):
+        (subdir_1 / file_name).write_text(content)
+        (subdir_2 / file_name).write_text(content)
+    hash_3 = load_and_hash_directory(subdir_3)
+    assert hash_1 != hash_3
