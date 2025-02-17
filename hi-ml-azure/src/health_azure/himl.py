@@ -204,6 +204,10 @@ def create_run_configuration(
     if aml_environment_name:
         run_config.environment = Environment.get(workspace, aml_environment_name)
     elif docker_build_context:
+        # Check that the dockerfile exists
+        dockerfile_path = Path(docker_build_context.location) / docker_build_context.dockerfile_path
+        if not dockerfile_path.exists():
+            raise ValueError("Dockerfile not found in the provided docker_build_context.")
         environment_name = load_and_hash_directory(Path(docker_build_context.location))
         new_environment = Environment.from_docker_build_context(
             name=environment_name,
@@ -365,7 +369,7 @@ def create_script_run(
     snapshot_root_directory: Optional[Path] = None,
     entry_script: Optional[PathOrString] = None,
     entry_command: Optional[PathOrString] = None,
-    python_launch_command: str = "python",
+    python_executable: str = "python",
 ) -> ScriptRunConfig:
     """
     Creates an AzureML ScriptRunConfig object, that holds the information about the snapshot, the entry script, and
@@ -386,16 +390,10 @@ def create_script_run(
         return ScriptRunConfig(source_directory=str(snapshot_root), command=[entry_command, *script_params])
     else:
         entry_script_relative = sanitize_entry_script(entry_script, snapshot_root)
-
-        if python_launch_command == "python":
-            return ScriptRunConfig(
-                source_directory=str(snapshot_root), script=entry_script_relative, arguments=script_params
-            )
-        else:
-            return ScriptRunConfig(
-                source_directory=str(snapshot_root),
-                command=[python_launch_command, str(entry_script_relative), *script_params],
-            )
+        return ScriptRunConfig(
+            source_directory=str(snapshot_root),
+            command=[python_executable, str(entry_script_relative), *script_params],
+        )
 
 
 def effective_experiment_name(experiment_name: Optional[str], entry_script: Optional[PathOrString] = None) -> str:
@@ -432,7 +430,7 @@ def submit_run_v2(
     entry_script: Optional[PathOrString] = None,
     script_params: Optional[List[str]] = None,
     entry_command: Optional[PathOrString] = None,
-    python_launch_command: str = "python",
+    python_executable: str = "python",
     environment_variables: Optional[Dict[str, str]] = None,
     experiment_name: Optional[str] = None,
     input_datasets_v2: Optional[Dict[str, Input]] = None,
@@ -459,7 +457,7 @@ def submit_run_v2(
         executed. If entry_command is provided, this argument is ignored.
     :param entry_command: The command that should be run in AzureML. Command arguments will be taken from
         the 'script_params' argument. If provided, this will override the entry_script argument.
-    :param python_launch_command: The command that should be used to launch the script. For example, "python",
+    :param python_executable: The command that should be used to launch the script. For example, "python",
         "torchrun" or "uv run".
     :param script_params: A list of parameter to pass on to the script as it runs in AzureML.
     :param compute_target: The name of a compute target in Azure ML to submit the job to.
@@ -497,7 +495,7 @@ def submit_run_v2(
     if entry_command is None:
         entry_script_relative = sanitize_entry_script(entry_script, root_dir)
         experiment_name = effective_experiment_name(experiment_name, entry_script_relative)
-        cmd = " ".join([python_launch_command, str(entry_script_relative), script_param_str])
+        cmd = " ".join([python_executable, str(entry_script_relative), script_param_str])
     else:
         experiment_name = effective_experiment_name(experiment_name, entry_command)
         cmd = " ".join([str(entry_command), script_param_str])
@@ -638,16 +636,11 @@ def submit_run(
     user_agent.append(SDK_NAME, SDK_VERSION)
     run = experiment.submit(script_run_config)
     if tags is None:
-        if hasattr(script_run_config, 'arguments') and script_run_config.arguments is not None:
-            # It is probably a ScriptRunConfig
-            tags = {"commandline_args": " ".join(script_run_config.arguments)}
-        elif (
-            hasattr(script_run_config, 'run_config')
-            and hasattr(script_run_config.run_config, 'arguments')
-            and script_run_config.run_config.arguments is not None
-        ):
-            # It is probably a HyperDriveConfig
-            tags = {"commandline_args": " ".join(script_run_config.run_config.arguments)}
+        if isinstance(script_run_config, ScriptRunConfig) and script_run_config.command is not None:
+            tags = {"commandline_args": " ".join(script_run_config.command[1:])}
+        elif isinstance(script_run_config, HyperDriveConfig) and script_run_config.run_config.command is not None:
+            tags = {"commandline_args": " ".join(script_run_config.run_config.command[1:])}
+
     run.set_tags(tags)
     if display_name:
         run.display_name = display_name
@@ -791,7 +784,7 @@ def submit_to_azure_if_needed(  # type: ignore
     use_mpi_run_for_single_node_jobs: bool = False,
     display_name: Optional[str] = None,
     entry_command: Optional[PathOrString] = None,
-    python_launch_command: str = "python",
+    python_executable: str = "python",
     hyperdrive_argument_prefix: str = "--",
     exit_on_completion: bool = True,
 ) -> Union[AzureRunInfo, Run, Job]:  # pragma: no cover
@@ -869,7 +862,7 @@ def submit_to_azure_if_needed(  # type: ignore
         Setting this flag to True is required Kubernetes compute.
     :param display_name: The name for the run that will be displayed in the AML UI. If not provided, a random
         display name will be generated by AzureML.
-    :param python_launch_command: The command that should be used to launch the script. For example, "python",
+    :param python_executable: The command that should be used to launch the script. For example, "python",
         "torchrun" or "uv run".
     :param: hyperdrive_argument_prefix: Prefix to add to hyperparameter arguments. Some examples might be "--", "-"
         or "". For example, if "+" is used, a hyperparameter "learning_rate" with value 0.01 will be passed as
@@ -1004,7 +997,7 @@ def submit_to_azure_if_needed(  # type: ignore
                 snapshot_root_directory=snapshot_root_directory,
                 entry_script=entry_script,
                 entry_command=entry_command,
-                python_launch_command=python_launch_command,
+                python_executable=python_executable,
             )
             script_run_config.run_config = run_config
 
@@ -1016,7 +1009,7 @@ def submit_to_azure_if_needed(  # type: ignore
 
             run = submit_run(
                 workspace=aml_workspace,
-                experiment_name=effective_experiment_name(experiment_name, script_run_config.script),
+                experiment_name=effective_experiment_name(experiment_name, entry_script),
                 script_run_config=config_to_submit,
                 tags=tags,
                 display_name=display_name,
@@ -1063,7 +1056,7 @@ def submit_to_azure_if_needed(  # type: ignore
                 entry_script=entry_script,
                 script_params=script_params,
                 entry_command=entry_command,
-                python_launch_command=python_launch_command,
+                python_executable=python_executable,
                 compute_target=compute_cluster_name,
                 tags=tags,
                 display_name=display_name,
