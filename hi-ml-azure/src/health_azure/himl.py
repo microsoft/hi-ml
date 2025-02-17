@@ -494,8 +494,8 @@ def submit_run_v2(
     root_dir = sanitize_snapshoot_directory(snapshot_root_directory)
     script_params = script_params or []
     script_param_str = create_v2_job_command_line_args_from_params(script_params)
-    entry_script_relative = sanitize_entry_script(entry_script, root_dir)
     if entry_command is None:
+        entry_script_relative = sanitize_entry_script(entry_script, root_dir)
         experiment_name = effective_experiment_name(experiment_name, entry_script_relative)
         cmd = " ".join([python_launch_command, str(entry_script_relative), script_param_str])
     else:
