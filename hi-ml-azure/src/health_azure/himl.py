@@ -1040,7 +1040,7 @@ def submit_to_azure_if_needed(  # type: ignore
             elif build_context is not None:
                 assert isinstance(build_context, BuildContext)
                 # Load all files in the build context directory into a single string
-                # and run generate_unique_environment_name
+                # and run generate_unique_environment_name_from_directory
                 environment_name = generate_unique_environment_name_from_directory(Path(build_context.path))
                 environment = EnvironmentV2(build=build_context, name=environment_name)
             else:

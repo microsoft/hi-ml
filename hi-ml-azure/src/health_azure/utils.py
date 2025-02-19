@@ -666,7 +666,9 @@ def generate_unique_environment_name_from_directory(
 
 
 def generate_unique_environment_name_from_description(
-    environment_description_string: str, environment_name_prefix: str = "HealthML-", num_hash_digits: int = 32
+    environment_description_string: str,
+    environment_name_prefix: str = "HealthML-",
+    num_hash_digits: int = 32,
 ) -> str:
     """
     Generates a unique environment name beginning with `environment_name_prefix` and ending with a hash string generated
