@@ -493,7 +493,7 @@ def test_create_run_configuration_correct_docker_env(
         )
         assert "Dockerfile not found in the provided docker_build_context." in str(e)
 
-    # Check that when create_run_configuration is called, whatever is returned  from register_environment
+    # Check that when create_run_configuration is called, whatever is returned from register_environment
     # is set as the new "environment" attribute of the run config
     with patch("health_azure.himl.register_environment") as mock_register_environment:
         for dummy_env in ["abc", 1, Environment("dummy_env")]:
