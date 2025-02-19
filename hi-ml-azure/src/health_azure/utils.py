@@ -653,7 +653,7 @@ def generate_unique_environment_name_from_directory(
     """
     concatenated_content = b''
     folder = Path(folder_path)
-    for filepath in folder.glob('*'):
+    for filepath in folder.rglob('*'):
         if filepath.is_file():
             with filepath.open('rb') as file:
                 concatenated_content += file.read()
