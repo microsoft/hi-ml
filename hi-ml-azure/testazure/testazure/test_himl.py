@@ -2143,12 +2143,12 @@ def test_submitting_script_with_sdk_v2_creates_environment_from_build_context(tm
         "health_azure.himl",
         get_ml_client=DEFAULT,
         get_workspace=DEFAULT,
-        load_and_hash_directory=DEFAULT,
+        generate_unique_environment_name_from_directory=DEFAULT,
         EnvironmentV2=DEFAULT,
         register_environment_v2=DEFAULT,
         command=DEFAULT,
     ) as mocks:
-        mocks["load_and_hash_directory"].return_value = "dummy_hash"
+        mocks["generate_unique_environment_name_from_directory"].return_value = "dummy_hash"
         mocks["command"].side_effect = NotImplementedError
 
         with pytest.raises(NotImplementedError):
@@ -2166,7 +2166,7 @@ def test_submitting_script_with_sdk_v2_creates_environment_from_build_context(tm
         assert mocks["register_environment_v2"].call_count == 1, "EnvironmentV2 was not registered"
         assert "environment" in call_kwargs, "environment not passed to command"
 
-        mocks["load_and_hash_directory"].assert_called_once_with(Path(build_context.path))
+        mocks["generate_unique_environment_name_from_directory"].assert_called_once_with(Path(build_context.path))
 
 
 def test_submitting_script_with_sdk_v2_passes_environment_variables(tmp_path: Path) -> None:
