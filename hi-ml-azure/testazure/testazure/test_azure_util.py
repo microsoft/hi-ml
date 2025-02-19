@@ -557,15 +557,15 @@ def test_nonexisting_amlignore(random_folder: Path) -> None:
     os.chdir(cwd)
 
 
-def test_generate_unique_environment_name() -> None:
+def test_generate_unique_environment_name_from_description() -> None:
     dummy_env_description_string_1 = "A pretend environment description\ncontaining information about pip "
     "packages\netc etc"
-    env_name_1 = util.generate_unique_environment_name(dummy_env_description_string_1)
+    env_name_1 = util.generate_unique_environment_name_from_description(dummy_env_description_string_1)
     assert env_name_1.startswith("HealthML-")
 
     dummy_env_description_string_2 = "A slightly differetpretend environment description\ncontaining "
     "information about pip packages\netc etc"
-    env_name_2 = util.generate_unique_environment_name(dummy_env_description_string_2)
+    env_name_2 = util.generate_unique_environment_name_from_description(dummy_env_description_string_2)
     assert env_name_2.startswith("HealthML-")
     assert env_name_1 != env_name_2
 
