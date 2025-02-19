@@ -207,7 +207,8 @@ def create_run_configuration(
         # Check that the dockerfile exists
         dockerfile_path = Path(docker_build_context.location) / docker_build_context.dockerfile_path
         if not dockerfile_path.exists():
-            raise ValueError("Dockerfile not found in the provided docker_build_context.")
+            msg = f"Dockerfile not found in the provided docker_build_context '{dockerfile_path }'."
+            raise ValueError(msg)
         environment_name = load_and_hash_directory(Path(docker_build_context.location))
         new_environment = Environment.from_docker_build_context(
             name=environment_name,
