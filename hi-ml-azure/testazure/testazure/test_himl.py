@@ -252,16 +252,18 @@ def test_create_run_configuration_fails(
     mock_workspace.compute_targets = {existing_compute_target: 123}
     with pytest.raises(ValueError) as e:
         himl.create_run_configuration(compute_cluster_name="b", workspace=mock_workspace)
-    assert (
-        "One of the three arguments 'aml_environment_name', 'docker_build_context' or "
-        "'conda_environment_file' must be given."
-    ) == str(e.value)
+        expected_message = (
+            "One of the three arguments 'aml_environment_name', 'docker_build_context' or "
+            "'conda_environment_file' must be given."
+        )
+        raised_message = str(e.value)
+        assert expected_message == raised_message
     with pytest.raises(ValueError) as e:
         himl.create_run_configuration(
             conda_environment_file=Path(__file__), compute_cluster_name="b", workspace=mock_workspace
         )
-    assert "Could not find compute target 'b' in the AzureML workspace" in str(e.value)
-    assert existing_compute_target in str(e.value)
+        assert "Could not find compute target 'b' in the AzureML workspace" in str(e.value)
+        assert existing_compute_target in str(e.value)
 
 
 @pytest.mark.fast

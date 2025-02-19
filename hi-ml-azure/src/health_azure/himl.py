@@ -55,11 +55,11 @@ from health_azure.utils import (
     create_run_recovery_id,
     create_v2_job_command_line_args_from_params,
     find_file_in_parent_to_pythonpath,
+    generate_unique_environment_name_from_directory,
     get_ml_client,
     get_workspace,
     is_run_and_child_runs_completed,
     is_running_in_azure_ml,
-    load_and_hash_directory,
     register_environment,
     register_environment_v2,
     run_duration_string_to_seconds,
@@ -202,20 +202,21 @@ def create_run_configuration(
         raise ValueError("Both docker_build_context and conda_environment_file cannot be provided at the same time.")
 
     if aml_environment_name:
-        run_config.environment = Environment.get(workspace, aml_environment_name)
+        environment = Environment.get(workspace, aml_environment_name)
     elif docker_build_context:
         # Check that the dockerfile exists
-        dockerfile_path = Path(docker_build_context.location) / docker_build_context.dockerfile_path
+        docker_build_context_dir = Path(docker_build_context.location)
+        dockerfile_path = docker_build_context_dir / docker_build_context.dockerfile_path
         if not dockerfile_path.exists():
             msg = f"Dockerfile not found in the provided docker_build_context '{dockerfile_path }'."
             raise ValueError(msg)
-        environment_name = load_and_hash_directory(Path(docker_build_context.location))
+        environment_name = generate_unique_environment_name_from_directory(docker_build_context_dir)
         new_environment = Environment.from_docker_build_context(
             name=environment_name,
             docker_build_context=docker_build_context,
         )
         registered_env = register_environment(workspace, new_environment)
-        run_config.environment = registered_env
+        environment = registered_env
     elif conda_environment_file:
         # Create an AzureML environment, then check if it exists already. If it exists, use the registered
         # environment, otherwise register the new environment.
@@ -230,12 +231,14 @@ def create_run_configuration(
         if conda_deps.get_python_version() is None:
             raise ValueError("If specifying a conda environment file, you must specify the python version within it")
         registered_env = register_environment(workspace, new_environment)
-        run_config.environment = registered_env
+        environment = registered_env
     else:
         raise ValueError(
             "One of the three arguments 'aml_environment_name', 'docker_build_context' or "
             "'conda_environment_file' must be given."
         )
+
+    run_config.environment = environment
 
     # By default, include several environment variables that work around known issues in the software stack
     run_config.environment_variables = {**DEFAULT_ENVIRONMENT_VARIABLES, **(environment_variables or {})}
@@ -384,6 +387,8 @@ def create_script_run(
         executed. If entry_command is provided, this argument is ignored.
     :param entry_command: The command that should be run in AzureML. Command arguments will be taken from
         the 'script_params' argument. If provided, this will override the entry_script argument.
+    :param python_executable: The command that should be used to launch the script. For example, "python",
+        "torchrun" or "uv run".
     :return: A configuration object for a script run.
     """
     snapshot_root = sanitize_snapshoot_directory(snapshot_root_directory)
@@ -1036,7 +1041,7 @@ def submit_to_azure_if_needed(  # type: ignore
                 assert isinstance(build_context, BuildContext)
                 # Load all files in the build context directory into a single string
                 # and run generate_unique_environment_name
-                environment_name = load_and_hash_directory(Path(build_context.path))
+                environment_name = generate_unique_environment_name_from_directory(Path(build_context.path))
                 environment = EnvironmentV2(build=build_context, name=environment_name)
             else:
                 logger.warning("No build context or conda environment file provided. Using base docker image.")

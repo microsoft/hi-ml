@@ -45,7 +45,7 @@ from health_azure.utils import (
     resolve_workspace_config_path,
     sanitize_snapshoot_directory,
     sanitize_entry_script,
-    load_and_hash_directory,
+    generate_unique_environment_name_from_directory,
 )
 from testazure.test_himl import RunTarget, render_and_run_test_script
 from testazure.utils_testazure import (
@@ -2189,14 +2189,14 @@ def test_sanitize_entry_script(tmp_path: Path) -> None:
 
 
 @pytest.mark.fast
-def test_load_and_hash_directory(tmp_path: Path) -> None:
+def test_generate_unique_environment_name_from_directory(tmp_path: Path) -> None:
     # Create a sample subdirectory and test that each file is read
     folder_path = Path('/fake/directory')
     with patch("health_azure.utils.Path.glob") as mock_glob:
         mock_glob.return_value = [Path("file_1"), Path("file_2")]
         with patch("health_azure.utils.Path.is_file", side_effect=[True, True]):
             with patch("health_azure.utils.Path.open", mock_open(read_data=b'foo'), create=True) as m_open:
-                _ = load_and_hash_directory(folder_path)
+                _ = generate_unique_environment_name_from_directory(folder_path)
                 # Ensure each file's read method was called
                 assert m_open.call_count == 2
                 # Verify that the read method was called for each file
@@ -2214,8 +2214,8 @@ def test_load_and_hash_directory(tmp_path: Path) -> None:
     for file_name, content in zip(file_names, file_contents):
         (subdir_1 / file_name).write_text(content)
         (subdir_2 / file_name).write_text(content)
-    hash_1 = load_and_hash_directory(subdir_1)
-    hash_2 = load_and_hash_directory(subdir_2)
+    hash_1 = generate_unique_environment_name_from_directory(subdir_1)
+    hash_2 = generate_unique_environment_name_from_directory(subdir_2)
     assert hash_1 == hash_2
 
     # Create a third folder with different contents and check that the hashes are different
@@ -2226,5 +2226,5 @@ def test_load_and_hash_directory(tmp_path: Path) -> None:
     for file_name, content in zip(file_names, file_contents):
         (subdir_1 / file_name).write_text(content)
         (subdir_2 / file_name).write_text(content)
-    hash_3 = load_and_hash_directory(subdir_3)
+    hash_3 = generate_unique_environment_name_from_directory(subdir_3)
     assert hash_1 != hash_3
