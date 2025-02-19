@@ -177,7 +177,7 @@ def create_run_configuration(
         CPU or GPU machines.
     :param conda_environment_file: The conda configuration file that describes which packages are necessary for your
         script to run.
-    :param docker_build_context: The Docker build context that should be used to create a new Docker image.
+    :param docker_build_context: The Docker build context that will be used to create a Docker image.
     :param environment_variables: The environment variables that should be set when running in AzureML.
     :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
     :param docker_shm_size: The Docker shared memory size that should be used when creating a new Docker image.
