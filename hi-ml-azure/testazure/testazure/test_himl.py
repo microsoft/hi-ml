@@ -1976,9 +1976,7 @@ class TestEnvironmentOption(Enum):
 
 
 @pytest.mark.parametrize("wait_for_completion", [True, False])
-@pytest.mark.parametrize(
-    "environment_type", [TestEnvironmentOption.CONDA_YAML, TestEnvironmentOption.BUILD_CONTEXT]
-)
+@pytest.mark.parametrize("environment_type", [TestEnvironmentOption.CONDA_YAML, TestEnvironmentOption.BUILD_CONTEXT])
 def test_submitting_script_with_sdk_v2(
     tmp_path: Path,
     wait_for_completion: bool,
@@ -2033,6 +2031,7 @@ def test_submitting_script_with_sdk_v2(
         )
 
     assert after_submission_called, "after_submission callback was not called"
+
 
 @pytest.mark.fast
 def test_submitting_script_with_sdk_v2_accepts_relative_path(tmp_path: Path) -> None:
@@ -2225,6 +2224,7 @@ def test_conda_env_missing(tmp_path: Path) -> None:
             snapshot_root_directory=tmp_path,
             submit_to_azureml=True,
         )
+
 
 @pytest.mark.fast
 def test_submit_to_azure_if_needed_conda_environment(tmp_path: Path) -> None:
