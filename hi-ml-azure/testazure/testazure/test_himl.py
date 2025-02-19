@@ -429,7 +429,7 @@ def test_create_run_configuration_correct_conda_env(
 
 
 def create_empty_docker_build_context_env(tmp_path: Path) -> DockerBuildContext:
-    """Create an empty docker build context in a given folder, and returns its path."""
+    """Create an empty docker build context in a given folder and return its path."""
     dockerfile_rel_path = "Dockerfile"
     dockerfile_path = tmp_path / dockerfile_rel_path
     dockerfile_path.write_text(f"FROM {himl.DEFAULT_DOCKER_BASE_IMAGE}\nCMD ['/bin/bash']")
