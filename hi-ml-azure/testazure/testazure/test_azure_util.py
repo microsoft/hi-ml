@@ -2192,8 +2192,8 @@ def test_sanitize_entry_script(tmp_path: Path) -> None:
 def test_generate_unique_environment_name_from_directory(tmp_path: Path) -> None:
     # Create a sample subdirectory and test that each file is read
     folder_path = Path('/fake/directory')
-    with patch("health_azure.utils.Path.glob") as mock_glob:
-        mock_glob.return_value = [Path("file_1"), Path("file_2")]
+    with patch("health_azure.utils.Path.rglob") as mock_rglob:
+        mock_rglob.return_value = [Path("file_1"), Path("file_2")]
         with patch("health_azure.utils.Path.is_file", side_effect=[True, True]):
             with patch("health_azure.utils.Path.open", mock_open(read_data=b'foo'), create=True) as m_open:
                 _ = generate_unique_environment_name_from_directory(folder_path)
