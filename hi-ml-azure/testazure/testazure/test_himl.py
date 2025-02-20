@@ -20,6 +20,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from unittest import mock
 from unittest.mock import MagicMock, create_autospec, patch, DEFAULT
 from uuid import uuid4
+from itertools import product
 
 import pytest
 from _pytest.capture import CaptureFixture
@@ -247,9 +248,14 @@ def test_create_run_configuration_fails(
     mock_workspace: mock.MagicMock,
     _: mock.MagicMock,
     __: mock.MagicMock,
+    tmp_path: Path,
 ) -> None:
     existing_compute_target = "this_does_exist"
     mock_workspace.compute_targets = {existing_compute_target: 123}
+    conda_environment_file=Path(__file__)
+    aml_environment_name = "env_name"
+    docker_build_context = create_empty_docker_build_context_env(tmp_path)
+
     with pytest.raises(ValueError) as e:
         himl.create_run_configuration(compute_cluster_name="b", workspace=mock_workspace)
         expected_message = (
@@ -258,12 +264,33 @@ def test_create_run_configuration_fails(
         )
         raised_message = str(e.value)
         assert expected_message == raised_message
+
     with pytest.raises(ValueError) as e:
         himl.create_run_configuration(
-            conda_environment_file=Path(__file__), compute_cluster_name="b", workspace=mock_workspace
+            conda_environment_file=conda_environment_file, compute_cluster_name="b", workspace=mock_workspace
         )
         assert "Could not find compute target 'b' in the AzureML workspace" in str(e.value)
         assert existing_compute_target in str(e.value)
+
+    expected_message = (
+        "Exactly one of 'aml_environment_name', 'docker_build_context', or 'conda_environment_file' must be provided."
+    )
+
+    combinations = product(
+        [aml_environment_name, None],
+        [conda_environment_file, None],
+        [docker_build_context, None],
+    )
+
+    for aml_env, conda_env, docker_ctx in combinations:
+        # Should get an error if more than one of the three arguments is given
+        if sum(x is not None for x in [aml_env, conda_env, docker_ctx]) > 1:
+            with pytest.raises(ValueError) as e:
+                himl.create_run_configuration(
+                    aml_environment_name="env_name", conda_environment_file=conda_environment_file, compute_cluster_name="b", workspace=mock_workspace
+                )
+                assert expected_message in str(e.value)
+                assert existing_compute_target in str(e.value)
 
 
 @pytest.mark.fast
@@ -2143,12 +2170,12 @@ def test_submitting_script_with_sdk_v2_creates_environment_from_build_context(tm
         "health_azure.himl",
         get_ml_client=DEFAULT,
         get_workspace=DEFAULT,
-        generate_unique_environment_name_from_directory=DEFAULT,
+        generate_unique_environment_name=DEFAULT,
         EnvironmentV2=DEFAULT,
         register_environment_v2=DEFAULT,
         command=DEFAULT,
     ) as mocks:
-        mocks["generate_unique_environment_name_from_directory"].return_value = "dummy_hash"
+        mocks["generate_unique_environment_name"].return_value = "dummy_hash"
         mocks["command"].side_effect = NotImplementedError
 
         with pytest.raises(NotImplementedError):
@@ -2166,7 +2193,7 @@ def test_submitting_script_with_sdk_v2_creates_environment_from_build_context(tm
         assert mocks["register_environment_v2"].call_count == 1, "EnvironmentV2 was not registered"
         assert "environment" in call_kwargs, "environment not passed to command"
 
-        mocks["generate_unique_environment_name_from_directory"].assert_called_once_with(Path(build_context.path))
+        mocks["generate_unique_environment_name"].assert_called_once_with(Path(build_context.path))
 
 
 def test_submitting_script_with_sdk_v2_passes_environment_variables(tmp_path: Path) -> None:
@@ -2317,7 +2344,11 @@ def test_error_with_both_conda_build_context(strictly_aml_v1: bool, tmp_path: Pa
     else:
         build_context = create_empty_build_context_v2_env(tmp_path)
 
-    with pytest.raises(ValueError, match="Only one of `conda_environment_file` or `build_context` can be provided"):
+    expected_error_message = (
+        "Exactly one of 'aml_environment_name', 'docker_build_context', or 'conda_environment_file' must be provided."
+    )
+
+    with pytest.raises(ValueError, match=expected_error_message):
         himl.submit_to_azure_if_needed(
             entry_script=test_script,
             conda_environment_file=conda_env_path,

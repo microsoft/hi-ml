@@ -55,7 +55,7 @@ from health_azure.utils import (
     create_run_recovery_id,
     create_v2_job_command_line_args_from_params,
     find_file_in_parent_to_pythonpath,
-    generate_unique_environment_name_from_directory,
+    generate_unique_environment_name,
     get_ml_client,
     get_workspace,
     is_run_and_child_runs_completed,
@@ -146,6 +146,58 @@ def validate_compute_cluster(workspace: Workspace, compute_cluster_name: str) ->
         )
 
 
+def exactly_one_arg_passed(arguments: List[Optional[Any]]) -> bool:
+    """
+    Check that exactly one of arguments is passed. Returns True if exactly one of the arguments is not None, "",
+    or anything which evaluates to True. Note that
+    """
+    return sum(bool(x) for x in arguments) == 1
+
+
+def get_environment_v2(
+    aml_environment_name: str = "",
+    conda_environment_file: Optional[PathOrString] = None,
+    build_context: Optional[BuildContext] = None,
+    docker_base_image: str = DEFAULT_DOCKER_BASE_IMAGE,
+) -> EnvironmentV2:
+    """
+    Get an AzureML SDK v2 Environment object. The environment can be created from a conda environment file or a docker
+    build context.
+
+    :param aml_environment_name: The name of an AzureML environment
+    """
+
+    aml_environment_name_passed = aml_environment_name != ""
+    conda_environment_file_passed = conda_environment_file is not None
+    build_context_passed = build_context is not None
+
+    # Check that exactly one of aml_environment_name, docker_build_context, or conda_environment_file is provided
+    if aml_environment_name_passed + conda_environment_file_passed + build_context_passed != 1:
+        message = (
+            "Exactly one of 'aml_environment_name', 'docker_build_context', or 'conda_environment_file' "
+            "must be provided."
+        )
+        raise ValueError(message)
+
+    if aml_environment_name:
+        raise NotImplementedError("Existing environment cannot yet be accessed by its name in AzureML SDK v2.")
+    elif conda_environment_file is not None:
+        assert isinstance(conda_environment_file, Path)
+        environment = create_python_environment_v2(
+            conda_environment_file=conda_environment_file, docker_base_image=docker_base_image
+        )
+    elif build_context is not None:
+        assert isinstance(build_context, BuildContext)
+        # Load all files in the build context directory into a single string
+        # and run generate_unique_environment_name_from_directory
+        environment_name = generate_unique_environment_name(Path(build_context.path))
+        environment = EnvironmentV2(build=build_context, name=environment_name)
+    else:
+        logger.warning("No build context or conda environment file provided. Using base docker image.")
+        environment = EnvironmentV2(image=docker_base_image)
+    return environment
+
+
 def create_run_configuration(
     workspace: Workspace,
     compute_cluster_name: str,
@@ -197,27 +249,35 @@ def create_run_configuration(
     """
     run_config = RunConfiguration()
 
-    # If both docker_build_context and conda_environment_file are provided, throw an error
-    if docker_build_context and conda_environment_file:
-        raise ValueError("Both docker_build_context and conda_environment_file cannot be provided at the same time.")
+    aml_environment_name_passed = aml_environment_name != ""
+    conda_environment_file_passed = conda_environment_file is not None
+    docker_build_context_passed = docker_build_context is not None
 
-    if aml_environment_name:
+    # Check that exactly one of aml_environment_name, docker_build_context, or conda_environment_file is provided
+    if aml_environment_name_passed + conda_environment_file_passed + docker_build_context_passed != 1:
+        message = (
+            "Exactly one of 'aml_environment_name', 'docker_build_context', or 'conda_environment_file' "
+            "must be provided."
+        )
+        raise ValueError(message)
+
+    if aml_environment_name_passed:
         environment = Environment.get(workspace, aml_environment_name)
-    elif docker_build_context:
+    elif docker_build_context_passed:
         # Check that the dockerfile exists
         docker_build_context_dir = Path(docker_build_context.location)
         dockerfile_path = docker_build_context_dir / docker_build_context.dockerfile_path
-        if not dockerfile_path.exists():
+        if not dockerfile_path.is_file():
             msg = f"Dockerfile not found in the provided docker_build_context '{dockerfile_path }'."
             raise ValueError(msg)
-        environment_name = generate_unique_environment_name_from_directory(docker_build_context_dir)
+        environment_name = generate_unique_environment_name(docker_build_context_dir)
         new_environment = Environment.from_docker_build_context(
             name=environment_name,
             docker_build_context=docker_build_context,
         )
         registered_env = register_environment(workspace, new_environment)
         environment = registered_env
-    elif conda_environment_file:
+    elif conda_environment_file_passed:
         # Create an AzureML environment, then check if it exists already. If it exists, use the registered
         # environment, otherwise register the new environment.
         new_environment = create_python_environment(
@@ -955,10 +1015,11 @@ def submit_to_azure_if_needed(  # type: ignore
         print(f"No snapshot root directory given. Uploading all files in the current directory {Path.cwd()}")
         snapshot_root_directory = Path.cwd()
 
-    if conda_environment_file is not None and build_context is not None:
-        raise ValueError("Only one of `conda_environment_file` or `build_context` can be provided.")
+    aml_environment_name_passed = aml_environment_name != ""
+    conda_environment_file_passed = conda_environment_file is not None
+    build_context_passed = build_context is not None
 
-    if conda_environment_file is None and build_context is None:
+    if not aml_environment_name_passed and not conda_environment_file_passed and not build_context_passed:
         conda_environment_file = find_file_in_parent_to_pythonpath(CONDA_ENVIRONMENT_FILE)
         if conda_environment_file is None:
             raise ValueError(
@@ -1032,20 +1093,13 @@ def submit_to_azure_if_needed(  # type: ignore
 
         else:
             assert ml_client is not None, "An AzureML MLClient should have been created already."
-            if conda_environment_file is not None:
-                assert isinstance(conda_environment_file, Path)
-                environment = create_python_environment_v2(
-                    conda_environment_file=conda_environment_file, docker_base_image=docker_base_image
-                )
-            elif build_context is not None:
-                assert isinstance(build_context, BuildContext)
-                # Load all files in the build context directory into a single string
-                # and run generate_unique_environment_name_from_directory
-                environment_name = generate_unique_environment_name_from_directory(Path(build_context.path))
-                environment = EnvironmentV2(build=build_context, name=environment_name)
-            else:
-                logger.warning("No build context or conda environment file provided. Using base docker image.")
-                environment = EnvironmentV2(image=docker_base_image)
+
+            environment = get_environment_v2(
+                aml_environment_name=aml_environment_name,
+                conda_environment_file=conda_environment_file,
+                build_context=build_context,
+                docker_base_image=docker_base_image,
+            )
 
             registered_env = register_environment_v2(environment, ml_client)
             input_datasets_v2 = create_v2_inputs(ml_client, cleaned_input_datasets)
