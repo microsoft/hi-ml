@@ -252,7 +252,7 @@ def test_create_run_configuration_fails(
 ) -> None:
     existing_compute_target = "this_does_exist"
     mock_workspace.compute_targets = {existing_compute_target: 123}
-    conda_environment_file=Path(__file__)
+    conda_environment_file = Path(__file__)
     aml_environment_name = "env_name"
     docker_build_context = create_empty_docker_build_context_env(tmp_path)
 
@@ -287,7 +287,10 @@ def test_create_run_configuration_fails(
         if sum(x is not None for x in [aml_env, conda_env, docker_ctx]) > 1:
             with pytest.raises(ValueError) as e:
                 himl.create_run_configuration(
-                    aml_environment_name="env_name", conda_environment_file=conda_environment_file, compute_cluster_name="b", workspace=mock_workspace
+                    aml_environment_name="env_name",
+                    conda_environment_file=conda_environment_file,
+                    compute_cluster_name="b",
+                    workspace=mock_workspace,
                 )
                 assert expected_message in str(e.value)
                 assert existing_compute_target in str(e.value)
