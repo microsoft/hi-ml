@@ -29,7 +29,7 @@ from azure.ai.ml.constants import AssetTypes, InputOutputModes
 from azure.ai.ml.entities import BuildContext, Data, Job
 from azure.ai.ml.entities import Environment as EnvironmentV2
 from azure.ai.ml.entities._job.distribution import MpiDistribution, PyTorchDistribution
-from azure.ai.ml.sweep import Choice
+from azure.ai.ml.sweep import Choice, QUniform
 from azure.core.exceptions import ResourceNotFoundError
 from azureml._restclient.constants import RunStatus
 from azureml.core import ComputeTarget, Environment, RunConfiguration, ScriptRunConfig, Workspace
@@ -909,7 +909,9 @@ def test_submit_run_v2(python_executable: str, tmp_path: Path) -> None:
 
             values = [0.1, 0.5, 0.9]
             argument_name = "learning_rate"
-            param_sampling = {argument_name: Choice(values)}  # type: ignore
+            argument_2_name = "batch_size"
+            sweep_distribution = QUniform(8, 32, 4)
+            param_sampling = {argument_name: Choice(values), argument_2_name: sweep_distribution}  # type: ignore
             metric_name = "val/loss"
 
             dummy_hyperparam_args = {
@@ -921,7 +923,7 @@ def test_submit_run_v2(python_executable: str, tmp_path: Path) -> None:
             }
 
             # The hyperparameter to be altered should have been added to the command
-            expected_command += " --learning_rate=${{inputs.learning_rate}}"
+            expected_command += " --learning_rate=${{inputs.learning_rate}} --batch_size=${{inputs.batch_size}}"
 
             himl.submit_run_v2(
                 experiment_name=dummy_experiment_name,
