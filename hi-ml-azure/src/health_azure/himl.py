@@ -265,7 +265,8 @@ def create_run_configuration(
         environment = Environment.get(workspace, aml_environment_name)
     elif docker_build_context is not None:
         # Set the name to be the name of the directory in blob storage
-        environment_name = docker_build_context.location.split("/")[-1]
+        location = docker_build_context.location
+        environment_name = generate_unique_environment_name(location)
         new_environment = Environment.from_docker_build_context(
             name=environment_name,
             docker_build_context=docker_build_context,
