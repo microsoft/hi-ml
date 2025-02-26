@@ -28,6 +28,7 @@ from azure.ai.ml.entities._job.distribution import DistributionConfiguration, Mp
 from azure.ai.ml.sweep import Choice
 from azureml._base_sdk_common import user_agent
 from azureml.core import ComputeTarget, Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
+from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.environment import DockerBuildContext
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
 from azureml.data import OutputFileDatasetConfig
@@ -265,11 +266,14 @@ def create_run_configuration(
         environment = Environment.get(workspace, aml_environment_name)
     elif docker_build_context is not None:
         # Set the name to be the name of the directory in blob storage
-        environment_name = docker_build_context.location.split("/")[-1]
+        location = docker_build_context.location
+        environment_name = generate_unique_environment_name(location)
         new_environment = Environment.from_docker_build_context(
             name=environment_name,
             docker_build_context=docker_build_context,
         )
+        # new_environment.python.user_managed_dependencies = True
+        # new_environment.python.interpreter_path = None
         registered_env = register_environment(workspace, new_environment)
         environment = registered_env
     elif conda_environment_file is not None:
