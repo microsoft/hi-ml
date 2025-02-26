@@ -264,13 +264,8 @@ def create_run_configuration(
     if aml_environment_name_passed:
         environment = Environment.get(workspace, aml_environment_name)
     elif docker_build_context is not None:
-        # Check that the dockerfile exists
-        docker_build_context_dir = Path(docker_build_context.location)
-        dockerfile_path = docker_build_context_dir / docker_build_context.dockerfile_path
-        if not dockerfile_path.is_file():
-            msg = f"Dockerfile not found in the provided docker_build_context '{dockerfile_path }'."
-            raise ValueError(msg)
-        environment_name = generate_unique_environment_name(docker_build_context_dir)
+        # Set the name to be the name of the directory in blob storage
+        environment_name = docker_build_context.location.split("/")[-1]
         new_environment = Environment.from_docker_build_context(
             name=environment_name,
             docker_build_context=docker_build_context,
