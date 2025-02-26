@@ -25,19 +25,19 @@ runs:
   using: "composite"
   steps:
     - name: Download distribution artifact
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v4
       with:
         name: ${{ inputs.folder }}${{ env.HIML_DIST_ARTIFACT_SUFFIX }}
         path: ${{ inputs.folder }}/dist
 
     - name: Download package name artifact
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v4
       with:
         name: ${{ inputs.folder }}${{ env.HIML_PACKAGE_NAME_ARTIFACT_SUFFIX }}
         path: ${{ inputs.folder }}
 
     - name: Download version artifact
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v4
       with:
         name: ${{ inputs.folder }}${{ env.HIML_VERSION_ARTIFACT_SUFFIX }}
         path: ${{ inputs.folder }}
