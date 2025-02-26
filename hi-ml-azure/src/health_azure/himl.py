@@ -263,7 +263,7 @@ def create_run_configuration(
 
     if aml_environment_name_passed:
         environment = Environment.get(workspace, aml_environment_name)
-    elif docker_build_context_passed:
+    elif docker_build_context is not None:
         # Check that the dockerfile exists
         docker_build_context_dir = Path(docker_build_context.location)
         dockerfile_path = docker_build_context_dir / docker_build_context.dockerfile_path
@@ -277,7 +277,7 @@ def create_run_configuration(
         )
         registered_env = register_environment(workspace, new_environment)
         environment = registered_env
-    elif conda_environment_file_passed:
+    elif conda_environment_file is not None:
         # Create an AzureML environment, then check if it exists already. If it exists, use the registered
         # environment, otherwise register the new environment.
         new_environment = create_python_environment(
