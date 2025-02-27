@@ -254,7 +254,7 @@ def test_create_run_configuration_fails(
     mock_workspace.compute_targets = {existing_compute_target: 123}
     conda_environment_file = Path(__file__)
     aml_environment_name = "env_name"
-    docker_build_context = create_empty_docker_build_context_env(tmp_path)
+    docker_build_context = create_docker_build_context_env()
 
     with pytest.raises(ValueError) as e:
         himl.create_run_configuration(compute_cluster_name="b", workspace=mock_workspace)
@@ -460,13 +460,12 @@ def test_create_run_configuration_correct_conda_env(
     subprocess.run
 
 
-def create_empty_docker_build_context_env(tmp_path: Path) -> DockerBuildContext:
+def create_docker_build_context_env() -> DockerBuildContext:
     """Create an empty docker build context in a given folder and return its path."""
-    dockerfile_rel_path = "Dockerfile"
-    dockerfile_path = tmp_path / dockerfile_rel_path
-    dockerfile_path.write_text(f"FROM {himl.DEFAULT_DOCKER_BASE_IMAGE}\nCMD ['/bin/bash']")
-    assert dockerfile_path.is_file()
-    return DockerBuildContext(location=str(tmp_path), dockerfile_path=dockerfile_rel_path)
+    location = "https://storageaccount.blob.core.windows.net/container_name/build_context"
+    location_type = DockerBuildContext.LocationType.StorageAccount
+    dockerfile_path = "Dockerfile"
+    return DockerBuildContext(location=location, location_type=location_type, dockerfile_path=dockerfile_path)
 
 
 @pytest.mark.fast
@@ -484,7 +483,7 @@ def test_create_run_configuration_correct_docker_env(
 
     mock_create_environment.return_value = mock_environment
 
-    docker_build_context = create_empty_docker_build_context_env(tmp_path)
+    docker_build_context = create_docker_build_context_env()
     with patch.object(mock_environment, "register") as mock_register:
         mock_register.return_value = mock_environment
 
@@ -2306,7 +2305,7 @@ def test_submit_to_azure_if_needed_docker_build_context(tmp_path: Path) -> None:
     # Create a minimal script in a temp folder.
     test_script = tmp_path / "test_script.py"
     test_script.write_text("print('hello world')")
-    build_context = create_empty_docker_build_context_env(tmp_path)
+    build_context = create_docker_build_context_env()
 
     with patch.multiple(
         "health_azure.himl",
@@ -2345,7 +2344,7 @@ def test_error_with_both_conda_build_context(strictly_aml_v1: bool, tmp_path: Pa
     test_script.write_text("print('hello world')")
     conda_env_path = create_empty_conda_env(tmp_path)
     if strictly_aml_v1:
-        build_context = create_empty_docker_build_context_env(tmp_path)
+        build_context = create_docker_build_context_env()
     else:
         build_context = create_empty_build_context_v2_env(tmp_path)
 

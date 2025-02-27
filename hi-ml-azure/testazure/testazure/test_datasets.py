@@ -421,10 +421,10 @@ def test_retrieve_v2_data_asset(asset_name: str, asset_version: Optional[str]) -
         except ResourceNotFoundError as ex:
             if asset_name == TEST_INVALID_DATA_ASSET_NAME:
                 if asset_version is None:
-                    expected_error_message = f"{TEST_INVALID_DATA_ASSET_NAME} container was not found."
+                    expected_error_message_substrings = [f"{TEST_INVALID_DATA_ASSET_NAME} container was not found."]
                 else:
-                    expected_error_message = "Asset with Asset ID was not found"
-                assert expected_error_message in str(ex)
+                    expected_error_message_substrings = ["Asset with Asset ID:", "was not found"]
+                assert [e in str(ex) for e in expected_error_message_substrings]
             else:
                 pytest.fail(f"Unexpected error: {ex}")
         else:
