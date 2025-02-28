@@ -146,14 +146,6 @@ def validate_compute_cluster(workspace: Workspace, compute_cluster_name: str) ->
         )
 
 
-def exactly_one_arg_passed(arguments: List[Optional[Any]]) -> bool:
-    """
-    Check that exactly one of arguments is passed. Returns True if exactly one of the arguments is not None, "",
-    or anything which evaluates to True. Note that
-    """
-    return sum(bool(x) for x in arguments) == 1
-
-
 def get_environment_v2(
     aml_environment_name: str = "",
     conda_environment_file: Optional[PathOrString] = None,
