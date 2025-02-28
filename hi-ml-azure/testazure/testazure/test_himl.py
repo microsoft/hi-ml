@@ -20,17 +20,20 @@ from typing import Any, Dict, List, Optional, Tuple
 from unittest import mock
 from unittest.mock import MagicMock, create_autospec, patch, DEFAULT
 from uuid import uuid4
+from itertools import product
 
 import pytest
 from _pytest.capture import CaptureFixture
 from azure.ai.ml import Input, Output, MLClient
 from azure.ai.ml.constants import AssetTypes, InputOutputModes
-from azure.ai.ml.entities import Data, Job
+from azure.ai.ml.entities import BuildContext, Data, Job
+from azure.ai.ml.entities import Environment as EnvironmentV2
 from azure.ai.ml.entities._job.distribution import MpiDistribution, PyTorchDistribution
 from azure.ai.ml.sweep import Choice, QUniform
 from azure.core.exceptions import ResourceNotFoundError
 from azureml._restclient.constants import RunStatus
 from azureml.core import ComputeTarget, Environment, RunConfiguration, ScriptRunConfig, Workspace
+from azureml.core.environment import DockerBuildContext
 from azureml.data.azure_storage_datastore import AzureBlobDatastore
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.core.runconfig import MpiConfiguration
@@ -245,18 +248,52 @@ def test_create_run_configuration_fails(
     mock_workspace: mock.MagicMock,
     _: mock.MagicMock,
     __: mock.MagicMock,
+    tmp_path: Path,
 ) -> None:
     existing_compute_target = "this_does_exist"
     mock_workspace.compute_targets = {existing_compute_target: 123}
+    conda_environment_file = Path(__file__)
+    aml_environment_name = "env_name"
+    docker_build_context = create_docker_build_context_env()
+
     with pytest.raises(ValueError) as e:
         himl.create_run_configuration(compute_cluster_name="b", workspace=mock_workspace)
-    assert "One of the two arguments 'aml_environment_name' or 'conda_environment_file' must be given." == str(e.value)
+        expected_message = (
+            "One of the three arguments 'aml_environment_name', 'docker_build_context' or "
+            "'conda_environment_file' must be given."
+        )
+        raised_message = str(e.value)
+        assert expected_message == raised_message
+
     with pytest.raises(ValueError) as e:
         himl.create_run_configuration(
-            conda_environment_file=Path(__file__), compute_cluster_name="b", workspace=mock_workspace
+            conda_environment_file=conda_environment_file, compute_cluster_name="b", workspace=mock_workspace
         )
-    assert "Could not find compute target 'b' in the AzureML workspace" in str(e.value)
-    assert existing_compute_target in str(e.value)
+        assert "Could not find compute target 'b' in the AzureML workspace" in str(e.value)
+        assert existing_compute_target in str(e.value)
+
+    expected_message = (
+        "Exactly one of 'aml_environment_name', 'docker_build_context', or 'conda_environment_file' must be provided."
+    )
+
+    combinations = product(
+        [aml_environment_name, None],
+        [conda_environment_file, None],
+        [docker_build_context, None],
+    )
+
+    for aml_env, conda_env, docker_ctx in combinations:
+        # Should get an error if more than one of the three arguments is given
+        if sum(x is not None for x in [aml_env, conda_env, docker_ctx]) > 1:
+            with pytest.raises(ValueError) as e:
+                himl.create_run_configuration(
+                    aml_environment_name="env_name",
+                    conda_environment_file=conda_environment_file,
+                    compute_cluster_name="b",
+                    workspace=mock_workspace,
+                )
+                assert expected_message in str(e.value)
+                assert existing_compute_target in str(e.value)
 
 
 @pytest.mark.fast
@@ -336,7 +373,7 @@ def create_empty_conda_env(tmp_path: Path) -> Path:
 @pytest.mark.fast
 @patch("azureml.core.Workspace")
 @patch("health_azure.himl.create_python_environment")
-def test_create_run_configuration_correct_env(
+def test_create_run_configuration_correct_conda_env(
     mock_create_environment: MagicMock, mock_workspace: MagicMock, mock_compute_cluster: MagicMock, tmp_path: Path
 ) -> None:
     mock_workspace.compute_targets = {"dummy_compute_cluster": mock_compute_cluster}
@@ -423,6 +460,86 @@ def test_create_run_configuration_correct_env(
     subprocess.run
 
 
+def create_docker_build_context_env() -> DockerBuildContext:
+    """Create an empty docker build context in a given folder and return its path."""
+    location = "https://storageaccount.blob.core.windows.net/container_name/build_context"
+    location_type = DockerBuildContext.LocationType.StorageAccount
+    dockerfile_path = "Dockerfile"
+    return DockerBuildContext(location=location, location_type=location_type, dockerfile_path=dockerfile_path)
+
+
+@pytest.mark.fast
+@patch("azureml.core.Workspace")
+@patch("health_azure.himl.Environment.from_docker_build_context")
+def test_create_run_configuration_correct_docker_env(
+    mock_create_environment: MagicMock, mock_workspace: MagicMock, mock_compute_cluster: MagicMock, tmp_path: Path
+) -> None:
+    mock_workspace.compute_targets = {"dummy_compute_cluster": mock_compute_cluster}
+
+    # First ensure if environment.get returns None, that register_environment gets called
+    mock_environment = MagicMock()
+    # raise exception to esure that register gets called
+    mock_environment.version = None
+
+    mock_create_environment.return_value = mock_environment
+
+    docker_build_context = create_docker_build_context_env()
+    with patch.object(mock_environment, "register") as mock_register:
+        mock_register.return_value = mock_environment
+
+        with patch("azureml.core.Environment.get") as mock_environment_get:
+            mock_environment_get.side_effect = Exception()
+            run_config = himl.create_run_configuration(
+                workspace=mock_workspace,
+                compute_cluster_name="dummy_compute_cluster",
+                docker_build_context=docker_build_context,
+            )
+
+            # check that mock_register has been called once with the expected args
+            mock_register.assert_called_once_with(mock_workspace)
+            assert mock_environment_get.call_count == 1
+
+            # check that en environment is returned with the default ENVIRONMENT_VERSION (this overrides AML's
+            # default 'Autosave' environment version)
+            environment: Environment = run_config.environment
+            assert environment.version == ENVIRONMENT_VERSION
+
+            # when calling create_run_configuration again with the same conda environment file, Environment.get
+            # should retrieve the registered version, hence we disable the side effect
+            mock_environment_get.side_effect = None
+
+            _ = himl.create_run_configuration(
+                mock_workspace, "dummy_compute_cluster", docker_build_context=docker_build_context
+            )
+
+            # check mock_register has still only been called once
+            mock_register.assert_called_once()
+            assert mock_environment_get.call_count == 2
+
+    # Assert that a Docker build context with no dockerfile raises an exception
+    broken_docker_build_context = DockerBuildContext(location=str(tmp_path), dockerfile_path="non_existing_dockerfile")
+    with pytest.raises(Exception) as e:
+        himl.create_run_configuration(
+            mock_workspace, "dummy_compute_cluster", docker_build_context=broken_docker_build_context
+        )
+        assert "Dockerfile not found in the provided docker_build_context." in str(e)
+
+    # Check that when create_run_configuration is called, whatever is returned from register_environment
+    # is set as the new "environment" attribute of the run config
+    with patch("health_azure.himl.register_environment") as mock_register_environment:
+        for dummy_env in ["abc", 1, Environment("dummy_env")]:
+            mock_register_environment.return_value = dummy_env
+
+            with patch("azureml.core.Environment.get") as mock_environment_get:
+                mock_environment_get.side_effect = Exception()
+                run_config = himl.create_run_configuration(
+                    mock_workspace, "dummy_compute_cluster", docker_build_context=docker_build_context
+                )
+            assert run_config.environment == dummy_env
+
+    subprocess.run
+
+
 @pytest.mark.fast
 def test_invalid_entry_script(tmp_path: Path) -> None:
     snapshot_dir = tmp_path / uuid4().hex
@@ -433,7 +550,9 @@ def test_invalid_entry_script(tmp_path: Path) -> None:
     run_config = himl.create_script_run(
         entry_script=ok_entry_script, snapshot_root_directory=snapshot_dir, script_params=[]
     )
-    assert run_config.script == str(ok_entry_script.relative_to(snapshot_dir))
+    assert run_config.script is None
+    assert run_config.arguments is None
+    assert run_config.command == ["python", str(ok_entry_script.relative_to(snapshot_dir))]
 
     problem_entry_script_dir = tmp_path / uuid4().hex
     problem_entry_script_dir.mkdir(exist_ok=False)
@@ -453,16 +572,18 @@ def test_invalid_entry_script(tmp_path: Path) -> None:
     with mock.patch("sys.argv", ["foo"]):
         script_params = himl._get_script_params()
         script_run = himl.create_script_run(script_params, snapshot_root_directory=None, entry_script=None)
+        assert run_config.script is None
+        assert run_config.arguments is None
         assert script_run.source_directory == str(Path.cwd())
-        assert script_run.script == "foo"
-        assert script_run.arguments == []
+        assert script_run.command == ["python", "foo"]
 
     # Entry scripts where the path is not absolute should be left unchanged
     script_run = himl.create_script_run(
         script_params=["--foo"], snapshot_root_directory=None, entry_script="some_string"
     )
-    assert script_run.script == "some_string"
-    assert script_run.arguments == ["--foo"]
+    assert run_config.script is None
+    assert run_config.arguments is None
+    assert script_run.command == ["python", "some_string", "--foo"]
 
     # When proving a full command, this should override whatever is given in script and params
     entry_command = "cmd"
@@ -638,18 +759,22 @@ def test_submit_run(
     mock_arguments = ["--arg1", "--message=\\'Hello World :-)\\'"]
     # Pretend to be a ScriptRunConfig
     mock_script_run_config = mock.MagicMock(spec=[ScriptRunConfig])
-    mock_script_run_config.arguments = None
+    # Set so isinstance(mock_script_run_config, ScriptRunConfig) is True
+    mock_script_run_config.__class__ = ScriptRunConfig
+    mock_script_run_config.command = None
     tags: Optional[Dict[str, str]] = None
     if set_tags == TestTagOption.TAGS:
         tags = mock_tags
     else:
         if set_tags == TestTagOption.ARGS:
-            mock_script_run_config.arguments = mock_arguments
+            mock_script_run_config.command = ["python", "script.py", *mock_arguments]
         elif set_tags == TestTagOption.HYPER:
             # Pretend to be a HyperDriveConfig
             mock_script_run_config = mock.MagicMock(spec=[HyperDriveConfig])
+            # Set so isinstance(mock_script_run_config, HyperDriveConfig) is True
+            mock_script_run_config.__class__ = HyperDriveConfig
             mock_script_run_config.run_config = MagicMock()
-            mock_script_run_config.run_config.arguments = mock_arguments
+            mock_script_run_config.run_config.command = ["python", "script.py", *mock_arguments]
     an_experiment_name = "an experiment"
     _ = himl.submit_run(
         workspace=mock_workspace,
@@ -670,7 +795,7 @@ def test_submit_run(
     elif set_tags == TestTagOption.NO_TAGS:
         mock_run.set_tags.assert_called_once_with(None)
     else:
-        mock_run.set_tags.assert_called_once_with({"commandline_args": " ".join(mock_arguments)})
+        mock_run.set_tags.assert_called_once_with({"commandline_args": " ".join(["script.py", *mock_arguments])})
     if wait_for_completion:
         assert "Waiting for the completion of the AzureML run" in out
         assert "AzureML completed" in out
@@ -691,7 +816,8 @@ def test_submit_run(
 
 
 @pytest.mark.fast
-def test_submit_run_v2(tmp_path: Path) -> None:
+@pytest.mark.parametrize("python_executable", ["python", "uv run"])
+def test_submit_run_v2(python_executable: str, tmp_path: Path) -> None:
     def _mock_sweep(*args: Any, **kwargs: Any) -> MagicMock:
         assert kwargs.get("compute") == dummy_compute_target
         assert kwargs.get("max_total_trials") == len(values)
@@ -739,6 +865,7 @@ def test_submit_run_v2(tmp_path: Path) -> None:
                 ml_client=mock_ml_client,
                 experiment_name=dummy_experiment_name,
                 environment=dummy_environment,
+                python_executable=python_executable,
                 input_datasets_v2=dummy_inputs,
                 output_datasets_v2=dummy_outputs,
                 snapshot_root_directory=dummy_root_directory,
@@ -753,7 +880,7 @@ def test_submit_run_v2(tmp_path: Path) -> None:
 
             expected_arg_str = " ".join(dummy_script_params)
             relative_entry_script = dummy_entry_script.relative_to(dummy_root_directory)
-            expected_command = f"python {relative_entry_script} {expected_arg_str}"
+            expected_command = f"{python_executable} {relative_entry_script} {expected_arg_str}"
 
             mock_command.assert_called_once_with(
                 code=str(dummy_root_directory),
@@ -800,6 +927,7 @@ def test_submit_run_v2(tmp_path: Path) -> None:
             himl.submit_run_v2(
                 experiment_name=dummy_experiment_name,
                 environment=dummy_environment,
+                python_executable=python_executable,
                 input_datasets_v2=dummy_inputs,
                 output_datasets_v2=dummy_outputs,
                 snapshot_root_directory=dummy_root_directory,
@@ -840,12 +968,13 @@ def test_submit_run_v2(tmp_path: Path) -> None:
             assert mock_command.experiment_name == dummy_experiment_name
 
             dummy_entry_script_for_module = "-m Foo.bar run"
-            expected_command = f"python {dummy_entry_script_for_module} {expected_arg_str}"
+            expected_command = f"{python_executable} {dummy_entry_script_for_module} {expected_arg_str}"
 
             himl.submit_run_v2(
                 ml_client=mock_ml_client,
                 experiment_name=dummy_experiment_name,
                 environment=dummy_environment,
+                python_executable=python_executable,
                 input_datasets_v2=dummy_inputs,
                 output_datasets_v2=dummy_outputs,
                 snapshot_root_directory=dummy_root_directory,
@@ -1862,8 +1991,30 @@ def test_submit_to_azure_if_needed_v2(exit_on_completion: bool) -> None:
                     assert return_value == mock_submit_run.return_value
 
 
+def create_empty_build_context_v2_env(tmp_path: Path) -> BuildContext:
+    dockerfile_rel_path = "Dockerfile"
+    dockerfile_path = tmp_path / dockerfile_rel_path
+    dockerfile_path.write_text(f"FROM {himl.DEFAULT_DOCKER_BASE_IMAGE}\nCMD ['/bin/bash']")
+    assert dockerfile_path.exists()
+    build_context = BuildContext(
+        path=tmp_path,
+        dockerfile_path=dockerfile_rel_path,
+    )
+    return build_context
+
+
+class TestEnvironmentOption(Enum):
+    CONDA_YAML = 1
+    BUILD_CONTEXT = 2
+
+
 @pytest.mark.parametrize("wait_for_completion", [True, False])
-def test_submitting_script_with_sdk_v2(tmp_path: Path, wait_for_completion: bool) -> None:
+@pytest.mark.parametrize("environment_type", [TestEnvironmentOption.CONDA_YAML, TestEnvironmentOption.BUILD_CONTEXT])
+def test_submitting_script_with_sdk_v2(
+    tmp_path: Path,
+    wait_for_completion: bool,
+    environment_type: TestEnvironmentOption,
+) -> None:
     """
     Test that submitting a simple script can be run on AzureML when using the v2 SDK.
     It also tests the "wait_for_completion" parameter.
@@ -1872,8 +2023,15 @@ def test_submitting_script_with_sdk_v2(tmp_path: Path, wait_for_completion: bool
     test_script = tmp_path / "test_script.py"
     test_script.write_text("print('hello world')")
     shared_config_json = get_shared_config_json()
-    conda_env_path = create_empty_conda_env(tmp_path)
     after_submission_called = False
+
+    # Create a conda environment or a docker build context in a temp folder.
+    if environment_type == TestEnvironmentOption.CONDA_YAML:
+        conda_env_path = create_empty_conda_env(tmp_path)
+        build_context = None
+    elif environment_type == TestEnvironmentOption.BUILD_CONTEXT:
+        conda_env_path = None
+        build_context = create_empty_build_context_v2_env(tmp_path)
 
     def after_submission(job: Job, ml_client: MLClient) -> None:
         nonlocal after_submission_called
@@ -1897,6 +2055,7 @@ def test_submitting_script_with_sdk_v2(tmp_path: Path, wait_for_completion: bool
             entry_script=test_script,
             compute_cluster_name=INEXPENSIVE_TESTING_CLUSTER_NAME,
             conda_environment_file=conda_env_path,
+            build_context=build_context,
             snapshot_root_directory=tmp_path,
             submit_to_azureml=True,
             after_submission=after_submission,
@@ -2001,6 +2160,46 @@ def test_submitting_script_with_sdk_v2_passes_display_name(tmp_path: Path) -> No
             assert call_kwargs.get("display_name") == display_name, "display_name was not passed to command"
 
 
+@pytest.mark.fast
+def test_submitting_script_with_sdk_v2_creates_environment_from_build_context(tmp_path: Path) -> None:
+    """
+    Test that submission of a script with SDK v2 creates the environment from the build context.
+    """
+    # Create a minimal script in a temp folder. Script
+    test_script = tmp_path / "test_script.py"
+    test_script.write_text("print('hello world')")
+    build_context = create_empty_build_context_v2_env(tmp_path)
+
+    with patch.multiple(
+        "health_azure.himl",
+        get_ml_client=DEFAULT,
+        get_workspace=DEFAULT,
+        generate_unique_environment_name=DEFAULT,
+        EnvironmentV2=DEFAULT,
+        register_environment_v2=DEFAULT,
+        command=DEFAULT,
+    ) as mocks:
+        mocks["generate_unique_environment_name"].return_value = "dummy_hash"
+        mocks["command"].side_effect = NotImplementedError
+
+        with pytest.raises(NotImplementedError):
+            himl.submit_to_azure_if_needed(
+                entry_script=test_script,
+                build_context=build_context,
+                snapshot_root_directory=tmp_path,
+                submit_to_azureml=True,
+                strictly_aml_v1=False,
+            )
+
+        mocks["command"].assert_called_once()
+        _, call_kwargs = mocks["command"].call_args
+        assert mocks["EnvironmentV2"].call_count == 1, "EnvironmentV2 was not created"
+        assert mocks["register_environment_v2"].call_count == 1, "EnvironmentV2 was not registered"
+        assert "environment" in call_kwargs, "environment not passed to command"
+
+        mocks["generate_unique_environment_name"].assert_called_once_with(Path(build_context.path))
+
+
 def test_submitting_script_with_sdk_v2_passes_environment_variables(tmp_path: Path) -> None:
     """
     Test that submission of a script with SDK v2 passes the environment variables to the "command" function
@@ -2048,7 +2247,7 @@ def test_conda_env_missing(tmp_path: Path) -> None:
     with (
         check_config_json(tmp_path, shared_config_json=shared_config_json),
         change_working_directory(tmp_path),
-        pytest.raises(ValueError, match="No conda environment file"),
+        pytest.raises(ValueError, match="no conda environment file"),
     ):
         himl.submit_to_azure_if_needed(
             aml_workspace=None,
@@ -2057,6 +2256,110 @@ def test_conda_env_missing(tmp_path: Path) -> None:
             compute_cluster_name=INEXPENSIVE_TESTING_CLUSTER_NAME,
             snapshot_root_directory=tmp_path,
             submit_to_azureml=True,
+        )
+
+
+@pytest.mark.fast
+def test_submit_to_azure_if_needed_conda_environment(tmp_path: Path) -> None:
+    """
+    Test that when submit_to_azure_if_needed is called with a conda environment, then create_run_configuration is
+    called with a conda environment, and docker_build_context as None.
+    """
+    # Create a minimal script in a temp folder.
+    test_script = tmp_path / "test_script.py"
+    test_script.write_text("print('hello world')")
+    conda_env_path = create_empty_conda_env(tmp_path)
+
+    with patch.multiple(
+        "health_azure.himl",
+        get_workspace=DEFAULT,
+        get_ml_client=DEFAULT,
+        create_script_run=DEFAULT,
+        append_to_amlignore=DEFAULT,
+        submit_run_v2=DEFAULT,
+    ):
+        with patch("health_azure.himl.create_run_configuration") as mock_create_run_configuration:
+            with patch("health_azure.himl.submit_run", side_effect=NotImplementedError) as mock_command:
+                with pytest.raises(NotImplementedError):
+                    himl.submit_to_azure_if_needed(
+                        workspace_config_file="mockconfig.json",
+                        entry_script=test_script,
+                        conda_environment_file=conda_env_path,
+                        snapshot_root_directory=tmp_path,
+                        submit_to_azureml=True,
+                        strictly_aml_v1=True,
+                    )
+                mock_command.assert_called_once()
+                mock_create_run_configuration.assert_called_once()
+                _, call_kwargs = mock_create_run_configuration.call_args
+                assert call_kwargs.get("conda_environment_file") == conda_env_path
+                assert call_kwargs.get("docker_build_context") is None
+
+
+@pytest.mark.fast
+def test_submit_to_azure_if_needed_docker_build_context(tmp_path: Path) -> None:
+    """
+    Test that when submit_to_azure_if_needed is called with a build_context, then create_run_configuration is
+    called with a docker_build_context and conda_environment as None.
+    """
+    # Create a minimal script in a temp folder.
+    test_script = tmp_path / "test_script.py"
+    test_script.write_text("print('hello world')")
+    build_context = create_docker_build_context_env()
+
+    with patch.multiple(
+        "health_azure.himl",
+        get_workspace=DEFAULT,
+        get_ml_client=DEFAULT,
+        create_script_run=DEFAULT,
+        append_to_amlignore=DEFAULT,
+        submit_run_v2=DEFAULT,
+    ):
+        with patch("health_azure.himl.create_run_configuration") as mock_create_run_configuration:
+            with patch("health_azure.himl.submit_run", side_effect=NotImplementedError) as mock_command:
+                with pytest.raises(NotImplementedError):
+                    himl.submit_to_azure_if_needed(
+                        workspace_config_file="mockconfig.json",
+                        entry_script=test_script,
+                        build_context=build_context,
+                        snapshot_root_directory=tmp_path,
+                        submit_to_azureml=True,
+                        strictly_aml_v1=True,
+                    )
+            mock_command.assert_called_once()
+            mock_create_run_configuration.assert_called_once()
+            _, call_kwargs = mock_create_run_configuration.call_args
+            assert call_kwargs.get("docker_build_context") == build_context
+            assert call_kwargs.get("conda_environment_file") is None
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize("strictly_aml_v1", [True, False])
+def test_error_with_both_conda_build_context(strictly_aml_v1: bool, tmp_path: Path) -> None:
+    """
+    Test that submission fails if both a Conda environment file and a Docker build context are found.
+    """
+    # Create a minimal script in a temp folder. Script
+    test_script = tmp_path / "test_script.py"
+    test_script.write_text("print('hello world')")
+    conda_env_path = create_empty_conda_env(tmp_path)
+    if strictly_aml_v1:
+        build_context = create_docker_build_context_env()
+    else:
+        build_context = create_empty_build_context_v2_env(tmp_path)
+
+    expected_error_message = (
+        "Exactly one of 'aml_environment_name', 'docker_build_context', or 'conda_environment_file' must be provided."
+    )
+
+    with pytest.raises(ValueError, match=expected_error_message):
+        himl.submit_to_azure_if_needed(
+            entry_script=test_script,
+            conda_environment_file=conda_env_path,
+            build_context=build_context,
+            snapshot_root_directory=tmp_path,
+            submit_to_azureml=True,
+            strictly_aml_v1=False,
         )
 
 
