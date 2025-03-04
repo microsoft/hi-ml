@@ -103,3 +103,15 @@ smoke_helloworld_v1_2nodes:
 # HelloWorld model training on 2 nodes, submitted using the v2 SDK
 smoke_helloworld_v2_2nodes:
 	python src/health_ml/runner.py --model=health_ml.HelloWorld --strictly_aml_v1=False --num_nodes=2 --tag smoke_helloworld_v2_2nodes ${SHARED_ARGS}
+
+# HelloWorld model training via crossvalidation, submitted using the v1 SDK
+# Use the HelloWorldWithMemoryCheck model because there were issues in AzureML with not allocating enough memory in
+# Hyperdrive jobs
+smoke_helloworld_v1_crossval:
+	python src/health_ml/runner.py --model=health_ml.HelloWorldWithMemoryCheck --strictly_aml_v1=True --crossval_count=2 --tag smoke_helloworld_v1_crossval ${SHARED_ARGS}
+
+# HelloWorld model training via crossvalidation, submitted using the v2 SDK
+# Use the HelloWorldWithMemoryCheck model because there were issues in AzureML with not allocating enough memory in
+# Hyperdrive jobs
+smoke_helloworld_v2_crossval:
+	python src/health_ml/runner.py --model=health_ml.HelloWorldWithMemoryCheck --strictly_aml_v1=False --crossval_count=2 --tag smoke_helloworld_v2_crossval ${SHARED_ARGS}

@@ -46,7 +46,13 @@ from health_ml.runner_base import RunnerBase  # noqa: E402
 from health_ml.training_runner import TrainingRunner  # noqa: E402
 from health_ml.utils import fixed_paths  # noqa: E402
 from health_ml.utils.logging import ConsoleAndFileOutput  # noqa: E402
-from health_ml.utils.common_utils import check_conda_environment, choose_conda_env_file, is_linux  # noqa: E402
+from health_ml.utils.common_utils import (
+    check_conda_environment,
+    choose_conda_env_file,
+    get_docker_memory_gb,
+    get_memory_gb,
+    initialize_rpdb,
+)  # noqa: E402
 from health_ml.utils.config_loader import ModelConfigLoader  # noqa: E402
 from health_ml.utils import health_ml_package_setup  # noqa: E402
 
@@ -56,24 +62,6 @@ from health_ml.utils import health_ml_package_setup  # noqa: E402
 # path.
 runner_path = Path(sys.argv[0])
 sys.argv[0] = str(runner_path.resolve())
-
-
-def initialize_rpdb() -> None:
-    """
-    On Linux only, import and initialize rpdb, to enable remote debugging if necessary.
-    """
-    # rpdb signal trapping does not work on Windows, as there is no SIGTRAP:
-    if not is_linux():
-        return
-    import rpdb
-
-    rpdb_port = 4444
-    rpdb.handle_trap(port=rpdb_port)
-    # For some reason, os.getpid() does not return the ID of what appears to be the currently running process.
-    logging.info(
-        "rpdb is handling traps. To debug: identify the main runner.py process, then as root: "
-        f"kill -TRAP <process_id>; nc 127.0.0.1 {rpdb_port}"
-    )
 
 
 def create_runner_parser() -> argparse.ArgumentParser:
@@ -192,9 +180,9 @@ class Runner:
         # Suppress the logging from all processes but the one for GPU 0 on each node, to make log files more readable
         log_level = logging.INFO if is_local_rank_zero() else logging.ERROR
         logging_to_stdout(log_level)
-        # When running in Azure, also output logging to a file. This can help in particular when jobs
-        # get preempted, but we don't get access to the logs from the previous incarnation of the job
         initialize_rpdb()
+        get_memory_gb(verbose=True)
+        get_docker_memory_gb(verbose=True)
         self.parse_and_load_model()
         self.validate()
         azure_run_info = self.submit_to_azureml_if_needed()
@@ -255,7 +243,7 @@ class Runner:
                 ignored_folders=[],
                 submit_to_azureml=self.experiment_config.submit_to_azure_ml,
                 docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
-                docker_shm_size=self.experiment_config.docker_shm_size,
+                docker_shm_size=self.lightning_container.docker_shm_size,
                 hyperdrive_config=hyperdrive_config,
                 hyperparam_args=hyperparam_args,
                 display_name=self.lightning_container.tag,
@@ -362,6 +350,8 @@ def run_with_logging(project_root: Path) -> Tuple[LightningContainer, AzureRunIn
     Start the main main entry point for training and testing models from the commandline.
     When running in Azure, this method also redirects the stdout stream, so that all console output is visible both on
     the console and stored in a file. The filename is timestamped and contains the DDP rank of the current process.
+    This can help in particular when jobs get preempted, but we don't get access to the logs from the previous
+    incarnation of the job.
 
     :param project_root: The root folder that contains all of the source code that should be executed.
     :return: If submitting to AzureML, returns the model configuration that was used for training,

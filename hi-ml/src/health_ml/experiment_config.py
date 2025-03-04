@@ -51,7 +51,6 @@ class ExperimentConfig(param.Parameterized):
         "over the network). When running outside AzureML, datasets will "
         "always be mounted.",
     )
-    docker_shm_size: str = param.String("400g", doc="The shared memory in the Docker image for the AzureML VMs.")
     wait_for_completion: bool = param.Boolean(
         default=False,
         doc="If True, wait for AML Run to complete before proceeding. If False, submit the run to AML and exit",

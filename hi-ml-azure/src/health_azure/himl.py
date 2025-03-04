@@ -542,6 +542,7 @@ def submit_run_v2(
         # underlying command such as experiment name and max_total_trials
         job_to_submit.experiment_name = experiment_name
         job_to_submit.set_limits(max_total_trials=hyperparam_args.get(MAX_TOTAL_TRIALS_ARG, None))
+        job_to_submit.shm_size = docker_shm_size
 
     else:
         job_to_submit = create_command_job(cmd)

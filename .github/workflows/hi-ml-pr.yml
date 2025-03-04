@@ -239,7 +239,7 @@ jobs:
         with:
             flags: ${{ matrix.folder }}
 
-  himl_smoke_helloworld_v1:
+  smoke_helloworld_v1:
     runs-on: ubuntu-20.04
     needs: [ cancel-azureml ]
     steps:
@@ -260,7 +260,7 @@ jobs:
           cd hi-ml
           make smoke_helloworld_v1
 
-  himl_smoke_helloworld_v2:
+  smoke_helloworld_v2:
     runs-on: ubuntu-20.04
     needs: [ cancel-azureml ]
     steps:
@@ -281,7 +281,7 @@ jobs:
           cd hi-ml
           make smoke_helloworld_v2
 
-  himl_smoke_helloworld_v1_2nodes:
+  smoke_helloworld_v1_2nodes:
     runs-on: ubuntu-20.04
     needs: [ cancel-azureml ]
     steps:
@@ -302,7 +302,7 @@ jobs:
           cd hi-ml
           make smoke_helloworld_v1_2nodes
 
-  himl_smoke_helloworld_v2_2nodes:
+  smoke_helloworld_v2_2nodes:
     runs-on: ubuntu-20.04
     needs: [ cancel-azureml ]
     steps:
@@ -323,15 +323,53 @@ jobs:
           cd hi-ml
           make smoke_helloworld_v2_2nodes
 
+  smoke_helloworld_v1_crossval:
+    runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: ./.github/actions/prepare_himl_python_env
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: Run smoke_helloworld_v1_crossval
+        run: |
+          cd hi-ml
+          make smoke_helloworld_v1_crossval
+
+  smoke_helloworld_v2_crossval:
+    runs-on: ubuntu-20.04
+    needs: [ cancel-azureml ]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Set up Python ${{ env.pythonVersion }}
+        uses: ./.github/actions/prepare_himl_python_env
+        with:
+          python-version: ${{ env.pythonVersion }}
+
+      - name: Run smoke_helloworld_v2_crossval
+        run: |
+          cd hi-ml
+          make smoke_helloworld_v2_crossval
+
   himl-smoke-tests-completed:
     # This job is just a placeholder to ensure that all smoke tests have completed before
     # publishing the package. Reference this job rather than the individual smoke tests.
     runs-on: ubuntu-20.04
     needs: [
-         himl_smoke_helloworld_v1,
-         himl_smoke_helloworld_v2,
-         himl_smoke_helloworld_v1_2nodes,
-         himl_smoke_helloworld_v2_2nodes,
+         smoke_helloworld_v1,
+         smoke_helloworld_v2,
+         smoke_helloworld_v1_2nodes,
+         smoke_helloworld_v2_2nodes,
+         smoke_helloworld_v1_crossval,
+         smoke_helloworld_v2_crossval,
       ]
     steps:
       - name: Smoke tests completed
