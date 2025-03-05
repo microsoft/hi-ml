@@ -21,13 +21,14 @@ from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
 
 from azure.ai.ml import Input, MLClient, Output, command
 from azure.ai.ml.constants import InputOutputModes
-from azure.ai.ml.entities import Command, Data
+from azure.ai.ml.entities import BuildContext, Command, Data
 from azure.ai.ml.entities import Environment as EnvironmentV2
 from azure.ai.ml.entities import Job, Sweep, UserIdentityConfiguration
 from azure.ai.ml.entities._job.distribution import DistributionConfiguration, MpiDistribution, PyTorchDistribution
 from azure.ai.ml.sweep import Choice
 from azureml._base_sdk_common import user_agent
 from azureml.core import ComputeTarget, Environment, Experiment, Run, RunConfiguration, ScriptRunConfig, Workspace
+from azureml.core.environment import DockerBuildContext
 from azureml.core.runconfig import DockerConfiguration, MpiConfiguration
 from azureml.data import OutputFileDatasetConfig
 from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
@@ -54,6 +55,7 @@ from health_azure.utils import (
     create_run_recovery_id,
     create_v2_job_command_line_args_from_params,
     find_file_in_parent_to_pythonpath,
+    generate_unique_environment_name,
     get_ml_client,
     get_workspace,
     is_run_and_child_runs_completed,
@@ -144,10 +146,55 @@ def validate_compute_cluster(workspace: Workspace, compute_cluster_name: str) ->
         )
 
 
+def get_environment_v2(
+    aml_environment_name: str = "",
+    conda_environment_file: Optional[PathOrString] = None,
+    build_context: Optional[BuildContext] = None,
+    docker_base_image: str = DEFAULT_DOCKER_BASE_IMAGE,
+) -> EnvironmentV2:
+    """
+    Get an AzureML SDK v2 Environment object. The environment can be created from a conda environment file or a docker
+    build context.
+
+    :param aml_environment_name: The name of an AzureML environment
+    """
+
+    aml_environment_name_passed = aml_environment_name != ""
+    conda_environment_file_passed = conda_environment_file is not None
+    build_context_passed = build_context is not None
+
+    # Check that exactly one of aml_environment_name, docker_build_context, or conda_environment_file is provided
+    if aml_environment_name_passed + conda_environment_file_passed + build_context_passed != 1:
+        message = (
+            "Exactly one of 'aml_environment_name', 'docker_build_context', or 'conda_environment_file' "
+            "must be provided."
+        )
+        raise ValueError(message)
+
+    if aml_environment_name:
+        raise NotImplementedError("Existing environment cannot yet be accessed by its name in AzureML SDK v2.")
+    elif conda_environment_file is not None:
+        assert isinstance(conda_environment_file, Path)
+        environment = create_python_environment_v2(
+            conda_environment_file=conda_environment_file, docker_base_image=docker_base_image
+        )
+    elif build_context is not None:
+        assert isinstance(build_context, BuildContext)
+        # Load all files in the build context directory into a single string
+        # and run generate_unique_environment_name_from_directory
+        environment_name = generate_unique_environment_name(Path(build_context.path))
+        environment = EnvironmentV2(build=build_context, name=environment_name)
+    else:
+        logger.warning("No build context or conda environment file provided. Using base docker image.")
+        environment = EnvironmentV2(image=docker_base_image)
+    return environment
+
+
 def create_run_configuration(
     workspace: Workspace,
     compute_cluster_name: str,
     conda_environment_file: Optional[Path] = None,
+    docker_build_context: Optional[DockerBuildContext] = None,
     aml_environment_name: str = "",
     environment_variables: Optional[Dict[str, str]] = None,
     pip_extra_index_url: str = "",
@@ -174,6 +221,7 @@ def create_run_configuration(
         CPU or GPU machines.
     :param conda_environment_file: The conda configuration file that describes which packages are necessary for your
         script to run.
+    :param docker_build_context: The Docker build context that will be used to create a Docker image.
     :param environment_variables: The environment variables that should be set when running in AzureML.
     :param docker_base_image: The Docker base image that should be used when creating a new Docker image.
     :param docker_shm_size: The Docker shared memory size that should be used when creating a new Docker image.
@@ -193,9 +241,31 @@ def create_run_configuration(
     """
     run_config = RunConfiguration()
 
-    if aml_environment_name:
-        run_config.environment = Environment.get(workspace, aml_environment_name)
-    elif conda_environment_file:
+    aml_environment_name_passed = aml_environment_name != ""
+    conda_environment_file_passed = conda_environment_file is not None
+    docker_build_context_passed = docker_build_context is not None
+
+    # Check that exactly one of aml_environment_name, docker_build_context, or conda_environment_file is provided
+    if aml_environment_name_passed + conda_environment_file_passed + docker_build_context_passed != 1:
+        message = (
+            "Exactly one of 'aml_environment_name', 'docker_build_context', or 'conda_environment_file' "
+            "must be provided."
+        )
+        raise ValueError(message)
+
+    if aml_environment_name_passed:
+        environment = Environment.get(workspace, aml_environment_name)
+    elif docker_build_context is not None:
+        # Set the name to be the name of the directory in blob storage
+        location = docker_build_context.location
+        environment_name = generate_unique_environment_name(location)
+        new_environment = Environment.from_docker_build_context(
+            name=environment_name,
+            docker_build_context=docker_build_context,
+        )
+        registered_env = register_environment(workspace, new_environment)
+        environment = registered_env
+    elif conda_environment_file is not None:
         # Create an AzureML environment, then check if it exists already. If it exists, use the registered
         # environment, otherwise register the new environment.
         new_environment = create_python_environment(
@@ -209,9 +279,14 @@ def create_run_configuration(
         if conda_deps.get_python_version() is None:
             raise ValueError("If specifying a conda environment file, you must specify the python version within it")
         registered_env = register_environment(workspace, new_environment)
-        run_config.environment = registered_env
+        environment = registered_env
     else:
-        raise ValueError("One of the two arguments 'aml_environment_name' or 'conda_environment_file' must be given.")
+        raise ValueError(
+            "One of the three arguments 'aml_environment_name', 'docker_build_context' or "
+            "'conda_environment_file' must be given."
+        )
+
+    run_config.environment = environment
 
     # By default, include several environment variables that work around known issues in the software stack
     run_config.environment_variables = {**DEFAULT_ENVIRONMENT_VARIABLES, **(environment_variables or {})}
@@ -346,6 +421,7 @@ def create_script_run(
     snapshot_root_directory: Optional[Path] = None,
     entry_script: Optional[PathOrString] = None,
     entry_command: Optional[PathOrString] = None,
+    python_executable: str = "python",
 ) -> ScriptRunConfig:
     """
     Creates an AzureML ScriptRunConfig object, that holds the information about the snapshot, the entry script, and
@@ -359,6 +435,8 @@ def create_script_run(
         executed. If entry_command is provided, this argument is ignored.
     :param entry_command: The command that should be run in AzureML. Command arguments will be taken from
         the 'script_params' argument. If provided, this will override the entry_script argument.
+    :param python_executable: The command that should be used to launch the script. For example, "python",
+        "torchrun" or "uv run".
     :return: A configuration object for a script run.
     """
     snapshot_root = sanitize_snapshoot_directory(snapshot_root_directory)
@@ -367,7 +445,8 @@ def create_script_run(
     else:
         entry_script_relative = sanitize_entry_script(entry_script, snapshot_root)
         return ScriptRunConfig(
-            source_directory=str(snapshot_root), script=entry_script_relative, arguments=script_params
+            source_directory=str(snapshot_root),
+            command=[python_executable, str(entry_script_relative), *script_params],
         )
 
 
@@ -405,6 +484,7 @@ def submit_run_v2(
     entry_script: Optional[PathOrString] = None,
     script_params: Optional[List[str]] = None,
     entry_command: Optional[PathOrString] = None,
+    python_executable: str = "python",
     environment_variables: Optional[Dict[str, str]] = None,
     experiment_name: Optional[str] = None,
     input_datasets_v2: Optional[Dict[str, Input]] = None,
@@ -431,6 +511,8 @@ def submit_run_v2(
         executed. If entry_command is provided, this argument is ignored.
     :param entry_command: The command that should be run in AzureML. Command arguments will be taken from
         the 'script_params' argument. If provided, this will override the entry_script argument.
+    :param python_executable: The command that should be used to launch the script. For example, "python",
+        "torchrun" or "uv run".
     :param script_params: A list of parameter to pass on to the script as it runs in AzureML.
     :param compute_target: The name of a compute target in Azure ML to submit the job to.
     :param environment_variables: The environment variables that should be set when running in AzureML.
@@ -467,7 +549,7 @@ def submit_run_v2(
     if entry_command is None:
         entry_script_relative = sanitize_entry_script(entry_script, root_dir)
         experiment_name = effective_experiment_name(experiment_name, entry_script_relative)
-        cmd = " ".join(["python", str(entry_script_relative), script_param_str])
+        cmd = " ".join([python_executable, str(entry_script_relative), script_param_str])
     else:
         experiment_name = effective_experiment_name(experiment_name, entry_command)
         cmd = " ".join([str(entry_command), script_param_str])
@@ -612,16 +694,11 @@ def submit_run(
     user_agent.append(SDK_NAME, SDK_VERSION)
     run = experiment.submit(script_run_config)
     if tags is None:
-        if hasattr(script_run_config, 'arguments') and script_run_config.arguments is not None:
-            # It is probably a ScriptRunConfig
-            tags = {"commandline_args": " ".join(script_run_config.arguments)}
-        elif (
-            hasattr(script_run_config, 'run_config')
-            and hasattr(script_run_config.run_config, 'arguments')
-            and script_run_config.run_config.arguments is not None
-        ):
-            # It is probably a HyperDriveConfig
-            tags = {"commandline_args": " ".join(script_run_config.run_config.arguments)}
+        if isinstance(script_run_config, ScriptRunConfig) and script_run_config.command is not None:
+            tags = {"commandline_args": " ".join(script_run_config.command[1:])}
+        elif isinstance(script_run_config, HyperDriveConfig) and script_run_config.run_config.command is not None:
+            tags = {"commandline_args": " ".join(script_run_config.run_config.command[1:])}
+
     run.set_tags(tags)
     if display_name:
         run.display_name = display_name
@@ -738,6 +815,7 @@ def submit_to_azure_if_needed(  # type: ignore
     snapshot_root_directory: Optional[PathOrString] = None,
     script_params: Optional[List[str]] = None,
     conda_environment_file: Optional[PathOrString] = None,
+    build_context: Optional[Union[DockerBuildContext, BuildContext]] = None,
     aml_environment_name: str = "",
     experiment_name: Optional[str] = None,
     environment_variables: Optional[Dict[str, str]] = None,
@@ -764,6 +842,7 @@ def submit_to_azure_if_needed(  # type: ignore
     use_mpi_run_for_single_node_jobs: bool = False,
     display_name: Optional[str] = None,
     entry_command: Optional[PathOrString] = None,
+    python_executable: str = "python",
     hyperdrive_argument_prefix: str = "--",
     exit_on_completion: bool = True,
 ) -> Union[AzureRunInfo, Run, Job]:  # pragma: no cover
@@ -841,6 +920,8 @@ def submit_to_azure_if_needed(  # type: ignore
         Setting this flag to True is required Kubernetes compute.
     :param display_name: The name for the run that will be displayed in the AML UI. If not provided, a random
         display name will be generated by AzureML.
+    :param python_executable: The command that should be used to launch the script. For example, "python",
+        "torchrun" or "uv run".
     :param: hyperdrive_argument_prefix: Prefix to add to hyperparameter arguments. Some examples might be "--", "-"
         or "". For example, if "+" is used, a hyperparameter "learning_rate" with value 0.01 will be passed as
         `+learning_rate=0.01`.
@@ -926,14 +1007,22 @@ def submit_to_azure_if_needed(  # type: ignore
         print(f"No snapshot root directory given. Uploading all files in the current directory {Path.cwd()}")
         snapshot_root_directory = Path.cwd()
 
-    if conda_environment_file is None:
+    aml_environment_name_passed = aml_environment_name != ""
+    conda_environment_file_passed = conda_environment_file is not None
+    build_context_passed = build_context is not None
+
+    if not aml_environment_name_passed and not conda_environment_file_passed and not build_context_passed:
         conda_environment_file = find_file_in_parent_to_pythonpath(CONDA_ENVIRONMENT_FILE)
         if conda_environment_file is None:
             raise ValueError(
-                f"No conda environment file {CONDA_ENVIRONMENT_FILE} found in {Path.cwd()} or any parent directory."
+                f"Neither `build_context` nor `conda_environment_file` were provided and no conda environment file "
+                f"{CONDA_ENVIRONMENT_FILE} found in {Path.cwd()} or any parent directory."
             )
-        print(f"Using the Conda environment from this file: {conda_environment_file}")
-    conda_environment_file = _str_to_path(conda_environment_file)
+        else:
+            print(f"Using the Conda environment from this file: {conda_environment_file}")
+
+    if conda_environment_file is not None:
+        conda_environment_file = _str_to_path(conda_environment_file)
 
     amlignore_path = snapshot_root_directory / AML_IGNORE_FILE
     lines_to_append = [str(path) for path in (ignored_folders or [])]
@@ -942,11 +1031,14 @@ def submit_to_azure_if_needed(  # type: ignore
     with append_to_amlignore(amlignore=amlignore_path, lines_to_append=lines_to_append):
         if strictly_aml_v1:
             assert aml_workspace is not None, "An AzureML workspace should have been created already."
+            if build_context is not None:
+                assert isinstance(build_context, DockerBuildContext)
             run_config = create_run_configuration(
                 workspace=aml_workspace,
                 compute_cluster_name=compute_cluster_name,
                 aml_environment_name=aml_environment_name,
                 conda_environment_file=conda_environment_file,
+                docker_build_context=build_context,
                 environment_variables=environment_variables,
                 pip_extra_index_url=pip_extra_index_url,
                 private_pip_wheel_path=_str_to_path(private_pip_wheel_path),
@@ -964,6 +1056,7 @@ def submit_to_azure_if_needed(  # type: ignore
                 snapshot_root_directory=snapshot_root_directory,
                 entry_script=entry_script,
                 entry_command=entry_command,
+                python_executable=python_executable,
             )
             script_run_config.run_config = run_config
 
@@ -975,7 +1068,7 @@ def submit_to_azure_if_needed(  # type: ignore
 
             run = submit_run(
                 workspace=aml_workspace,
-                experiment_name=effective_experiment_name(experiment_name, script_run_config.script),
+                experiment_name=effective_experiment_name(experiment_name, entry_script),
                 script_run_config=config_to_submit,
                 tags=tags,
                 display_name=display_name,
@@ -992,11 +1085,14 @@ def submit_to_azure_if_needed(  # type: ignore
 
         else:
             assert ml_client is not None, "An AzureML MLClient should have been created already."
-            if conda_environment_file is None:
-                raise ValueError("Argument 'conda_environment_file' must be specified when using AzureML v2")
-            environment = create_python_environment_v2(
-                conda_environment_file=conda_environment_file, docker_base_image=docker_base_image
+
+            environment = get_environment_v2(
+                aml_environment_name=aml_environment_name,
+                conda_environment_file=conda_environment_file,
+                build_context=build_context,
+                docker_base_image=docker_base_image,
             )
+
             registered_env = register_environment_v2(environment, ml_client)
             input_datasets_v2 = create_v2_inputs(ml_client, cleaned_input_datasets)
             output_datasets_v2 = create_v2_outputs(ml_client, cleaned_output_datasets)
@@ -1012,6 +1108,7 @@ def submit_to_azure_if_needed(  # type: ignore
                 entry_script=entry_script,
                 script_params=script_params,
                 entry_command=entry_command,
+                python_executable=python_executable,
                 compute_target=compute_cluster_name,
                 tags=tags,
                 display_name=display_name,
