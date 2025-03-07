@@ -9,7 +9,7 @@ from setuptools import find_namespace_packages, setup  # type: ignore
 
 long_description = Path("README.md").read_text(encoding="utf-8")
 version = "0.2.2"
-package_name = "hi-ml-multimodal"
+package_name = "hi_ml_multimodal"
 install_requires = Path("requirements_run.txt").read_text().splitlines()
 
 description = "Microsoft Health Futures package to work with multi-modal health data"

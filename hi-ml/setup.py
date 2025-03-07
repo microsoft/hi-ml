@@ -52,7 +52,8 @@ if not version:
         default_random_version_number = floor(random() * 10_000_000_000)
         version = f"0.1.0.post{str(default_random_version_number)}"
 
-(here / "package_name.txt").write_text("hi-ml")
+package_name = "hi_ml"
+(here / "package_name.txt").write_text(package_name)
 (here / "latest_version.txt").write_text(version)
 
 # Read run_requirements.txt to get install_requires
@@ -63,7 +64,7 @@ install_requires = [line.strip() for line in install_requires if line.strip()]
 description = "Microsoft Health Futures package containing high level ML components"
 
 setup(
-    name="hi-ml",
+    name=package_name,
     version=version,
     description=description,
     long_description=long_description,
