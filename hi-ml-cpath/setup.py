@@ -53,7 +53,7 @@ if not version:
         default_random_version_number = floor(random() * 10_000_000_000)
         version = f"99.99.post{str(default_random_version_number)}"
 
-package_name = "hi-ml-cpath"
+package_name = "hi_ml_cpath"
 (here / "package_name.txt").write_text(package_name)
 (here / "latest_version.txt").write_text(version)
 
