@@ -501,6 +501,7 @@ def submit_run_v2(
     use_mpi_run_for_single_node_jobs: bool = True,
     display_name: Optional[str] = None,
     hyperdrive_argument_prefix: str = "--",
+    description: Optional[str] = None,
 ) -> Job:
     """
     Starts a v2 AML Job on a given workspace by submitting a command
@@ -541,6 +542,7 @@ def submit_run_v2(
     :param: hyperdrive_argument_prefix: Prefix to add to hyperparameter arguments. Some examples might be "--", "-"
         or "". For example, if "+" is used, a hyperparameter "learning_rate" with value 0.01 will be passed as
         `+learning_rate=0.01`.
+    :param description: A description for the job which will be shown in the AzureML GUI.
     :return: An AzureML Run object.
     """
     root_dir = sanitize_snapshoot_directory(snapshot_root_directory)
@@ -591,6 +593,7 @@ def submit_run_v2(
             instance_count=num_nodes,
             distribution=distribution,
             identity=UserIdentityConfiguration() if identity_based_auth else None,
+            description=description,
         )
 
     if hyperparam_args:
@@ -845,6 +848,7 @@ def submit_to_azure_if_needed(  # type: ignore
     python_executable: str = "python",
     hyperdrive_argument_prefix: str = "--",
     exit_on_completion: bool = True,
+    description: Optional[str] = None,
 ) -> Union[AzureRunInfo, Run, Job]:  # pragma: no cover
     """
     Submit a folder to Azure, if needed and run it.
@@ -928,11 +932,15 @@ def submit_to_azure_if_needed(  # type: ignore
     :param exit_on_completion: If True, exit the Python process after the AzureML job is submitted. If False,
         return the submitted Run object (when using the `strictly_aml_v1=True` flag) or the submitted Job object (when
         using `strictly_aml_v1=False` flag).
+    :param description: A description for the job which will be shown in the AzureML GUI. Only supported for SDK v2.
     :return: If the script is submitted to AzureML and `exit_on_completion` is True then the Python process will be
         terminated. Otherwise, we return either the AzureRunInfo object if `submit_to_azureml` is False, the submitted
         Run object if the job is submitted using AzureML SDK v1, or the submitted Job object if the job is submitted
         using AzureML SDK v2.
     """
+    if description and strictly_aml_v1:
+        msg = "Passing a job description is only supported for AzureML SDK v2"
+        raise NotImplementedError(msg)
     health_azure_package_setup()
     workspace_config_path = _str_to_path(workspace_config_file)
     snapshot_root_directory = _str_to_path(snapshot_root_directory)
@@ -1121,6 +1129,7 @@ def submit_to_azure_if_needed(  # type: ignore
                 pytorch_processes_per_node=pytorch_processes_per_node_v2,
                 use_mpi_run_for_single_node_jobs=use_mpi_run_for_single_node_jobs,
                 hyperdrive_argument_prefix=hyperdrive_argument_prefix,
+                description=description,
             )
 
             if after_submission is not None:
