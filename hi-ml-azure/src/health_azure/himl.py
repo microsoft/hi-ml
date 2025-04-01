@@ -517,8 +517,8 @@ def submit_run_v2(
         "torchrun" or "uv run".
     :param script_params: A list of parameter to pass on to the script as it runs in AzureML.
     :param compute_target: The name of a compute target in Azure ML to submit the job to.
-    :param instance_type: TODO
-    :param resources_properties: TODO
+    :param instance_type: The type of virtual machine to be used by the compute target.
+    :param resources_properties: Additional properties to set on the job resources.
     :param environment_variables: The environment variables that should be set when running in AzureML.
     :param experiment_name: The name of the experiment that will be used or created. If the experiment name contains
         characters that are not valid in Azure, those will be removed.
@@ -878,8 +878,8 @@ def submit_to_azure_if_needed(  # type: ignore
         the 'script_params' argument. If provided, this will override the entry_script argument.
     :param compute_cluster_name: The name of the AzureML cluster that should run the job. This can be a cluster with
         CPU or GPU machines.
-    :param instance_type: TODO
-    :param resources_properties: TODO
+    :param instance_type: The type of virtual machine to be used by the compute target.
+    :param resources_properties: Additional properties to set on the job resources.
     :param conda_environment_file: The conda configuration file that describes which packages are necessary for your
         script to run.
     :param aml_workspace: There are two optional parameters used to glean an existing AzureML Workspace. The simplest is
