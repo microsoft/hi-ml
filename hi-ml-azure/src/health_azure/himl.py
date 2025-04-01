@@ -601,7 +601,6 @@ def submit_run_v2(
             command_job.set_resources(properties=resources_properties)
         return command_job
 
-
     if hyperparam_args:
         param_sampling = hyperparam_args[PARAM_SAMPLING_ARG]
 
