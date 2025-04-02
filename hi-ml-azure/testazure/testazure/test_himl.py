@@ -27,7 +27,6 @@ from _pytest.capture import CaptureFixture
 from azure.ai.ml import Input, Output, MLClient
 from azure.ai.ml.constants import AssetTypes, InputOutputModes
 from azure.ai.ml.entities import BuildContext, Data, Job
-from azure.ai.ml.entities import Environment as EnvironmentV2
 from azure.ai.ml.entities._job.distribution import MpiDistribution, PyTorchDistribution
 from azure.ai.ml.sweep import Choice, QUniform
 from azure.core.exceptions import ResourceNotFoundError
@@ -39,7 +38,7 @@ from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.core.runconfig import MpiConfiguration
 from azureml.train.hyperdrive import HyperDriveConfig
 
-import health_azure.himl as himl
+from health_azure import himl
 from health_azure.argparsing import EXPERIMENT_RUN_SEPARATOR
 from health_azure.datasets import (
     DatasetConfig,
@@ -61,7 +60,6 @@ from health_azure.utils import (
     get_workspace,
     is_running_in_azure_ml,
     get_driver_log_file_text,
-    get_ml_client,
 )
 from testazure.test_data.make_tests import render_environment_yaml, render_test_script
 from testazure.utils_testazure import (
@@ -101,13 +99,6 @@ def test_submit_to_azure_if_needed_returns_immediately() -> None:
     assert isinstance(result, himl.AzureRunInfo)
     assert not result.is_running_in_azure_ml
     assert result.run is None
-
-
-def _is_running_in_github_pipeline() -> bool:
-    """
-    :return: Is the test running in a pipeline/action on GitHub, i.e. not locally?
-    """
-    return GITHUB_SHIBBOLETH in os.environ
 
 
 @pytest.mark.fast
@@ -897,6 +888,7 @@ def test_submit_run_v2(python_executable: str, tmp_path: Path) -> None:
                 distribution=MpiDistribution(process_count_per_instance=1),
                 instance_count=1,
                 identity=None,
+                services={himl.VS_CODE_SERVICE_NAME: {'type': 'vs_code'}},
             )
 
             # job with hyperparameter sampling:

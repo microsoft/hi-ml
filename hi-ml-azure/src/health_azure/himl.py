@@ -93,6 +93,11 @@ SDK_VERSION = "2.0"
 DEFAULT_DOCKER_BASE_IMAGE = "mcr.microsoft.com/azureml/openmpi4.1.0-cuda11.3-cudnn8-ubuntu20.04:20230509.v1"
 DEFAULT_DOCKER_SHM_SIZE = "100g"
 
+VS_CODE_SERVICE_NAME = "vscode"
+JUPYTER_SERVICE_NAME = "jupyterlab"
+TENSORBOARD_SERVICE_NAME = "tensorboard"
+SSH_SERVICE_NAME = "ssh"
+
 # hyperparameter search args
 PARAM_SAMPLING_ARG = "parameter_sampling"
 MAX_TOTAL_TRIALS_ARG = "max_total_trials"
@@ -697,13 +702,13 @@ def instantiate_interactive_services(
     """
     services: TypeServicesDict = {}
     if ssh_key is not None:
-        services["ssh"] = SshJobService(ssh_public_keys=ssh_key)
+        services[SSH_SERVICE_NAME] = SshJobService(ssh_public_keys=ssh_key)
     if tensorboard_logs is not None:
-        services["tensorboard"] = TensorBoardJobService(log_dir=str(tensorboard_logs))
+        services[TENSORBOARD_SERVICE_NAME] = TensorBoardJobService(log_dir=str(tensorboard_logs))
     if jupyter:
-        services["jupyterlab"] = JupyterLabJobService()
+        services[JUPYTER_SERVICE_NAME] = JupyterLabJobService()
     if vscode:
-        services["vscode"] = VsCodeJobService()
+        services[VS_CODE_SERVICE_NAME] = VsCodeJobService()
 
     if services:
         return services
