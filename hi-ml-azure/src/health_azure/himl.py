@@ -507,6 +507,8 @@ def submit_run_v2(
     ml_client: MLClient,
     environment: EnvironmentV2,
     compute_target: str,
+    instance_type: Optional[str] = None,
+    resources_properties: Optional[Dict[str, str]] = None,
     entry_script: Optional[PathOrString] = None,
     script_params: Optional[List[str]] = None,
     entry_command: Optional[PathOrString] = None,
@@ -547,6 +549,8 @@ def submit_run_v2(
         "torchrun" or "uv run".
     :param script_params: A list of parameter to pass on to the script as it runs in AzureML.
     :param compute_target: The name of a compute target in Azure ML to submit the job to.
+    :param instance_type: The type of virtual machine to be used by the compute target.
+    :param resources_properties: Additional properties to set on the job resources.
     :param environment_variables: The environment variables that should be set when running in AzureML.
     :param experiment_name: The name of the experiment that will be used or created. If the experiment name contains
         characters that are not valid in Azure, those will be removed.
@@ -621,7 +625,7 @@ def submit_run_v2(
             jupyter=jupyter,
             vscode=vscode,
         )
-        return command(
+        command_job = command(
             code=str(snapshot_root_directory),
             command=cmd,
             inputs=input_datasets_v2,
@@ -637,7 +641,11 @@ def submit_run_v2(
             distribution=distribution,
             identity=UserIdentityConfiguration() if identity_based_auth else None,
             services=services,
+            instance_type=instance_type,
         )
+        if resources_properties is not None:
+            command_job.set_resources(properties=resources_properties)
+        return command_job
 
     if hyperparam_args:
         param_sampling = hyperparam_args[PARAM_SAMPLING_ARG]
@@ -881,6 +889,8 @@ def create_v2_outputs(ml_client: MLClient, output_datasets: List[DatasetConfig])
 
 def submit_to_azure_if_needed(  # type: ignore
     compute_cluster_name: str = "",
+    instance_type: Optional[str] = None,
+    resources_properties: Optional[Dict[str, str]] = None,
     entry_script: Optional[PathOrString] = None,
     aml_workspace: Optional[Workspace] = None,
     workspace_config_file: Optional[PathOrString] = None,
@@ -947,6 +957,9 @@ def submit_to_azure_if_needed(  # type: ignore
         the 'script_params' argument. If provided, this will override the entry_script argument.
     :param compute_cluster_name: The name of the AzureML cluster that should run the job. This can be a cluster with
         CPU or GPU machines.
+    :param instance_type: The type of virtual machine to be used by the compute target. This only affects job submission via SDK v2.
+    :param resources_properties: A dictionary with additional properties to set on the job resources.
+        This only affects jobs submission via SDK v2.
     :param conda_environment_file: The conda configuration file that describes which packages are necessary for your
         script to run.
     :param aml_workspace: There are two optional parameters used to glean an existing AzureML Workspace. The simplest is
@@ -1198,6 +1211,8 @@ def submit_to_azure_if_needed(  # type: ignore
                 entry_command=entry_command,
                 python_executable=python_executable,
                 compute_target=compute_cluster_name,
+                instance_type=instance_type,
+                resources_properties=resources_properties,
                 tags=tags,
                 display_name=display_name,
                 docker_shm_size=docker_shm_size,
