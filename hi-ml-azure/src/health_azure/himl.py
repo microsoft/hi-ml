@@ -23,7 +23,16 @@ from azure.ai.ml import Input, MLClient, Output, command
 from azure.ai.ml.constants import InputOutputModes
 from azure.ai.ml.entities import BuildContext, Command, Data
 from azure.ai.ml.entities import Environment as EnvironmentV2
-from azure.ai.ml.entities import Job, Sweep, UserIdentityConfiguration
+from azure.ai.ml.entities import (
+    Job,
+    Sweep,
+    UserIdentityConfiguration,
+    JobService,
+    JupyterLabJobService,
+    SshJobService,
+    TensorBoardJobService,
+    VsCodeJobService,
+)
 from azure.ai.ml.entities._job.distribution import DistributionConfiguration, MpiDistribution, PyTorchDistribution
 from azure.ai.ml.sweep import Choice
 from azureml._base_sdk_common import user_agent
@@ -94,6 +103,14 @@ GOAL_ARG = "goal"
 V2_INPUT_ASSET_IDENTIFIER = "INPUT_"
 V2_OUTPUT_ASSET_IDENTIFIER = "OUTPUT_"
 # TODO: upgrade to python 3.8+ and create a Literal type for the combination of the above two vars
+
+TypeServicesDict = Dict[str, Union[
+    JobService,
+    JupyterLabJobService,
+    SshJobService,
+    TensorBoardJobService,
+    VsCodeJobService,
+]]
 
 
 @dataclass
@@ -501,6 +518,7 @@ def submit_run_v2(
     use_mpi_run_for_single_node_jobs: bool = True,
     display_name: Optional[str] = None,
     hyperdrive_argument_prefix: str = "--",
+    serve_vscode: bool = True,
 ) -> Job:
     """
     Starts a v2 AML Job on a given workspace by submitting a command
@@ -541,6 +559,7 @@ def submit_run_v2(
     :param: hyperdrive_argument_prefix: Prefix to add to hyperparameter arguments. Some examples might be "--", "-"
         or "". For example, if "+" is used, a hyperparameter "learning_rate" with value 0.01 will be passed as
         `+learning_rate=0.01`.
+    :param serve_vscode: TODO.
     :return: An AzureML Run object.
     """
     root_dir = sanitize_snapshoot_directory(snapshot_root_directory)
@@ -576,6 +595,7 @@ def submit_run_v2(
                 distribution = MpiDistribution(process_count_per_instance=1)
         else:
             distribution = PyTorchDistribution(process_count_per_instance=pytorch_processes_per_node)
+        services = instantiate_services(vscode=serve_vscode)
         return command(
             code=str(snapshot_root_directory),
             command=cmd,
@@ -591,6 +611,7 @@ def submit_run_v2(
             instance_count=num_nodes,
             distribution=distribution,
             identity=UserIdentityConfiguration() if identity_based_auth else None,
+            services=services
         )
 
     if hyperparam_args:
@@ -642,6 +663,13 @@ def submit_run_v2(
         returned_job = ml_client.jobs.get(returned_job.name)
     return returned_job
 
+
+def instantiate_services(*, vscode: bool) -> Optional[TypeServicesDict]:
+    services = {}
+    if vscode:
+        services["vscode"] = VsCodeJobService()
+    services = None if not services else services
+    return services
 
 def download_job_outputs_logs(
     ml_client: MLClient, job_name: str, file_to_download_path: str = "", download_dir: Optional[PathOrString] = None
