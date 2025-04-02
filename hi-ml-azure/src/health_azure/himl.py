@@ -104,13 +104,16 @@ V2_INPUT_ASSET_IDENTIFIER = "INPUT_"
 V2_OUTPUT_ASSET_IDENTIFIER = "OUTPUT_"
 # TODO: upgrade to python 3.8+ and create a Literal type for the combination of the above two vars
 
-TypeServicesDict = Dict[str, Union[
-    JobService,
-    JupyterLabJobService,
-    SshJobService,
-    TensorBoardJobService,
-    VsCodeJobService,
-]]
+TypeServicesDict = Dict[
+    str,
+    Union[
+        JobService,
+        JupyterLabJobService,
+        SshJobService,
+        TensorBoardJobService,
+        VsCodeJobService,
+    ],
+]
 
 
 @dataclass
@@ -627,7 +630,7 @@ def submit_run_v2(
             instance_count=num_nodes,
             distribution=distribution,
             identity=UserIdentityConfiguration() if identity_based_auth else None,
-            services=services
+            services=services,
         )
 
     if hyperparam_args:
@@ -702,6 +705,7 @@ def instantiate_interactive_services(
         services["vscode"] = VsCodeJobService()
     services = None if not services else services
     return services
+
 
 def download_job_outputs_logs(
     ml_client: MLClient, job_name: str, file_to_download_path: str = "", download_dir: Optional[PathOrString] = None
