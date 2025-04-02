@@ -953,6 +953,7 @@ def test_submit_run_v2(python_executable: str, tmp_path: Path) -> None:
                 distribution=MpiDistribution(process_count_per_instance=1),
                 instance_count=1,
                 identity=None,
+                services={himl.VS_CODE_SERVICE_NAME: {'type': 'vs_code'}},
             )
 
             mock_command.assert_any_call(**param_sampling)
@@ -994,6 +995,7 @@ def test_submit_run_v2(python_executable: str, tmp_path: Path) -> None:
                 distribution=MpiDistribution(process_count_per_instance=1),
                 instance_count=1,
                 identity=None,
+                services={himl.VS_CODE_SERVICE_NAME: {'type': 'vs_code'}},
             )
 
 
