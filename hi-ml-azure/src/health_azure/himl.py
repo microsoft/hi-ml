@@ -518,10 +518,15 @@ def submit_run_v2(
     use_mpi_run_for_single_node_jobs: bool = True,
     display_name: Optional[str] = None,
     hyperdrive_argument_prefix: str = "--",
-    serve_vscode: bool = True,
+    vscode: bool = True,
+    ssh_key: Optional[str] = None,
+    tensorboard_logs: Optional[Path] = None,
+    jupyter: bool = False,
 ) -> Job:
-    """
-    Starts a v2 AML Job on a given workspace by submitting a command
+    """Starts a v2 AML Job on a given workspace by submitting a command.
+
+    See https://learn.microsoft.com/en-us/azure/machine-learning/how-to-interactive-jobs for more information regarding
+    interaction with jobs, i.e. SSH, TensorBoard, JupyterLab, and VS Code.
 
     :param ml_client: An Azure MLClient object for interacting with Azure resources.
     :param environment: An AML v2 Environment object.
@@ -559,7 +564,13 @@ def submit_run_v2(
     :param: hyperdrive_argument_prefix: Prefix to add to hyperparameter arguments. Some examples might be "--", "-"
         or "". For example, if "+" is used, a hyperparameter "learning_rate" with value 0.01 will be passed as
         `+learning_rate=0.01`.
-    :param serve_vscode: TODO.
+    :param vscode: If True, the VS Code service will be enabled. This is useful for debugging jobs on VS Code.
+    :param ssh_key: If provided, the SSH service will be enabled. This public key can be used to SSH into the running
+        job . For example: `az ml job connect-ssh --name <run_id> --node-index 0 --private-key-file-path ~/.ssh/id_rsa
+        --workspace-name <workspace> --resource-group <group> --subscription <subscription>`.
+    :param tensorboard_logs: If provided, the TensorBoard service will be enabled. This is the directory where the
+        TensorBoard logs are stored by the script.
+    :param jupyter: If True, the JupyterLab service will be enabled.
     :return: An AzureML Run object.
     """
     root_dir = sanitize_snapshoot_directory(snapshot_root_directory)
@@ -595,7 +606,12 @@ def submit_run_v2(
                 distribution = MpiDistribution(process_count_per_instance=1)
         else:
             distribution = PyTorchDistribution(process_count_per_instance=pytorch_processes_per_node)
-        services = instantiate_services(vscode=serve_vscode)
+        services = instantiate_interactive_services(
+            ssh_key=ssh_key,
+            tensorboard_logs=tensorboard_logs,
+            jupyter=jupyter,
+            vscode=vscode,
+        )
         return command(
             code=str(snapshot_root_directory),
             command=cmd,
@@ -664,8 +680,24 @@ def submit_run_v2(
     return returned_job
 
 
-def instantiate_services(*, vscode: bool) -> Optional[TypeServicesDict]:
+def instantiate_interactive_services(
+    *,
+    ssh_key: Optional[str] = None,
+    tensorboard_logs: Optional[Path] = None,
+    jupyter: bool = False,
+    vscode: bool,
+) -> Optional[TypeServicesDict]:
+    """Instantiate services to interact with the job.
+
+    See https://learn.microsoft.com/en-us/azure/machine-learning/how-to-interactive-jobs for more information.
+    """
     services = {}
+    if ssh_key is not None:
+        services["ssh"] = SshJobService(ssh_public_keys=ssh_key)
+    if tensorboard_logs is not None:
+        services["tensorboard"] = TensorBoardJobService(log_dir=str(tensorboard_logs))
+    if jupyter:
+        services["jupyterlab"] = JupyterLabJobService()
     if vscode:
         services["vscode"] = VsCodeJobService()
     services = None if not services else services
@@ -873,10 +905,16 @@ def submit_to_azure_if_needed(  # type: ignore
     python_executable: str = "python",
     hyperdrive_argument_prefix: str = "--",
     exit_on_completion: bool = True,
+    vscode: bool = True,
+    ssh_key: Optional[str] = None,
+    tensorboard_logs: Optional[Path] = None,
+    jupyter: bool = False,
 ) -> Union[AzureRunInfo, Run, Job]:  # pragma: no cover
-    """
-    Submit a folder to Azure, if needed and run it.
+    """Submit a folder to Azure, if needed and run it.
+
     Use the commandline flag --azureml to submit to AzureML, and leave it out to run locally.
+    See https://learn.microsoft.com/en-us/azure/machine-learning/how-to-interactive-jobs for more information regarding
+    interaction with jobs, i.e. SSH, TensorBoard, JupyterLab, and VS Code.
 
     :param after_submission: A function that will be called directly after submitting the job to AzureML.
         Use this to, for example, add additional tags or print information about the run.
@@ -956,6 +994,15 @@ def submit_to_azure_if_needed(  # type: ignore
     :param exit_on_completion: If True, exit the Python process after the AzureML job is submitted. If False,
         return the submitted Run object (when using the `strictly_aml_v1=True` flag) or the submitted Job object (when
         using `strictly_aml_v1=False` flag).
+    :param vscode: If True, the VS Code service will be enabled. This is useful for debugging jobs on VS Code. This
+        only affects job submission via SDK v2.
+    :param ssh_key: If provided, the SSH service will be enabled. This public key can be used to SSH into the running
+        job . For example: `az ml job connect-ssh --name <run_id> --node-index 0 --private-key-file-path ~/.ssh/id_rsa
+        --workspace-name <workspace> --resource-group <group> --subscription <subscription>`. This only affects job
+        submission via SDK v2.
+    :param tensorboard_logs: If provided, the TensorBoard service will be enabled. This is the directory where the
+        TensorBoard logs are stored by the script. This only affects job submission via SDK v2.
+    :param jupyter: If True, the JupyterLab service will be enabled. This only affects job submission via SDK v2.
     :return: If the script is submitted to AzureML and `exit_on_completion` is True then the Python process will be
         terminated. Otherwise, we return either the AzureRunInfo object if `submit_to_azureml` is False, the submitted
         Run object if the job is submitted using AzureML SDK v1, or the submitted Job object if the job is submitted
@@ -1149,6 +1196,10 @@ def submit_to_azure_if_needed(  # type: ignore
                 pytorch_processes_per_node=pytorch_processes_per_node_v2,
                 use_mpi_run_for_single_node_jobs=use_mpi_run_for_single_node_jobs,
                 hyperdrive_argument_prefix=hyperdrive_argument_prefix,
+                vscode=vscode,
+                ssh_key=ssh_key,
+                tensorboard_logs=tensorboard_logs,
+                jupyter=jupyter,
             )
 
             if after_submission is not None:
