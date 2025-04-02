@@ -50,7 +50,7 @@ jobs:
         uses: ./.github/actions/cancel_azureml_jobs
 
   cpath-flake8:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
@@ -68,7 +68,7 @@ jobs:
           make flake8
 
   cpath-mypy:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
@@ -86,7 +86,7 @@ jobs:
           make mypy
 
   cpath-pytest:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
@@ -115,7 +115,7 @@ jobs:
             flags: ${{ env.folder }}
 
   cpath-pytest-gpu:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
@@ -142,7 +142,7 @@ jobs:
             flags: ${{ env.folder }}
 
   smoke_test_cucim_slidespandaimagenetmil:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
@@ -161,7 +161,7 @@ jobs:
           make smoke_test_cucim_slidespandaimagenetmil_aml
 
   smoke_test_openslide_slidespandaimagenetmil:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
@@ -180,7 +180,7 @@ jobs:
           make smoke_test_openslide_slidespandaimagenetmil_aml
 
   smoke_test_tilespandaimagenetmil:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
@@ -199,7 +199,7 @@ jobs:
           make smoke_test_tilespandaimagenetmil_aml
 
   smoke_test_tcgacrckimagenetmil:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
@@ -218,7 +218,7 @@ jobs:
           make smoke_test_tcgacrckimagenetmil_aml
 
   smoke_test_tcgacrcksslmil:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
@@ -237,7 +237,7 @@ jobs:
           make smoke_test_tcgacrcksslmil_aml
 
   smoke_test_crck_simclr:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
@@ -256,7 +256,7 @@ jobs:
           make smoke_test_crck_simclr_aml
 
   smoke_test_crck_flexible_finetuning:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
@@ -275,7 +275,7 @@ jobs:
           make smoke_test_crck_flexible_finetuning_aml
 
   smoke_test_crck_loss_analysis:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
@@ -294,7 +294,7 @@ jobs:
           make smoke_test_crck_loss_analysis_aml
 
   smoke_test_slides_panda_loss_analysis:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
@@ -313,7 +313,7 @@ jobs:
           make smoke_test_slides_panda_loss_analysis_aml
 
   smoke_test_slides_panda_no_ddp_sampler:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
@@ -332,7 +332,7 @@ jobs:
           make smoke_test_slides_panda_no_ddp_sampler_aml
 
   smoke_test_tiles_panda_no_ddp_sampler:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
@@ -351,7 +351,7 @@ jobs:
           make smoke_test_tiles_panda_no_ddp_sampler_aml
 
   smoke_test_montage_creation:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
@@ -370,7 +370,7 @@ jobs:
           make smoke_test_montage_creation
 
   cpath-publish-pypi-package:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [
       cpath-flake8,
       cpath-mypy,
@@ -432,7 +432,7 @@ jobs:
           verbose: true
 
   cpath-pr-completed:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     if: "!startsWith(github.ref, 'refs/tags/v')"
     needs: [ cpath-publish-pypi-package ]
     steps:

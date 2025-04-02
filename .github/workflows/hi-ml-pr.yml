@@ -52,7 +52,7 @@ jobs:
         uses: ./.github/actions/cancel_azureml_jobs
 
   himl-flake8:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
@@ -69,7 +69,7 @@ jobs:
           make flake8
 
   himl-mypy:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
@@ -86,7 +86,7 @@ jobs:
           make mypy
 
   # himl-pyright:
-  #   runs-on: ubuntu-20.04
+  #   runs-on: ubuntu-latest
   #   steps:
   #     - uses: actions/checkout@v3
   #       with:
@@ -102,7 +102,7 @@ jobs:
   #         make pyright
 
   himl-pytest-fast:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         folder: [ hi-ml, hi-ml-azure ]
@@ -149,7 +149,7 @@ jobs:
           make pytest_fast
 
   himl-build-python:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [ himl-pytest-fast ]
     strategy:
       matrix:
@@ -175,7 +175,7 @@ jobs:
           folder: ${{ matrix.folder }}
 
   himl-test-artifact-pkg:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [ himl-build-python, cancel-azureml ]
     strategy:
       matrix:
@@ -240,7 +240,7 @@ jobs:
             flags: ${{ matrix.folder }}
 
   himl_smoke_helloworld_v1:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
@@ -261,7 +261,7 @@ jobs:
           make smoke_helloworld_v1
 
   himl_smoke_helloworld_v2:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
@@ -282,7 +282,7 @@ jobs:
           make smoke_helloworld_v2
 
   himl_smoke_helloworld_v1_2nodes:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
@@ -303,7 +303,7 @@ jobs:
           make smoke_helloworld_v1_2nodes
 
   himl_smoke_helloworld_v2_2nodes:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
       - uses: actions/checkout@v3
@@ -326,7 +326,7 @@ jobs:
   himl-smoke-tests-completed:
     # This job is just a placeholder to ensure that all smoke tests have completed before
     # publishing the package. Reference this job rather than the individual smoke tests.
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [
          himl_smoke_helloworld_v1,
          himl_smoke_helloworld_v2,
@@ -339,7 +339,7 @@ jobs:
           echo "All hi-ml smoke tests have passed"
 
   himl-publish-testpypi-pkg:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [ himl-test-artifact-pkg, himl-mypy, himl-flake8, himl-smoke-tests-completed ]
     if: "!startsWith(github.ref, 'refs/tags/v')"
     strategy:
@@ -371,7 +371,7 @@ jobs:
           echo "pip install --extra-""index-url https://test.pypi.org/simple ${{ steps.download.outputs.package_version }}"
 
   himl-publish-pypi-pkg:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [ himl-test-artifact-pkg, himl-mypy, himl-flake8, himl-smoke-tests-completed ]
     strategy:
       matrix:
@@ -396,7 +396,7 @@ jobs:
           packages_dir: ${{ matrix.folder }}/dist/
 
   himl-test-pypi-pkg:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [ himl-publish-pypi-pkg ]
     strategy:
       matrix:
@@ -445,7 +445,7 @@ jobs:
           make pytest_fast
 
   hi-ml-pr-completed:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     if: "!startsWith(github.ref, 'refs/tags/v')"
     needs: [ himl-publish-testpypi-pkg ]
     steps:
