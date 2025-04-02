@@ -202,6 +202,7 @@ def get_environment_v2(
         assert isinstance(build_context, BuildContext)
         # Load all files in the build context directory into a single string
         # and run generate_unique_environment_name_from_directory
+        assert build_context.path is not None
         environment_name = generate_unique_environment_name(Path(build_context.path))
         environment = EnvironmentV2(build=build_context, name=environment_name)
     else:
@@ -694,7 +695,7 @@ def instantiate_interactive_services(
 
     See https://learn.microsoft.com/en-us/azure/machine-learning/how-to-interactive-jobs for more information.
     """
-    services = {}
+    services: TypeServicesDict = {}
     if ssh_key is not None:
         services["ssh"] = SshJobService(ssh_public_keys=ssh_key)
     if tensorboard_logs is not None:
@@ -703,8 +704,11 @@ def instantiate_interactive_services(
         services["jupyterlab"] = JupyterLabJobService()
     if vscode:
         services["vscode"] = VsCodeJobService()
-    services = None if not services else services
-    return services
+
+    if services:
+        return services
+    else:
+        return None
 
 
 def download_job_outputs_logs(
