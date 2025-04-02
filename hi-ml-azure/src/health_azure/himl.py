@@ -878,7 +878,7 @@ def submit_to_azure_if_needed(  # type: ignore
         the 'script_params' argument. If provided, this will override the entry_script argument.
     :param compute_cluster_name: The name of the AzureML cluster that should run the job. This can be a cluster with
         CPU or GPU machines.
-    :param instance_type: The type of virtual machine to be used by the compute target.
+    :param instance_type: The type of virtual machine to be used by the compute target. This only affects job submission via SDK v2.
     :param resources_properties: Additional properties to set on the job resources.
     :param conda_environment_file: The conda configuration file that describes which packages are necessary for your
         script to run.
