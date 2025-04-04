@@ -26,7 +26,7 @@ import pytest
 from _pytest.capture import CaptureFixture
 from azure.ai.ml import Input, Output, MLClient
 from azure.ai.ml.constants import AssetTypes, InputOutputModes
-from azure.ai.ml.entities import BuildContext, Data, Job
+from azure.ai.ml.entities import BuildContext, Data, Job, VsCodeJobService
 from azure.ai.ml.entities._job.distribution import MpiDistribution, PyTorchDistribution
 from azure.ai.ml.sweep import Choice, QUniform
 from azure.core.exceptions import ResourceNotFoundError
@@ -889,7 +889,7 @@ def test_submit_run_v2(python_executable: str, tmp_path: Path) -> None:
                 distribution=MpiDistribution(process_count_per_instance=1),
                 instance_count=1,
                 identity=None,
-                services={himl.VS_CODE_SERVICE_NAME: {'type': 'vs_code'}},
+                services={himl.VS_CODE_SERVICE_NAME: VsCodeJobService()},
             )
 
             # job with hyperparameter sampling:
@@ -955,7 +955,7 @@ def test_submit_run_v2(python_executable: str, tmp_path: Path) -> None:
                 distribution=MpiDistribution(process_count_per_instance=1),
                 instance_count=1,
                 identity=None,
-                services={himl.VS_CODE_SERVICE_NAME: {'type': 'vs_code'}},
+                services={himl.VS_CODE_SERVICE_NAME: VsCodeJobService()},
             )
 
             mock_command.assert_any_call(**param_sampling)
@@ -998,7 +998,7 @@ def test_submit_run_v2(python_executable: str, tmp_path: Path) -> None:
                 distribution=MpiDistribution(process_count_per_instance=1),
                 instance_count=1,
                 identity=None,
-                services={himl.VS_CODE_SERVICE_NAME: {'type': 'vs_code'}},
+                services={himl.VS_CODE_SERVICE_NAME: VsCodeJobService()},
             )
 
 
