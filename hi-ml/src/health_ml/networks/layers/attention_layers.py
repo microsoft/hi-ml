@@ -2,7 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-""" Layers for attention-based multi-instance learning (DeepMIL)
+"""Layers for attention-based multi-instance learning (DeepMIL)
 Created using the original DeepMIL paper and code from Ilse et al., 2018
 https://github.com/AMLab-Amsterdam/AttentionDeepMIL (MIT License)
 """
