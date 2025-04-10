@@ -374,9 +374,9 @@ def log_on_epoch(
     if name is not None:
         metrics[name] = value  # type: ignore
     metrics_as_tensors = {
-        key: torch.tensor(value, dtype=torch.float, device=module.device)
-        if isinstance(value, numbers.Number)
-        else value
+        key: (
+            torch.tensor(value, dtype=torch.float, device=module.device) if isinstance(value, numbers.Number) else value
+        )
         for key, value in metrics.items()
     }
     module.log_dict(metrics_as_tensors, on_epoch=True, on_step=False, sync_dist=is_sync_dist, reduce_fx=reduce_fx)
