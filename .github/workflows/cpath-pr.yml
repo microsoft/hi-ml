@@ -41,7 +41,7 @@ jobs:
   cancel-azureml:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Azure login using OpenID Connect
         uses: ./.github/actions/azure-login
@@ -52,7 +52,7 @@ jobs:
   cpath-flake8:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           lfs: true
 
@@ -70,7 +70,7 @@ jobs:
   cpath-mypy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           lfs: true
 
@@ -88,7 +88,7 @@ jobs:
   cpath-pytest:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           lfs: true
 
@@ -118,7 +118,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           lfs: true
 
@@ -145,7 +145,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           lfs: true
 
@@ -164,7 +164,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           lfs: true
 
@@ -183,7 +183,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           lfs: true
 
@@ -202,7 +202,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           lfs: true
 
@@ -221,7 +221,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           lfs: true
 
@@ -240,7 +240,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           lfs: true
 
@@ -259,7 +259,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           lfs: true
 
@@ -278,7 +278,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           lfs: true
 
@@ -297,7 +297,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           lfs: true
 
@@ -316,7 +316,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           lfs: true
 
@@ -335,7 +335,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           lfs: true
 
@@ -354,7 +354,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ cancel-azureml ]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           lfs: true
 
@@ -390,7 +390,7 @@ jobs:
       smoke_test_montage_creation,
       ]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           lfs: true
 
