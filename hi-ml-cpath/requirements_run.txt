@@ -7,7 +7,7 @@ lightning-bolts==0.4.0
 monai-weekly==1.2.dev2310
 more-itertools==8.10.0
 numpy==1.22.0
-pillow==10.0.1
+pillow==10.3.0
 pydicom==2.3.0
 scikit-image==0.19.3
 scipy==1.10.0
